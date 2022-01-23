@@ -61,6 +61,8 @@ static void zoomreset(const Arg *);
 static void ttysend(const Arg *);
 
 /* config.h for applying patches and the configuration. */
+#include "nst_config.h"
+// autotools config.h
 #include "config.h"
 
 /* XEMBED messages */

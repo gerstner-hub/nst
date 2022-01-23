@@ -1,0 +1,14 @@
+*.swp
+tags
+.tags
+*.in
+*.cache
+ac_aux
+*.m4
+configure
+__pycache__
+*.pyc
+*.o
+.deps
+*.log
+*~

@@ -717,7 +717,7 @@ execsh(char *cmd, char **args)
 }
 
 void
-sigchld(int a)
+sigchld(int)
 {
 	int stat;
 	pid_t p;
@@ -2052,7 +2052,7 @@ strreset(void)
 }
 
 void
-sendbreak(const Arg *arg)
+sendbreak(const Arg *)
 {
 	if (tcsendbreak(cmdfd, 0))
 		perror("Error sending break");
@@ -2069,19 +2069,19 @@ tprinter(char *s, size_t len)
 }
 
 void
-toggleprinter(const Arg *arg)
+toggleprinter(const Arg *)
 {
 	term.mode ^= MODE_PRINT;
 }
 
 void
-printscreen(const Arg *arg)
+printscreen(const Arg *)
 {
 	tdump();
 }
 
 void
-printsel(const Arg *arg)
+printsel(const Arg *)
 {
 	tdumpsel();
 }

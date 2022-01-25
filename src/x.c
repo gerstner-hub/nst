@@ -257,7 +257,7 @@ static char *opt_title = NULL;
 static uint buttons; /* bit field of pressed buttons */
 
 void
-clipcopy(const Arg *dummy)
+clipcopy(const Arg *)
 {
 	Atom clipboard;
 
@@ -272,7 +272,7 @@ clipcopy(const Arg *dummy)
 }
 
 void
-clippaste(const Arg *dummy)
+clippaste(const Arg *)
 {
 	Atom clipboard;
 
@@ -282,14 +282,14 @@ clippaste(const Arg *dummy)
 }
 
 void
-selpaste(const Arg *dummy)
+selpaste(const Arg *)
 {
 	XConvertSelection(xw.dpy, XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
 			xw.win, CurrentTime);
 }
 
 void
-numlock(const Arg *dummy)
+numlock(const Arg *)
 {
 	win.mode ^= MODE_NUMLOCK;
 }
@@ -314,7 +314,7 @@ zoomabs(const Arg *arg)
 }
 
 void
-zoomreset(const Arg *arg)
+zoomreset(const Arg *)
 {
 	Arg larg;
 
@@ -613,7 +613,7 @@ xclipcopy(void)
 }
 
 void
-selclear_(XEvent *e)
+selclear_(XEvent *)
 {
 	selclear();
 }
@@ -1075,7 +1075,7 @@ xunloadfonts(void)
 }
 
 int
-ximopen(Display *dpy)
+ximopen(Display *)
 {
 	XIMCallback imdestroy = { .client_data = NULL, .callback = ximdestroy };
 	XICCallback icdestroy = { .client_data = NULL, .callback = xicdestroy };
@@ -1105,7 +1105,7 @@ ximopen(Display *dpy)
 }
 
 void
-ximinstantiate(Display *dpy, XPointer client, XPointer call)
+ximinstantiate(Display *dpy, XPointer, XPointer)
 {
 	if (ximopen(dpy))
 		XUnregisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
@@ -1113,7 +1113,7 @@ ximinstantiate(Display *dpy, XPointer client, XPointer call)
 }
 
 void
-ximdestroy(XIM xim, XPointer client, XPointer call)
+ximdestroy(XIM, XPointer, XPointer)
 {
 	xw.ime.xim = NULL;
 	XRegisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
@@ -1122,7 +1122,7 @@ ximdestroy(XIM xim, XPointer client, XPointer call)
 }
 
 int
-xicdestroy(XIC xim, XPointer client, XPointer call)
+xicdestroy(XIC, XPointer, XPointer)
 {
 	xw.ime.xic = NULL;
 	return 1;
@@ -1701,7 +1701,7 @@ xximspot(int x, int y)
 }
 
 void
-expose(XEvent *ev)
+expose(XEvent *)
 {
 	redraw();
 }
@@ -1715,7 +1715,7 @@ visibility(XEvent *ev)
 }
 
 void
-unmap(XEvent *ev)
+unmap(XEvent *)
 {
 	win.mode &= ~MODE_VISIBLE;
 }

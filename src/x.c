@@ -180,7 +180,9 @@ static void bpress(XEvent *);
 static void bmotion(XEvent *);
 static void propnotify(XEvent *);
 static void selnotify(XEvent *);
+#ifdef SELCLEAR
 static void selclear_(XEvent *);
+#endif
 static void selrequest(XEvent *);
 static void setsel(char *, Time);
 static void mousesel(XEvent *, int);
@@ -207,7 +209,9 @@ static void (*handler[LASTEvent])(XEvent *) = {
  * Uncomment if you want the selection to disappear when you select something
  * different in another window.
  */
-/*	[SelectionClear] = selclear_, */
+#ifdef SELCLEAR
+	[SelectionClear] = selclear_,
+#endif
 	[SelectionNotify] = selnotify,
 /*
  * PropertyNotify is only turned on when there is some INCR transfer happening
@@ -612,11 +616,13 @@ xclipcopy(void)
 	clipcopy(NULL);
 }
 
+#ifdef SELCLEAR
 void
 selclear_(XEvent *)
 {
 	selclear();
 }
+#endif
 
 void
 selrequest(XEvent *e)

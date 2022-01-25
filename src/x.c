@@ -142,7 +142,7 @@ typedef struct {
 	GC gc;
 } DC;
 
-static inline ushort sixd_to_16bit(int);
+static inline ushort sixd_to_16bit(size_t);
 static int xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, int, int, int);
 static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
 static void xdrawglyph(Glyph, int, int);
@@ -156,7 +156,7 @@ static void xinit(int, int);
 static void cresize(int, int);
 static void xresize(int, int);
 static void xhints(void);
-static int xloadcolor(int, const char *, Color *);
+static int xloadcolor(size_t, const char *, Color *);
 static int xloadfont(Font *, FcPattern *);
 static void xloadfonts(const char *, double);
 static void xunloadfont(Font *);
@@ -303,7 +303,7 @@ zoom(const Arg *arg)
 {
 	Arg larg;
 
-	larg.f = usedfontsize + arg->f;
+	larg.f = (float)usedfontsize + arg->f;
 	zoomabs(&larg);
 }
 
@@ -353,12 +353,13 @@ evrow(XEvent *e)
 void
 mousesel(XEvent *e, int done)
 {
-	int type, seltype = SEL_REGULAR;
+	int seltype = SEL_REGULAR;
+	size_t type;
 	uint state = e->xbutton.state & ~(Button1Mask | forcemousemod);
 
 	for (type = 1; type < LEN(selmasks); ++type) {
 		if (match(selmasks[type], state)) {
-			seltype = type;
+			seltype = (int)type;
 			break;
 		}
 	}
@@ -769,13 +770,13 @@ xresize(int col, int row)
 }
 
 ushort
-sixd_to_16bit(int x)
+sixd_to_16bit(size_t x)
 {
 	return x == 0 ? 0 : 0x3737 + 0x2828 * x;
 }
 
 int
-xloadcolor(int i, const char *name, Color *ncolor)
+xloadcolor(size_t i, const char *name, Color *ncolor)
 {
 	XRenderColor color = { .alpha = 0xffff };
 
@@ -801,7 +802,7 @@ xloadcolor(int i, const char *name, Color *ncolor)
 void
 xloadcols(void)
 {
-	int i;
+	size_t i;
 	static int loaded;
 	Color *cp;
 
@@ -824,9 +825,9 @@ xloadcols(void)
 }
 
 int
-xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b)
+xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b)
 {
-	if (!BETWEEN(x, 0, dc.collen))
+	if (x > dc.collen)
 		return 1;
 
 	*r = dc.col[x].color.red >> 8;
@@ -837,11 +838,11 @@ xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b)
 }
 
 int
-xsetcolorname(int x, const char *name)
+xsetcolorname(size_t x, const char *name)
 {
 	Color ncolor;
 
-	if (!BETWEEN(x, 0, dc.collen))
+	if (x > dc.collen)
 		return 1;
 
 	if (!xloadcolor(x, name, &ncolor))
@@ -1421,7 +1422,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 	}
 
 	/* Change basic system colors [0-7] to bright system colors [8-15] */
-	if ((base.mode & ATTR_BOLD_FAINT) == ATTR_BOLD && BETWEEN(base.fg, 0, 7))
+	if ((base.mode & ATTR_BOLD_FAINT) == ATTR_BOLD && base.fg <= 7)
 		fg = &dc.col[base.fg + 8];
 
 	if (IS_SET(MODE_REVERSE)) {
@@ -1804,7 +1805,7 @@ char*
 kmap(KeySym k, uint state)
 {
 	Key *kp;
-	int i;
+	size_t i;
 
 	/* Check for mapped keys out of X11 function keys. */
 	for (i = 0; i < LEN(mappedkeys); i++) {
@@ -1901,7 +1902,7 @@ cmessage(XEvent *e)
 		} else if (e->xclient.data.l[1] == XEMBED_FOCUS_OUT) {
 			win.mode &= ~MODE_FOCUSED;
 		}
-	} else if (e->xclient.data.l[0] == xw.wmdeletewin) {
+	} else if ((Atom)e->xclient.data.l[0] == xw.wmdeletewin) {
 		ttyhangup();
 		exit(0);
 	}

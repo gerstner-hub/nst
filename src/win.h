@@ -29,7 +29,7 @@ void xdrawcursor(int, int, Glyph, int, int, Glyph);
 void xdrawline(Line, int, int, int);
 void xfinishdraw(void);
 void xloadcols(void);
-int xsetcolorname(int, const char *);
+int xsetcolorname(size_t, const char *);
 void xseticontitle(char *);
 void xsettitle(char *);
 int xsetcursor(int);

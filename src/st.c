@@ -836,6 +836,7 @@ ttyread(void)
 		exit(0);
 	case -1:
 		die("couldn't read from shell: %s\n", strerror(errno));
+		return -1;
 	default:
 		buflen += ret;
 		written = twrite(buf, buflen, 0);

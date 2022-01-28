@@ -152,8 +152,8 @@ typedef struct {
 	int narg;              /* nb of args */
 } STREscape;
 
-static void execsh(char *, char **);
-static void stty(char **);
+static void execsh(const char *, const char **);
+static void stty(const char **);
 static void sigchld(int);
 static void ttywriteraw(const char *, size_t);
 
@@ -665,9 +665,9 @@ die(const char *errstr, ...)
 }
 
 void
-execsh(char *cmd, char **args)
+execsh(const char *cmd, const char **args)
 {
-	char *sh, *prog, *arg;
+	const char *sh, *arg = NULL, *prog;
 	const struct passwd *pw;
 
 	errno = 0;
@@ -683,18 +683,15 @@ execsh(char *cmd, char **args)
 
 	if (args) {
 		prog = args[0];
-		arg = NULL;
 	} else if (scroll) {
 		prog = scroll;
 		arg = utmp ? utmp : sh;
 	} else if (utmp) {
 		prog = utmp;
-		arg = NULL;
 	} else {
 		prog = sh;
-		arg = NULL;
 	}
-	DEFAULT(args, ((char *[]) {prog, arg, NULL}));
+	DEFAULT(args, ((const char *[]) {prog, arg, NULL}));
 
 	unsetenv("COLUMNS");
 	unsetenv("LINES");
@@ -712,7 +709,7 @@ execsh(char *cmd, char **args)
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGALRM, SIG_DFL);
 
-	execvp(prog, args);
+	execvp(prog, (char * const*)args);
 	_exit(1);
 }
 
@@ -736,9 +733,10 @@ sigchld(int)
 }
 
 void
-stty(char **args)
+stty(const char **args)
 {
-	char cmd[_POSIX_ARG_MAX], **p, *q, *s;
+	const char **p, *s;
+	char cmd[_POSIX_ARG_MAX], *q;
 	size_t n, siz;
 
 	if ((n = strlen(stty_args)) > sizeof(cmd)-1)
@@ -760,7 +758,7 @@ stty(char **args)
 }
 
 int
-ttynew(const char *line, char *cmd, const char *out, char **args)
+ttynew(const char *line, const char *cmd, const char *out, const char **args)
 {
 	int m, s;
 

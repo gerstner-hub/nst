@@ -245,20 +245,25 @@ typedef struct {
 static Fontcache *frc = NULL;
 static int frclen = 0;
 static int frccap = 0;
-static char *usedfont = NULL;
+static const char *usedfont = NULL;
 static double usedfontsize = 0;
 static double defaultfontsize = 0;
 
 static char *opt_class = NULL;
-static char **opt_cmd  = NULL;
+static char *opt_name  = NULL;
+static int strduped_class = 0;
+static int strduped_name = 0;
+static const char **opt_cmd  = NULL;
 static char *opt_embed = NULL;
 static char *opt_font  = NULL;
 static char *opt_io    = NULL;
 static char *opt_line  = NULL;
-static char *opt_name  = NULL;
-static char *opt_title = NULL;
+static const char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
+
+unsigned int cols = COLS;
+unsigned int rows = ROWS;
 
 void
 clipcopy(const Arg *)
@@ -454,7 +459,7 @@ buttonmask(uint button)
 int
 mouseaction(XEvent *e, uint release)
 {
-	MouseShortcut *ms;
+	const MouseShortcut *ms;
 
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
@@ -866,10 +871,33 @@ xclear(int x1, int y1, int x2, int y2)
 }
 
 void
+xfreeglobals(void)
+{
+	if (strduped_name) {
+		free(opt_name);
+		opt_name = NULL;
+		strduped_name = 0;
+	}
+
+	if (strduped_class) {
+		free(opt_class);
+		opt_class = NULL;
+		strduped_class = 0;
+	}
+}
+
+void
 xhints(void)
 {
-	XClassHint class = {opt_name ? opt_name : termname,
-	                    opt_class ? opt_class : termname};
+	if (!opt_name) {
+		opt_name = strdup(termname);
+		strduped_name = 1;
+	}
+	if (!opt_class) {
+		opt_class = strdup(termname);
+		strduped_class = 1;
+	}
+	XClassHint class = {opt_name, opt_class};
 	XWMHints wm = {.flags = InputHint, .input = 1};
 	XSizeHints *sizeh;
 
@@ -1621,12 +1649,12 @@ xsetenv(void)
 }
 
 void
-xseticontitle(char *p)
+xseticontitle(const char *p)
 {
 	XTextProperty prop;
 	DEFAULT(p, opt_title);
 
-	if (Xutf8TextListToTextProperty(xw.dpy, &p, 1, XUTF8StringStyle,
+	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
 		return;
 	XSetWMIconName(xw.dpy, xw.win, &prop);
@@ -1635,12 +1663,12 @@ xseticontitle(char *p)
 }
 
 void
-xsettitle(char *p)
+xsettitle(const char *p)
 {
 	XTextProperty prop;
 	DEFAULT(p, opt_title);
 
-	if (Xutf8TextListToTextProperty(xw.dpy, &p, 1, XUTF8StringStyle,
+	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
 		return;
 	XSetWMName(xw.dpy, xw.win, &prop);
@@ -1804,7 +1832,7 @@ match(uint mask, uint state)
 char*
 kmap(KeySym k, uint state)
 {
-	Key *kp;
+	const Key *kp;
 	size_t i;
 
 	/* Check for mapped keys out of X11 function keys. */
@@ -1847,7 +1875,7 @@ kpress(XEvent *ev)
 	int len;
 	Rune c;
 	Status status;
-	Shortcut *bp;
+	const Shortcut *bp;
 
 	if (IS_SET(MODE_KBDLOCK))
 		return;
@@ -2086,7 +2114,7 @@ main(int argc, char *argv[])
 
 run:
 	if (argc > 0) /* eat all remaining arguments */
-		opt_cmd = argv;
+		opt_cmd = (const char**)argv;
 
 	if (!opt_title)
 		opt_title = (opt_line || !opt_cmd) ? "st" : opt_cmd[0];
@@ -2100,6 +2128,7 @@ run:
 	xsetenv();
 	selinit();
 	run();
+	xfreeglobals();
 
 	return 0;
 }

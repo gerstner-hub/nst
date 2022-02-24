@@ -1,0 +1,12 @@
+Import('env')
+
+env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11"])
+env.Append(CCFLAGS=['-DVERSION=\\"1.16.0\\"'])
+env.Append(LIBS=["util"])
+
+sources = env.GatherSources(suffixes=[".c"])
+
+nst = env.Program("nst", sources)
+
+env['bins']['nst'] = nst
+env.Alias("nst", nst)

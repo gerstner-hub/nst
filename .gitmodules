@@ -1,0 +1,3 @@
+[submodule "libcosmos"]
+	path = libcosmos
+	url = https://github.com/gerstner-hub/libcosmos.git

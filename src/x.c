@@ -63,7 +63,9 @@ static void ttysend(const Arg *);
 /* config.h for applying patches and the configuration. */
 #include "nst_config.h"
 // autotools config.h
-#include "config.h"
+#ifdef HAVE_CONFIG_H
+#	include "config.h"
+#endif
 
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4

@@ -20,6 +20,8 @@ char *argv0;
 #include "st.h"
 #include "win.h"
 
+#include <map>
+
 /* types used in config.h */
 typedef struct {
 	uint mod;
@@ -39,7 +41,7 @@ typedef struct {
 typedef struct {
 	KeySym k;
 	uint mask;
-	char *s;
+	const char *s;
 	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
 	signed char appkey;    /* application keypad */
 	signed char appcursor; /* application cursor */
@@ -189,38 +191,40 @@ static void selrequest(XEvent *);
 static void setsel(char *, Time);
 static void mousesel(XEvent *, int);
 static void mousereport(XEvent *);
-static char *kmap(KeySym, uint);
+static const char *kmap(KeySym, uint);
 static int match(uint, uint);
 
 static void run(void);
 static void usage(void);
 
-static void (*handler[LASTEvent])(XEvent *) = {
-	[KeyPress] = kpress,
-	[ClientMessage] = cmessage,
-	[ConfigureNotify] = resize,
-	[VisibilityNotify] = visibility,
-	[UnmapNotify] = unmap,
-	[Expose] = expose,
-	[FocusIn] = focus,
-	[FocusOut] = focus,
-	[MotionNotify] = bmotion,
-	[ButtonPress] = bpress,
-	[ButtonRelease] = brelease,
-/*
- * Uncomment if you want the selection to disappear when you select something
- * different in another window.
- */
+typedef void (*XEventCallback)(XEvent*);
+
+const static std::map<int, XEventCallback> handlers = {
+	{KeyPress, kpress},
+	{ClientMessage, cmessage},
+	{ConfigureNotify, resize},
+	{VisibilityNotify, visibility},
+	{UnmapNotify, unmap},
+	{Expose, expose},
+	{FocusIn, focus},
+	{FocusOut, focus},
+	{MotionNotify, bmotion},
+	{ButtonPress, bpress},
+	{ButtonRelease, brelease},
+	{SelectionNotify, selnotify},
+	/*
+	 * PropertyNotify is only turned on when there is some INCR transfer happening
+	 * for the selection retrieval.
+	 */
+	{PropertyNotify, propnotify},
+	/*
+	 * Uncomment if you want the selection to disappear when you select something
+	 * different in another window.
+	 */
 #ifdef SELCLEAR
-	[SelectionClear] = selclear_,
+	{SelectionClear, selclear_},
 #endif
-	[SelectionNotify] = selnotify,
-/*
- * PropertyNotify is only turned on when there is some INCR transfer happening
- * for the selection retrieval.
- */
-	[PropertyNotify] = propnotify,
-	[SelectionRequest] = selrequest,
+	{SelectionRequest, selrequest}
 };
 
 /* Globals */
@@ -597,7 +601,7 @@ selnotify(XEvent *e)
 		 */
 		repl = data;
 		last = data + nitems * format / 8;
-		while ((repl = memchr(repl, '\n', last - repl))) {
+		while ((repl = (uchar*)memchr(repl, '\n', last - repl))) {
 			*repl++ = '\r';
 		}
 
@@ -773,7 +777,7 @@ xresize(int col, int row)
 	xclear(0, 0, win.w, win.h);
 
 	/* resize to new width */
-	xw.specbuf = xrealloc(xw.specbuf, col * sizeof(GlyphFontSpec));
+	xw.specbuf = (GlyphFontSpec*)xrealloc(xw.specbuf, col * sizeof(GlyphFontSpec));
 }
 
 ushort
@@ -785,7 +789,7 @@ sixd_to_16bit(size_t x)
 int
 xloadcolor(size_t i, const char *name, Color *ncolor)
 {
-	XRenderColor color = { .alpha = 0xffff };
+	XRenderColor color = { 0, 0, 0, 0xfff };
 
 	if (!name) {
 		if (BETWEEN(i, 16, 255)) { /* 256 color */
@@ -818,7 +822,7 @@ xloadcols(void)
 			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
 	} else {
 		dc.collen = MAX(LEN(colorname), 256);
-		dc.col = xmalloc(dc.collen * sizeof(Color));
+		dc.col = (Color*)xmalloc(dc.collen * sizeof(Color));
 	}
 
 	for (i = 0; i < dc.collen; i++)
@@ -899,8 +903,8 @@ xhints(void)
 		opt_class = strdup(termname);
 		strduped_class = 1;
 	}
-	XClassHint class = {opt_name, opt_class};
-	XWMHints wm = {.flags = InputHint, .input = 1};
+	XClassHint clazz = {opt_name, opt_class};
+	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
 	XSizeHints *sizeh;
 
 	sizeh = XAllocSizeHints();
@@ -927,7 +931,7 @@ xhints(void)
 	}
 
 	XSetWMProperties(xw.dpy, xw.win, NULL, NULL, NULL, 0, sizeh, &wm,
-			&class);
+			&clazz);
 	XFree(sizeh);
 }
 
@@ -1224,7 +1228,7 @@ xinit(int p_cols, int p_rows)
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
 	/* font spec buffer */
-	xw.specbuf = xmalloc(p_cols * sizeof(GlyphFontSpec));
+	xw.specbuf = (GlyphFontSpec*)xmalloc(p_cols * sizeof(GlyphFontSpec));
 
 	/* Xft rendering context */
 	xw.draw = XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
@@ -1379,7 +1383,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 			/* Allocate memory for the new cache entry. */
 			if (frclen >= frccap) {
 				frccap += 16;
-				frc = xrealloc(frc, frccap * sizeof(Fontcache));
+				frc = (Fontcache*)xrealloc(frc, frccap * sizeof(Fontcache));
 			}
 
 			frc[frclen].font = XftFontOpenPattern(xw.dpy,
@@ -1688,18 +1692,18 @@ void
 xdrawline(Line line, int x1, int y1, int x2)
 {
 	int i, x, ox, numspecs;
-	Glyph base, new;
+	Glyph base, newone;
 	XftGlyphFontSpec *specs = xw.specbuf;
 
 	numspecs = xmakeglyphfontspecs(specs, &line[x1], x2 - x1, x1, y1);
 	i = ox = 0;
 	for (x = x1; x < x2 && i < numspecs; x++) {
-		new = line[x];
-		if (new.mode == ATTR_WDUMMY)
+		newone = line[x];
+		if (newone.mode == ATTR_WDUMMY)
 			continue;
 		if (selected(x, y1))
-			new.mode ^= ATTR_REVERSE;
-		if (i > 0 && ATTRCMP(base, new)) {
+			newone.mode ^= ATTR_REVERSE;
+		if (i > 0 && ATTRCMP(base, newone)) {
 			xdrawglyphfontspecs(specs, base, i, ox, y1);
 			specs += i;
 			numspecs -= i;
@@ -1707,7 +1711,7 @@ xdrawline(Line line, int x1, int y1, int x2)
 		}
 		if (i == 0) {
 			ox = x;
-			base = new;
+			base = newone;
 		}
 		i++;
 	}
@@ -1831,7 +1835,7 @@ match(uint mask, uint state)
 	return mask == XK_ANY_MOD || mask == (state & ~ignoremod);
 }
 
-char*
+const char*
 kmap(KeySym k, uint state)
 {
 	const Key *kp;
@@ -1873,7 +1877,8 @@ kpress(XEvent *ev)
 {
 	XKeyEvent *e = &ev->xkey;
 	KeySym ksym;
-	char buf[64], *customkey;
+	char buf[64];
+	const char *customkey = nullptr;
 	int len;
 	Rune c;
 	Status status;
@@ -1976,7 +1981,7 @@ run(void)
 	ttyfd = ttynew(opt_line, shell, opt_io, opt_cmd);
 	cresize(w, h);
 
-	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0};;) {
+	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0, 0};;) {
 		FD_ZERO(&rfd);
 		FD_SET(ttyfd, &rfd);
 		FD_SET(xfd, &rfd);
@@ -2004,8 +2009,11 @@ run(void)
 			XNextEvent(xw.dpy, &ev);
 			if (XFilterEvent(&ev, None))
 				continue;
-			if (handler[ev.type])
-				(handler[ev.type])(&ev);
+			auto it = handlers.find(ev.type);
+			if (it != handlers.end()) {
+				auto handler = it->second;
+				handler(&ev);
+			}
 		}
 
 		/*
@@ -2063,9 +2071,17 @@ usage(void)
 	    " [stty_args ...]\n", argv0, argv0);
 }
 
+void fixup_colornames()
+{
+	for (size_t index = 0; index < sizeof(extended_colors)/sizeof(const char*); index++) {
+		colorname[256+index] = extended_colors[index];
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
+	fixup_colornames();
 	xw.l = xw.t = 0;
 	xw.isfixed = False;
 	xsetcursor(cursorshape);

@@ -93,8 +93,16 @@ const char *termname = "st-256color";
  */
 const unsigned int tabspaces = 8;
 
+const char *extended_colors[] = {
+	/* more colors can be added after 255 to use with DefaultXX */
+	"#cccccc",
+	"#555555",
+	"gray90", /* default foreground colour */
+	"black"   /* default background colour */
+};
+
 /* Terminal colors (16 first used in escape sequence) */
-const char *colorname[] = {
+const char *colorname[256 + sizeof(extended_colors) / sizeof(const char*)] = {
 	/* 8 normal colors */
 	"black",
 	"red3",
@@ -114,16 +122,7 @@ const char *colorname[] = {
 	"magenta",
 	"cyan",
 	"white",
-
-	[255] = 0,
-
-	/* more colors can be added after 255 to use with DefaultXX */
-	"#cccccc",
-	"#555555",
-	"gray90", /* default foreground colour */
-	"black", /* default background colour */
 };
-
 
 /*
  * Default colors (colorname index)
@@ -228,7 +227,7 @@ const Shortcut shortcuts[] = {
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
  * to be mapped below, add them to this array.
  */
-const KeySym mappedkeys[] = { -1 };
+const KeySym mappedkeys[] = { KeySym(-1) };
 
 /*
  * State bits to ignore when matching key or button events.  By default,
@@ -461,7 +460,9 @@ const Key key[] = {
  * If no match is found, regular selection is used.
  */
 const uint selmasks[] = {
-	[SEL_RECTANGULAR] = Mod1Mask,
+	0,
+	0,
+	Mod1Mask, // SEL_RECTANGULAR
 };
 
 /*

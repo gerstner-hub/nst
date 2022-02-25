@@ -86,9 +86,9 @@ enum escape_state {
 
 typedef struct {
 	Glyph attr; /* current char attributes */
-	int x;
-	int y;
-	char state;
+	int x = 0;
+	int y = 0;
+	char state = 0;
 } TCursor;
 
 typedef struct {
@@ -111,23 +111,23 @@ typedef struct {
 
 /* Internal representation of the screen */
 typedef struct {
-	int row;      /* nb row */
-	int col;      /* nb col */
-	Line *line;   /* screen */
-	Line *alt;    /* alternate screen */
-	int *dirty;   /* dirtyness of lines */
-	TCursor c;    /* cursor */
-	int ocx;      /* old cursor col */
-	int ocy;      /* old cursor row */
-	int top;      /* top    scroll limit */
-	int bot;      /* bottom scroll limit */
-	int mode;     /* terminal mode flags */
-	int esc;      /* escape state flags */
-	char trantbl[4]; /* charset table translation */
-	int charset;  /* current charset */
-	int icharset; /* selected charset for sequence */
-	int *tabs;
-	Rune lastc;   /* last printed char outside of sequence, 0 if control */
+	int row = 0;            /* nb row */
+	int col = 0;            /* nb col */
+	Line *line = nullptr;   /* screen */
+	Line *alt = nullptr;    /* alternate screen */
+	int *dirty = nullptr;   /* dirtyness of lines */
+	TCursor c;              /* cursor */
+	int ocx = 0;            /* old cursor col */
+	int ocy = 0;            /* old cursor row */
+	int top = 0;            /* top    scroll limit */
+	int bot = 0;            /* bottom scroll limit */
+	int mode = 0;           /* terminal mode flags */
+	int esc = 0;            /* escape state flags */
+	char trantbl[4] = {0};  /* charset table translation */
+	int charset = 0;        /* current charset */
+	int icharset = 0;       /* selected charset for sequence */
+	int *tabs = nullptr;
+	Rune lastc = 0;         /* last printed char outside of sequence, 0 if control */
 } Term;
 
 /* CSI Escape sequence structs */
@@ -144,12 +144,12 @@ typedef struct {
 /* STR Escape sequence structs */
 /* ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\' */
 typedef struct {
-	char type;             /* ESC type ... */
-	char *buf;             /* allocated raw string */
-	size_t siz;            /* allocation size */
-	size_t len;            /* raw string length */
-	char *args[STR_ARG_SIZ];
-	int narg;              /* nb of args */
+	char type = 0;         /* ESC type ... */
+	char *buf = nullptr;   /* allocated raw string */
+	size_t siz = 0;        /* allocation size */
+	size_t len = 0;        /* raw string length */
+	char *args[STR_ARG_SIZ] = {nullptr};
+	int narg = 0;          /* nb of args */
 } STREscape;
 
 static void execsh(const char *, const char **);
@@ -167,7 +167,7 @@ static void strhandle(void);
 static void strparse(void);
 static void strreset(void);
 
-static void tprinter(char *, size_t);
+static void tprinter(const char *, size_t);
 static void tdumpsel(void);
 static void tdumpline(int);
 static void tdump(void);
@@ -380,7 +380,7 @@ base64dec(const char *src)
 
 	if (in_len % 4)
 		in_len += 4 - (in_len % 4);
-	result = dst = xmalloc(in_len / 4 * 3 + 1);
+	result = dst = (char*)xmalloc(in_len / 4 * 3 + 1);
 	while (*src) {
 		int a = base64_digits[(unsigned char) base64dec_getc(&src)];
 		int b = base64_digits[(unsigned char) base64dec_getc(&src)];
@@ -599,7 +599,7 @@ getsel(void)
 		return NULL;
 
 	bufsize = (term.col+1) * (sel.ne.y-sel.nb.y+1) * UTF_SIZ;
-	ptr = str = xmalloc(bufsize);
+	ptr = str = (char*)xmalloc(bufsize);
 
 	/* append every set & selected glyph to the selection */
 	for (y = sel.nb.y; y <= sel.ne.y; y++) {
@@ -691,7 +691,12 @@ execsh(const char *cmd, const char **args)
 	} else {
 		prog = sh;
 	}
-	DEFAULT(args, ((const char *[]) {prog, arg, NULL}));
+
+	const char *DEFARGS[] = {prog, arg, NULL};
+
+	if (!args) {
+		args = DEFARGS;
+	}
 
 	unsetenv("COLUMNS");
 	unsetenv("LINES");
@@ -865,7 +870,7 @@ ttywrite(const char *s, size_t n, int may_echo)
 			next = s + 1;
 			ttywriteraw("\r\n", 2);
 		} else {
-			next = memchr(s, '\r', n);
+			next = (const char*)memchr(s, '\r', n);
 			DEFAULT(next, s + n);
 			ttywriteraw(s, next - s);
 		}
@@ -1018,7 +1023,7 @@ treset(void)
 {
 	uint i;
 
-	term.c = (TCursor){{
+	term.c = (TCursor){.attr = {
 		.mode = ATTR_NULL,
 		.fg = defaultfg,
 		.bg = defaultbg
@@ -2045,7 +2050,7 @@ void
 strreset(void)
 {
 	strescseq = (STREscape){
-		.buf = xrealloc(strescseq.buf, STR_BUF_SIZ),
+		.buf = (char*)xrealloc(strescseq.buf, STR_BUF_SIZ),
 		.siz = STR_BUF_SIZ,
 	};
 }
@@ -2058,7 +2063,7 @@ sendbreak(const Arg *)
 }
 
 void
-tprinter(char *s, size_t len)
+tprinter(const char *s, size_t len)
 {
 	if (iofd != -1 && xwrite(iofd, s, len) < 0) {
 		perror("Error writing to output file");
@@ -2431,7 +2436,7 @@ tputc(Rune u)
 			if (strescseq.siz > (SIZE_MAX - UTF_SIZ) / 2)
 				return;
 			strescseq.siz *= 2;
-			strescseq.buf = xrealloc(strescseq.buf, strescseq.siz);
+			strescseq.buf = (char*)xrealloc(strescseq.buf, strescseq.siz);
 		}
 
 		memmove(&strescseq.buf[strescseq.len], c, len);
@@ -2588,21 +2593,21 @@ tresize(int col, int row)
 	}
 
 	/* resize to new height */
-	term.line = xrealloc(term.line, row * sizeof(Line));
-	term.alt  = xrealloc(term.alt,  row * sizeof(Line));
-	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
-	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
+	term.line = (Glyph**)xrealloc(term.line, row * sizeof(Line));
+	term.alt  = (Glyph**)xrealloc(term.alt,  row * sizeof(Line));
+	term.dirty = (int*)xrealloc(term.dirty, row * sizeof(*term.dirty));
+	term.tabs = (int*)xrealloc(term.tabs, col * sizeof(*term.tabs));
 
 	/* resize each row to new width, zero-pad if needed */
 	for (i = 0; i < minrow; i++) {
-		term.line[i] = xrealloc(term.line[i], col * sizeof(Glyph));
-		term.alt[i]  = xrealloc(term.alt[i],  col * sizeof(Glyph));
+		term.line[i] = (Line)xrealloc(term.line[i], col * sizeof(Glyph));
+		term.alt[i]  = (Line)xrealloc(term.alt[i],  col * sizeof(Glyph));
 	}
 
 	/* allocate any new rows */
 	for (/* i = minrow */; i < row; i++) {
-		term.line[i] = xmalloc(col * sizeof(Glyph));
-		term.alt[i] = xmalloc(col * sizeof(Glyph));
+		term.line[i] = (Line)xmalloc(col * sizeof(Glyph));
+		term.alt[i] = (Line)xmalloc(col * sizeof(Glyph));
 	}
 	if (col > term.col) {
 		bp = term.tabs + term.col;

@@ -152,8 +152,8 @@ typedef struct {
 	int narg = 0;          /* nb of args */
 } STREscape;
 
-static void execsh(const char *, const char **);
-static void stty(const char **);
+static void execsh(const char *, const std::vector<std::string>*);
+static void stty(const std::vector<std::string>*);
 static void sigchld(int);
 static void ttywriteraw(const char *, size_t);
 
@@ -665,7 +665,7 @@ die(const char *errstr, ...)
 }
 
 void
-execsh(const char *cmd, const char **args)
+execsh(const char *cmd, const std::vector<std::string> *args)
 {
 	const char *sh, *arg = NULL, *prog;
 	const struct passwd *pw;
@@ -682,7 +682,7 @@ execsh(const char *cmd, const char **args)
 		sh = (pw->pw_shell[0]) ? pw->pw_shell : cmd;
 
 	if (args) {
-		prog = args[0];
+		prog = ((*args)[0]).c_str();
 	} else if (scroll) {
 		prog = scroll;
 		arg = utmp ? utmp : sh;
@@ -692,10 +692,15 @@ execsh(const char *cmd, const char **args)
 		prog = sh;
 	}
 
-	const char *DEFARGS[] = {prog, arg, NULL};
+	std::vector<const char*> cargs;
 
-	if (!args) {
-		args = DEFARGS;
+	if (args) {
+		for (auto &v: *args) {
+			cargs.push_back(v.c_str());
+		}
+		cargs.push_back(nullptr);
+	} else {
+		cargs = {prog, arg, nullptr};
 	}
 
 	unsetenv("COLUMNS");
@@ -714,7 +719,7 @@ execsh(const char *cmd, const char **args)
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGALRM, SIG_DFL);
 
-	execvp(prog, (char * const*)args);
+	execvp(prog, const_cast<char *const*>(cargs.data()));
 	_exit(1);
 }
 
@@ -738,9 +743,8 @@ sigchld(int)
 }
 
 void
-stty(const char **args)
+stty(const std::vector<std::string> *args)
 {
-	const char **p, *s;
 	char cmd[_POSIX_ARG_MAX], *q;
 	size_t n, siz;
 
@@ -749,11 +753,11 @@ stty(const char **args)
 	memcpy(cmd, stty_args, n);
 	q = cmd + n;
 	siz = sizeof(cmd) - n;
-	for (p = args; p && (s = *p); ++p) {
-		if ((n = strlen(s)) > siz-1)
+	for (auto &arg: *args) {
+		if ((n = arg.size()) > siz-1)
 			die("stty parameter length too long\n");
 		*q++ = ' ';
-		memcpy(q, s, n);
+		memcpy(q, arg.c_str(), n);
 		q += n;
 		siz -= n + 1;
 	}
@@ -763,7 +767,7 @@ stty(const char **args)
 }
 
 int
-ttynew(const char *line, const char *cmd, const char *out, const char **args)
+ttynew(const char *line, const char *cmd, const char *out, const std::vector<std::string> *args)
 {
 	int m, s;
 

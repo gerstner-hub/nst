@@ -1,7 +1,13 @@
-/* See LICENSE for license details. */
+#ifndef NST_ST_H
+#define NST_ST_H
 
+// libc
 #include <stdint.h>
 #include <sys/types.h>
+
+// stdlib
+#include <vector>
+#include <string>
 
 /* macros */
 #define MIN(a, b)		((a) < (b) ? (a) : (b))
@@ -91,7 +97,7 @@ void tnew(int, int);
 void tresize(int, int);
 void tsetdirtattr(int);
 void ttyhangup(void);
-int ttynew(const char *, const char *, const char *, const char **);
+int ttynew(const char *, const char *, const char *, const std::vector<std::string>*);
 size_t ttyread(void);
 void ttyresize(int, int);
 void ttywrite(const char *, size_t, int);
@@ -129,3 +135,5 @@ extern const unsigned int defaultbg;
 extern const unsigned int defaultcs;
 extern unsigned int cols;
 extern unsigned int rows;
+
+#endif // inc. guard

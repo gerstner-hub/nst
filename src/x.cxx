@@ -1,4 +1,4 @@
-/* See LICENSE for license details. */
+// libc
 #include <errno.h>
 #include <math.h>
 #include <limits.h>
@@ -8,6 +8,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <libgen.h>
+
+// libX11 et al
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
@@ -15,12 +17,13 @@
 #include <X11/Xft/Xft.h>
 #include <X11/XKBlib.h>
 
-char *argv0;
-#include "arg.h"
+// stdlib
+#include <iostream>
+#include <map>
+
+// nst
 #include "st.h"
 #include "win.h"
-
-#include <map>
 
 /* types used in config.h */
 typedef struct {
@@ -61,6 +64,8 @@ static void zoom(const Arg *);
 static void zoomabs(const Arg *);
 static void zoomreset(const Arg *);
 static void ttysend(const Arg *);
+
+#include "Cmdline.hxx"
 
 /* config.h for applying patches and the configuration. */
 #include "nst_config.h"
@@ -110,8 +115,8 @@ typedef struct {
 	Visual *vis;
 	XSetWindowAttributes attrs;
 	int scr;
-	int isfixed; /* is fixed geometry? */
-	int l, t; /* left and top offset */
+	int isfixed = False; /* is fixed geometry? */
+	int l = 0, t = 0; /* left and top offset */
 	int gm; /* geometry mask */
 } XWindow;
 
@@ -195,7 +200,6 @@ static const char *kmap(KeySym, uint);
 static int match(uint, uint);
 
 static void run(void);
-static void usage(void);
 
 typedef void (*XEventCallback)(XEvent*);
 
@@ -257,13 +261,11 @@ static double defaultfontsize = 0;
 
 static char *opt_class = NULL;
 static char *opt_name  = NULL;
-static int strduped_class = 0;
-static int strduped_name = 0;
-static const char **opt_cmd  = NULL;
-static char *opt_embed = NULL;
-static char *opt_font  = NULL;
-static char *opt_io    = NULL;
-static char *opt_line  = NULL;
+static const std::vector<std::string> *opt_cmd = nullptr;
+static const char *opt_embed = NULL;
+static const char *opt_font  = NULL;
+static const char *opt_io    = NULL;
+static const char *opt_line  = NULL;
 static const char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
@@ -879,17 +881,11 @@ xclear(int x1, int y1, int x2, int y2)
 void
 xfreeglobals(void)
 {
-	if (strduped_name) {
-		free(opt_name);
-		opt_name = NULL;
-		strduped_name = 0;
-	}
+	free(opt_name);
+	opt_name = NULL;
 
-	if (strduped_class) {
-		free(opt_class);
-		opt_class = NULL;
-		strduped_class = 0;
-	}
+	free(opt_class);
+	opt_class = NULL;
 }
 
 void
@@ -897,11 +893,9 @@ xhints(void)
 {
 	if (!opt_name) {
 		opt_name = strdup(termname);
-		strduped_name = 1;
 	}
 	if (!opt_class) {
 		opt_class = strdup(termname);
-		strduped_class = 1;
 	}
 	XClassHint clazz = {opt_name, opt_class};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
@@ -1187,7 +1181,7 @@ xinit(int p_cols, int p_rows)
 	if (!FcInit())
 		die("could not init fontconfig.\n");
 
-	usedfont = (opt_font == NULL)? font : opt_font;
+	usedfont = opt_font;
 	xloadfonts(usedfont, 0);
 
 	/* colors */
@@ -2058,19 +2052,6 @@ run(void)
 	}
 }
 
-void
-usage(void)
-{
-	die("usage: %s [-aiv] [-c class] [-f font] [-g geometry]"
-	    " [-n name] [-o file]\n"
-	    "          [-T title] [-t title] [-w windowid]"
-	    " [[-e] command [args ...]]\n"
-	    "       %s [-aiv] [-c class] [-f font] [-g geometry]"
-	    " [-n name] [-o file]\n"
-	    "          [-T title] [-t title] [-w windowid] -l line"
-	    " [stty_args ...]\n", argv0, argv0);
-}
-
 void fixup_colornames()
 {
 	for (size_t index = 0; index < sizeof(extended_colors)/sizeof(const char*); index++) {
@@ -2078,64 +2059,64 @@ void fixup_colornames()
 	}
 }
 
+void applyCmdline(const nst::Cmdline &cmd) {
+	allowaltscreen = cmd.use_alt_screen.getValue();
+
+	if (cmd.window_class.isSet()) {
+		opt_class = strdup(cmd.window_class.getValue().c_str());
+	}
+
+	if (cmd.window_name.isSet()) {
+		opt_name = strdup(cmd.window_name.getValue().c_str());
+	}
+
+	if (cmd.fixed_geometry.isSet()) {
+		xw.isfixed = True;
+	}
+
+	if (cmd.iofile.isSet()) {
+		opt_io = cmd.iofile.getValue().c_str();
+	}
+
+	if (cmd.window_geometry.isSet()) {
+		xw.gm = XParseGeometry(
+			cmd.window_geometry.getValue().c_str(),
+			&xw.l, &xw.t, &cols, &rows
+		);
+	}
+
+	if (cmd.embed_window.isSet()) {
+		opt_embed = cmd.embed_window.getValue().c_str();
+	}
+
+	if (cmd.tty_line.isSet()) {
+		opt_line = cmd.tty_line.getValue().c_str();
+	}
+
+	opt_title = cmd.window_title.getValue().c_str();
+	opt_font = cmd.font.getValue().c_str();
+
+	auto &rest = cmd.rest.getValue();
+
+	if (!rest.empty()) {
+		opt_cmd = &rest;
+	}
+
+	if (!cmd.window_title.isSet() && !cmd.tty_line.isSet() && !rest.empty()) {
+		// use command basename as title
+		opt_title = rest[0].c_str();
+	}
+}
+
 int
-main(int argc, char *argv[])
+main(int argc, const char **argv)
 {
 	fixup_colornames();
-	xw.l = xw.t = 0;
-	xw.isfixed = False;
 	xsetcursor(cursorshape);
 
-	ARGBEGIN {
-	case 'a':
-		allowaltscreen = 0;
-		break;
-	case 'c':
-		opt_class = EARGF(usage());
-		break;
-	case 'e':
-		if (argc > 0)
-			--argc, ++argv;
-		goto run;
-	case 'f':
-		opt_font = EARGF(usage());
-		break;
-	case 'g':
-		xw.gm = XParseGeometry(EARGF(usage()),
-				&xw.l, &xw.t, &cols, &rows);
-		break;
-	case 'i':
-		xw.isfixed = 1;
-		break;
-	case 'o':
-		opt_io = EARGF(usage());
-		break;
-	case 'l':
-		opt_line = EARGF(usage());
-		break;
-	case 'n':
-		opt_name = EARGF(usage());
-		break;
-	case 't':
-	case 'T':
-		opt_title = EARGF(usage());
-		break;
-	case 'w':
-		opt_embed = EARGF(usage());
-		break;
-	case 'v':
-		die("%s " VERSION "\n", argv0);
-		break;
-	default:
-		usage();
-	} ARGEND;
-
-run:
-	if (argc > 0) /* eat all remaining arguments */
-		opt_cmd = (const char**)argv;
-
-	if (!opt_title)
-		opt_title = (opt_line || !opt_cmd) ? "st" : opt_cmd[0];
+	nst::Cmdline cmdline;
+	cmdline.parse(argc, argv);
+	applyCmdline(cmdline);
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");

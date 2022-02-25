@@ -1,11 +1,18 @@
-/* See LICENSE file for copyright and license details. */
+#ifndef NST_CONFIG_H
+#define NST_CONFIG_H
+
+namespace nst {
+namespace config {
 
 /*
  * appearance
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-const char *font = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+
+}} // end ns nst::config
+
 const int borderpx = 2;
 
 /*
@@ -473,3 +480,5 @@ const char ascii_printable[] =
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
+
+#endif // inc. guard

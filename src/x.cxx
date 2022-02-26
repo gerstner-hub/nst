@@ -18,8 +18,10 @@
 #include <X11/XKBlib.h>
 
 // stdlib
+#include <algorithm>
 #include <iostream>
 #include <map>
+#include <string>
 
 // nst
 #include "st.h"
@@ -1642,10 +1644,7 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
 void
 xsetenv(void)
 {
-	char buf[sizeof(long) * 8 + 1];
-
-	snprintf(buf, sizeof(buf), "%lu", xw.win);
-	setenv("WINDOWID", buf, 1);
+	setenv("WINDOWID", std::to_string(xw.win).c_str(), 1);
 }
 
 void
@@ -2120,8 +2119,8 @@ main(int argc, const char **argv)
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
-	cols = MAX(cols, 1);
-	rows = MAX(rows, 1);
+	cols = std::max(cols, 1U);
+	rows = std::max(rows, 1U);
 	tnew(cols, rows);
 	xinit(cols, rows);
 	xsetenv();

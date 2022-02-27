@@ -84,7 +84,6 @@ void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
 int tattrset(int);
-void tnew(int, int);
 void tsetdirtattr(int);
 void ttyhangup(void);
 int ttynew(const char *, const char *, const char *, const std::vector<std::string>*);
@@ -119,7 +118,7 @@ extern const wchar_t *worddelimiters;
 extern int allowaltscreen;
 extern const int allowwindowops;
 extern const char *termname;
-extern const unsigned int tabspaces;
+extern const unsigned int TABSPACES;
 extern const unsigned int defaultfg;
 extern const unsigned int defaultbg;
 extern const unsigned int defaultcs;

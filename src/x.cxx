@@ -2121,7 +2121,7 @@ main(int argc, const char **argv)
 	XSetLocaleModifiers("");
 	cols = std::max(cols, 1U);
 	rows = std::max(rows, 1U);
-	tnew(cols, rows);
+	term = Term(cols, rows);
 	xinit(cols, rows);
 	xsetenv();
 	selinit();

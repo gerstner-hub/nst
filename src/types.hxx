@@ -21,6 +21,11 @@ typedef struct {
 	char state = 0;
 } TCursor;
 
+enum class CursorControl {
+	SAVE,
+	LOAD
+};
+
 } // end ns
 
 #endif // inc. guard

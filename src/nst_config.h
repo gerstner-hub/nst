@@ -90,7 +90,7 @@ const char *termname = "st-256color";
  * the st.info and appropriately install the st.info in the environment where
  * you use this st version.
  *
- *	it#$tabspaces,
+ *	it#$TABSPACES,
  *
  * Secondly make sure your kernel is not expanding tabs. When running `stty
  * -a` »tab0« should appear. You can tell the terminal to not expand tabs by
@@ -98,7 +98,7 @@ const char *termname = "st-256color";
  *
  *	stty tabs
  */
-const unsigned int tabspaces = 8;
+const unsigned int TABSPACES = 8;
 
 const char *extended_colors[] = {
 	/* more colors can be added after 255 to use with DefaultXX */

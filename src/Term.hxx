@@ -27,11 +27,33 @@ public: // data
 
 public: // functions
 
-	Term();
+	Term() {}
+
+	Term(int _cols, int _rows);
 
 	void resize(int cols, int rows);
 
 	void reset();
+
+	void clearRegion(int x1, int y1, int x2, int y2);
+
+	void setDirty(int top, int bot);
+
+	void setAllDirty() {
+		setDirty(0, row-1);
+	}
+
+	void setScroll(int t, int b);
+
+	void moveTo(int x, int y);
+
+	void swapScreen();
+
+	void cursorControl(const nst::CursorControl &ctrl);
+
+	bool isSet(int modebit) const {
+		return (mode & modebit) != 0;
+	}
 };
 
 extern Term term;

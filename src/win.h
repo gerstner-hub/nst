@@ -25,8 +25,8 @@ enum win_mode {
 
 void xbell(void);
 void xclipcopy(void);
-void xdrawcursor(int, int, Glyph, int, int, Glyph);
-void xdrawline(Line, int, int, int);
+void xdrawcursor(int, int, nst::Glyph, int, int, nst::Glyph);
+void xdrawline(nst::Line, int, int, int);
 void xfinishdraw(void);
 void xloadcols(void);
 int xsetcolorname(size_t, const char *);

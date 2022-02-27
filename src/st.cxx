@@ -79,13 +79,6 @@ enum escape_state {
 };
 
 typedef struct {
-	Glyph attr; /* current char attributes */
-	int x = 0;
-	int y = 0;
-	char state = 0;
-} TCursor;
-
-typedef struct {
 	int mode;
 	int type;
 	int snap;
@@ -102,27 +95,6 @@ typedef struct {
 
 	int alt;
 } Selection;
-
-/* Internal representation of the screen */
-typedef struct {
-	int row = 0;            /* nb row */
-	int col = 0;            /* nb col */
-	Line *line = nullptr;   /* screen */
-	Line *alt = nullptr;    /* alternate screen */
-	int *dirty = nullptr;   /* dirtyness of lines */
-	TCursor c;              /* cursor */
-	int ocx = 0;            /* old cursor col */
-	int ocy = 0;            /* old cursor row */
-	int top = 0;            /* top    scroll limit */
-	int bot = 0;            /* bottom scroll limit */
-	int mode = 0;           /* terminal mode flags */
-	int esc = 0;            /* escape state flags */
-	char trantbl[4] = {0};  /* charset table translation */
-	int charset = 0;        /* current charset */
-	int icharset = 0;       /* selected charset for sequence */
-	int *tabs = nullptr;
-	Rune lastc = 0;         /* last printed char outside of sequence, 0 if control */
-} Term;
 
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
@@ -176,12 +148,11 @@ static void tmoveto(int, int);
 static void tmoveato(int, int);
 static void tnewline(int);
 static void tputtab(int);
-static void tputc(Rune);
-static void treset(void);
+static void tputc(nst::Rune);
 static void tscrollup(int, int);
 static void tscrolldown(int, int);
 static void tsetattr(const int *, int);
-static void tsetchar(Rune, const Glyph *, int, int);
+static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
 static void tsetdirt(int, int);
 static void tsetscroll(int, int);
 static void tswapscreen(void);
@@ -201,10 +172,10 @@ static void selnormalize(void);
 static void selscroll(int, int);
 static void selsnap(int *, int *, int);
 
-static size_t utf8decode(const char *, Rune *, size_t);
-static Rune utf8decodebyte(char, size_t *);
-static char utf8encodebyte(Rune, size_t);
-static size_t utf8validate(Rune *, size_t);
+static size_t utf8decode(const char *, nst::Rune *, size_t);
+static nst::Rune utf8decodebyte(char, size_t *);
+static char utf8encodebyte(nst::Rune, size_t);
+static size_t utf8validate(nst::Rune *, size_t);
 
 static char *base64dec(const char *);
 static char base64dec_getc(const char **);
@@ -212,7 +183,7 @@ static char base64dec_getc(const char **);
 static ssize_t xwrite(int, const char *, size_t);
 
 /* Globals */
-static Term term;
+Term term;
 static Selection sel;
 static CSIEscape csiescseq;
 static STREscape strescseq;
@@ -222,8 +193,8 @@ static pid_t pid;
 
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
-static const Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
-static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+static const nst::Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
+static const nst::Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
 
 ssize_t
 xwrite(int fd, const char *s, size_t len)
@@ -274,10 +245,10 @@ xstrdup(const char *s)
 }
 
 size_t
-utf8decode(const char *c, Rune *u, size_t clen)
+utf8decode(const char *c, nst::Rune *u, size_t clen)
 {
 	size_t i, j, len, type;
-	Rune udecoded;
+	nst::Rune udecoded;
 
 	*u = UTF_INVALID;
 	if (!clen)
@@ -298,7 +269,7 @@ utf8decode(const char *c, Rune *u, size_t clen)
 	return len;
 }
 
-Rune
+nst::Rune
 utf8decodebyte(char c, size_t *i)
 {
 	for (*i = 0; *i < LEN(utfmask); ++(*i))
@@ -309,7 +280,7 @@ utf8decodebyte(char c, size_t *i)
 }
 
 size_t
-utf8encode(Rune u, char *c)
+utf8encode(nst::Rune u, char *c)
 {
 	size_t len, i;
 
@@ -327,13 +298,13 @@ utf8encode(Rune u, char *c)
 }
 
 char
-utf8encodebyte(Rune u, size_t i)
+utf8encodebyte(nst::Rune u, size_t i)
 {
 	return utfbyte[i] | (u & ~utfmask[i]);
 }
 
 size_t
-utf8validate(Rune *u, size_t i)
+utf8validate(nst::Rune *u, size_t i)
 {
 	if (!BETWEEN(*u, utfmin[i], utfmax[i]) || BETWEEN(*u, 0xD800, 0xDFFF))
 		*u = UTF_INVALID;
@@ -514,7 +485,7 @@ selsnap(int *x, int *y, int direction)
 {
 	int newx, newy, xt, yt;
 	int delim, prevdelim;
-	const Glyph *gp, *prevgp;
+	const nst::Glyph *gp, *prevgp;
 
 	switch (sel.snap) {
 	case SNAP_WORD:
@@ -587,7 +558,7 @@ getsel(void)
 {
 	char *str, *ptr;
 	int y, bufsize, lastx, linelen;
-	const Glyph *gp, *last;
+	const nst::Glyph *gp, *last;
 
 	if (sel.ob.x == -1)
 		return NULL;
@@ -997,7 +968,7 @@ tfulldirt(void)
 void
 tcursor(int mode)
 {
-	static TCursor c[2];
+	static nst::TCursor c[2];
 	int alt = IS_SET(MODE_ALTSCREEN);
 
 	if (mode == CURSOR_SAVE) {
@@ -1008,46 +979,132 @@ tcursor(int mode)
 	}
 }
 
+Term::Term() {
+	c.attr.fg = defaultfg;
+	c.attr.bg = defaultbg;
+}
+
 void
-treset(void)
+Term::reset(void)
 {
 	uint i;
 
-	term.c = (TCursor){.attr = {
+	c = (nst::TCursor){.attr = {
 		.mode = ATTR_NULL,
 		.fg = defaultfg,
 		.bg = defaultbg
 	}, .x = 0, .y = 0, .state = CURSOR_DEFAULT};
 
-	memset(term.tabs, 0, term.col * sizeof(*term.tabs));
-	for (i = tabspaces; (int)i < term.col; i += tabspaces)
-		term.tabs[i] = 1;
-	term.top = 0;
-	term.bot = term.row - 1;
-	term.mode = MODE_WRAP|MODE_UTF8;
-	memset(term.trantbl, CS_USA, sizeof(term.trantbl));
-	term.charset = 0;
+	memset(tabs, 0, col * sizeof(*tabs));
+	for (i = tabspaces; (int)i < col; i += tabspaces)
+		tabs[i] = 1;
+	top = 0;
+	bot = row - 1;
+	mode = MODE_WRAP|MODE_UTF8;
+	memset(trantbl, CS_USA, sizeof(trantbl));
+	charset = 0;
 
 	for (i = 0; i < 2; i++) {
 		tmoveto(0, 0);
 		tcursor(CURSOR_SAVE);
-		tclearregion(0, 0, term.col-1, term.row-1);
+		tclearregion(0, 0, col-1, row-1);
 		tswapscreen();
 	}
 }
 
+void Term::resize(int new_cols, int new_rows)
+{
+	int i;
+	int minrow = std::min(new_rows, row);
+	int mincol = std::min(new_cols, col);
+	int *bp;
+
+	if (new_cols < 1 || new_rows < 1) {
+		fprintf(stderr,
+		        "tresize: error resizing to %dx%d\n", new_cols, new_rows);
+		return;
+	}
+
+	/*
+	 * slide screen to keep cursor where we expect it -
+	 * tscrollup would work here, but we can optimize to
+	 * memmove because we're freeing the earlier lines
+	 */
+	for (i = 0; i <= c.y - new_rows; i++) {
+		free(line[i]);
+		free(alt[i]);
+	}
+	/* ensure that both src and dst are not NULL */
+	if (i > 0) {
+		memmove(line, line + i, new_rows * sizeof(nst::Line));
+		memmove(alt, alt + i, new_rows * sizeof(nst::Line));
+	}
+	for (i += new_rows; i < row; i++) {
+		free(line[i]);
+		free(alt[i]);
+	}
+
+	/* resize to new height */
+	line = (nst::Glyph**)xrealloc(line, new_rows * sizeof(nst::Line));
+	alt  = (nst::Glyph**)xrealloc(alt,  new_rows * sizeof(nst::Line));
+	dirty = (int*)xrealloc(dirty, new_rows * sizeof(*dirty));
+	tabs = (int*)xrealloc(tabs, new_cols * sizeof(*tabs));
+
+	/* resize each row to new width, zero-pad if needed */
+	for (i = 0; i < minrow; i++) {
+		line[i] = (nst::Line)xrealloc(line[i], new_cols * sizeof(nst::Glyph));
+		alt[i]  = (nst::Line)xrealloc(alt[i],  new_cols * sizeof(nst::Glyph));
+	}
+
+	/* allocate any new rows */
+	for (/* i = minrow */; i < new_rows; i++) {
+		line[i] = (nst::Line)xmalloc(new_cols * sizeof(nst::Glyph));
+		alt[i] = (nst::Line)xmalloc(new_cols * sizeof(nst::Glyph));
+	}
+	if (new_cols > col) {
+		bp = tabs + col;
+
+		memset(bp, 0, sizeof(*tabs) * (new_cols - col));
+		while (--bp > tabs && !*bp)
+			/* nothing */ ;
+		for (bp += tabspaces; bp < tabs + new_cols; bp += tabspaces)
+			*bp = 1;
+	}
+	/* update terminal size */
+	col = new_cols;
+	row = new_rows;
+	/* reset scrolling region */
+	tsetscroll(0, new_rows-1);
+	/* make use of the LIMIT in tmoveto */
+	tmoveto(c.x, c.y);
+	/* Clearing both screens (it makes dirty all lines) */
+	nst::TCursor saved_c = c;
+	for (i = 0; i < 2; i++) {
+		if (mincol < new_cols && 0 < minrow) {
+			tclearregion(mincol, 0, new_cols - 1, minrow - 1);
+		}
+		if (0 < new_cols && minrow < new_rows) {
+			tclearregion(0, minrow, new_cols - 1, new_rows - 1);
+		}
+		tswapscreen();
+		tcursor(CURSOR_LOAD);
+	}
+	c = saved_c;
+}
+
+
 void
 tnew(int col, int row)
 {
-	term = (Term){ .c = { .attr = { .fg = defaultfg, .bg = defaultbg } } };
-	tresize(col, row);
-	treset();
+	term = Term();
+	term.resize(col, row);
+	term.reset();
 }
 
 void
 tswapscreen(void)
 {
-	Line *tmp = term.line;
+	nst::Line *tmp = term.line;
 
 	term.line = term.alt;
 	term.alt = tmp;
@@ -1059,7 +1116,7 @@ void
 tscrolldown(int orig, int n)
 {
 	int i;
-	Line temp;
+	nst::Line temp;
 
 	LIMIT(n, 0, term.bot-orig+1);
 
@@ -1079,7 +1136,7 @@ void
 tscrollup(int orig, int n)
 {
 	int i;
-	Line temp;
+	nst::Line temp;
 
 	LIMIT(n, 0, term.bot-orig+1);
 
@@ -1183,7 +1240,7 @@ tmoveto(int x, int y)
 }
 
 void
-tsetchar(Rune u, const Glyph *attr, int x, int y)
+tsetchar(nst::Rune u, const nst::Glyph *attr, int x, int y)
 {
 	static const char *vt100_0[62] = { /* 0x41 - 0x7e */
 		"↑", "↓", "→", "←", "█", "▚", "☃", /* A - G */
@@ -1222,7 +1279,7 @@ void
 tclearregion(int x1, int y1, int x2, int y2)
 {
 	int x, y, temp;
-	Glyph *gp;
+	nst::Glyph *gp;
 
 	if (x1 > x2)
 		temp = x1, x1 = x2, x2 = temp;
@@ -1252,7 +1309,7 @@ void
 tdeletechar(int n)
 {
 	int dst, src, size;
-	Glyph *line;
+	nst::Glyph *line;
 
 	LIMIT(n, 0, term.col - term.c.x);
 
@@ -1261,7 +1318,7 @@ tdeletechar(int n)
 	size = term.col - src;
 	line = term.line[term.c.y];
 
-	memmove(&line[dst], &line[src], size * sizeof(Glyph));
+	memmove(&line[dst], &line[src], size * sizeof(nst::Glyph));
 	tclearregion(term.col-n, term.c.y, term.col-1, term.c.y);
 }
 
@@ -1269,7 +1326,7 @@ void
 tinsertblank(int n)
 {
 	int dst, src, size;
-	Glyph *line;
+	nst::Glyph *line;
 
 	LIMIT(n, 0, term.col - term.c.x);
 
@@ -1278,7 +1335,7 @@ tinsertblank(int n)
 	size = term.col - dst;
 	line = term.line[term.c.y];
 
-	memmove(&line[dst], &line[src], size * sizeof(Glyph));
+	memmove(&line[dst], &line[src], size * sizeof(nst::Glyph));
 	tclearregion(src, term.c.y, dst - 1, term.c.y);
 }
 
@@ -2095,7 +2152,7 @@ void
 tdumpline(int n)
 {
 	char buf[UTF_SIZ];
-	const Glyph *bp, *end;
+	const nst::Glyph *bp, *end;
 
 	bp = &term.line[n][0];
 	end = &bp[MIN(tlinelen(n), term.col) - 1];
@@ -2346,7 +2403,7 @@ eschandle(uchar ascii)
 		ttywrite(vtiden, strlen(vtiden), 0);
 		break;
 	case 'c': /* RIS -- Reset to initial state */
-		treset();
+		term.reset();
 		resettitle();
 		xloadcols();
 		break;
@@ -2375,12 +2432,12 @@ eschandle(uchar ascii)
 }
 
 void
-tputc(Rune u)
+tputc(nst::Rune u)
 {
 	char c[UTF_SIZ];
 	int control;
 	int width, len;
-	Glyph *gp;
+	nst::Glyph *gp;
 
 	control = ISCONTROL(u);
 	if (u < 127 || !IS_SET(MODE_UTF8)) {
@@ -2488,7 +2545,7 @@ check_control_code:
 	}
 
 	if (IS_SET(MODE_INSERT) && term.c.x+width < term.col)
-		memmove(gp+width, gp, (term.col - term.c.x - width) * sizeof(Glyph));
+		memmove(gp+width, gp, (term.col - term.c.x - width) * sizeof(nst::Glyph));
 
 	if (term.c.x+width > term.col) {
 		tnewline(1);
@@ -2520,7 +2577,7 @@ int
 twrite(const char *buf, int buflen, int show_ctrl)
 {
 	int charsize;
-	Rune u;
+	nst::Rune u;
 	int n;
 
 	for (n = 0; n < buflen; n += charsize) {
@@ -2546,88 +2603,6 @@ twrite(const char *buf, int buflen, int show_ctrl)
 		tputc(u);
 	}
 	return n;
-}
-
-void
-tresize(int col, int row)
-{
-	int i;
-	int minrow = MIN(row, term.row);
-	int mincol = MIN(col, term.col);
-	int *bp;
-	TCursor c;
-
-	if (col < 1 || row < 1) {
-		fprintf(stderr,
-		        "tresize: error resizing to %dx%d\n", col, row);
-		return;
-	}
-
-	/*
-	 * slide screen to keep cursor where we expect it -
-	 * tscrollup would work here, but we can optimize to
-	 * memmove because we're freeing the earlier lines
-	 */
-	for (i = 0; i <= term.c.y - row; i++) {
-		free(term.line[i]);
-		free(term.alt[i]);
-	}
-	/* ensure that both src and dst are not NULL */
-	if (i > 0) {
-		memmove(term.line, term.line + i, row * sizeof(Line));
-		memmove(term.alt, term.alt + i, row * sizeof(Line));
-	}
-	for (i += row; i < term.row; i++) {
-		free(term.line[i]);
-		free(term.alt[i]);
-	}
-
-	/* resize to new height */
-	term.line = (Glyph**)xrealloc(term.line, row * sizeof(Line));
-	term.alt  = (Glyph**)xrealloc(term.alt,  row * sizeof(Line));
-	term.dirty = (int*)xrealloc(term.dirty, row * sizeof(*term.dirty));
-	term.tabs = (int*)xrealloc(term.tabs, col * sizeof(*term.tabs));
-
-	/* resize each row to new width, zero-pad if needed */
-	for (i = 0; i < minrow; i++) {
-		term.line[i] = (Line)xrealloc(term.line[i], col * sizeof(Glyph));
-		term.alt[i]  = (Line)xrealloc(term.alt[i],  col * sizeof(Glyph));
-	}
-
-	/* allocate any new rows */
-	for (/* i = minrow */; i < row; i++) {
-		term.line[i] = (Line)xmalloc(col * sizeof(Glyph));
-		term.alt[i] = (Line)xmalloc(col * sizeof(Glyph));
-	}
-	if (col > term.col) {
-		bp = term.tabs + term.col;
-
-		memset(bp, 0, sizeof(*term.tabs) * (col - term.col));
-		while (--bp > term.tabs && !*bp)
-			/* nothing */ ;
-		for (bp += tabspaces; bp < term.tabs + col; bp += tabspaces)
-			*bp = 1;
-	}
-	/* update terminal size */
-	term.col = col;
-	term.row = row;
-	/* reset scrolling region */
-	tsetscroll(0, row-1);
-	/* make use of the LIMIT in tmoveto */
-	tmoveto(term.c.x, term.c.y);
-	/* Clearing both screens (it makes dirty all lines) */
-	c = term.c;
-	for (i = 0; i < 2; i++) {
-		if (mincol < col && 0 < minrow) {
-			tclearregion(mincol, 0, col - 1, minrow - 1);
-		}
-		if (0 < col && minrow < row) {
-			tclearregion(0, minrow, col - 1, row - 1);
-		}
-		tswapscreen();
-		tcursor(CURSOR_LOAD);
-	}
-	term.c = c;
 }
 
 void

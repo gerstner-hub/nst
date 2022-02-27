@@ -9,6 +9,9 @@
 #include <vector>
 #include <string>
 
+#include "types.hxx"
+#include "Term.hxx"
+
 /* macros */
 #define MIN(a, b)		((a) < (b) ? (a) : (b))
 #define MAX(a, b)		((a) < (b) ? (b) : (a))
@@ -63,18 +66,6 @@ typedef unsigned int uint;
 typedef unsigned long ulong;
 typedef unsigned short ushort;
 
-typedef uint_least32_t Rune;
-
-#define Glyph Glyph_
-typedef struct {
-	Rune u = 0;       /* character code */
-	ushort mode = 0;  /* attribute flags */
-	uint32_t fg = 0;  /* foreground  */
-	uint32_t bg = 0;  /* background  */
-} Glyph;
-
-typedef Glyph *Line;
-
 typedef union {
 	int i;
 	uint ui;
@@ -94,7 +85,6 @@ void toggleprinter(const Arg *);
 
 int tattrset(int);
 void tnew(int, int);
-void tresize(int, int);
 void tsetdirtattr(int);
 void ttyhangup(void);
 int ttynew(const char *, const char *, const char *, const std::vector<std::string>*);
@@ -111,7 +101,7 @@ void selextend(int, int, int, int);
 int selected(int, int);
 char *getsel(void);
 
-size_t utf8encode(Rune, char *);
+size_t utf8encode(nst::Rune, char *);
 
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);

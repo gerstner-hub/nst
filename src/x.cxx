@@ -154,9 +154,9 @@ typedef struct {
 } DC;
 
 static inline ushort sixd_to_16bit(size_t);
-static int xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, int, int, int);
-static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
-static void xdrawglyph(Glyph, int, int);
+static int xmakeglyphfontspecs(XftGlyphFontSpec *, const nst::Glyph *, int, int, int);
+static void xdrawglyphfontspecs(const XftGlyphFontSpec *, nst::Glyph, int, int, int);
+static void xdrawglyph(nst::Glyph, int, int);
 static void xclear(int, int, int, int);
 static int xgeommasktogravity(int);
 static int ximopen(Display *);
@@ -250,7 +250,7 @@ enum {
 typedef struct {
 	XftFont *font;
 	int flags;
-	Rune unicodep;
+	nst::Rune unicodep;
 } Fontcache;
 
 /* Fontcache is an array now. A new font will be appended to the array. */
@@ -763,7 +763,7 @@ cresize(int width, int height)
 	col = MAX(1, col);
 	row = MAX(1, row);
 
-	tresize(col, row);
+	term.resize(col, row);
 	xresize(col, row);
 	ttyresize(win.tw, win.th);
 }
@@ -1279,14 +1279,14 @@ xinit(int p_cols, int p_rows)
 }
 
 int
-xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x, int y)
+xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, int x, int y)
 {
 	float winx = borderpx + x * win.cw, winy = borderpx + y * win.ch, xp, yp;
 	ushort mode, prevmode = USHRT_MAX;
 	Font *fnt = &dc.font;
 	int frcflags = FRC_NORMAL;
 	float runewidth = win.cw;
-	Rune rune;
+	nst::Rune rune;
 	FT_UInt glyphidx;
 	FcResult fcres;
 	FcPattern *fcpattern, *fontpattern;
@@ -1411,7 +1411,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 }
 
 void
-xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, int y)
+xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int x, int y)
 {
 	int charlen = len * ((base.mode & ATTR_WIDE) ? 2 : 1);
 	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch,
@@ -1546,7 +1546,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
 }
 
 void
-xdrawglyph(Glyph g, int x, int y)
+xdrawglyph(nst::Glyph g, int x, int y)
 {
 	int numspecs;
 	XftGlyphFontSpec spec;
@@ -1556,7 +1556,7 @@ xdrawglyph(Glyph g, int x, int y)
 }
 
 void
-xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
+xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 {
 	Color drawcol;
 
@@ -1682,10 +1682,10 @@ xstartdraw(void)
 }
 
 void
-xdrawline(Line line, int x1, int y1, int x2)
+xdrawline(nst::Line line, int x1, int y1, int x2)
 {
 	int i, x, ox, numspecs;
-	Glyph base, newone;
+	nst::Glyph base, newone;
 	XftGlyphFontSpec *specs = xw.specbuf;
 
 	numspecs = xmakeglyphfontspecs(specs, &line[x1], x2 - x1, x1, y1);
@@ -1873,7 +1873,7 @@ kpress(XEvent *ev)
 	char buf[64];
 	const char *customkey = nullptr;
 	int len;
-	Rune c;
+	nst::Rune c;
 	Status status;
 	const Shortcut *bp;
 

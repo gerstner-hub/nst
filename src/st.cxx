@@ -136,13 +136,7 @@ static void tdeletechar(int);
 static void tdeleteline(int);
 static void tinsertblank(int);
 static void tinsertblankline(int);
-static int tlinelen(int);
-static void tmoveato(int, int);
-static void tnewline(int);
-static void tputtab(int);
 static void tputc(nst::Rune);
-static void tscrollup(int, int);
-static void tscrolldown(int, int);
 static void tsetattr(const int *, int);
 static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
 static void tsetmode(int, int, const int *, int);
@@ -364,20 +358,6 @@ selinit(void)
 	sel.ob.x = -1;
 }
 
-int
-tlinelen(int y)
-{
-	int i = term.col;
-
-	if (term.line[y][i - 1].mode & ATTR_WRAP)
-		return i;
-
-	while (i > 0 && term.line[y][i - 1].u == ' ')
-		--i;
-
-	return i;
-}
-
 void
 selstart(int col, int row, int snap)
 {
@@ -445,10 +425,10 @@ selnormalize(void)
 	/* expand selection over line breaks */
 	if (sel.type == SEL_RECTANGULAR)
 		return;
-	i = tlinelen(sel.nb.y);
+	i = term.getLineLen(sel.nb.y);
 	if (i < sel.nb.x)
 		sel.nb.x = i;
-	if (tlinelen(sel.ne.y) <= sel.ne.x)
+	if (term.getLineLen(sel.ne.y) <= sel.ne.x)
 		sel.ne.x = term.col - 1;
 }
 
@@ -500,7 +480,7 @@ selsnap(int *x, int *y, int direction)
 					break;
 			}
 
-			if (newx >= tlinelen(newy))
+			if (newx >= term.getLineLen(newy))
 				break;
 
 			gp = &term.line[newy][newx];
@@ -556,7 +536,7 @@ getsel(void)
 
 	/* append every set & selected glyph to the selection */
 	for (y = sel.nb.y; y <= sel.ne.y; y++) {
-		if ((linelen = tlinelen(y)) == 0) {
+		if ((linelen = term.getLineLen(y)) == 0) {
 			*ptr++ = '\n';
 			continue;
 		}
@@ -1115,6 +1095,12 @@ void Term::moveTo(int x, int y)
 	c.y = LIMIT(y, miny, maxy);
 }
 
+/* for absolute user moves, when decom is set */
+void Term::moveAbsTo(int x, int y)
+{
+	moveTo(x, y + ((c.state & CURSOR_ORIGIN) ? top: 0));
+}
+
 void Term::swapScreen()
 {
 	std::swap(line, alt);
@@ -1135,41 +1121,71 @@ void Term::cursorControl(const nst::CursorControl &ctrl)
 	}
 }
 
-void
-tscrolldown(int orig, int n)
+int Term::getLineLen(int y) const
 {
-	int i;
-	nst::Line temp;
+	auto i = col;
 
-	LIMIT(n, 0, term.bot-orig+1);
+	if (line[y][i - 1].mode & ATTR_WRAP)
+		return i;
 
-	term.setDirty(orig, term.bot-n);
-	term.clearRegion(0, term.bot-n+1, term.col-1, term.bot);
+	while (i > 0 && line[y][i - 1].u == ' ')
+		--i;
 
-	for (i = term.bot; i >= orig+n; i--) {
-		temp = term.line[i];
-		term.line[i] = term.line[i-n];
-		term.line[i-n] = temp;
+	return i;
+}
+
+void Term::putTab(int n)
+{
+	auto x = c.x;
+
+	if (n > 0) {
+		while (x < col && n--)
+			for (++x; x < col && !tabs[x]; ++x)
+				/* nothing */ ;
+	} else if (n < 0) {
+		while (x > 0 && n++)
+			for (--x; x > 0 && !tabs[x]; --x)
+				/* nothing */ ;
+	}
+	c.x = LIMIT(x, 0, col-1);
+}
+
+void Term::putNewline(bool first_col)
+{
+	auto y = c.y;
+
+	if (y == bot) {
+		scrollUp(top, 1);
+	} else {
+		y++;
+	}
+	moveTo(first_col ? 0 : c.x, y);
+}
+
+
+void Term::scrollDown(int orig, int n)
+{
+	LIMIT(n, 0, bot-orig+1);
+
+	setDirty(orig, bot-n);
+	clearRegion(0, bot-n+1, col-1, bot);
+
+	for (int i = bot; i >= orig+n; i--) {
+		std::swap(line[i], line[i-n]);
 	}
 
 	selscroll(orig, n);
 }
 
-void
-tscrollup(int orig, int n)
+void Term::scrollUp(int orig, int n)
 {
-	int i;
-	nst::Line temp;
+	LIMIT(n, 0, bot-orig+1);
 
-	LIMIT(n, 0, term.bot-orig+1);
+	clearRegion(0, orig, col-1, orig+n-1);
+	setDirty(orig+n, bot);
 
-	term.clearRegion(0, orig, term.col-1, orig+n-1);
-	term.setDirty(orig+n, term.bot);
-
-	for (i = orig; i <= term.bot-n; i++) {
-		temp = term.line[i];
-		term.line[i] = term.line[i+n];
-		term.line[i+n] = temp;
+	for (int i = orig; i <= bot-n; i++) {
+		std::swap(line[i], line[i+n]);
 	}
 
 	selscroll(orig, -n);
@@ -1193,19 +1209,6 @@ selscroll(int orig, int n)
 			selnormalize();
 		}
 	}
-}
-
-void
-tnewline(int first_col)
-{
-	int y = term.c.y;
-
-	if (y == term.bot) {
-		tscrollup(term.top, 1);
-	} else {
-		y++;
-	}
-	term.moveTo(first_col ? 0 : term.c.x, y);
 }
 
 void
@@ -1236,13 +1239,6 @@ csiparse(void)
 	}
 	csiescseq.mode[0] = *p++;
 	csiescseq.mode[1] = (p < csiescseq.buf+csiescseq.len) ? *p : '\0';
-}
-
-/* for absolute user moves, when decom is set */
-void
-tmoveato(int x, int y)
-{
-	term.moveTo(x, y + ((term.c.state & CURSOR_ORIGIN) ? term.top: 0));
 }
 
 void
@@ -1319,14 +1315,14 @@ void
 tinsertblankline(int n)
 {
 	if (BETWEEN(term.c.y, term.top, term.bot))
-		tscrolldown(term.c.y, n);
+		term.scrollDown(term.c.y, n);
 }
 
 void
 tdeleteline(int n)
 {
 	if (BETWEEN(term.c.y, term.top, term.bot))
-		tscrollup(term.c.y, n);
+		term.scrollUp(term.c.y, n);
 }
 
 int32_t
@@ -1497,7 +1493,7 @@ tsetmode(int priv, int set, const int *args, int narg)
 				break;
 			case 6: /* DECOM -- Origin */
 				MODBIT(term.c.state, set, CURSOR_ORIGIN);
-				tmoveato(0, 0);
+				term.moveAbsTo(0, 0);
 				break;
 			case 7: /* DECAWM -- Auto wrap */
 				MODBIT(term.mode, set, MODE_WRAP);
@@ -1704,11 +1700,11 @@ csihandle(void)
 	case 'f': /* HVP */
 		DEFAULT(csiescseq.arg[0], 1);
 		DEFAULT(csiescseq.arg[1], 1);
-		tmoveato(csiescseq.arg[1]-1, csiescseq.arg[0]-1);
+		term.moveAbsTo(csiescseq.arg[1]-1, csiescseq.arg[0]-1);
 		break;
 	case 'I': /* CHT -- Cursor Forward Tabulation <n> tab stops */
 		DEFAULT(csiescseq.arg[0], 1);
-		tputtab(csiescseq.arg[0]);
+		term.putTab(csiescseq.arg[0]);
 		break;
 	case 'J': /* ED -- Clear screen */
 		switch (csiescseq.arg[0]) {
@@ -1747,11 +1743,11 @@ csihandle(void)
 		break;
 	case 'S': /* SU -- Scroll <n> line up */
 		DEFAULT(csiescseq.arg[0], 1);
-		tscrollup(term.top, csiescseq.arg[0]);
+		term.scrollUp(term.top, csiescseq.arg[0]);
 		break;
 	case 'T': /* SD -- Scroll <n> line down */
 		DEFAULT(csiescseq.arg[0], 1);
-		tscrolldown(term.top, csiescseq.arg[0]);
+		term.scrollDown(term.top, csiescseq.arg[0]);
 		break;
 	case 'L': /* IL -- Insert <n> blank lines */
 		DEFAULT(csiescseq.arg[0], 1);
@@ -1775,11 +1771,11 @@ csihandle(void)
 		break;
 	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
 		DEFAULT(csiescseq.arg[0], 1);
-		tputtab(-csiescseq.arg[0]);
+		term.putTab(-csiescseq.arg[0]);
 		break;
 	case 'd': /* VPA -- Move to <row> */
 		DEFAULT(csiescseq.arg[0], 1);
-		tmoveato(term.c.x, csiescseq.arg[0]-1);
+		term.moveAbsTo(term.c.x, csiescseq.arg[0]-1);
 		break;
 	case 'h': /* SM -- Set terminal mode */
 		tsetmode(csiescseq.priv, 1, csiescseq.arg, csiescseq.narg);
@@ -1801,7 +1797,7 @@ csihandle(void)
 			DEFAULT(csiescseq.arg[0], 1);
 			DEFAULT(csiescseq.arg[1], term.row);
 			term.setScroll(csiescseq.arg[0]-1, csiescseq.arg[1]-1);
-			tmoveato(0, 0);
+			term.moveAbsTo(0, 0);
 		}
 		break;
 	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
@@ -2115,7 +2111,7 @@ tdumpline(int n)
 	const nst::Glyph *bp, *end;
 
 	bp = &term.line[n][0];
-	end = &bp[MIN(tlinelen(n), term.col) - 1];
+	end = &bp[MIN(term.getLineLen(n), term.col) - 1];
 	if (bp != end || bp->u != ' ') {
 		for ( ; bp <= end; ++bp)
 			tprinter(buf, utf8encode(bp->u, buf));
@@ -2130,23 +2126,6 @@ tdump(void)
 
 	for (i = 0; i < term.row; ++i)
 		tdumpline(i);
-}
-
-void
-tputtab(int n)
-{
-	int x = term.c.x;
-
-	if (n > 0) {
-		while (x < term.col && n--)
-			for (++x; x < term.col && !term.tabs[x]; ++x)
-				/* nothing */ ;
-	} else if (n < 0) {
-		while (x > 0 && n++)
-			for (--x; x > 0 && !term.tabs[x]; --x)
-				/* nothing */ ;
-	}
-	term.c.x = LIMIT(x, 0, term.col-1);
 }
 
 void
@@ -2212,7 +2191,7 @@ tcontrolcode(uchar ascii)
 {
 	switch (ascii) {
 	case '\t':   /* HT */
-		tputtab(1);
+		term.putTab(1);
 		return;
 	case '\b':   /* BS */
 		term.moveTo(term.c.x-1, term.c.y);
@@ -2224,7 +2203,7 @@ tcontrolcode(uchar ascii)
 	case '\v':   /* VT */
 	case '\n':   /* LF */
 		/* go to first col if the mode is set */
-		tnewline(IS_SET(MODE_CRLF));
+		term.putNewline(IS_SET(MODE_CRLF));
 		return;
 	case '\a':   /* BEL */
 		if (term.esc & ESC_STR_END) {
@@ -2262,7 +2241,7 @@ tcontrolcode(uchar ascii)
 	case 0x84:   /* TODO: IND */
 		break;
 	case 0x85:   /* NEL -- Next line */
-		tnewline(1); /* always go to first col */
+		term.putNewline(); /* always go to first col */
 		break;
 	case 0x86:   /* TODO: SSA */
 	case 0x87:   /* TODO: ESA */
@@ -2341,20 +2320,20 @@ eschandle(uchar ascii)
 		return 0;
 	case 'D': /* IND -- Linefeed */
 		if (term.c.y == term.bot) {
-			tscrollup(term.top, 1);
+			term.scrollUp(term.top, 1);
 		} else {
 			term.moveTo(term.c.x, term.c.y+1);
 		}
 		break;
 	case 'E': /* NEL -- Next line */
-		tnewline(1); /* always go to first col */
+		term.putNewline(); /* always go to first col */
 		break;
 	case 'H': /* HTS -- Horizontal tab stop */
 		term.tabs[term.c.x] = 1;
 		break;
 	case 'M': /* RI -- Reverse index */
 		if (term.c.y == term.top) {
-			tscrolldown(term.top, 1);
+			term.scrollDown(term.top, 1);
 		} else {
 			term.moveTo(term.c.x, term.c.y-1);
 		}
@@ -2500,7 +2479,7 @@ check_control_code:
 	gp = &term.line[term.c.y][term.c.x];
 	if (IS_SET(MODE_WRAP) && (term.c.state & CURSOR_WRAPNEXT)) {
 		gp->mode |= ATTR_WRAP;
-		tnewline(1);
+		term.putNewline();
 		gp = &term.line[term.c.y][term.c.x];
 	}
 
@@ -2508,7 +2487,7 @@ check_control_code:
 		memmove(gp+width, gp, (term.col - term.c.x - width) * sizeof(nst::Glyph));
 
 	if (term.c.x+width > term.col) {
-		tnewline(1);
+		term.putNewline();
 		gp = &term.line[term.c.y][term.c.x];
 	}
 

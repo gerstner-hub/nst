@@ -47,6 +47,8 @@ public: // functions
 
 	void moveTo(int x, int y);
 
+	void moveAbsTo(int x, int y);
+
 	void swapScreen();
 
 	void cursorControl(const nst::CursorControl &ctrl);
@@ -54,6 +56,14 @@ public: // functions
 	bool isSet(int modebit) const {
 		return (mode & modebit) != 0;
 	}
+
+	void putTab(int count);
+	void putNewline(bool firstcol = true);
+
+	void scrollUp(int orig, int n);
+	void scrollDown(int orig, int n);
+
+	int getLineLen(int y) const;
 };
 
 extern Term term;

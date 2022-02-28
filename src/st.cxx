@@ -22,6 +22,10 @@
 
 #include <pty.h>
 
+#include "nst_config.h"
+#include "Selection.hxx"
+#include "Term.hxx"
+
 /* Arbitrary sizes */
 #define UTF_INVALID   0xFFFD
 #define UTF_SIZ       4
@@ -30,12 +34,8 @@
 #define STR_BUF_SIZ   ESC_BUF_SIZ
 #define STR_ARG_SIZ   ESC_ARG_SIZ
 
-/* macros */
 #define IS_SET(flag)		((term.mode & (flag)) != 0)
-#define ISCONTROLC0(c)		((c < 0x1f) || (c) == 0x7f)
-#define ISCONTROLC1(c)		(BETWEEN(c, 0x80, 0x9f))
-#define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
-#define ISDELIM(u)		(u && wcschr(worddelimiters, u))
+
 
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
@@ -91,10 +91,6 @@ static void tdeftran(char);
 static void tstrsequence(uchar);
 
 static void drawregion(int, int, int, int);
-
-static void selnormalize(void);
-static void selscroll(int, int);
-static void selsnap(int *, int *, int);
 
 static size_t utf8decode(const char *, nst::Rune *, size_t);
 static nst::Rune utf8decodebyte(char, size_t *);
@@ -290,153 +286,6 @@ base64dec(const char *src)
 	}
 	*dst = '\0';
 	return result;
-}
-
-void
-selstart(int col, int row, int snap)
-{
-	sel.clear();
-	sel.mode = Selection::Mode::EMPTY;
-	sel.type = Selection::Type::REGULAR;
-	sel.alt = term.isSet(MODE_ALTSCREEN);
-	sel.snap = static_cast<Selection::Snap>(snap);
-	sel.oe.x = sel.ob.x = col;
-	sel.oe.y = sel.ob.y = row;
-	selnormalize();
-
-	if (sel.snap != 0)
-		sel.mode = Selection::Mode::READY;
-	term.setDirty(sel.nb.y, sel.ne.y);
-}
-
-void
-selextend(int col, int row, int type, int done)
-{
-	int oldey, oldex, oldsby, oldsey;
-
-	if (sel.mode == Selection::Mode::IDLE)
-		return;
-	if (done && sel.mode == Selection::Mode::EMPTY) {
-		sel.clear();
-		return;
-	}
-
-	oldey = sel.oe.y;
-	oldex = sel.oe.x;
-	oldsby = sel.nb.y;
-	oldsey = sel.ne.y;
-	const auto oldtype = sel.type;
-
-	sel.oe.x = col;
-	sel.oe.y = row;
-	selnormalize();
-	sel.type = static_cast<Selection::Type>(type);
-
-	if (oldey != sel.oe.y || oldex != sel.oe.x || oldtype != sel.type || sel.mode == Selection::Mode::EMPTY)
-		term.setDirty(MIN(sel.nb.y, oldsby), MAX(sel.ne.y, oldsey));
-
-	sel.mode = done ? Selection::Mode::IDLE : Selection::Mode::READY;
-}
-
-void
-selnormalize(void)
-{
-	int i;
-
-	if (sel.type == Selection::Type::REGULAR && sel.ob.y != sel.oe.y) {
-		sel.nb.x = sel.ob.y < sel.oe.y ? sel.ob.x : sel.oe.x;
-		sel.ne.x = sel.ob.y < sel.oe.y ? sel.oe.x : sel.ob.x;
-	} else {
-		sel.nb.x = MIN(sel.ob.x, sel.oe.x);
-		sel.ne.x = MAX(sel.ob.x, sel.oe.x);
-	}
-	sel.nb.y = MIN(sel.ob.y, sel.oe.y);
-	sel.ne.y = MAX(sel.ob.y, sel.oe.y);
-
-	selsnap(&sel.nb.x, &sel.nb.y, -1);
-	selsnap(&sel.ne.x, &sel.ne.y, +1);
-
-	/* expand selection over line breaks */
-	if (sel.type == Selection::Type::RECTANGULAR)
-		return;
-	i = term.getLineLen(sel.nb.y);
-	if (i < sel.nb.x)
-		sel.nb.x = i;
-	if (term.getLineLen(sel.ne.y) <= sel.ne.x)
-		sel.ne.x = term.col - 1;
-}
-
-void
-selsnap(int *x, int *y, int direction)
-{
-	int newx, newy, xt, yt;
-	int delim, prevdelim;
-	const nst::Glyph *gp, *prevgp;
-
-	switch (sel.snap) {
-	case Selection::Snap::WORD:
-		/*
-		 * Snap around if the word wraps around at the end or
-		 * beginning of a line.
-		 */
-		prevgp = &term.line[*y][*x];
-		prevdelim = ISDELIM(prevgp->u);
-		for (;;) {
-			newx = *x + direction;
-			newy = *y;
-			if (!BETWEEN(newx, 0, term.col - 1)) {
-				newy += direction;
-				newx = (newx + term.col) % term.col;
-				if (!BETWEEN(newy, 0, term.row - 1))
-					break;
-
-				if (direction > 0)
-					yt = *y, xt = *x;
-				else
-					yt = newy, xt = newx;
-				if (!(term.line[yt][xt].mode & ATTR_WRAP))
-					break;
-			}
-
-			if (newx >= term.getLineLen(newy))
-				break;
-
-			gp = &term.line[newy][newx];
-			delim = ISDELIM(gp->u);
-			if (!(gp->mode & ATTR_WDUMMY) && (delim != prevdelim
-					|| (delim && gp->u != prevgp->u)))
-				break;
-
-			*x = newx;
-			*y = newy;
-			prevgp = gp;
-			prevdelim = delim;
-		}
-		break;
-	case Selection::Snap::LINE:
-		/*
-		 * Snap around if the the previous line or the current one
-		 * has set ATTR_WRAP at its end. Then the whole next or
-		 * previous line will be selected.
-		 */
-		*x = (direction < 0) ? 0 : term.col - 1;
-		if (direction < 0) {
-			for (; *y > 0; *y += direction) {
-				if (!(term.line[*y-1][term.col-1].mode
-						& ATTR_WRAP)) {
-					break;
-				}
-			}
-		} else if (direction > 0) {
-			for (; *y < term.row-1; *y += direction) {
-				if (!(term.line[*y][term.col-1].mode
-						& ATTR_WRAP)) {
-					break;
-				}
-			}
-		}
-		break;
-	}
 }
 
 char *
@@ -819,54 +668,6 @@ tsetdirtattr(int attr)
 				term.setDirty(i, i);
 				break;
 			}
-		}
-	}
-}
-
-void Term::scrollDown(int orig, int n)
-{
-	LIMIT(n, 0, bot-orig+1);
-
-	setDirty(orig, bot-n);
-	clearRegion(0, bot-n+1, col-1, bot);
-
-	for (int i = bot; i >= orig+n; i--) {
-		std::swap(line[i], line[i-n]);
-	}
-
-	selscroll(orig, n);
-}
-
-void Term::scrollUp(int orig, int n)
-{
-	LIMIT(n, 0, bot-orig+1);
-
-	clearRegion(0, orig, col-1, orig+n-1);
-	setDirty(orig+n, bot);
-
-	for (int i = orig; i <= bot-n; i++) {
-		std::swap(line[i], line[i+n]);
-	}
-
-	selscroll(orig, -n);
-}
-
-void
-selscroll(int orig, int n)
-{
-	if (sel.ob.x == -1)
-		return;
-
-	if (BETWEEN(sel.nb.y, orig, term.bot) != BETWEEN(sel.ne.y, orig, term.bot)) {
-		sel.clear();
-	} else if (BETWEEN(sel.nb.y, orig, term.bot)) {
-		sel.ob.y += n;
-		sel.oe.y += n;
-		if (sel.ob.y < term.top || sel.ob.y > term.bot ||
-		    sel.oe.y < term.top || sel.oe.y > term.bot) {
-			sel.clear();
-		} else {
-			selnormalize();
 		}
 	}
 }

@@ -1,6 +1,9 @@
 #ifndef NST_MACROS_HXX
 #define NST_MACROS_HXX
 
+// libc
+#include <wchar.h>
+
 /* macros */
 #define MIN(a, b)		((a) < (b) ? (a) : (b))
 #define MAX(a, b)		((a) < (b) ? (b) : (a))
@@ -17,5 +20,11 @@
 
 #define TRUECOLOR(r,g,b)	(1 << 24 | (r) << 16 | (g) << 8 | (b))
 #define IS_TRUECOL(x)		(1 << 24 & (x))
+
+#define ISCONTROLC0(c)		((c < 0x1f) || (c) == 0x7f)
+#define ISCONTROLC1(c)		(BETWEEN(c, 0x80, 0x9f))
+#define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
+#define ISDELIM(u)		(u && wcschr(nst::config::WORDDELIMITERS, u))
+
 
 #endif // inc. guard

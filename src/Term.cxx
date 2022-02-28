@@ -287,3 +287,31 @@ void Term::insertBlankLine(int n)
 	if (BETWEEN(c.y, top, bot))
 		scrollDown(c.y, n);
 }
+
+void Term::scrollDown(int orig, int n)
+{
+	LIMIT(n, 0, bot-orig+1);
+
+	setDirty(orig, bot-n);
+	clearRegion(0, bot-n+1, col-1, bot);
+
+	for (int i = bot; i >= orig+n; i--) {
+		std::swap(line[i], line[i-n]);
+	}
+
+	m_selection->scroll(orig, n);
+}
+
+void Term::scrollUp(int orig, int n)
+{
+	LIMIT(n, 0, bot-orig+1);
+
+	clearRegion(0, orig, col-1, orig+n-1);
+	setDirty(orig+n, bot);
+
+	for (int i = orig; i <= bot-n; i++) {
+		std::swap(line[i], line[i+n]);
+	}
+
+	m_selection->scroll(orig, -n);
+}

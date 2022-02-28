@@ -18,6 +18,7 @@ public: // types
 	};
 
 	enum Snap {
+		NONE = 0,
 		WORD = 1,
 		LINE = 2
 	};
@@ -37,7 +38,7 @@ public: // data
 		int x = 0, y = 0;
 	} nb, ne, ob, oe;
 
-	int alt = 0;
+	bool alt = false;
 
 protected: // data
 
@@ -56,6 +57,14 @@ public: // functions
 	void clear();
 
 	bool isSelected(int x, int y) const;
+	void start(int col, int row, Snap snap);
+	void extend(int col, int row, const Type &type, const bool &done);
+	void scroll(int orig, int n);
+
+protected: // functions
+
+	void normalize();
+	void checkSnap(int *x, int *y, int direction);
 };
 
 #endif // inc. guard

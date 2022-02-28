@@ -1,17 +1,36 @@
 #ifndef NST_CONFIG_H
 #define NST_CONFIG_H
 
+// Xlib
+#include <X11/cursorfont.h>
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+
+// nst
+#include "xtypes.hxx"
+
 namespace nst {
 namespace config {
+
 
 /*
  * appearance
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+constexpr const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+
+/*
+ * word delimiter string
+ *
+ * More advanced example: L" `'\"()[]{}"
+ */
+constexpr const wchar_t *WORDDELIMITERS = L" ";
+
 
 }} // end ns nst::config
+
+#ifdef FULL_NST_CONFIG
 
 const int borderpx = 2;
 
@@ -35,13 +54,6 @@ const char *vtiden = "\033[?6c";
 /* Kerning / character bounding-box multipliers */
 const float cwscale = 1.0;
 const float chscale = 1.0;
-
-/*
- * word delimiter string
- *
- * More advanced example: L" `'\"()[]{}"
- */
-const wchar_t *worddelimiters = L" ";
 
 /* selection timeouts (in milliseconds) */
 const unsigned int doubleclicktimeout = 300;
@@ -480,5 +492,6 @@ const char ascii_printable[] =
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
+#endif
 
 #endif // inc. guard

@@ -23,43 +23,9 @@
 #include <map>
 #include <string>
 
-// nst
+#include "types.hxx"
 #include "st.h"
-#include "win.h"
-
-/* types used in config.h */
-typedef struct {
-	uint mod;
-	KeySym keysym;
-	void (*func)(const Arg *);
-	const Arg arg;
-} Shortcut;
-
-typedef struct {
-	uint mod;
-	uint button;
-	void (*func)(const Arg *);
-	const Arg arg;
-	uint  release;
-} MouseShortcut;
-
-typedef struct {
-	KeySym k;
-	uint mask;
-	const char *s;
-	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
-	signed char appkey;    /* application keypad */
-	signed char appcursor; /* application cursor */
-} Key;
-
-/* X modifiers */
-#define XK_ANY_MOD    UINT_MAX
-#define XK_NO_MOD     0
-#define XK_SWITCH_MOD (1<<13|1<<14)
-
-extern Term term;
-extern Selection sel;
-
+#define FULL_NST_CONFIG
 /* function definitions used in config.h */
 static void clipcopy(const Arg *);
 static void clippaste(const Arg *);
@@ -70,10 +36,21 @@ static void zoomabs(const Arg *);
 static void zoomreset(const Arg *);
 static void ttysend(const Arg *);
 
-#include "Cmdline.hxx"
+// nst
+#include "win.h"
+
+#include "xtypes.hxx"
+#include "Selection.hxx"
+#include "Term.hxx"
+
+extern Term term;
+extern Selection sel;
 
 /* config.h for applying patches and the configuration. */
 #include "nst_config.h"
+
+#include "Cmdline.hxx"
+
 // autotools config.h
 #ifdef HAVE_CONFIG_H
 #	include "config.h"
@@ -371,17 +348,17 @@ evrow(XEvent *e)
 void
 mousesel(XEvent *e, int done)
 {
-	auto seltype = static_cast<int>(Selection::Type::REGULAR);
+	auto seltype = Selection::Type::REGULAR;
 	size_t type;
 	uint state = e->xbutton.state & ~(Button1Mask | forcemousemod);
 
 	for (type = 1; type < LEN(selmasks); ++type) {
 		if (match(selmasks[type], state)) {
-			seltype = (int)type;
+			seltype = static_cast<Selection::Type>(type);
 			break;
 		}
 	}
-	selextend(evcol(e), evrow(e), seltype, done);
+	sel.extend(evcol(e), evrow(e), seltype, done ? true : false);
 	if (done)
 		setsel(getsel(), e->xbutton.time);
 }
@@ -495,7 +472,6 @@ bpress(XEvent *e)
 {
 	int btn = e->xbutton.button;
 	struct timespec now;
-	int snap;
 
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
@@ -508,6 +484,8 @@ bpress(XEvent *e)
 	if (mouseaction(e, 0))
 		return;
 
+	Selection::Snap snap = Selection::Snap::NONE;
+
 	if (btn == Button1) {
 		/*
 		 * If the user clicks below predefined timeouts specific
@@ -515,16 +493,14 @@ bpress(XEvent *e)
 		 */
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
-			snap = static_cast<int>(Selection::Snap::LINE);
+			snap = Selection::Snap::LINE;
 		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
-			snap = static_cast<int>(Selection::Snap::WORD);
-		} else {
-			snap = 0;
+			snap = Selection::Snap::WORD;
 		}
 		xsel.tclick2 = xsel.tclick1;
 		xsel.tclick1 = now;
 
-		selstart(evcol(e), evrow(e), snap);
+		sel.start(evcol(e), evrow(e), snap);
 	}
 }
 

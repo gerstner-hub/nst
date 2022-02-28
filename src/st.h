@@ -10,22 +10,7 @@
 #include <string>
 
 #include "types.hxx"
-#include "Term.hxx"
-#include "Selection.hxx"
 #include "macros.hxx"
-
-typedef unsigned char uchar;
-typedef unsigned int uint;
-typedef unsigned long ulong;
-typedef unsigned short ushort;
-
-typedef union {
-	int i;
-	uint ui;
-	float f;
-	const void *v;
-	const char *s;
-} Arg;
 
 void die(const char *, ...);
 void redraw(void);
@@ -47,8 +32,6 @@ void ttywrite(const char *, size_t, int);
 void resettitle(void);
 
 void init_term(int, int);
-void selstart(int, int, int);
-void selextend(int, int, int, int);
 char *getsel(void);
 
 size_t utf8encode(nst::Rune, char *);
@@ -65,7 +48,6 @@ extern const char *utmp;
 extern const char *scroll;
 extern const char *stty_args;
 extern const char *vtiden;
-extern const wchar_t *worddelimiters;
 extern int allowaltscreen;
 extern const int allowwindowops;
 extern const char *termname;

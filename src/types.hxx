@@ -30,6 +30,11 @@ enum class CursorControl {
 
 } // end ns
 
+typedef unsigned char uchar;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+typedef unsigned short ushort;
+
 enum glyph_attribute {
 	ATTR_NULL       = 0,
 	ATTR_BOLD       = 1 << 0,
@@ -81,5 +86,13 @@ enum escape_state {
 	ESC_TEST       = 32, /* Enter in test mode */
 	ESC_UTF8       = 64,
 };
+
+typedef union {
+	int i;
+	uint ui;
+	float f;
+	const void *v;
+	const char *s;
+} Arg;
 
 #endif // inc. guard

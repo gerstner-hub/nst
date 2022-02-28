@@ -1,19 +1,31 @@
 #ifndef NST_SELECTION_HXX
 #define NST_SELECTION_HXX
 
-enum class SelectionMode {
-	IDLE = 0,
-	EMPTY = 1,
-	READY = 2
-};
-
 class Term;
 
 class Selection {
+public: // types
+
+	enum class Mode {
+		IDLE = 0,
+		EMPTY = 1,
+		READY = 2
+	};
+
+	enum class Type {
+		REGULAR = 1,
+		RECTANGULAR = 2
+	};
+
+	enum Snap {
+		WORD = 1,
+		LINE = 2
+	};
+
 public: // data
-	SelectionMode mode = SelectionMode::IDLE;
-	int type = 0;
-	int snap = 0;
+	Mode mode = Mode::IDLE;
+	Type type = Type::REGULAR;
+	Snap snap = Snap::WORD;
 	/*
 	 * Selection variables:
 	 * nb – normalized coordinates of the beginning of the selection

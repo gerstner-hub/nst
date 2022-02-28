@@ -296,27 +296,27 @@ void
 selstart(int col, int row, int snap)
 {
 	sel.clear();
-	sel.mode = SelectionMode::EMPTY;
-	sel.type = SEL_REGULAR;
-	sel.alt = IS_SET(MODE_ALTSCREEN);
-	sel.snap = snap;
+	sel.mode = Selection::Mode::EMPTY;
+	sel.type = Selection::Type::REGULAR;
+	sel.alt = term.isSet(MODE_ALTSCREEN);
+	sel.snap = static_cast<Selection::Snap>(snap);
 	sel.oe.x = sel.ob.x = col;
 	sel.oe.y = sel.ob.y = row;
 	selnormalize();
 
 	if (sel.snap != 0)
-		sel.mode = SelectionMode::READY;
+		sel.mode = Selection::Mode::READY;
 	term.setDirty(sel.nb.y, sel.ne.y);
 }
 
 void
 selextend(int col, int row, int type, int done)
 {
-	int oldey, oldex, oldsby, oldsey, oldtype;
+	int oldey, oldex, oldsby, oldsey;
 
-	if (sel.mode == SelectionMode::IDLE)
+	if (sel.mode == Selection::Mode::IDLE)
 		return;
-	if (done && sel.mode == SelectionMode::EMPTY) {
+	if (done && sel.mode == Selection::Mode::EMPTY) {
 		sel.clear();
 		return;
 	}
@@ -325,17 +325,17 @@ selextend(int col, int row, int type, int done)
 	oldex = sel.oe.x;
 	oldsby = sel.nb.y;
 	oldsey = sel.ne.y;
-	oldtype = sel.type;
+	const auto oldtype = sel.type;
 
 	sel.oe.x = col;
 	sel.oe.y = row;
 	selnormalize();
-	sel.type = type;
+	sel.type = static_cast<Selection::Type>(type);
 
-	if (oldey != sel.oe.y || oldex != sel.oe.x || oldtype != sel.type || sel.mode == SelectionMode::EMPTY)
+	if (oldey != sel.oe.y || oldex != sel.oe.x || oldtype != sel.type || sel.mode == Selection::Mode::EMPTY)
 		term.setDirty(MIN(sel.nb.y, oldsby), MAX(sel.ne.y, oldsey));
 
-	sel.mode = done ? SelectionMode::IDLE : SelectionMode::READY;
+	sel.mode = done ? Selection::Mode::IDLE : Selection::Mode::READY;
 }
 
 void
@@ -343,7 +343,7 @@ selnormalize(void)
 {
 	int i;
 
-	if (sel.type == SEL_REGULAR && sel.ob.y != sel.oe.y) {
+	if (sel.type == Selection::Type::REGULAR && sel.ob.y != sel.oe.y) {
 		sel.nb.x = sel.ob.y < sel.oe.y ? sel.ob.x : sel.oe.x;
 		sel.ne.x = sel.ob.y < sel.oe.y ? sel.oe.x : sel.ob.x;
 	} else {
@@ -357,7 +357,7 @@ selnormalize(void)
 	selsnap(&sel.ne.x, &sel.ne.y, +1);
 
 	/* expand selection over line breaks */
-	if (sel.type == SEL_RECTANGULAR)
+	if (sel.type == Selection::Type::RECTANGULAR)
 		return;
 	i = term.getLineLen(sel.nb.y);
 	if (i < sel.nb.x)
@@ -374,7 +374,7 @@ selsnap(int *x, int *y, int direction)
 	const nst::Glyph *gp, *prevgp;
 
 	switch (sel.snap) {
-	case SNAP_WORD:
+	case Selection::Snap::WORD:
 		/*
 		 * Snap around if the word wraps around at the end or
 		 * beginning of a line.
@@ -413,7 +413,7 @@ selsnap(int *x, int *y, int direction)
 			prevdelim = delim;
 		}
 		break;
-	case SNAP_LINE:
+	case Selection::Snap::LINE:
 		/*
 		 * Snap around if the the previous line or the current one
 		 * has set ATTR_WRAP at its end. Then the whole next or
@@ -459,7 +459,7 @@ getsel(void)
 			continue;
 		}
 
-		if (sel.type == SEL_RECTANGULAR) {
+		if (sel.type == Selection::Type::RECTANGULAR) {
 			gp = &term.line[y][sel.nb.x];
 			lastx = sel.ne.x;
 		} else {
@@ -487,7 +487,7 @@ getsel(void)
 		 * FIXME: Fix the computer world.
 		 */
 		if ((y < sel.ne.y || lastx >= linelen) &&
-		    (!(last->mode & ATTR_WRAP) || sel.type == SEL_RECTANGULAR))
+		    (!(last->mode & ATTR_WRAP) || sel.type == Selection::Type::RECTANGULAR))
 			*ptr++ = '\n';
 	}
 	*ptr = 0;

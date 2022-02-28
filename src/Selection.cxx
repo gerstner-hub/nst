@@ -5,7 +5,7 @@
 void Selection::clear() {
 	if (ob.x == -1)
 		return;
-	mode = SelectionMode::IDLE;
+	mode = Mode::IDLE;
 	ob.x = -1;
 	if (m_term) {
 		m_term->setDirty(nb.y, ne.y);
@@ -13,11 +13,11 @@ void Selection::clear() {
 }
 
 bool Selection::isSelected(int x, int y) const {
-	if (mode == SelectionMode::EMPTY || ob.x == -1 ||
+	if (mode == Mode::EMPTY || ob.x == -1 ||
 			alt != m_term->isSet(MODE_ALTSCREEN))
 		return 0;
 
-	if (type == SEL_RECTANGULAR)
+	if (type == Type::RECTANGULAR)
 		return BETWEEN(y, nb.y, ne.y)
 		    && BETWEEN(x, nb.x, ne.x);
 

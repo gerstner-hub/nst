@@ -46,16 +46,6 @@ enum glyph_attribute {
 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 };
 
-enum selection_type {
-	SEL_REGULAR = 1,
-	SEL_RECTANGULAR = 2
-};
-
-enum selection_snap {
-	SNAP_WORD = 1,
-	SNAP_LINE = 2
-};
-
 enum term_mode {
 	MODE_WRAP        = 1 << 0,
 	MODE_INSERT      = 1 << 1,

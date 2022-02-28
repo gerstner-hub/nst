@@ -371,7 +371,7 @@ evrow(XEvent *e)
 void
 mousesel(XEvent *e, int done)
 {
-	int seltype = SEL_REGULAR;
+	auto seltype = static_cast<int>(Selection::Type::REGULAR);
 	size_t type;
 	uint state = e->xbutton.state & ~(Button1Mask | forcemousemod);
 
@@ -515,9 +515,9 @@ bpress(XEvent *e)
 		 */
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
-			snap = SNAP_LINE;
+			snap = static_cast<int>(Selection::Snap::LINE);
 		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
-			snap = SNAP_WORD;
+			snap = static_cast<int>(Selection::Snap::WORD);
 		} else {
 			snap = 0;
 		}

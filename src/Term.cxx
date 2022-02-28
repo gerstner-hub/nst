@@ -249,3 +249,40 @@ void Term::putNewline(bool first_col)
 	moveTo(first_col ? 0 : c.x, y);
 }
 
+void Term::deleteChar(int n)
+{
+	LIMIT(n, 0, col - c.x);
+
+	const int dst = c.x;
+	const int src = c.x + n;
+	const int size = col - src;
+	nst::Glyph *l = line[c.y];
+
+	memmove(&l[dst], &l[src], size * sizeof(nst::Glyph));
+	clearRegion(col-n, c.y, col-1, c.y);
+}
+
+void Term::deleteLine(int n)
+{
+	if (BETWEEN(c.y, top, bot))
+		scrollUp(c.y, n);
+}
+
+void Term::insertBlank(int n)
+{
+	LIMIT(n, 0, col - c.x);
+
+	const int dst = c.x + n;
+	const int src = c.x;
+	const int size = col - dst;
+	nst::Glyph *l = line[c.y];
+
+	memmove(&l[dst], &l[src], size * sizeof(nst::Glyph));
+	clearRegion(src, c.y, dst - 1, c.y);
+}
+
+void Term::insertBlankLine(int n)
+{
+	if (BETWEEN(c.y, top, bot))
+		scrollDown(c.y, n);
+}

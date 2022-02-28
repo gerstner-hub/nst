@@ -64,7 +64,11 @@ public: // functions
 	void scrollDown(int orig, int n);
 
 	int getLineLen(int y) const;
-};
 
+	void deleteChar(int n);
+	void deleteLine(int n);
+	void insertBlank(int n);
+	void insertBlankLine(int n);
+};
 
 #endif // inc. guard

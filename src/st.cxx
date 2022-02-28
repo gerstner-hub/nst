@@ -96,10 +96,6 @@ static void tprinter(const char *, size_t);
 static void tdumpsel(void);
 static void tdumpline(int);
 static void tdump(void);
-static void tdeletechar(int);
-static void tdeleteline(int);
-static void tinsertblank(int);
-static void tinsertblankline(int);
 static void tputc(nst::Rune);
 static void tsetattr(const int *, int);
 static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
@@ -993,54 +989,6 @@ tsetchar(nst::Rune u, const nst::Glyph *attr, int x, int y)
 	term.line[y][x].u = u;
 }
 
-void
-tdeletechar(int n)
-{
-	int dst, src, size;
-	nst::Glyph *line;
-
-	LIMIT(n, 0, term.col - term.c.x);
-
-	dst = term.c.x;
-	src = term.c.x + n;
-	size = term.col - src;
-	line = term.line[term.c.y];
-
-	memmove(&line[dst], &line[src], size * sizeof(nst::Glyph));
-	term.clearRegion(term.col-n, term.c.y, term.col-1, term.c.y);
-}
-
-void
-tinsertblank(int n)
-{
-	int dst, src, size;
-	nst::Glyph *line;
-
-	LIMIT(n, 0, term.col - term.c.x);
-
-	dst = term.c.x + n;
-	src = term.c.x;
-	size = term.col - dst;
-	line = term.line[term.c.y];
-
-	memmove(&line[dst], &line[src], size * sizeof(nst::Glyph));
-	term.clearRegion(src, term.c.y, dst - 1, term.c.y);
-}
-
-void
-tinsertblankline(int n)
-{
-	if (BETWEEN(term.c.y, term.top, term.bot))
-		term.scrollDown(term.c.y, n);
-}
-
-void
-tdeleteline(int n)
-{
-	if (BETWEEN(term.c.y, term.top, term.bot))
-		term.scrollUp(term.c.y, n);
-}
-
 int32_t
 tdefcolor(const int *attr, int *npar, int l)
 {
@@ -1338,7 +1286,7 @@ csihandle(void)
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
 		DEFAULT(csiescseq.arg[0], 1);
-		tinsertblank(csiescseq.arg[0]);
+		term.insertBlank(csiescseq.arg[0]);
 		break;
 	case 'A': /* CUU -- Cursor <n> Up */
 		DEFAULT(csiescseq.arg[0], 1);
@@ -1467,14 +1415,14 @@ csihandle(void)
 		break;
 	case 'L': /* IL -- Insert <n> blank lines */
 		DEFAULT(csiescseq.arg[0], 1);
-		tinsertblankline(csiescseq.arg[0]);
+		term.insertBlankLine(csiescseq.arg[0]);
 		break;
 	case 'l': /* RM -- Reset Mode */
 		tsetmode(csiescseq.priv, 0, csiescseq.arg, csiescseq.narg);
 		break;
 	case 'M': /* DL -- Delete <n> lines */
 		DEFAULT(csiescseq.arg[0], 1);
-		tdeleteline(csiescseq.arg[0]);
+		term.deleteLine(csiescseq.arg[0]);
 		break;
 	case 'X': /* ECH -- Erase <n> char */
 		DEFAULT(csiescseq.arg[0], 1);
@@ -1483,7 +1431,7 @@ csihandle(void)
 		break;
 	case 'P': /* DCH -- Delete <n> char */
 		DEFAULT(csiescseq.arg[0], 1);
-		tdeletechar(csiescseq.arg[0]);
+		term.deleteChar(csiescseq.arg[0]);
 		break;
 	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
 		DEFAULT(csiescseq.arg[0], 1);

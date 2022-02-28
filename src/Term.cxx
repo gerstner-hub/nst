@@ -5,7 +5,8 @@
 #include "Term.hxx"
 #include "st.h"
 
-Term::Term(int _cols, int _rows) {
+Term::Term(int _cols, int _rows, Selection &selection) {
+	m_selection = &selection;
 	resize(_cols, _rows);
 	reset();
 }
@@ -145,8 +146,8 @@ void Term::clearRegion(int x1, int y1, int x2, int y2)
 		dirty[y] = 1;
 		for (x = x1; x <= x2; x++) {
 			gp = &line[y][x];
-			if (selected(x, y))
-				selclear();
+			if (m_selection->isSelected(x, y))
+				m_selection->clear();
 			gp->fg = c.attr.fg;
 			gp->bg = c.attr.bg;
 			gp->mode = 0;

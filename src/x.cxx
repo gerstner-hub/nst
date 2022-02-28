@@ -58,6 +58,7 @@ typedef struct {
 #define XK_SWITCH_MOD (1<<13|1<<14)
 
 extern Term term;
+extern Selection sel;
 
 /* function definitions used in config.h */
 static void clipcopy(const Arg *);
@@ -711,7 +712,7 @@ setsel(char *str, Time t)
 
 	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
 	if (XGetSelectionOwner(xw.dpy, XA_PRIMARY) != xw.win)
-		selclear();
+		sel.clear();
 }
 
 void
@@ -1563,7 +1564,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	Color drawcol;
 
 	/* remove the old cursor */
-	if (selected(ox, oy))
+	if (sel.isSelected(ox, oy))
 		og.mode ^= ATTR_REVERSE;
 	xdrawglyph(og, ox, oy);
 
@@ -1578,7 +1579,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	if (IS_SET(MODE_REVERSE)) {
 		g.mode |= ATTR_REVERSE;
 		g.bg = defaultfg;
-		if (selected(cx, cy)) {
+		if (sel.isSelected(cx, cy)) {
 			drawcol = dc.col[defaultcs];
 			g.fg = defaultrcs;
 		} else {
@@ -1586,7 +1587,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 			g.fg = defaultcs;
 		}
 	} else {
-		if (selected(cx, cy)) {
+		if (sel.isSelected(cx, cy)) {
 			g.fg = defaultfg;
 			g.bg = defaultrcs;
 		} else {
@@ -1696,7 +1697,7 @@ xdrawline(nst::Line line, int x1, int y1, int x2)
 		newone = line[x];
 		if (newone.mode == ATTR_WDUMMY)
 			continue;
-		if (selected(x, y1))
+		if (sel.isSelected(x, y1))
 			newone.mode ^= ATTR_REVERSE;
 		if (i > 0 && ATTRCMP(base, newone)) {
 			xdrawglyphfontspecs(specs, base, i, ox, y1);
@@ -2123,10 +2124,9 @@ main(int argc, const char **argv)
 	XSetLocaleModifiers("");
 	cols = std::max(cols, 1U);
 	rows = std::max(rows, 1U);
-	term = Term(cols, rows);
+	init_term(cols, rows);
 	xinit(cols, rows);
 	xsetenv();
-	selinit();
 	run();
 	xfreeglobals();
 

@@ -11,23 +11,8 @@
 
 #include "types.hxx"
 #include "Term.hxx"
-
-/* macros */
-#define MIN(a, b)		((a) < (b) ? (a) : (b))
-#define MAX(a, b)		((a) < (b) ? (b) : (a))
-#define LEN(a)			(sizeof(a) / sizeof(a)[0])
-#define BETWEEN(x, a, b)	((a) <= (x) && (x) <= (b))
-#define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
-#define DEFAULT(a, b)		(a) = (a) ? (a) : (b)
-#define LIMIT(x, a, b)		(x) = (x) < (a) ? (a) : (x) > (b) ? (b) : (x)
-#define ATTRCMP(a, b)		((a).mode != (b).mode || (a).fg != (b).fg || \
-				(a).bg != (b).bg)
-#define TIMEDIFF(t1, t2)	((t1.tv_sec-t2.tv_sec)*1000 + \
-				(t1.tv_nsec-t2.tv_nsec)/1E6)
-#define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
-
-#define TRUECOLOR(r,g,b)	(1 << 24 | (r) << 16 | (g) << 8 | (b))
-#define IS_TRUECOL(x)		(1 << 24 & (x))
+#include "Selection.hxx"
+#include "macros.hxx"
 
 typedef unsigned char uchar;
 typedef unsigned int uint;
@@ -61,11 +46,9 @@ void ttywrite(const char *, size_t, int);
 
 void resettitle(void);
 
-void selclear(void);
-void selinit(void);
+void init_term(int, int);
 void selstart(int, int, int);
 void selextend(int, int, int, int);
-int selected(int, int);
 char *getsel(void);
 
 size_t utf8encode(nst::Rune, char *);

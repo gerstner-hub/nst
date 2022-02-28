@@ -37,24 +37,6 @@
 #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
 #define ISDELIM(u)		(u && wcschr(worddelimiters, u))
 
-typedef struct {
-	int mode;
-	int type;
-	int snap;
-	/*
-	 * Selection variables:
-	 * nb – normalized coordinates of the beginning of the selection
-	 * ne – normalized coordinates of the end of the selection
-	 * ob – original coordinates of the beginning of the selection
-	 * oe – original coordinates of the end of the selection
-	 */
-	struct {
-		int x, y;
-	} nb, ne, ob, oe;
-
-	int alt;
-} Selection;
-
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
 typedef struct {
@@ -126,7 +108,7 @@ static ssize_t xwrite(int, const char *, size_t);
 
 /* Globals */
 Term term;
-static Selection sel;
+Selection sel;
 static CSIEscape csiescseq;
 static STREscape strescseq;
 static int iofd = 1;
@@ -311,18 +293,10 @@ base64dec(const char *src)
 }
 
 void
-selinit(void)
-{
-	sel.mode = SEL_IDLE;
-	sel.snap = 0;
-	sel.ob.x = -1;
-}
-
-void
 selstart(int col, int row, int snap)
 {
-	selclear();
-	sel.mode = SEL_EMPTY;
+	sel.clear();
+	sel.mode = SelectionMode::EMPTY;
 	sel.type = SEL_REGULAR;
 	sel.alt = IS_SET(MODE_ALTSCREEN);
 	sel.snap = snap;
@@ -331,7 +305,7 @@ selstart(int col, int row, int snap)
 	selnormalize();
 
 	if (sel.snap != 0)
-		sel.mode = SEL_READY;
+		sel.mode = SelectionMode::READY;
 	term.setDirty(sel.nb.y, sel.ne.y);
 }
 
@@ -340,10 +314,10 @@ selextend(int col, int row, int type, int done)
 {
 	int oldey, oldex, oldsby, oldsey, oldtype;
 
-	if (sel.mode == SEL_IDLE)
+	if (sel.mode == SelectionMode::IDLE)
 		return;
-	if (done && sel.mode == SEL_EMPTY) {
-		selclear();
+	if (done && sel.mode == SelectionMode::EMPTY) {
+		sel.clear();
 		return;
 	}
 
@@ -358,10 +332,10 @@ selextend(int col, int row, int type, int done)
 	selnormalize();
 	sel.type = type;
 
-	if (oldey != sel.oe.y || oldex != sel.oe.x || oldtype != sel.type || sel.mode == SEL_EMPTY)
+	if (oldey != sel.oe.y || oldex != sel.oe.x || oldtype != sel.type || sel.mode == SelectionMode::EMPTY)
 		term.setDirty(MIN(sel.nb.y, oldsby), MAX(sel.ne.y, oldsey));
 
-	sel.mode = done ? SEL_IDLE : SEL_READY;
+	sel.mode = done ? SelectionMode::IDLE : SelectionMode::READY;
 }
 
 void
@@ -390,22 +364,6 @@ selnormalize(void)
 		sel.nb.x = i;
 	if (term.getLineLen(sel.ne.y) <= sel.ne.x)
 		sel.ne.x = term.col - 1;
-}
-
-int
-selected(int x, int y)
-{
-	if (sel.mode == SEL_EMPTY || sel.ob.x == -1 ||
-			sel.alt != IS_SET(MODE_ALTSCREEN))
-		return 0;
-
-	if (sel.type == SEL_RECTANGULAR)
-		return BETWEEN(y, sel.nb.y, sel.ne.y)
-		    && BETWEEN(x, sel.nb.x, sel.ne.x);
-
-	return BETWEEN(y, sel.nb.y, sel.ne.y)
-	    && (y != sel.nb.y || x >= sel.nb.x)
-	    && (y != sel.ne.y || x <= sel.ne.x);
 }
 
 void
@@ -534,16 +492,6 @@ getsel(void)
 	}
 	*ptr = 0;
 	return str;
-}
-
-void
-selclear(void)
-{
-	if (sel.ob.x == -1)
-		return;
-	sel.mode = SEL_IDLE;
-	sel.ob.x = -1;
-	term.setDirty(sel.nb.y, sel.ne.y);
 }
 
 void
@@ -910,13 +858,13 @@ selscroll(int orig, int n)
 		return;
 
 	if (BETWEEN(sel.nb.y, orig, term.bot) != BETWEEN(sel.ne.y, orig, term.bot)) {
-		selclear();
+		sel.clear();
 	} else if (BETWEEN(sel.nb.y, orig, term.bot)) {
 		sel.ob.y += n;
 		sel.oe.y += n;
 		if (sel.ob.y < term.top || sel.ob.y > term.bot ||
 		    sel.oe.y < term.top || sel.oe.y > term.bot) {
-			selclear();
+			sel.clear();
 		} else {
 			selnormalize();
 		}
@@ -2137,8 +2085,8 @@ check_control_code:
 		 */
 		return;
 	}
-	if (selected(term.c.x, term.c.y))
-		selclear();
+	if (sel.isSelected(term.c.x, term.c.y))
+		sel.clear();
 
 	gp = &term.line[term.c.y][term.c.x];
 	if (IS_SET(MODE_WRAP) && (term.c.state & CURSOR_WRAPNEXT)) {
@@ -2259,4 +2207,11 @@ redraw(void)
 {
 	term.setAllDirty();
 	draw();
+}
+
+void
+init_term(int _cols, int _rows)
+{
+	term = Term(_cols, _rows, sel);
+	sel.setTerm(term);
 }

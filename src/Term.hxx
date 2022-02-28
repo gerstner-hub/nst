@@ -1,7 +1,9 @@
 #ifndef NST_TERM_HXX
 #define NST_TERM_HXX
 
+// nst
 #include "types.hxx"
+#include "Selection.hxx"
 
 /// Internal representation of the screen
 class Term {
@@ -25,11 +27,15 @@ public: // data
 
 	nst::Rune lastc = 0;         /* last printed char outside of sequence, 0 if control */
 
+protected: // data
+
+	Selection *m_selection = nullptr;
+
 public: // functions
 
 	Term() {}
 
-	Term(int _cols, int _rows);
+	Term(int _cols, int _rows, Selection &selection);
 
 	void resize(int cols, int rows);
 

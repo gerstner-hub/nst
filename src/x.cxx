@@ -57,6 +57,8 @@ typedef struct {
 #define XK_NO_MOD     0
 #define XK_SWITCH_MOD (1<<13|1<<14)
 
+extern Term term;
+
 /* function definitions used in config.h */
 static void clipcopy(const Arg *);
 static void clippaste(const Arg *);

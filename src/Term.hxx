@@ -66,6 +66,5 @@ public: // functions
 	int getLineLen(int y) const;
 };
 
-extern Term term;
 
 #endif // inc. guard

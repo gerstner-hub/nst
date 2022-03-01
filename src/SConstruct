@@ -4,6 +4,7 @@ warnings = ["all", "error", "extra", "null-dereference", "double-promotion", "sh
 warnings = [f"-W{w}" for w in warnings]
 
 env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
+env.ConfigureForLib("libcosmos")
 env.Append(CCFLAGS=['-DVERSION=\\"1.16.0\\"', "-D_XOPEN_SOURCE=600"])
 env.Append(LIBS=["util"])
 env.Append(CCFLAGS=warnings)

@@ -24,7 +24,8 @@ void Term::reset(void)
 		tabs[i] = 1;
 	top = 0;
 	bot = row - 1;
-	mode = MODE_WRAP|MODE_UTF8;
+	mode.set(Mode::WRAP);
+	mode.set(Mode::UTF8);
 	memset(trantbl, CS_USA, sizeof(trantbl));
 	charset = 0;
 
@@ -192,14 +193,14 @@ void Term::moveAbsTo(int x, int y)
 void Term::swapScreen()
 {
 	std::swap(line, alt);
-	mode ^= MODE_ALTSCREEN;
+	mode.flip(Mode::ALTSCREEN);
 	setAllDirty();
 }
 
 void Term::cursorControl(const nst::CursorControl &ctrl)
 {
 	static nst::TCursor cached[2];
-	auto &cursor = isSet(MODE_ALTSCREEN) ? cached[1] : cached[0];
+	auto &cursor = mode.test(Mode::ALTSCREEN) ? cached[1] : cached[0];
 
 	if (ctrl == nst::CursorControl::SAVE) {
 		cursor = c;

@@ -51,16 +51,6 @@ enum glyph_attribute {
 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 };
 
-enum term_mode {
-	MODE_WRAP        = 1 << 0,
-	MODE_INSERT      = 1 << 1,
-	MODE_ALTSCREEN   = 1 << 2,
-	MODE_CRLF        = 1 << 3,
-	MODE_ECHO        = 1 << 4,
-	MODE_PRINT       = 1 << 5,
-	MODE_UTF8        = 1 << 6,
-};
-
 enum cursor_state {
 	CURSOR_DEFAULT  = 0,
 	CURSOR_WRAPNEXT = 1,

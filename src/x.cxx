@@ -739,8 +739,8 @@ cresize(int width, int height)
 
 	col = (win.w - 2 * borderpx) / win.cw;
 	row = (win.h - 2 * borderpx) / win.ch;
-	col = MAX(1, col);
-	row = MAX(1, row);
+	col = std::max(1, col);
+	row = std::max(1, row);
 
 	term.resize(col, row);
 	xresize(col, row);
@@ -804,7 +804,7 @@ xloadcols(void)
 		for (cp = dc.col; cp < &dc.col[dc.collen]; ++cp)
 			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
 	} else {
-		dc.collen = MAX(LEN(colorname), 256);
+		dc.collen = std::max(LEN(colorname), 256UL);
 		dc.col = (Color*)xmalloc(dc.collen * sizeof(Color));
 	}
 
@@ -1965,7 +1965,7 @@ run(void)
 		seltv.tv_nsec = 1E6 * (timeout - 1E3 * seltv.tv_sec);
 		tv = timeout >= 0 ? &seltv : NULL;
 
-		if (pselect(MAX(xfd, ttyfd)+1, &rfd, NULL, NULL, tv, NULL) < 0) {
+		if (pselect(std::max(xfd, ttyfd)+1, &rfd, NULL, NULL, tv, NULL) < 0) {
 			if (errno == EINTR)
 				continue;
 			die("select failed: %s\n", strerror(errno));

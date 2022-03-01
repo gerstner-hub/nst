@@ -24,9 +24,11 @@ public: // types
 	};
 
 public: // data
+
 	Mode mode = Mode::IDLE;
 	Type type = Type::REGULAR;
 	Snap snap = Snap::WORD;
+
 	/*
 	 * Selection variables:
 	 * nb – normalized coordinates of the beginning of the selection

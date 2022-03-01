@@ -19,7 +19,7 @@ void Selection::clear() {
 
 bool Selection::isSelected(int x, int y) const {
 	if (mode == Mode::EMPTY || ob.x == -1 ||
-			alt != m_term->isSet(MODE_ALTSCREEN))
+			alt != m_term->getMode().test(Term::Mode::ALTSCREEN))
 		return 0;
 
 	if (type == Type::RECTANGULAR)
@@ -35,7 +35,7 @@ void Selection::start(int col, int row, Snap p_snap) {
 	clear();
 	mode = Selection::Mode::EMPTY;
 	type = Selection::Type::REGULAR;
-	alt = m_term->isSet(MODE_ALTSCREEN);
+	alt = m_term->getMode().test(Term::Mode::ALTSCREEN);
 	snap = p_snap;
 	oe.x = ob.x = col;
 	oe.y = ob.y = row;

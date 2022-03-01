@@ -34,9 +34,6 @@
 #define STR_BUF_SIZ   ESC_BUF_SIZ
 #define STR_ARG_SIZ   ESC_ARG_SIZ
 
-#define IS_SET(flag)		((term.mode & (flag)) != 0)
-
-
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
 typedef struct {
@@ -315,7 +312,7 @@ getsel(void)
 			gp = &term.line[y][sel.nb.y == y ? sel.nb.x : 0];
 			lastx = (sel.ne.y == y) ? sel.ne.x : term.col-1;
 		}
-		last = &term.line[y][MIN(lastx, linelen-1)];
+		last = &term.line[y][std::min(lastx, linelen-1)];
 		while (last >= gp && last->u == ' ')
 			--last;
 
@@ -462,7 +459,7 @@ ttynew(const char *line, const char *cmd, const char *out, const std::vector<std
 	int m, s;
 
 	if (out) {
-		term.mode |= MODE_PRINT;
+		term.mode.set(Term::Mode::PRINT);
 		iofd = (!strcmp(out, "-")) ?
 			  1 : open(out, O_WRONLY | O_CREAT, 0666);
 		if (iofd < 0) {
@@ -542,10 +539,10 @@ ttywrite(const char *s, size_t n, int may_echo)
 {
 	const char *next;
 
-	if (may_echo && IS_SET(MODE_ECHO))
+	if (may_echo && term.mode.test(Term::Mode::TECHO))
 		twrite(s, n, 1);
 
-	if (!IS_SET(MODE_CRLF)) {
+	if (!term.mode.test(Term::Mode::CRLF)) {
 		ttywriteraw(s, n);
 		return;
 	}
@@ -893,7 +890,7 @@ tsetattr(const int *attr, int l)
 void
 tsetmode(int priv, int set, const int *args, int narg)
 {
-	int alt; const int *lim;
+	const int *lim;
 
 	for (lim = args + narg; args < lim; ++args) {
 		if (priv) {
@@ -909,7 +906,7 @@ tsetmode(int priv, int set, const int *args, int narg)
 				term.moveAbsTo(0, 0);
 				break;
 			case 7: /* DECAWM -- Auto wrap */
-				MODBIT(term.mode, set, MODE_WRAP);
+				term.mode.set(Term::Mode::WRAP, set);
 				break;
 			case 0:  /* Error (IGNORED) */
 			case 2:  /* DECANM -- ANSI/VT52 (IGNORED) */
@@ -959,10 +956,10 @@ tsetmode(int priv, int set, const int *args, int narg)
 				term.cursorControl((set) ? nst::CursorControl::SAVE : nst::CursorControl::LOAD);
 				/* FALLTHROUGH */
 			case 47: /* swap screen */
-			case 1047:
+			case 1047: {
 				if (!allowaltscreen)
 					break;
-				alt = IS_SET(MODE_ALTSCREEN);
+				const auto alt = term.mode.test(Term::Mode::ALTSCREEN);
 				if (alt) {
 					term.clearRegion(0, 0, term.col-1,
 							term.row-1);
@@ -971,6 +968,7 @@ tsetmode(int priv, int set, const int *args, int narg)
 					term.swapScreen();
 				if (*args != 1049)
 					break;
+			}
 				/* FALLTHROUGH */
 			case 1048:
 				term.cursorControl((set) ? nst::CursorControl::SAVE : nst::CursorControl::LOAD);
@@ -1002,13 +1000,13 @@ tsetmode(int priv, int set, const int *args, int narg)
 				xsetmode(set, MODE_KBDLOCK);
 				break;
 			case 4:  /* IRM -- Insertion-replacement */
-				MODBIT(term.mode, set, MODE_INSERT);
+				term.mode.set(Term::Mode::INSERT, set);
 				break;
 			case 12: /* SRM -- Send/Receive */
-				MODBIT(term.mode, !set, MODE_ECHO);
+				term.mode.set(Term::Mode::TECHO, !set);
 				break;
 			case 20: /* LNM -- Linefeed/new line */
-				MODBIT(term.mode, set, MODE_CRLF);
+				term.mode.set(Term::Mode::CRLF, set);
 				break;
 			default:
 				fprintf(stderr,
@@ -1058,10 +1056,10 @@ csihandle(void)
 			tdumpsel();
 			break;
 		case 4:
-			term.mode &= ~MODE_PRINT;
+			term.mode.reset(Term::Mode::PRINT);
 			break;
 		case 5:
-			term.mode |= MODE_PRINT;
+			term.mode.set(Term::Mode::PRINT);
 			break;
 		}
 		break;
@@ -1491,7 +1489,7 @@ tprinter(const char *s, size_t len)
 void
 toggleprinter(const Arg *)
 {
-	term.mode ^= MODE_PRINT;
+	term.mode.flip(Term::Mode::PRINT);
 }
 
 void
@@ -1524,7 +1522,7 @@ tdumpline(int n)
 	const nst::Glyph *bp, *end;
 
 	bp = &term.line[n][0];
-	end = &bp[MIN(term.getLineLen(n), term.col) - 1];
+	end = &bp[std::min(term.getLineLen(n), term.col) - 1];
 	if (bp != end || bp->u != ' ') {
 		for ( ; bp <= end; ++bp)
 			tprinter(buf, utf8encode(bp->u, buf));
@@ -1545,9 +1543,9 @@ void
 tdefutf8(char ascii)
 {
 	if (ascii == 'G')
-		term.mode |= MODE_UTF8;
+		term.mode.set(Term::Mode::UTF8);
 	else if (ascii == '@')
-		term.mode &= ~MODE_UTF8;
+		term.mode.reset(Term::Mode::UTF8);
 }
 
 void
@@ -1616,7 +1614,7 @@ tcontrolcode(uchar ascii)
 	case '\v':   /* VT */
 	case '\n':   /* LF */
 		/* go to first col if the mode is set */
-		term.putNewline(IS_SET(MODE_CRLF));
+		term.putNewline(term.mode.test(Term::Mode::CRLF));
 		return;
 	case '\a':   /* BEL */
 		if (term.esc & ESC_STR_END) {
@@ -1792,7 +1790,7 @@ tputc(nst::Rune u)
 	nst::Glyph *gp;
 
 	control = ISCONTROL(u);
-	if (u < 127 || !IS_SET(MODE_UTF8)) {
+	if (u < 127 || !term.mode.test(Term::Mode::UTF8)) {
 		c[0] = u;
 		width = len = 1;
 	} else {
@@ -1801,7 +1799,7 @@ tputc(nst::Rune u)
 			width = 1;
 	}
 
-	if (IS_SET(MODE_PRINT))
+	if (term.mode.test(Term::Mode::PRINT))
 		tprinter(c, len);
 
 	/*
@@ -1890,13 +1888,13 @@ check_control_code:
 		sel.clear();
 
 	gp = &term.line[term.c.y][term.c.x];
-	if (IS_SET(MODE_WRAP) && (term.c.state & CURSOR_WRAPNEXT)) {
+	if (term.mode.test(Term::Mode::WRAP) && (term.c.state & CURSOR_WRAPNEXT)) {
 		gp->mode |= ATTR_WRAP;
 		term.putNewline();
 		gp = &term.line[term.c.y][term.c.x];
 	}
 
-	if (IS_SET(MODE_INSERT) && term.c.x+width < term.col)
+	if (term.mode.test(Term::Mode::INSERT) && term.c.x+width < term.col)
 		memmove(gp+width, gp, (term.col - term.c.x - width) * sizeof(nst::Glyph));
 
 	if (term.c.x+width > term.col) {
@@ -1933,7 +1931,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
 	int n;
 
 	for (n = 0; n < buflen; n += charsize) {
-		if (IS_SET(MODE_UTF8)) {
+		if (term.mode.test(Term::Mode::UTF8)) {
 			/* process a complete utf8 char */
 			charsize = utf8decode(buf + n, &u, buflen - n);
 			if (charsize == 0)

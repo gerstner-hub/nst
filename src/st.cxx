@@ -902,7 +902,7 @@ tsetmode(int priv, int set, const int *args, int narg)
 				xsetmode(set, MODE_REVERSE);
 				break;
 			case 6: /* DECOM -- Origin */
-				MODBIT(term.c.state, set, CURSOR_ORIGIN);
+				term.c.state.set(Term::TCursor::State::ORIGIN, set);
 				term.moveAbsTo(0, 0);
 				break;
 			case 7: /* DECAWM -- Auto wrap */
@@ -1888,7 +1888,7 @@ check_control_code:
 		sel.clear();
 
 	gp = &term.line[term.c.y][term.c.x];
-	if (term.mode.test(Term::Mode::WRAP) && (term.c.state & CURSOR_WRAPNEXT)) {
+	if (term.mode.test(Term::Mode::WRAP) && (term.c.state.test(Term::TCursor::State::WRAPNEXT))) {
 		gp->mode |= ATTR_WRAP;
 		term.putNewline();
 		gp = &term.line[term.c.y][term.c.x];
@@ -1919,7 +1919,7 @@ check_control_code:
 	if (term.c.x+width < term.col) {
 		term.moveTo(term.c.x+width, term.c.y);
 	} else {
-		term.c.state |= CURSOR_WRAPNEXT;
+		term.c.state.set(Term::TCursor::State::WRAPNEXT);
 	}
 }
 

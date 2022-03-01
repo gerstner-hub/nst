@@ -17,7 +17,7 @@ void Term::reset(void)
 		.mode = ATTR_NULL,
 		.fg = defaultfg,
 		.bg = defaultbg
-	}, .x = 0, .y = 0, .state = CURSOR_DEFAULT};
+	}, .x = 0, .y = 0, .state = Term::TCursor::StateBitMask()};
 
 	memset(tabs, 0, col * sizeof(*tabs));
 	for (size_t i = TABSPACES; (int)i < col; i += TABSPACES)
@@ -172,14 +172,14 @@ void Term::moveTo(int x, int y)
 {
 	int miny, maxy;
 
-	if (c.state & CURSOR_ORIGIN) {
+	if (c.state.test(TCursor::State::ORIGIN)) {
 		miny = top;
 		maxy = bot;
 	} else {
 		miny = 0;
 		maxy = row - 1;
 	}
-	c.state &= ~CURSOR_WRAPNEXT;
+	c.state.reset(TCursor::State::WRAPNEXT);
 	c.x = LIMIT(x, 0, col-1);
 	c.y = LIMIT(y, miny, maxy);
 }
@@ -187,7 +187,7 @@ void Term::moveTo(int x, int y)
 /* for absolute user moves, when decom is set */
 void Term::moveAbsTo(int x, int y)
 {
-	moveTo(x, y + ((c.state & CURSOR_ORIGIN) ? top: 0));
+	moveTo(x, y + ((c.state.test(TCursor::State::ORIGIN)) ? top: 0));
 }
 
 void Term::swapScreen()

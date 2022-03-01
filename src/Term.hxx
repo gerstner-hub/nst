@@ -26,15 +26,22 @@ public: // types
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
 	struct TCursor { /* Cursor conflicts with X headers */
-		nst::Glyph attr; /* current char attributes */
-		int x = 0;
-		int y = 0;
-		char state = 0;
 	public: // types
 		enum class Control {
 			SAVE,
 			LOAD
 		};
+		enum class State {
+			WRAPNEXT = 1,
+			ORIGIN   = 2
+		};
+
+		typedef cosmos::BitMask<State> StateBitMask;
+	public: // data
+		nst::Glyph attr; /* current char attributes */
+		int x = 0;
+		int y = 0;
+		StateBitMask state;
 	};
 
 public: // data

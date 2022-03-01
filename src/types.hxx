@@ -39,12 +39,6 @@ enum glyph_attribute {
 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
 };
 
-enum cursor_state {
-	CURSOR_DEFAULT  = 0,
-	CURSOR_WRAPNEXT = 1,
-	CURSOR_ORIGIN   = 2
-};
-
 enum charset {
 	CS_GRAPHIC0,
 	CS_GRAPHIC1,

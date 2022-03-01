@@ -16,18 +16,6 @@ typedef struct {
 
 typedef Glyph *Line;
 
-typedef struct {
-	Glyph attr; /* current char attributes */
-	int x = 0;
-	int y = 0;
-	char state = 0;
-} TCursor;
-
-enum class CursorControl {
-	SAVE,
-	LOAD
-};
-
 } // end ns
 
 typedef unsigned char uchar;

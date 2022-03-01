@@ -13,7 +13,7 @@ Term::Term(int _cols, int _rows, Selection &selection) {
 
 void Term::reset(void)
 {
-	c = (nst::TCursor){.attr = {
+	c = (TCursor){.attr = {
 		.mode = ATTR_NULL,
 		.fg = defaultfg,
 		.bg = defaultbg
@@ -31,7 +31,7 @@ void Term::reset(void)
 
 	for (size_t i = 0; i < 2; i++) {
 		moveTo(0, 0);
-		cursorControl(nst::CursorControl::SAVE);
+		cursorControl(TCursor::Control::SAVE);
 		clearRegion(0, 0, col-1, row-1);
 		swapScreen();
 	}
@@ -114,7 +114,7 @@ void Term::resize(int new_cols, int new_rows)
 	/* make use of the LIMIT in moveTo */
 	moveTo(c.x, c.y);
 	/* Clearing both screens (it makes dirty all lines) */
-	nst::TCursor saved_c = c;
+	TCursor saved_c = c;
 	for (i = 0; i < 2; i++) {
 		if (mincol < new_cols && 0 < minrow) {
 			clearRegion(mincol, 0, new_cols - 1, minrow - 1);
@@ -123,7 +123,7 @@ void Term::resize(int new_cols, int new_rows)
 			clearRegion(0, minrow, new_cols - 1, new_rows - 1);
 		}
 		swapScreen();
-		cursorControl(nst::CursorControl::LOAD);
+		cursorControl(TCursor::Control::LOAD);
 	}
 	c = saved_c;
 }
@@ -197,14 +197,14 @@ void Term::swapScreen()
 	setAllDirty();
 }
 
-void Term::cursorControl(const nst::CursorControl &ctrl)
+void Term::cursorControl(const TCursor::Control &ctrl)
 {
-	static nst::TCursor cached[2];
+	static TCursor cached[2];
 	auto &cursor = mode.test(Mode::ALTSCREEN) ? cached[1] : cached[0];
 
-	if (ctrl == nst::CursorControl::SAVE) {
+	if (ctrl == TCursor::Control::SAVE) {
 		cursor = c;
-	} else if (ctrl == nst::CursorControl::LOAD) {
+	} else if (ctrl == TCursor::Control::LOAD) {
 		c = cursor;
 		moveTo(cursor.x, cursor.y);
 	}

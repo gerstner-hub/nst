@@ -25,6 +25,18 @@ public: // types
 
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
+	struct TCursor { /* Cursor conflicts with X headers */
+		nst::Glyph attr; /* current char attributes */
+		int x = 0;
+		int y = 0;
+		char state = 0;
+	public: // types
+		enum class Control {
+			SAVE,
+			LOAD
+		};
+	};
+
 public: // data
 
 	int row = 0;            /* nb row */
@@ -32,7 +44,7 @@ public: // data
 	nst::Line *line = nullptr; /* screen */
 	nst::Line *alt = nullptr; /* alternate screen */
 	int *dirty = nullptr;   /* dirtyness of lines */
-	nst::TCursor c;         /* cursor */
+	TCursor c;              /* cursor */
 	int ocx = 0;            /* old cursor col */
 	int ocy = 0;            /* old cursor row */
 	int top = 0;            /* top    scroll limit */
@@ -76,7 +88,7 @@ public: // functions
 
 	void swapScreen();
 
-	void cursorControl(const nst::CursorControl &ctrl);
+	void cursorControl(const TCursor::Control &ctrl);
 
 	const auto& getMode() const { return mode; }
 

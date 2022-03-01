@@ -953,7 +953,7 @@ tsetmode(int priv, int set, const int *args, int narg)
 			case 1049: /* swap screen & set/restore cursor as xterm */
 				if (!allowaltscreen)
 					break;
-				term.cursorControl((set) ? nst::CursorControl::SAVE : nst::CursorControl::LOAD);
+				term.cursorControl((set) ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
 				/* FALLTHROUGH */
 			case 47: /* swap screen */
 			case 1047: {
@@ -971,7 +971,7 @@ tsetmode(int priv, int set, const int *args, int narg)
 			}
 				/* FALLTHROUGH */
 			case 1048:
-				term.cursorControl((set) ? nst::CursorControl::SAVE : nst::CursorControl::LOAD);
+				term.cursorControl((set) ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
 				break;
 			case 2004: /* 2004: bracketed paste mode */
 				xsetmode(set, MODE_BRCKTPASTE);
@@ -1212,10 +1212,10 @@ csihandle(void)
 		}
 		break;
 	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
-		term.cursorControl(nst::CursorControl::SAVE);
+		term.cursorControl(Term::TCursor::Control::SAVE);
 		break;
 	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
-		term.cursorControl(nst::CursorControl::LOAD);
+		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
 	case ' ':
 		switch (csiescseq.mode[1]) {
@@ -1764,10 +1764,10 @@ eschandle(uchar ascii)
 		xsetmode(0, MODE_APPKEYPAD);
 		break;
 	case '7': /* DECSC -- Save Cursor */
-		term.cursorControl(nst::CursorControl::SAVE);
+		term.cursorControl(Term::TCursor::Control::SAVE);
 		break;
 	case '8': /* DECRC -- Restore Cursor */
-		term.cursorControl(nst::CursorControl::LOAD);
+		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
 	case '\\': /* ST -- String Terminator */
 		if (term.esc & ESC_STR_END)

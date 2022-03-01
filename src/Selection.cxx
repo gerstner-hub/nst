@@ -6,6 +6,7 @@
 #include "Term.hxx"
 #include "macros.hxx"
 #include "nst_config.h"
+#include "st.h"
 
 void Selection::clear() {
 	if (ob.x == -1)
@@ -181,4 +182,57 @@ void Selection::scroll(int orig, int n) {
 			normalize();
 		}
 	}
+}
+
+char* Selection::getSelection() const {
+	char *str, *ptr;
+	int lastx, linelen;
+	const nst::Glyph *gp, *last;
+
+	if (ob.x == -1)
+		return nullptr;
+
+	const size_t bufsize = (m_term->col+1) * (ne.y-nb.y+1) * UTF_SIZ;
+	ptr = str = new char[bufsize];
+
+	/* append every set & selected glyph to the selection */
+	for (int y = nb.y; y <= ne.y; y++) {
+		if ((linelen = m_term->getLineLen(y)) == 0) {
+			*ptr++ = '\n';
+			continue;
+		}
+
+		if (type == Selection::Type::RECTANGULAR) {
+			gp = &m_term->line[y][nb.x];
+			lastx = ne.x;
+		} else {
+			gp = &m_term->line[y][nb.y == y ? nb.x : 0];
+			lastx = (ne.y == y) ? ne.x : m_term->col-1;
+		}
+		last = &m_term->line[y][std::min(lastx, linelen-1)];
+		while (last >= gp && last->u == ' ')
+			--last;
+
+		for ( ; gp <= last; ++gp) {
+			if (gp->mode & ATTR_WDUMMY)
+				continue;
+
+			ptr += utf8encode(gp->u, ptr);
+		}
+
+		/*
+		 * Copy and pasting of line endings is inconsistent
+		 * in the inconsistent terminal and GUI world.
+		 * The best solution seems like to produce '\n' when
+		 * something is copied from st and convert '\n' to
+		 * '\r', when something to be pasted is received by
+		 * st.
+		 * FIXME: Fix the computer world.
+		 */
+		if ((y < ne.y || lastx >= linelen) &&
+		    (!(last->mode & ATTR_WRAP) || type == Selection::Type::RECTANGULAR))
+			*ptr++ = '\n';
+	}
+	*ptr = 0;
+	return str;
 }

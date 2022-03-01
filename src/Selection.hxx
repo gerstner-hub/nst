@@ -62,6 +62,7 @@ public: // functions
 	void start(int col, int row, Snap snap);
 	void extend(int col, int row, const Type &type, const bool &done);
 	void scroll(int orig, int n);
+	char* getSelection() const;
 
 protected: // functions
 

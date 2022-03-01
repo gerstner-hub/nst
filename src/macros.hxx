@@ -24,5 +24,12 @@
 #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
 #define ISDELIM(u)		(u && wcschr(nst::config::WORDDELIMITERS, u))
 
+/* Arbitrary sizes */
+#define UTF_SIZ       4
+#define UTF_INVALID   0xFFFD
+#define ESC_BUF_SIZ   (128*UTF_SIZ)
+#define ESC_ARG_SIZ   16
+#define STR_BUF_SIZ   ESC_BUF_SIZ
+#define STR_ARG_SIZ   ESC_ARG_SIZ
 
 #endif // inc. guard

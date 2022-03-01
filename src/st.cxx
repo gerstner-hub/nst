@@ -26,14 +26,6 @@
 #include "Selection.hxx"
 #include "Term.hxx"
 
-/* Arbitrary sizes */
-#define UTF_INVALID   0xFFFD
-#define UTF_SIZ       4
-#define ESC_BUF_SIZ   (128*UTF_SIZ)
-#define ESC_ARG_SIZ   16
-#define STR_BUF_SIZ   ESC_BUF_SIZ
-#define STR_ARG_SIZ   ESC_ARG_SIZ
-
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
 typedef struct {
@@ -283,61 +275,6 @@ base64dec(const char *src)
 	}
 	*dst = '\0';
 	return result;
-}
-
-char *
-getsel(void)
-{
-	char *str, *ptr;
-	int y, bufsize, lastx, linelen;
-	const nst::Glyph *gp, *last;
-
-	if (sel.ob.x == -1)
-		return NULL;
-
-	bufsize = (term.col+1) * (sel.ne.y-sel.nb.y+1) * UTF_SIZ;
-	ptr = str = (char*)xmalloc(bufsize);
-
-	/* append every set & selected glyph to the selection */
-	for (y = sel.nb.y; y <= sel.ne.y; y++) {
-		if ((linelen = term.getLineLen(y)) == 0) {
-			*ptr++ = '\n';
-			continue;
-		}
-
-		if (sel.type == Selection::Type::RECTANGULAR) {
-			gp = &term.line[y][sel.nb.x];
-			lastx = sel.ne.x;
-		} else {
-			gp = &term.line[y][sel.nb.y == y ? sel.nb.x : 0];
-			lastx = (sel.ne.y == y) ? sel.ne.x : term.col-1;
-		}
-		last = &term.line[y][std::min(lastx, linelen-1)];
-		while (last >= gp && last->u == ' ')
-			--last;
-
-		for ( ; gp <= last; ++gp) {
-			if (gp->mode & ATTR_WDUMMY)
-				continue;
-
-			ptr += utf8encode(gp->u, ptr);
-		}
-
-		/*
-		 * Copy and pasting of line endings is inconsistent
-		 * in the inconsistent terminal and GUI world.
-		 * The best solution seems like to produce '\n' when
-		 * something is copied from st and convert '\n' to
-		 * '\r', when something to be pasted is received by
-		 * st.
-		 * FIXME: Fix the computer world.
-		 */
-		if ((y < sel.ne.y || lastx >= linelen) &&
-		    (!(last->mode & ATTR_WRAP) || sel.type == Selection::Type::RECTANGULAR))
-			*ptr++ = '\n';
-	}
-	*ptr = 0;
-	return str;
 }
 
 void
@@ -1507,12 +1444,13 @@ printsel(const Arg *)
 void
 tdumpsel(void)
 {
-	char *ptr;
+	char *ptr = sel.getSelection();
 
-	if ((ptr = getsel())) {
-		tprinter(ptr, strlen(ptr));
-		free(ptr);
-	}
+	if (!ptr)
+		return;
+
+	tprinter(ptr, strlen(ptr));
+	free(ptr);
 }
 
 void

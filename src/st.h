@@ -23,11 +23,7 @@ void toggleprinter(const Arg *);
 
 int tattrset(int);
 void tsetdirtattr(int);
-void ttyhangup(void);
-int ttynew(const char *, const char *, const char *, const std::vector<std::string>*);
-size_t ttyread(void);
-void ttyresize(int, int);
-void ttywrite(const char *, size_t, int);
+int twrite(const char *, int, int);
 
 void resettitle(void);
 
@@ -44,13 +40,9 @@ void xfreeglobals();
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
 /* config.h globals */
-extern const char *utmp;
-extern const char *scroll;
-extern const char *stty_args;
 extern const char *vtiden;
 extern int allowaltscreen;
 extern const int allowwindowops;
-extern const char *termname;
 extern const unsigned int TABSPACES;
 extern const unsigned int defaultfg;
 extern const unsigned int defaultbg;

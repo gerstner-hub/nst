@@ -42,6 +42,7 @@ static void ttysend(const Arg *);
 #include "xtypes.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
+#include "TTY.hxx"
 
 extern Term term;
 extern Selection sel;
@@ -243,12 +244,12 @@ static double defaultfontsize = 0;
 
 static char *opt_class = NULL;
 static char *opt_name  = NULL;
-static const std::vector<std::string> *opt_cmd = nullptr;
 static const char *opt_embed = NULL;
 static const char *opt_font  = NULL;
-static const char *opt_io    = NULL;
-static const char *opt_line  = NULL;
+static const char *opt_io    = "";
+static const char *opt_line  = "";
 static const char *opt_title = NULL;
+static nst::Cmdline cmdline;
 
 static uint buttons; /* bit field of pressed buttons */
 
@@ -326,7 +327,7 @@ zoomreset(const Arg *)
 void
 ttysend(const Arg *arg)
 {
-	ttywrite(arg->s, strlen(arg->s), 1);
+	g_tty.write(arg->s, strlen(arg->s), 1);
 }
 
 int
@@ -432,7 +433,7 @@ mousereport(XEvent *e)
 		return;
 	}
 
-	ttywrite(buf, len, 0);
+	g_tty.write(buf, len, 0);
 }
 
 uint
@@ -589,10 +590,10 @@ selnotify(XEvent *e)
 		}
 
 		if (IS_SET(MODE_BRCKTPASTE) && ofs == 0)
-			ttywrite("\033[200~", 6, 0);
-		ttywrite((char *)data, nitems * format / 8, 1);
+			g_tty.write("\033[200~", 6, 0);
+		g_tty.write((char *)data, nitems * format / 8, 1);
 		if (IS_SET(MODE_BRCKTPASTE) && rem == 0)
-			ttywrite("\033[201~", 6, 0);
+			g_tty.write("\033[201~", 6, 0);
 		XFree(data);
 		/* number of 32-bit chunks returned */
 		ofs += nitems * format / 32;
@@ -744,7 +745,7 @@ cresize(int width, int height)
 
 	term.resize(col, row);
 	xresize(col, row);
-	ttyresize(win.tw, win.th);
+	g_tty.resize(win.tw, win.th);
 }
 
 void
@@ -873,10 +874,10 @@ void
 xhints(void)
 {
 	if (!opt_name) {
-		opt_name = strdup(termname);
+		opt_name = strdup(nst::config::TERMNAME);
 	}
 	if (!opt_class) {
-		opt_class = strdup(termname);
+		opt_class = strdup(nst::config::TERMNAME);
 	}
 	XClassHint clazz = {opt_name, opt_class};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
@@ -1791,13 +1792,13 @@ focus(XEvent *ev)
 		win.mode |= MODE_FOCUSED;
 		xseturgency(0);
 		if (IS_SET(MODE_FOCUS))
-			ttywrite("\033[I", 3, 0);
+			g_tty.write("\033[I", 3, 0);
 	} else {
 		if (xw.ime.xic)
 			XUnsetICFocus(xw.ime.xic);
 		win.mode &= ~MODE_FOCUSED;
 		if (IS_SET(MODE_FOCUS))
-			ttywrite("\033[O", 3, 0);
+			g_tty.write("\033[O", 3, 0);
 	}
 }
 
@@ -1873,7 +1874,7 @@ kpress(XEvent *ev)
 
 	/* 2. custom keys from config.h */
 	if ((customkey = kmap(ksym, e->state))) {
-		ttywrite(customkey, strlen(customkey), 1);
+		g_tty.write(customkey, strlen(customkey), 1);
 		return;
 	}
 
@@ -1892,7 +1893,7 @@ kpress(XEvent *ev)
 			len = 2;
 		}
 	}
-	ttywrite(buf, len, 1);
+	g_tty.write(buf, len, 1);
 }
 
 void
@@ -1910,7 +1911,7 @@ cmessage(XEvent *e)
 			win.mode &= ~MODE_FOCUSED;
 		}
 	} else if ((Atom)e->xclient.data.l[0] == xw.wmdeletewin) {
-		ttyhangup();
+		g_tty.hangup();
 		exit(0);
 	}
 }
@@ -1930,7 +1931,7 @@ run(void)
 	XEvent ev;
 	int w = win.w, h = win.h;
 	fd_set rfd;
-	int xfd = XConnectionNumber(xw.dpy), ttyfd, xev, drawing;
+	int xfd = XConnectionNumber(xw.dpy), xev, drawing;
 	struct timespec seltv, *tv, now, lastblink, trigger;
 	double timeout;
 
@@ -1950,7 +1951,13 @@ run(void)
 		}
 	} while (ev.type != MapNotify);
 
-	ttyfd = ttynew(opt_line, shell, opt_io, opt_cmd);
+	const TTY::Params params{
+		.line = opt_line,
+		.cmd = nst::config::SHELL,
+		.out = opt_io,
+		.args = cmdline.rest.getValue()
+	};
+	int ttyfd = g_tty.create(params);
 	cresize(w, h);
 
 	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0, 0};;) {
@@ -1973,7 +1980,7 @@ run(void)
 		clock_gettime(CLOCK_MONOTONIC, &now);
 
 		if (FD_ISSET(ttyfd, &rfd))
-			ttyread();
+			g_tty.read();
 
 		xev = 0;
 		while (XPending(xw.dpy)) {
@@ -2076,10 +2083,6 @@ void applyCmdline(const nst::Cmdline &cmd) {
 
 	auto &rest = cmd.rest.getValue();
 
-	if (!rest.empty()) {
-		opt_cmd = &rest;
-	}
-
 	if (!cmd.window_title.isSet() && !cmd.tty_line.isSet() && !rest.empty()) {
 		// use command basename as title
 		opt_title = rest[0].c_str();
@@ -2092,7 +2095,6 @@ main(int argc, const char **argv)
 	fixup_colornames();
 	xsetcursor(cursorshape);
 
-	nst::Cmdline cmdline;
 	cmdline.parse(argc, argv);
 	applyCmdline(cmdline);
 

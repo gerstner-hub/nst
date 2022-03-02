@@ -25,6 +25,7 @@
 #include "nst_config.h"
 #include "Selection.hxx"
 #include "Term.hxx"
+#include "TTY.hxx"
 
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
@@ -48,11 +49,6 @@ typedef struct {
 	int narg = 0;          /* nb of args */
 } STREscape;
 
-static void execsh(const char *, const std::vector<std::string>*);
-static void stty(const std::vector<std::string>*);
-static void sigchld(int);
-static void ttywriteraw(const char *, size_t);
-
 static void csidump(void);
 static void csihandle(void);
 static void csiparse(void);
@@ -71,7 +67,6 @@ static void tputc(nst::Rune);
 static void tsetattr(const int *, int);
 static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
 static void tsetmode(int, int, const int *, int);
-static int twrite(const char *, int, int);
 static void tcontrolcode(uchar );
 static void tdectest(char );
 static void tdefutf8(char);
@@ -96,9 +91,6 @@ Term term;
 Selection sel;
 static CSIEscape csiescseq;
 static STREscape strescseq;
-static int iofd = 1;
-static int cmdfd;
-static pid_t pid;
 
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
@@ -286,294 +278,6 @@ die(const char *errstr, ...)
 	vfprintf(stderr, errstr, ap);
 	va_end(ap);
 	exit(1);
-}
-
-void
-execsh(const char *cmd, const std::vector<std::string> *args)
-{
-	const char *sh, *arg = NULL, *prog;
-	const struct passwd *pw;
-
-	errno = 0;
-	if ((pw = getpwuid(getuid())) == NULL) {
-		if (errno)
-			die("getpwuid: %s\n", strerror(errno));
-		else
-			die("who are you?\n");
-	}
-
-	if ((sh = getenv("SHELL")) == NULL)
-		sh = (pw->pw_shell[0]) ? pw->pw_shell : cmd;
-
-	if (args) {
-		prog = ((*args)[0]).c_str();
-	} else if (scroll) {
-		prog = scroll;
-		arg = utmp ? utmp : sh;
-	} else if (utmp) {
-		prog = utmp;
-	} else {
-		prog = sh;
-	}
-
-	std::vector<const char*> cargs;
-
-	if (args) {
-		for (auto &v: *args) {
-			cargs.push_back(v.c_str());
-		}
-		cargs.push_back(nullptr);
-	} else {
-		cargs = {prog, arg, nullptr};
-	}
-
-	unsetenv("COLUMNS");
-	unsetenv("LINES");
-	unsetenv("TERMCAP");
-	setenv("LOGNAME", pw->pw_name, 1);
-	setenv("USER", pw->pw_name, 1);
-	setenv("SHELL", sh, 1);
-	setenv("HOME", pw->pw_dir, 1);
-	setenv("TERM", termname, 1);
-
-	signal(SIGCHLD, SIG_DFL);
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGINT, SIG_DFL);
-	signal(SIGQUIT, SIG_DFL);
-	signal(SIGTERM, SIG_DFL);
-	signal(SIGALRM, SIG_DFL);
-
-	execvp(prog, const_cast<char *const*>(cargs.data()));
-	_exit(1);
-}
-
-void
-sigchld(int)
-{
-	int stat;
-	pid_t p;
-
-	if ((p = waitpid(pid, &stat, WNOHANG)) < 0)
-		die("waiting for pid %hd failed: %s\n", pid, strerror(errno));
-
-	if (pid != p)
-		return;
-
-	if (WIFEXITED(stat) && WEXITSTATUS(stat))
-		die("child exited with status %d\n", WEXITSTATUS(stat));
-	else if (WIFSIGNALED(stat))
-		die("child terminated due to signal %d\n", WTERMSIG(stat));
-	_exit(0);
-}
-
-void
-stty(const std::vector<std::string> *args)
-{
-	char cmd[_POSIX_ARG_MAX], *q;
-	size_t n, siz;
-
-	if ((n = strlen(stty_args)) > sizeof(cmd)-1)
-		die("incorrect stty parameters\n");
-	memcpy(cmd, stty_args, n);
-	q = cmd + n;
-	siz = sizeof(cmd) - n;
-	for (auto &arg: *args) {
-		if ((n = arg.size()) > siz-1)
-			die("stty parameter length too long\n");
-		*q++ = ' ';
-		memcpy(q, arg.c_str(), n);
-		q += n;
-		siz -= n + 1;
-	}
-	*q = '\0';
-	if (system(cmd) != 0)
-		perror("Couldn't call stty");
-}
-
-int
-ttynew(const char *line, const char *cmd, const char *out, const std::vector<std::string> *args)
-{
-	int m, s;
-
-	if (out) {
-		term.mode.set(Term::Mode::PRINT);
-		iofd = (!strcmp(out, "-")) ?
-			  1 : open(out, O_WRONLY | O_CREAT, 0666);
-		if (iofd < 0) {
-			fprintf(stderr, "Error opening %s:%s\n",
-				out, strerror(errno));
-		}
-	}
-
-	if (line) {
-		if ((cmdfd = open(line, O_RDWR)) < 0)
-			die("open line '%s' failed: %s\n",
-			    line, strerror(errno));
-		dup2(cmdfd, 0);
-		stty(args);
-		return cmdfd;
-	}
-
-	/* seems to work fine on linux, openbsd and freebsd */
-	if (openpty(&m, &s, NULL, NULL, NULL) < 0)
-		die("openpty failed: %s\n", strerror(errno));
-
-	switch (pid = fork()) {
-	case -1:
-		die("fork failed: %s\n", strerror(errno));
-		break;
-	case 0:
-		close(iofd);
-		close(m);
-		setsid(); /* create a new process group */
-		dup2(s, 0);
-		dup2(s, 1);
-		dup2(s, 2);
-		if (ioctl(s, TIOCSCTTY, NULL) < 0)
-			die("ioctl TIOCSCTTY failed: %s\n", strerror(errno));
-		if (s > 2)
-			close(s);
-		execsh(cmd, args);
-		break;
-	default:
-		close(s);
-		cmdfd = m;
-		signal(SIGCHLD, sigchld);
-		break;
-	}
-	return cmdfd;
-}
-
-size_t
-ttyread(void)
-{
-	static char buf[BUFSIZ];
-	static int buflen = 0;
-	int ret, written;
-
-	/* append read bytes to unprocessed bytes */
-	ret = read(cmdfd, buf+buflen, LEN(buf)-buflen);
-
-	switch (ret) {
-	case 0:
-		exit(0);
-	case -1:
-		die("couldn't read from shell: %s\n", strerror(errno));
-		return -1;
-	default:
-		buflen += ret;
-		written = twrite(buf, buflen, 0);
-		buflen -= written;
-		/* keep any incomplete UTF-8 byte sequence for the next call */
-		if (buflen > 0)
-			memmove(buf, buf + written, buflen);
-		return ret;
-	}
-}
-
-void
-ttywrite(const char *s, size_t n, int may_echo)
-{
-	const char *next;
-
-	if (may_echo && term.mode.test(Term::Mode::TECHO))
-		twrite(s, n, 1);
-
-	if (!term.mode.test(Term::Mode::CRLF)) {
-		ttywriteraw(s, n);
-		return;
-	}
-
-	/* This is similar to how the kernel handles ONLCR for ttys */
-	while (n > 0) {
-		if (*s == '\r') {
-			next = s + 1;
-			ttywriteraw("\r\n", 2);
-		} else {
-			next = (const char*)memchr(s, '\r', n);
-			DEFAULT(next, s + n);
-			ttywriteraw(s, next - s);
-		}
-		n -= next - s;
-		s = next;
-	}
-}
-
-void
-ttywriteraw(const char *s, size_t n)
-{
-	fd_set wfd, rfd;
-	ssize_t r;
-	size_t lim = 256;
-
-	/*
-	 * Remember that we are using a pty, which might be a modem line.
-	 * Writing too much will clog the line. That's why we are doing this
-	 * dance.
-	 * FIXME: Migrate the world to Plan 9.
-	 */
-	while (n > 0) {
-		FD_ZERO(&wfd);
-		FD_ZERO(&rfd);
-		FD_SET(cmdfd, &wfd);
-		FD_SET(cmdfd, &rfd);
-
-		/* Check if we can write. */
-		if (pselect(cmdfd+1, &rfd, &wfd, NULL, NULL, NULL) < 0) {
-			if (errno == EINTR)
-				continue;
-			die("select failed: %s\n", strerror(errno));
-		}
-		if (FD_ISSET(cmdfd, &wfd)) {
-			/*
-			 * Only write the bytes written by ttywrite() or the
-			 * default of 256. This seems to be a reasonable value
-			 * for a serial line. Bigger values might clog the I/O.
-			 */
-			if ((r = write(cmdfd, s, (n < lim)? n : lim)) < 0)
-				goto write_error;
-			if ((size_t)r < n) {
-				/*
-				 * We weren't able to write out everything.
-				 * This means the buffer is getting full
-				 * again. Empty it.
-				 */
-				if (n < lim)
-					lim = ttyread();
-				n -= r;
-				s += r;
-			} else {
-				/* All bytes have been written. */
-				break;
-			}
-		}
-		if (FD_ISSET(cmdfd, &rfd))
-			lim = ttyread();
-	}
-	return;
-
-write_error:
-	die("write error on tty: %s\n", strerror(errno));
-}
-
-void
-ttyresize(int tw, int th)
-{
-	struct winsize w;
-
-	w.ws_row = term.row;
-	w.ws_col = term.col;
-	w.ws_xpixel = tw;
-	w.ws_ypixel = th;
-	if (ioctl(cmdfd, TIOCSWINSZ, &w) < 0)
-		fprintf(stderr, "Couldn't set window size: %s\n", strerror(errno));
-}
-
-void
-ttyhangup()
-{
-	/* Send SIGHUP to shell */
-	kill(pid, SIGHUP);
 }
 
 int
@@ -1002,7 +706,7 @@ csihandle(void)
 		break;
 	case 'c': /* DA -- Device Attributes */
 		if (csiescseq.arg[0] == 0)
-			ttywrite(vtiden, strlen(vtiden), 0);
+			g_tty.write(vtiden, strlen(vtiden), 0);
 		break;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		DEFAULT(csiescseq.arg[0], 1);
@@ -1135,7 +839,7 @@ csihandle(void)
 		if (csiescseq.arg[0] == 6) {
 			len = snprintf(buf, sizeof(buf), "\033[%i;%iR",
 					term.c.y+1, term.c.x+1);
-			ttywrite(buf, len, 0);
+			g_tty.write(buf, len, 0);
 		}
 		break;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
@@ -1212,7 +916,7 @@ osc4_color_response(int num)
 	n = snprintf(buf, sizeof buf, "\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
 		     num, r, r, g, g, b, b);
 
-	ttywrite(buf, n, 1);
+	g_tty.write(buf, n, 1);
 }
 
 void
@@ -1230,7 +934,7 @@ osc_color_response(int index, int num)
 	n = snprintf(buf, sizeof buf, "\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
 		     num, r, r, g, g, b, b);
 
-	ttywrite(buf, n, 1);
+	g_tty.write(buf, n, 1);
 }
 
 void
@@ -1407,15 +1111,9 @@ strreset(void)
 }
 
 void
-sendbreak(const Arg *)
-{
-	if (tcsendbreak(cmdfd, 0))
-		perror("Error sending break");
-}
-
-void
 tprinter(const char *s, size_t len)
 {
+	auto &iofd = g_tty.iofd;
 	if (iofd != -1 && xwrite(iofd, s, len) < 0) {
 		perror("Error writing to output file");
 		close(iofd);
@@ -1616,7 +1314,7 @@ tcontrolcode(uchar ascii)
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		ttywrite(vtiden, strlen(vtiden), 0);
+		g_tty.write(vtiden, strlen(vtiden), 0);
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -1688,7 +1386,7 @@ eschandle(uchar ascii)
 		}
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
-		ttywrite(vtiden, strlen(vtiden), 0);
+		g_tty.write(vtiden, strlen(vtiden), 0);
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();
@@ -1951,4 +1649,5 @@ init_term(int _cols, int _rows)
 {
 	term = Term(_cols, _rows, sel);
 	sel.setTerm(term);
+	g_tty.setTerm(term);
 }

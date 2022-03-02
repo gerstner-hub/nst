@@ -27,12 +27,7 @@ constexpr const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohi
  */
 constexpr const wchar_t *WORDDELIMITERS = L" ";
 
-
-}} // end ns nst::config
-
-#ifdef FULL_NST_CONFIG
-
-const int borderpx = 2;
+constexpr const char *STTY_ARGS = "stty raw pass8 nl -echo -iexten -cstopb 38400";
 
 /*
  * What program is execed by st depends on these precedence rules:
@@ -42,11 +37,19 @@ const int borderpx = 2;
  * 4: value of shell in /etc/passwd
  * 5: value of shell in config.h
  */
-const char *shell = "/bin/sh";
-const char *utmp = NULL;
+constexpr const char *SHELL = "/bin/sh";
+constexpr const char *UTMP = nullptr;
 /* scroll program: to enable use a string like "scroll" */
-const char *scroll = NULL;
-const char *stty_args = "stty raw pass8 nl -echo -iexten -cstopb 38400";
+constexpr const char *SCROLL = nullptr;
+/* default TERM value */
+constexpr const char *TERMNAME = "st-256color";
+
+
+}} // end ns nst::config
+
+#ifdef FULL_NST_CONFIG
+
+const int borderpx = 2;
 
 /* identification sequence returned in DA and DECID */
 const char *vtiden = "\033[?6c";
@@ -91,9 +94,6 @@ const unsigned int cursorthickness = 2;
  * it
  */
 const int bellvolume = 0;
-
-/* default TERM value */
-const char *termname = "st-256color";
 
 /*
  * spaces per tab

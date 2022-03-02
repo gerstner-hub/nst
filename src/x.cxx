@@ -44,9 +44,6 @@ static void ttysend(const Arg *);
 #include "Term.hxx"
 #include "TTY.hxx"
 
-extern Term term;
-extern Selection sel;
-
 /* config.h for applying patches and the configuration. */
 #include "nst_config.h"
 
@@ -359,9 +356,9 @@ mousesel(XEvent *e, int done)
 			break;
 		}
 	}
-	sel.extend(evcol(e), evrow(e), seltype, done ? true : false);
+	g_sel.extend(evcol(e), evrow(e), seltype, done ? true : false);
 	if (done)
-		setsel(sel.getSelection(), e->xbutton.time);
+		setsel(g_sel.getSelection(), e->xbutton.time);
 }
 
 void
@@ -501,7 +498,7 @@ bpress(XEvent *e)
 		xsel.tclick2 = xsel.tclick1;
 		xsel.tclick1 = now;
 
-		sel.start(evcol(e), evrow(e), snap);
+		g_sel.start(evcol(e), evrow(e), snap);
 	}
 }
 
@@ -689,7 +686,7 @@ setsel(char *str, Time t)
 
 	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
 	if (XGetSelectionOwner(xw.dpy, XA_PRIMARY) != xw.win)
-		sel.clear();
+		g_sel.clear();
 }
 
 void
@@ -1541,7 +1538,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	Color drawcol;
 
 	/* remove the old cursor */
-	if (sel.isSelected(ox, oy))
+	if (g_sel.isSelected(ox, oy))
 		og.mode ^= ATTR_REVERSE;
 	xdrawglyph(og, ox, oy);
 
@@ -1556,7 +1553,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	if (IS_SET(MODE_REVERSE)) {
 		g.mode |= ATTR_REVERSE;
 		g.bg = defaultfg;
-		if (sel.isSelected(cx, cy)) {
+		if (g_sel.isSelected(cx, cy)) {
 			drawcol = dc.col[defaultcs];
 			g.fg = defaultrcs;
 		} else {
@@ -1564,7 +1561,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 			g.fg = defaultcs;
 		}
 	} else {
-		if (sel.isSelected(cx, cy)) {
+		if (g_sel.isSelected(cx, cy)) {
 			g.fg = defaultfg;
 			g.bg = defaultrcs;
 		} else {
@@ -1674,7 +1671,7 @@ xdrawline(nst::Line line, int x1, int y1, int x2)
 		newone = line[x];
 		if (newone.mode == ATTR_WDUMMY)
 			continue;
-		if (sel.isSelected(x, y1))
+		if (g_sel.isSelected(x, y1))
 			newone.mode ^= ATTR_REVERSE;
 		if (i > 0 && ATTRCMP(base, newone)) {
 			xdrawglyphfontspecs(specs, base, i, ox, y1);

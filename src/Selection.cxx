@@ -8,6 +8,13 @@
 #include "nst_config.h"
 #include "st.h"
 
+Selection g_sel;
+
+Selection::Selection() {
+	ob.x = -1;
+	m_term = &term;
+}
+
 void Selection::clear() {
 	if (ob.x == -1)
 		return;

@@ -3,10 +3,13 @@
 
 // nst
 #include "Term.hxx"
+#include "Selection.hxx"
 #include "st.h"
 
-Term::Term(int _cols, int _rows, Selection &selection) {
-	m_selection = &selection;
+Term term;
+
+Term::Term(int _cols, int _rows) {
+	m_selection = &g_sel;
 	resize(_cols, _rows);
 	reset();
 }

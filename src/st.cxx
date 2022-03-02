@@ -87,8 +87,6 @@ static char base64dec_getc(const char **);
 static ssize_t xwrite(int, const char *, size_t);
 
 /* Globals */
-Term term;
-Selection sel;
 static CSIEscape csiescseq;
 static STREscape strescseq;
 
@@ -1142,7 +1140,7 @@ printsel(const Arg *)
 void
 tdumpsel(void)
 {
-	char *ptr = sel.getSelection();
+	char *ptr = g_sel.getSelection();
 
 	if (!ptr)
 		return;
@@ -1520,8 +1518,8 @@ check_control_code:
 		 */
 		return;
 	}
-	if (sel.isSelected(term.c.x, term.c.y))
-		sel.clear();
+	if (g_sel.isSelected(term.c.x, term.c.y))
+		g_sel.clear();
 
 	gp = &term.line[term.c.y][term.c.x];
 	if (term.mode.test(Term::Mode::WRAP) && (term.c.state.test(Term::TCursor::State::WRAPNEXT))) {
@@ -1647,7 +1645,5 @@ redraw(void)
 void
 init_term(int _cols, int _rows)
 {
-	term = Term(_cols, _rows, sel);
-	sel.setTerm(term);
-	g_tty.setTerm(term);
+	term = Term(_cols, _rows);
 }

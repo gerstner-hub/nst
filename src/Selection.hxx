@@ -48,13 +48,7 @@ protected: // data
 
 public: // functions
 
-	Selection() {
-		ob.x = -1;
-	}
-
-	void setTerm(Term &term) {
-		m_term = &term;
-	}
+	Selection();
 
 	void clear();
 
@@ -69,5 +63,7 @@ protected: // functions
 	void normalize();
 	void checkSnap(int *x, int *y, int direction);
 };
+
+extern Selection g_sel;
 
 #endif // inc. guard

@@ -24,13 +24,13 @@ public: // data
 
 protected: // data
 
-	Term *m_term = nullptr;
+	Term *m_term;
 	pid_t m_pid = -1;
 	int m_cmdfd = -1;
 
 public: // functions
 
-	void setTerm(Term &term) { m_term = &term; }
+	TTY() { m_term = &term; }
 	int create(const Params &pars);
 	size_t read();
 	void write(const char *s, size_t n, bool may_echo);

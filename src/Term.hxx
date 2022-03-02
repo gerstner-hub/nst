@@ -3,10 +3,11 @@
 
 // nst
 #include "types.hxx"
-#include "Selection.hxx"
 
 // libcosmos
 #include "cosmos/BitMask.hxx"
+
+class Selection;
 
 /// Internal representation of the screen
 class Term {
@@ -73,7 +74,7 @@ public: // functions
 
 	Term() {}
 
-	Term(int _cols, int _rows, Selection &selection);
+	Term(int _cols, int _rows);
 
 	void resize(int cols, int rows);
 
@@ -112,5 +113,7 @@ public: // functions
 	void insertBlank(int n);
 	void insertBlankLine(int n);
 };
+
+extern Term term;
 
 #endif // inc. guard

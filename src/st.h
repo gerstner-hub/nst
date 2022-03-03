@@ -25,9 +25,6 @@ int tattrset(int);
 void tsetdirtattr(int);
 int twrite(const char *, int, int);
 
-void resettitle(void);
-
-void init_term(int, int);
 char *getsel(void);
 
 size_t utf8encode(nst::Rune, char *);

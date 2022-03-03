@@ -1,27 +1,17 @@
-/* See LICENSE for license details. */
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
-#include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 #include <wchar.h>
 
 #include "st.h"
 #include "win.h"
-
-#include <pty.h>
-
 #include "nst_config.h"
 #include "Selection.hxx"
 #include "Term.hxx"
@@ -1388,7 +1378,7 @@ eschandle(uchar ascii)
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();
-		resettitle();
+		xsettitle(NULL);
 		xloadcols();
 		break;
 	case '=': /* DECPAM -- Application keypad */
@@ -1590,12 +1580,6 @@ twrite(const char *buf, int buflen, int show_ctrl)
 }
 
 void
-resettitle(void)
-{
-	xsettitle(NULL);
-}
-
-void
 drawregion(int x1, int y1, int x2, int y2)
 {
 	int y;
@@ -1640,10 +1624,4 @@ redraw(void)
 {
 	term.setAllDirty();
 	draw();
-}
-
-void
-init_term(int _cols, int _rows)
-{
-	term = Term(_cols, _rows);
 }

@@ -1241,7 +1241,7 @@ xinit(int p_cols, int p_rows)
 			PropModeReplace, (uchar *)&thispid, 1);
 
 	win.mode = MODE_NUMLOCK;
-	resettitle();
+	xsettitle(NULL);
 	xhints();
 	XMapWindow(xw.dpy, xw.win);
 	XSync(xw.dpy, False);
@@ -2099,7 +2099,7 @@ main(int argc, const char **argv)
 	XSetLocaleModifiers("");
 	cols = std::max(cols, 1U);
 	rows = std::max(rows, 1U);
-	init_term(cols, rows);
+	term = Term(cols, rows);
 	xinit(cols, rows);
 	xsetenv();
 	run();

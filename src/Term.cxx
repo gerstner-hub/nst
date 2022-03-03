@@ -4,6 +4,9 @@
 // stdlib
 #include <algorithm>
 
+// cosmos
+#include "cosmos/algs.hxx"
+
 // nst
 #include "Term.hxx"
 #include "Selection.hxx"
@@ -272,7 +275,7 @@ void Term::deleteChar(int n)
 
 void Term::deleteLine(int n)
 {
-	if (BETWEEN(c.y, top, bot))
+	if (cosmos::in_range(c.y, top, bot))
 		scrollUp(c.y, n);
 }
 
@@ -291,7 +294,7 @@ void Term::insertBlank(int n)
 
 void Term::insertBlankLine(int n)
 {
-	if (BETWEEN(c.y, top, bot))
+	if (cosmos::in_range(c.y, top, bot))
 		scrollDown(c.y, n);
 }
 

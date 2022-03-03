@@ -1,12 +1,17 @@
 // stdlib
 #include <algorithm>
 
+// cosmos
+#include "cosmos/algs.hxx"
+
 // nst
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "macros.hxx"
 #include "nst_config.h"
 #include "st.h"
+
+using cosmos::in_range;
 
 Selection g_sel;
 
@@ -31,10 +36,10 @@ bool Selection::isSelected(int x, int y) const {
 		return 0;
 
 	if (type == Type::RECTANGULAR)
-		return BETWEEN(y, nb.y, ne.y)
-		    && BETWEEN(x, nb.x, ne.x);
+		return in_range(y, nb.y, ne.y)
+		    && in_range(x, nb.x, ne.x);
 
-	return BETWEEN(y, nb.y, ne.y)
+	return in_range(y, nb.y, ne.y)
 	    && (y != nb.y || x >= nb.x)
 	    && (y != ne.y || x <= ne.x);
 }
@@ -93,10 +98,10 @@ void Selection::checkSnap(int *x, int *y, int direction) {
 		while(true) {
 			newx = *x + direction;
 			newy = *y;
-			if (!BETWEEN(newx, 0, m_term->col - 1)) {
+			if (!in_range(newx, 0, m_term->col - 1)) {
 				newy += direction;
 				newx = (newx + m_term->col) % m_term->col;
-				if (!BETWEEN(newy, 0, m_term->row - 1))
+				if (!in_range(newy, 0, m_term->row - 1))
 					break;
 
 				if (direction > 0)
@@ -177,9 +182,9 @@ void Selection::scroll(int orig, int n) {
 	if (ob.x == -1)
 		return;
 
-	if (BETWEEN(nb.y, orig, m_term->bot) != BETWEEN(ne.y, orig, m_term->bot)) {
+	if (in_range(nb.y, orig, m_term->bot) != in_range(ne.y, orig, m_term->bot)) {
 		clear();
-	} else if (BETWEEN(nb.y, orig, m_term->bot)) {
+	} else if (in_range(nb.y, orig, m_term->bot)) {
 		ob.y += n;
 		oe.y += n;
 		if (ob.y < m_term->top || ob.y > m_term->bot ||

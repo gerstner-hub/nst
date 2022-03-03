@@ -23,6 +23,9 @@
 #include <map>
 #include <string>
 
+// cosmos
+#include "cosmos/algs.hxx"
+
 #include "types.hxx"
 #include "st.h"
 #define FULL_NST_CONFIG
@@ -773,7 +776,7 @@ xloadcolor(size_t i, const char *name, Color *ncolor)
 	XRenderColor color = { 0, 0, 0, 0xfff };
 
 	if (!name) {
-		if (BETWEEN(i, 16, 255)) { /* 256 color */
+		if (cosmos::in_range(i, 16, 255)) { /* 256 color */
 			if (i < 6*6*6+16) { /* same colors as xterm */
 				color.red   = sixd_to_16bit( ((i-16)/36)%6 );
 				color.green = sixd_to_16bit( ((i-16)/6) %6 );
@@ -1750,7 +1753,7 @@ xsetmode(int set, unsigned int flags)
 int
 xsetcursor(int cursor)
 {
-	if (!BETWEEN(cursor, 0, 7)) /* 7: st extension */
+	if (!cosmos::in_range(cursor, 0, 7)) /* 7: st extension */
 		return 1;
 	win.cursor = cursor;
 	return 0;

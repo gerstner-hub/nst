@@ -17,6 +17,9 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 
+// stdlib
+#include <algorithm>
+
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
 typedef struct {
@@ -1602,8 +1605,8 @@ draw(void)
 		return;
 
 	/* adjust cursor position */
-	LIMIT(term.ocx, 0, term.col-1);
-	LIMIT(term.ocy, 0, term.row-1);
+	std::clamp(term.ocx, 0, term.col-1);
+	std::clamp(term.ocy, 0, term.row-1);
 	if (term.line[term.ocy][term.ocx].mode & ATTR_WDUMMY)
 		term.ocx--;
 	if (term.line[term.c.y][cx].mode & ATTR_WDUMMY)

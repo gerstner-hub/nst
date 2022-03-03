@@ -1,6 +1,9 @@
 // C
 #include <string.h>
 
+// stdlib
+#include <algorithm>
+
 // nst
 #include "Term.hxx"
 #include "Selection.hxx"
@@ -42,8 +45,8 @@ void Term::reset(void)
 
 void Term::setDirty(int p_top, int p_bot)
 {
-	LIMIT(p_top, 0, row-1);
-	LIMIT(p_bot, 0, row-1);
+	std::clamp(p_top, 0, row-1);
+	std::clamp(p_bot, 0, row-1);
 
 	if (!dirty)
 		return;
@@ -141,10 +144,10 @@ void Term::clearRegion(int x1, int y1, int x2, int y2)
 	if (y1 > y2)
 		temp = y1, y1 = y2, y2 = temp;
 
-	LIMIT(x1, 0, col-1);
-	LIMIT(x2, 0, col-1);
-	LIMIT(y1, 0, row-1);
-	LIMIT(y2, 0, row-1);
+	std::clamp(x1, 0, col-1);
+	std::clamp(x2, 0, col-1);
+	std::clamp(y1, 0, row-1);
+	std::clamp(y2, 0, row-1);
 
 	for (y = y1; y <= y2; y++) {
 		dirty[y] = 1;
@@ -162,8 +165,8 @@ void Term::clearRegion(int x1, int y1, int x2, int y2)
 
 void Term::setScroll(int t, int b)
 {
-	LIMIT(t, 0, row-1);
-	LIMIT(b, 0, row-1);
+	std::clamp(t, 0, row-1);
+	std::clamp(b, 0, row-1);
 	if (t > b) {
 		std::swap(t, b);
 	}
@@ -183,8 +186,8 @@ void Term::moveTo(int x, int y)
 		maxy = row - 1;
 	}
 	c.state.reset(TCursor::State::WRAPNEXT);
-	c.x = LIMIT(x, 0, col-1);
-	c.y = LIMIT(y, miny, maxy);
+	c.x = std::clamp(x, 0, col-1);
+	c.y = std::clamp(y, miny, maxy);
 }
 
 /* for absolute user moves, when decom is set */
@@ -239,7 +242,7 @@ void Term::putTab(int n)
 			for (--x; x > 0 && !tabs[x]; --x)
 				/* nothing */ ;
 	}
-	c.x = LIMIT(x, 0, col-1);
+	c.x = std::clamp(x, 0, col-1);
 }
 
 void Term::putNewline(bool first_col)
@@ -256,7 +259,7 @@ void Term::putNewline(bool first_col)
 
 void Term::deleteChar(int n)
 {
-	LIMIT(n, 0, col - c.x);
+	std::clamp(n, 0, col - c.x);
 
 	const int dst = c.x;
 	const int src = c.x + n;
@@ -275,7 +278,7 @@ void Term::deleteLine(int n)
 
 void Term::insertBlank(int n)
 {
-	LIMIT(n, 0, col - c.x);
+	std::clamp(n, 0, col - c.x);
 
 	const int dst = c.x + n;
 	const int src = c.x;
@@ -294,7 +297,7 @@ void Term::insertBlankLine(int n)
 
 void Term::scrollDown(int orig, int n)
 {
-	LIMIT(n, 0, bot-orig+1);
+	std::clamp(n, 0, bot-orig+1);
 
 	setDirty(orig, bot-n);
 	clearRegion(0, bot-n+1, col-1, bot);
@@ -308,7 +311,7 @@ void Term::scrollDown(int orig, int n)
 
 void Term::scrollUp(int orig, int n)
 {
-	LIMIT(n, 0, bot-orig+1);
+	std::clamp(n, 0, bot-orig+1);
 
 	clearRegion(0, orig, col-1, orig+n-1);
 	setDirty(orig+n, bot);

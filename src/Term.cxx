@@ -42,8 +42,8 @@ void Term::reset(void)
 
 void Term::setDirty(int p_top, int p_bot)
 {
-	LIMIT(top, 0, row-1);
-	LIMIT(bot, 0, row-1);
+	LIMIT(p_top, 0, row-1);
+	LIMIT(p_bot, 0, row-1);
 
 	if (!dirty)
 		return;

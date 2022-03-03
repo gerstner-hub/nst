@@ -47,7 +47,6 @@ typedef struct {
 	int narg = 0;          /* nb of args */
 } STREscape;
 
-static void csidump(void);
 static void csihandle(void);
 static void csiparse(void);
 static void csireset(void);
@@ -62,13 +61,10 @@ static void tdumpsel(void);
 static void tdumpline(int);
 static void tdump(void);
 static void tputc(nst::Rune);
-static void tsetattr(const int *, int);
 static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
-static void tsetmode(int, int, const int *, int);
 static void tcontrolcode(uchar );
 static void tdectest(char );
 static void tdefutf8(char);
-static int32_t tdefcolor(const int *, int *, int);
 static void tdeftran(char);
 static void tstrsequence(uchar);
 
@@ -372,289 +368,6 @@ tsetchar(nst::Rune u, const nst::Glyph *attr, int x, int y)
 	term.line[y][x].u = u;
 }
 
-int32_t
-tdefcolor(const int *attr, int *npar, int l)
-{
-	int32_t idx = -1;
-	uint r, g, b;
-
-	switch (attr[*npar + 1]) {
-	case 2: /* direct color in RGB space */
-		if (*npar + 4 >= l) {
-			fprintf(stderr,
-				"erresc(38): Incorrect number of parameters (%d)\n",
-				*npar);
-			break;
-		}
-		r = attr[*npar + 2];
-		g = attr[*npar + 3];
-		b = attr[*npar + 4];
-		*npar += 4;
-		if (r > 255 || g > 255 || b > 255)
-			fprintf(stderr, "erresc: bad rgb color (%u,%u,%u)\n",
-				r, g, b);
-		else
-			idx = TRUECOLOR(r, g, b);
-		break;
-	case 5: /* indexed color */
-		if (*npar + 2 >= l) {
-			fprintf(stderr,
-				"erresc(38): Incorrect number of parameters (%d)\n",
-				*npar);
-			break;
-		}
-		*npar += 2;
-		if (!in_range(attr[*npar], 0, 255))
-			fprintf(stderr, "erresc: bad fgcolor %d\n", attr[*npar]);
-		else
-			idx = attr[*npar];
-		break;
-	case 0: /* implemented defined (only foreground) */
-	case 1: /* transparent */
-	case 3: /* direct color in CMY space */
-	case 4: /* direct color in CMYK space */
-	default:
-		fprintf(stderr,
-		        "erresc(38): gfx attr %d unknown\n", attr[*npar]);
-		break;
-	}
-
-	return idx;
-}
-
-void
-tsetattr(const int *attr, int l)
-{
-	int i;
-	int32_t idx;
-
-	for (i = 0; i < l; i++) {
-		switch (attr[i]) {
-		case 0:
-			term.c.attr.mode &= ~(
-				ATTR_BOLD       |
-				ATTR_FAINT      |
-				ATTR_ITALIC     |
-				ATTR_UNDERLINE  |
-				ATTR_BLINK      |
-				ATTR_REVERSE    |
-				ATTR_INVISIBLE  |
-				ATTR_STRUCK     );
-			term.c.attr.fg = defaultfg;
-			term.c.attr.bg = defaultbg;
-			break;
-		case 1:
-			term.c.attr.mode |= ATTR_BOLD;
-			break;
-		case 2:
-			term.c.attr.mode |= ATTR_FAINT;
-			break;
-		case 3:
-			term.c.attr.mode |= ATTR_ITALIC;
-			break;
-		case 4:
-			term.c.attr.mode |= ATTR_UNDERLINE;
-			break;
-		case 5: /* slow blink */
-			/* FALLTHROUGH */
-		case 6: /* rapid blink */
-			term.c.attr.mode |= ATTR_BLINK;
-			break;
-		case 7:
-			term.c.attr.mode |= ATTR_REVERSE;
-			break;
-		case 8:
-			term.c.attr.mode |= ATTR_INVISIBLE;
-			break;
-		case 9:
-			term.c.attr.mode |= ATTR_STRUCK;
-			break;
-		case 22:
-			term.c.attr.mode &= ~(ATTR_BOLD | ATTR_FAINT);
-			break;
-		case 23:
-			term.c.attr.mode &= ~ATTR_ITALIC;
-			break;
-		case 24:
-			term.c.attr.mode &= ~ATTR_UNDERLINE;
-			break;
-		case 25:
-			term.c.attr.mode &= ~ATTR_BLINK;
-			break;
-		case 27:
-			term.c.attr.mode &= ~ATTR_REVERSE;
-			break;
-		case 28:
-			term.c.attr.mode &= ~ATTR_INVISIBLE;
-			break;
-		case 29:
-			term.c.attr.mode &= ~ATTR_STRUCK;
-			break;
-		case 38:
-			if ((idx = tdefcolor(attr, &i, l)) >= 0)
-				term.c.attr.fg = idx;
-			break;
-		case 39:
-			term.c.attr.fg = defaultfg;
-			break;
-		case 48:
-			if ((idx = tdefcolor(attr, &i, l)) >= 0)
-				term.c.attr.bg = idx;
-			break;
-		case 49:
-			term.c.attr.bg = defaultbg;
-			break;
-		default:
-			if (in_range(attr[i], 30, 37)) {
-				term.c.attr.fg = attr[i] - 30;
-			} else if (in_range(attr[i], 40, 47)) {
-				term.c.attr.bg = attr[i] - 40;
-			} else if (in_range(attr[i], 90, 97)) {
-				term.c.attr.fg = attr[i] - 90 + 8;
-			} else if (in_range(attr[i], 100, 107)) {
-				term.c.attr.bg = attr[i] - 100 + 8;
-			} else {
-				fprintf(stderr,
-					"erresc(default): gfx attr %d unknown\n",
-					attr[i]);
-				csidump();
-			}
-			break;
-		}
-	}
-}
-
-void
-tsetmode(int priv, int set, const int *args, int narg)
-{
-	const int *lim;
-
-	for (lim = args + narg; args < lim; ++args) {
-		if (priv) {
-			switch (*args) {
-			case 1: /* DECCKM -- Cursor key */
-				xsetmode(set, MODE_APPCURSOR);
-				break;
-			case 5: /* DECSCNM -- Reverse video */
-				xsetmode(set, MODE_REVERSE);
-				break;
-			case 6: /* DECOM -- Origin */
-				term.c.state.set(Term::TCursor::State::ORIGIN, set);
-				term.moveAbsTo(0, 0);
-				break;
-			case 7: /* DECAWM -- Auto wrap */
-				term.mode.set(Term::Mode::WRAP, set);
-				break;
-			case 0:  /* Error (IGNORED) */
-			case 2:  /* DECANM -- ANSI/VT52 (IGNORED) */
-			case 3:  /* DECCOLM -- Column  (IGNORED) */
-			case 4:  /* DECSCLM -- Scroll (IGNORED) */
-			case 8:  /* DECARM -- Auto repeat (IGNORED) */
-			case 18: /* DECPFF -- Printer feed (IGNORED) */
-			case 19: /* DECPEX -- Printer extent (IGNORED) */
-			case 42: /* DECNRCM -- National characters (IGNORED) */
-			case 12: /* att610 -- Start blinking cursor (IGNORED) */
-				break;
-			case 25: /* DECTCEM -- Text Cursor Enable Mode */
-				xsetmode(!set, MODE_HIDE);
-				break;
-			case 9:    /* X10 mouse compatibility mode */
-				xsetpointermotion(0);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEX10);
-				break;
-			case 1000: /* 1000: report button press */
-				xsetpointermotion(0);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEBTN);
-				break;
-			case 1002: /* 1002: report motion on button press */
-				xsetpointermotion(0);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEMOTION);
-				break;
-			case 1003: /* 1003: enable all mouse motions */
-				xsetpointermotion(set);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEMANY);
-				break;
-			case 1004: /* 1004: send focus events to tty */
-				xsetmode(set, MODE_FOCUS);
-				break;
-			case 1006: /* 1006: extended reporting mode */
-				xsetmode(set, MODE_MOUSESGR);
-				break;
-			case 1034:
-				xsetmode(set, MODE_8BIT);
-				break;
-			case 1049: /* swap screen & set/restore cursor as xterm */
-				if (!allowaltscreen)
-					break;
-				term.cursorControl((set) ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
-				/* FALLTHROUGH */
-			case 47: /* swap screen */
-			case 1047: {
-				if (!allowaltscreen)
-					break;
-				const auto alt = term.mode.test(Term::Mode::ALTSCREEN);
-				if (alt) {
-					term.clearRegion(0, 0, term.col-1,
-							term.row-1);
-				}
-				if (set ^ alt) /* set is always 1 or 0 */
-					term.swapScreen();
-				if (*args != 1049)
-					break;
-			}
-				/* FALLTHROUGH */
-			case 1048:
-				term.cursorControl((set) ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
-				break;
-			case 2004: /* 2004: bracketed paste mode */
-				xsetmode(set, MODE_BRCKTPASTE);
-				break;
-			/* Not implemented mouse modes. See comments there. */
-			case 1001: /* mouse highlight mode; can hang the
-				      terminal by design when implemented. */
-			case 1005: /* UTF-8 mouse mode; will confuse
-				      applications not supporting UTF-8
-				      and luit. */
-			case 1015: /* urxvt mangled mouse mode; incompatible
-				      and can be mistaken for other control
-				      codes. */
-				break;
-			default:
-				fprintf(stderr,
-					"erresc: unknown private set/reset mode %d\n",
-					*args);
-				break;
-			}
-		} else {
-			switch (*args) {
-			case 0:  /* Error (IGNORED) */
-				break;
-			case 2:
-				xsetmode(set, MODE_KBDLOCK);
-				break;
-			case 4:  /* IRM -- Insertion-replacement */
-				term.mode.set(Term::Mode::INSERT, set);
-				break;
-			case 12: /* SRM -- Send/Receive */
-				term.mode.set(Term::Mode::TECHO, !set);
-				break;
-			case 20: /* LNM -- Linefeed/new line */
-				term.mode.set(Term::Mode::CRLF, set);
-				break;
-			default:
-				fprintf(stderr,
-					"erresc: unknown set/reset mode %d\n",
-					*args);
-				break;
-			}
-		}
-	}
-}
-
 void
 csihandle(void)
 {
@@ -802,7 +515,7 @@ csihandle(void)
 		term.insertBlankLine(csiescseq.arg[0]);
 		break;
 	case 'l': /* RM -- Reset Mode */
-		tsetmode(csiescseq.priv, 0, csiescseq.arg, csiescseq.narg);
+		term.setMode(csiescseq.priv, 0, csiescseq.arg, csiescseq.narg);
 		break;
 	case 'M': /* DL -- Delete <n> lines */
 		DEFAULT(csiescseq.arg[0], 1);
@@ -826,10 +539,10 @@ csihandle(void)
 		term.moveAbsTo(term.c.x, csiescseq.arg[0]-1);
 		break;
 	case 'h': /* SM -- Set terminal mode */
-		tsetmode(csiescseq.priv, 1, csiescseq.arg, csiescseq.narg);
+		term.setMode(csiescseq.priv, 1, csiescseq.arg, csiescseq.narg);
 		break;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		tsetattr(csiescseq.arg, csiescseq.narg);
+		term.setAttr(csiescseq.arg, csiescseq.narg);
 		break;
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (csiescseq.arg[0] == 6) {

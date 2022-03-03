@@ -24,6 +24,7 @@ void toggleprinter(const Arg *);
 int tattrset(int);
 void tsetdirtattr(int);
 int twrite(const char *, int, int);
+void csidump(void);
 
 char *getsel(void);
 

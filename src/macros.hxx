@@ -17,7 +17,6 @@
 				(t1.tv_nsec-t2.tv_nsec)/1E6)
 #define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
 
-#define TRUECOLOR(r,g,b)	(1 << 24 | (r) << 16 | (g) << 8 | (b))
 #define IS_TRUECOL(x)		(1 << 24 & (x))
 
 #define ISCONTROLC0(c)		((c < 0x1f) || (c) == 0x7f)

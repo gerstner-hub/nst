@@ -112,6 +112,16 @@ public: // functions
 	void deleteLine(int n);
 	void insertBlank(int n);
 	void insertBlankLine(int n);
+	void setAttr(const int *attr, size_t len);
+	void setMode(int priv, int set, const int *args, int narg);
+
+protected: // functions
+
+	int32_t defcolor(const int *attr, size_t *npar, size_t len);
+
+	int32_t toTrueColor(uint r, uint g, uint b) {
+		return (1 << 24) | (r << 16) | (g << 8) | b;
+	}
 };
 
 extern Term term;

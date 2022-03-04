@@ -24,6 +24,7 @@
 #include <algorithm>
 
 using cosmos::in_range;
+typedef nst::Glyph::Attr Attr;
 
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
@@ -250,13 +251,13 @@ die(const char *errstr, ...)
 }
 
 int
-tattrset(int attr)
+tattrset(nst::Glyph::Attr attr)
 {
 	int i, j;
 
 	for (i = 0; i < term.row-1; i++) {
 		for (j = 0; j < term.col-1; j++) {
-			if (term.line[i][j].mode & attr)
+			if (term.line[i][j].mode.test(attr))
 				return 1;
 		}
 	}
@@ -265,13 +266,13 @@ tattrset(int attr)
 }
 
 void
-tsetdirtattr(int attr)
+tsetdirtattr(nst::Glyph::Attr attr)
 {
 	int i, j;
 
 	for (i = 0; i < term.row-1; i++) {
 		for (j = 0; j < term.col-1; j++) {
-			if (term.line[i][j].mode & attr) {
+			if (term.line[i][j].mode.test(attr)) {
 				term.setDirty(i, i);
 				break;
 			}
@@ -330,14 +331,14 @@ tsetchar(nst::Rune u, const nst::Glyph *attr, int x, int y)
 	   in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
 		utf8decode(vt100_0[u - 0x41], &u, UTF_SIZ);
 
-	if (term.line[y][x].mode & ATTR_WIDE) {
+	if (term.line[y][x].mode.test(Attr::WIDE)) {
 		if (x+1 < term.col) {
 			term.line[y][x+1].u = ' ';
-			term.line[y][x+1].mode &= ~ATTR_WDUMMY;
+			term.line[y][x+1].mode.reset(Attr::WDUMMY);
 		}
-	} else if (term.line[y][x].mode & ATTR_WDUMMY) {
+	} else if (term.line[y][x].mode.test(Attr::WDUMMY)) {
 		term.line[y][x-1].u = ' ';
-		term.line[y][x-1].mode &= ~ATTR_WIDE;
+		term.line[y][x-1].mode.reset(Attr::WIDE);
 	}
 
 	term.dirty[y] = 1;
@@ -1164,7 +1165,7 @@ check_control_code:
 
 	gp = &term.line[term.c.y][term.c.x];
 	if (term.mode.test(Term::Mode::WRAP) && (term.c.state.test(Term::TCursor::State::WRAPNEXT))) {
-		gp->mode |= ATTR_WRAP;
+		gp->mode.set(Attr::WRAP);
 		term.putNewline();
 		gp = &term.line[term.c.y][term.c.x];
 	}
@@ -1181,14 +1182,14 @@ check_control_code:
 	term.lastc = u;
 
 	if (width == 2) {
-		gp->mode |= ATTR_WIDE;
+		gp->mode.set(Attr::WIDE);
 		if (term.c.x+1 < term.col) {
-			if (gp[1].mode == ATTR_WIDE && term.c.x+2 < term.col) {
+			if (gp[1].mode.test(Attr::WIDE) && term.c.x+2 < term.col) {
 				gp[2].u = ' ';
-				gp[2].mode &= ~ATTR_WDUMMY;
+				gp[2].mode.reset(Attr::WDUMMY);
 			}
 			gp[1].u = '\0';
-			gp[1].mode = ATTR_WDUMMY;
+			gp[1].mode.limit(Attr::WDUMMY);
 		}
 	}
 	if (term.c.x+width < term.col) {
@@ -1255,9 +1256,9 @@ draw(void)
 	/* adjust cursor position */
 	std::clamp(term.ocx, 0, term.col-1);
 	std::clamp(term.ocy, 0, term.row-1);
-	if (term.line[term.ocy][term.ocx].mode & ATTR_WDUMMY)
+	if (term.line[term.ocy][term.ocx].mode.test(Attr::WDUMMY))
 		term.ocx--;
-	if (term.line[term.c.y][cx].mode & ATTR_WDUMMY)
+	if (term.line[term.c.y][cx].mode.test(Attr::WDUMMY))
 		cx--;
 
 	drawregion(0, 0, term.col, term.row);

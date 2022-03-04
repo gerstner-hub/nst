@@ -16,6 +16,7 @@
 #include "st.h"
 
 using cosmos::in_range;
+typedef nst::Glyph::Attr Attr;
 
 Selection g_sel;
 
@@ -113,7 +114,7 @@ void Selection::checkSnap(int *x, int *y, int direction) {
 					yt = *y, xt = *x;
 				else
 					yt = newy, xt = newx;
-				if (!(m_term->line[yt][xt].mode & ATTR_WRAP))
+				if (!(m_term->line[yt][xt].mode[Attr::WRAP]))
 					break;
 			}
 
@@ -122,7 +123,7 @@ void Selection::checkSnap(int *x, int *y, int direction) {
 
 			const nst::Glyph *gp = &m_term->line[newy][newx];
 			delim = ISDELIM(gp->u);
-			if (!(gp->mode & ATTR_WDUMMY) && (delim != prevdelim
+			if (!(gp->mode[Attr::WDUMMY]) && (delim != prevdelim
 					|| (delim && gp->u != prevgp->u)))
 				break;
 
@@ -135,21 +136,19 @@ void Selection::checkSnap(int *x, int *y, int direction) {
 	} case Snap::LINE: {
 		/*
 		 * Snap around if the the previous line or the current one
-		 * has set ATTR_WRAP at its end. Then the whole next or
-		 * previous line will be selected.
+		 * has set WRAP at its end. Then the whole next or previous
+		 * line will be selected.
 		 */
 		*x = (direction < 0) ? 0 : m_term->col - 1;
 		if (direction < 0) {
 			for (; *y > 0; *y += direction) {
-				if (!(m_term->line[*y-1][m_term->col-1].mode
-						& ATTR_WRAP)) {
+				if (!(m_term->line[*y-1][m_term->col-1].mode[Attr::WRAP])) {
 					break;
 				}
 			}
 		} else if (direction > 0) {
 			for (; *y < m_term->row-1; *y += direction) {
-				if (!(m_term->line[*y][m_term->col-1].mode
-						& ATTR_WRAP)) {
+				if (!(m_term->line[*y][m_term->col-1].mode[Attr::WRAP])) {
 					break;
 				}
 			}
@@ -231,7 +230,7 @@ char* Selection::getSelection() const {
 			--last;
 
 		for ( ; gp <= last; ++gp) {
-			if (gp->mode & ATTR_WDUMMY)
+			if (gp->mode.test(Attr::WDUMMY))
 				continue;
 
 			ptr += utf8encode(gp->u, ptr);
@@ -247,7 +246,7 @@ char* Selection::getSelection() const {
 		 * FIXME: Fix the computer world.
 		 */
 		if ((y < ne.y || lastx >= linelen) &&
-		    (!(last->mode & ATTR_WRAP) || type == Type::RECTANGULAR))
+		    (!(last->mode[Attr::WRAP]) || type == Type::RECTANGULAR))
 			*ptr++ = '\n';
 	}
 	*ptr = 0;

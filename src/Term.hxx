@@ -3,6 +3,7 @@
 
 // nst
 #include "types.hxx"
+#include "Glyph.hxx"
 
 // libcosmos
 #include "cosmos/BitMask.hxx"

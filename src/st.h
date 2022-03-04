@@ -10,6 +10,7 @@
 #include <string>
 
 #include "types.hxx"
+#include "Glyph.hxx"
 #include "macros.hxx"
 
 void die(const char *, ...);
@@ -21,8 +22,8 @@ void printsel(const Arg *);
 void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
-int tattrset(int);
-void tsetdirtattr(int);
+int tattrset(nst::Glyph::Attr);
+void tsetdirtattr(nst::Glyph::Attr);
 int twrite(const char *, int, int);
 void csidump(void);
 

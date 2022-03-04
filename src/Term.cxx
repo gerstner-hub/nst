@@ -16,6 +16,7 @@
 #include "win.h"
 
 using cosmos::in_range;
+typedef nst::Glyph::Attr Attr;
 
 Term term;
 
@@ -28,7 +29,7 @@ Term::Term(int _cols, int _rows) {
 
 void Term::reset(void) {
 	c = (TCursor){.attr = {
-		.mode = ATTR_NULL,
+		.mode = nst::Glyph::AttrBitMask(),
 		.fg = defaultfg,
 		.bg = defaultbg
 	}, .x = 0, .y = 0, .state = TCursor::StateBitMask()};
@@ -141,28 +142,27 @@ void Term::resize(int new_cols, int new_rows) {
 }
 
 void Term::clearRegion(int x1, int y1, int x2, int y2) {
-	int x, y, temp;
-	nst::Glyph *gp;
-
 	if (x1 > x2)
-		temp = x1, x1 = x2, x2 = temp;
+		std::swap(x1, x2);
 	if (y1 > y2)
-		temp = y1, y1 = y2, y2 = temp;
+		std::swap(y1, y2);
 
 	std::clamp(x1, 0, col-1);
 	std::clamp(x2, 0, col-1);
 	std::clamp(y1, 0, row-1);
 	std::clamp(y2, 0, row-1);
 
-	for (y = y1; y <= y2; y++) {
+	nst::Glyph *gp;
+
+	for (int y = y1; y <= y2; y++) {
 		dirty[y] = 1;
-		for (x = x1; x <= x2; x++) {
+		for (int x = x1; x <= x2; x++) {
 			gp = &line[y][x];
 			if (m_selection->isSelected(x, y))
 				m_selection->clear();
 			gp->fg = c.attr.fg;
 			gp->bg = c.attr.bg;
-			gp->mode = 0;
+			gp->mode.reset();
 			gp->u = ' ';
 		}
 	}
@@ -222,7 +222,7 @@ int Term::getLineLen(int y) const
 {
 	auto i = col;
 
-	if (line[y][i - 1].mode & ATTR_WRAP)
+	if (line[y][i - 1].mode.test(Attr::WRAP))
 		return i;
 
 	while (i > 0 && line[y][i - 1].u == ' ')
@@ -327,64 +327,65 @@ void Term::setAttr(const int *attr, size_t len) {
 	for (size_t i = 0; i < len; i++) {
 		switch (attr[i]) {
 		case 0:
-			c.attr.mode &= ~(
-				ATTR_BOLD       |
-				ATTR_FAINT      |
-				ATTR_ITALIC     |
-				ATTR_UNDERLINE  |
-				ATTR_BLINK      |
-				ATTR_REVERSE    |
-				ATTR_INVISIBLE  |
-				ATTR_STRUCK     );
+			c.attr.mode.reset({
+				Attr::BOLD,
+				Attr::FAINT,
+				Attr::ITALIC,
+				Attr::UNDERLINE,
+				Attr::BLINK,
+				Attr::REVERSE,
+				Attr::INVISIBLE,
+				Attr::STRUCK
+			});
 			c.attr.fg = defaultfg;
 			c.attr.bg = defaultbg;
 			break;
 		case 1:
-			c.attr.mode |= ATTR_BOLD;
+			c.attr.mode.set(Attr::BOLD);
 			break;
 		case 2:
-			c.attr.mode |= ATTR_FAINT;
+			c.attr.mode.set(Attr::FAINT);
 			break;
 		case 3:
-			c.attr.mode |= ATTR_ITALIC;
+			c.attr.mode.set(Attr::ITALIC);
 			break;
 		case 4:
-			c.attr.mode |= ATTR_UNDERLINE;
+			c.attr.mode.set(Attr::UNDERLINE);
 			break;
 		case 5: /* slow blink */
 			/* FALLTHROUGH */
 		case 6: /* rapid blink */
-			c.attr.mode |= ATTR_BLINK;
+			c.attr.mode.set(Attr::BLINK);
 			break;
 		case 7:
-			c.attr.mode |= ATTR_REVERSE;
+			c.attr.mode.set(Attr::REVERSE);
 			break;
 		case 8:
-			c.attr.mode |= ATTR_INVISIBLE;
+			c.attr.mode.set(Attr::INVISIBLE);
 			break;
 		case 9:
-			c.attr.mode |= ATTR_STRUCK;
+			c.attr.mode.set(Attr::STRUCK);
 			break;
 		case 22:
-			c.attr.mode &= ~(ATTR_BOLD | ATTR_FAINT);
+			c.attr.mode.reset({Attr::BOLD, Attr::FAINT});
 			break;
 		case 23:
-			c.attr.mode &= ~ATTR_ITALIC;
+			c.attr.mode.reset(Attr::ITALIC);
 			break;
 		case 24:
-			c.attr.mode &= ~ATTR_UNDERLINE;
+			c.attr.mode.reset(Attr::UNDERLINE);
 			break;
 		case 25:
-			c.attr.mode &= ~ATTR_BLINK;
+			c.attr.mode.reset(Attr::BLINK);
 			break;
 		case 27:
-			c.attr.mode &= ~ATTR_REVERSE;
+			c.attr.mode.reset(Attr::REVERSE);
 			break;
 		case 28:
-			c.attr.mode &= ~ATTR_INVISIBLE;
+			c.attr.mode.reset(Attr::INVISIBLE);
 			break;
 		case 29:
-			c.attr.mode &= ~ATTR_STRUCK;
+			c.attr.mode.reset(Attr::STRUCK);
 			break;
 		case 38:
 			if ((idx = defcolor(attr, &i, len)) >= 0)

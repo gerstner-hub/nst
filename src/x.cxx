@@ -57,6 +57,8 @@ static void ttysend(const Arg *);
 #	include "config.h"
 #endif
 
+typedef nst::Glyph::Attr Attr;
+
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
@@ -1261,8 +1263,7 @@ xinit(int p_cols, int p_rows)
 int
 xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, int x, int y)
 {
-	float winx = borderpx + x * win.cw, winy = borderpx + y * win.ch, xp, yp;
-	ushort mode, prevmode = USHRT_MAX;
+	float winx = borderpx + x * win.cw, winy = borderpx + y * win.ch;
 	Font *fnt = &dc.font;
 	int frcflags = FRC_NORMAL;
 	float runewidth = win.cw;
@@ -1272,15 +1273,16 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 	FcPattern *fcpattern, *fontpattern;
 	FcFontSet *fcsets[] = { NULL };
 	FcCharSet *fccharset;
-	int i, f, numspecs = 0;
+	int numspecs = 0;
+	nst::Glyph::AttrBitMask prevmode(nst::Glyph::AttrBitMask::all);
 
-	for (i = 0, xp = winx, yp = winy + fnt->ascent; i < len; ++i) {
+	for (int i = 0, xp = winx, yp = winy + fnt->ascent; i < len; ++i) {
 		/* Fetch rune and mode for current glyph. */
 		rune = glyphs[i].u;
-		mode = glyphs[i].mode;
+		const auto &mode = glyphs[i].mode;
 
 		/* Skip dummy wide-character spacing. */
-		if (mode == ATTR_WDUMMY)
+		if (mode == nst::Glyph::AttrBitMask({Attr::WDUMMY}))
 			continue;
 
 		/* Determine font for glyph if different from previous glyph. */
@@ -1288,14 +1290,14 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 			prevmode = mode;
 			fnt = &dc.font;
 			frcflags = FRC_NORMAL;
-			runewidth = win.cw * ((mode & ATTR_WIDE) ? 2.0f : 1.0f);
-			if ((mode & ATTR_ITALIC) && (mode & ATTR_BOLD)) {
+			runewidth = win.cw * (mode.test(Attr::WIDE) ? 2.0f : 1.0f);
+			if (mode.test(Attr::ITALIC) && mode.test(Attr::BOLD)) {
 				fnt = &dc.ibfont;
 				frcflags = FRC_ITALICBOLD;
-			} else if (mode & ATTR_ITALIC) {
+			} else if (mode.test(Attr::ITALIC)) {
 				fnt = &dc.ifont;
 				frcflags = FRC_ITALIC;
-			} else if (mode & ATTR_BOLD) {
+			} else if (mode.test(Attr::BOLD)) {
 				fnt = &dc.bfont;
 				frcflags = FRC_BOLD;
 			}
@@ -1314,6 +1316,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 			continue;
 		}
 
+		int f;
 		/* Fallback on font cache, search the font cache for match. */
 		for (f = 0; f < frclen; f++) {
 			glyphidx = XftCharIndex(xw.dpy, frc[f].font, rune);
@@ -1393,7 +1396,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 void
 xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int x, int y)
 {
-	int charlen = len * ((base.mode & ATTR_WIDE) ? 2 : 1);
+	int charlen = len * (base.mode.test(Attr::WIDE) ? 2 : 1);
 	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch,
 	    width = charlen * win.cw;
 	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
@@ -1401,11 +1404,11 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 	XRectangle r;
 
 	/* Fallback on color display for attributes not supported by the font */
-	if (base.mode & ATTR_ITALIC && base.mode & ATTR_BOLD) {
+	if (base.mode.test(Attr::ITALIC) && base.mode.test(Attr::BOLD)) {
 		if (dc.ibfont.badslant || dc.ibfont.badweight)
 			base.fg = defaultattr;
-	} else if ((base.mode & ATTR_ITALIC && dc.ifont.badslant) ||
-	    (base.mode & ATTR_BOLD && dc.bfont.badweight)) {
+	} else if ((base.mode.test(Attr::ITALIC) && dc.ifont.badslant) ||
+	    (base.mode.test(Attr::BOLD) && dc.bfont.badweight)) {
 		base.fg = defaultattr;
 	}
 
@@ -1432,7 +1435,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 	}
 
 	/* Change basic system colors [0-7] to bright system colors [8-15] */
-	if ((base.mode & ATTR_BOLD_FAINT) == ATTR_BOLD && base.fg <= 7)
+	if (base.mode[Attr::BOLD] && !base.mode[Attr::FAINT] && base.fg <= 7)
 		fg = &dc.col[base.fg + 8];
 
 	if (IS_SET(MODE_REVERSE)) {
@@ -1461,7 +1464,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		}
 	}
 
-	if ((base.mode & ATTR_BOLD_FAINT) == ATTR_FAINT) {
+	if (base.mode.test(Attr::FAINT) && !base.mode[Attr::BOLD]) {
 		colfg.red = fg->color.red / 2;
 		colfg.green = fg->color.green / 2;
 		colfg.blue = fg->color.blue / 2;
@@ -1470,16 +1473,16 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		fg = &revfg;
 	}
 
-	if (base.mode & ATTR_REVERSE) {
+	if (base.mode.test(Attr::REVERSE)) {
 		temp = fg;
 		fg = bg;
 		bg = temp;
 	}
 
-	if (base.mode & ATTR_BLINK && win.mode & MODE_BLINK)
+	if (base.mode.test(Attr::BLINK) && win.mode & MODE_BLINK)
 		fg = bg;
 
-	if (base.mode & ATTR_INVISIBLE)
+	if (base.mode.test(Attr::INVISIBLE))
 		fg = bg;
 
 	/* Intelligent cleaning up of the borders. */
@@ -1511,12 +1514,12 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 	XftDrawGlyphFontSpec(xw.draw, fg, specs, len);
 
 	/* Render underline and strikethrough. */
-	if (base.mode & ATTR_UNDERLINE) {
+	if (base.mode.test(Attr::UNDERLINE)) {
 		XftDrawRect(xw.draw, fg, winx, winy + dc.font.ascent + 1,
 				width, 1);
 	}
 
-	if (base.mode & ATTR_STRUCK) {
+	if (base.mode.test(Attr::STRUCK)) {
 		XftDrawRect(xw.draw, fg, winx, winy + 2 * dc.font.ascent / 3,
 				width, 1);
 	}
@@ -1542,7 +1545,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 
 	/* remove the old cursor */
 	if (g_sel.isSelected(ox, oy))
-		og.mode ^= ATTR_REVERSE;
+		og.mode.flip(Attr::REVERSE);
 	xdrawglyph(og, ox, oy);
 
 	if (IS_SET(MODE_HIDE))
@@ -1551,10 +1554,10 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	/*
 	 * Select the right color for the right mode.
 	 */
-	g.mode &= ATTR_BOLD|ATTR_ITALIC|ATTR_UNDERLINE|ATTR_STRUCK|ATTR_WIDE;
+	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 
 	if (IS_SET(MODE_REVERSE)) {
-		g.mode |= ATTR_REVERSE;
+		g.mode.set(Attr::REVERSE);
 		g.bg = defaultfg;
 		if (g_sel.isSelected(cx, cy)) {
 			drawcol = dc.col[defaultcs];
@@ -1672,10 +1675,10 @@ xdrawline(nst::Line line, int x1, int y1, int x2)
 	i = ox = 0;
 	for (x = x1; x < x2 && i < numspecs; x++) {
 		newone = line[x];
-		if (newone.mode == ATTR_WDUMMY)
+		if (newone.mode.only(Attr::WDUMMY))
 			continue;
 		if (g_sel.isSelected(x, y1))
-			newone.mode ^= ATTR_REVERSE;
+			newone.mode.flip(Attr::REVERSE);
 		if (i > 0 && ATTRCMP(base, newone)) {
 			xdrawglyphfontspecs(specs, base, i, ox, y1);
 			specs += i;
@@ -2019,13 +2022,13 @@ run(void)
 
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = -1;
-		if (blinktimeout && tattrset(ATTR_BLINK)) {
+		if (blinktimeout && tattrset(Attr::BLINK)) {
 			timeout = blinktimeout - TIMEDIFF(now, lastblink);
 			if (timeout <= 0) {
 				if (-timeout > blinktimeout) /* start visible */
 					win.mode |= MODE_BLINK;
 				win.mode ^= MODE_BLINK;
-				tsetdirtattr(ATTR_BLINK);
+				tsetdirtattr(Attr::BLINK);
 				lastblink = now;
 				timeout = blinktimeout;
 			}

@@ -6,8 +6,10 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
+#ifdef FULL_NST_CONFIG
 // nst
 #include "xtypes.hxx"
+#endif
 
 namespace nst {
 namespace config {
@@ -44,15 +46,44 @@ constexpr const char *SCROLL = nullptr;
 /* default TERM value */
 constexpr const char *TERMNAME = "st-256color";
 
+/* identification sequence returned in DA and DECID */
+constexpr const char *VTIDEN = "\033[?6c";
+
+/* allow certain non-interactive (insecure) window operations such as:
+   setting the clipboard text */
+constexpr int ALLOWWINDOWOPS = 0;
+
+/*
+ * spaces per tab
+ *
+ * When you are changing this value, don't forget to adapt the »it« value in
+ * the st.info and appropriately install the st.info in the environment where
+ * you use this st version.
+ *
+ *	it#$TABSPACES,
+ *
+ * Secondly make sure your kernel is not expanding tabs. When running `stty
+ * -a` »tab0« should appear. You can tell the terminal to not expand tabs by
+ *  running following command:
+ *
+ *	stty tabs
+ */
+constexpr unsigned int TABSPACES = 8;
+
+/*
+ * Default colors (colorname index)
+ * foreground, background, cursor, reverse cursor
+ */
+constexpr unsigned int DEFAULTFG = 258;
+constexpr unsigned int DEFAULTBG = 259;
+constexpr unsigned int DEFAULTCS = 256;
+constexpr unsigned int DEFAULTRCS = 257;
 
 }} // end ns nst::config
 
 #ifdef FULL_NST_CONFIG
 
 const int borderpx = 2;
-
-/* identification sequence returned in DA and DECID */
-const char *vtiden = "\033[?6c";
 
 /* Kerning / character bounding-box multipliers */
 const float cwscale = 1.0;
@@ -64,10 +95,6 @@ const unsigned int tripleclicktimeout = 600;
 
 /* alt screens */
 int allowaltscreen = 1;
-
-/* allow certain non-interactive (insecure) window operations such as:
-   setting the clipboard text */
-const int allowwindowops = 0;
 
 /*
  * draw latency range in ms - from new content/keypress/etc until drawing.
@@ -94,23 +121,6 @@ const unsigned int cursorthickness = 2;
  * it
  */
 const int bellvolume = 0;
-
-/*
- * spaces per tab
- *
- * When you are changing this value, don't forget to adapt the »it« value in
- * the st.info and appropriately install the st.info in the environment where
- * you use this st version.
- *
- *	it#$TABSPACES,
- *
- * Secondly make sure your kernel is not expanding tabs. When running `stty
- * -a` »tab0« should appear. You can tell the terminal to not expand tabs by
- *  running following command:
- *
- *	stty tabs
- */
-const unsigned int TABSPACES = 8;
 
 const char *extended_colors[] = {
 	/* more colors can be added after 255 to use with DefaultXX */
@@ -142,15 +152,6 @@ const char *colorname[256 + sizeof(extended_colors) / sizeof(const char*)] = {
 	"cyan",
 	"white",
 };
-
-/*
- * Default colors (colorname index)
- * foreground, background, cursor, reverse cursor
- */
-const unsigned int defaultfg = 258;
-const unsigned int defaultbg = 259;
-const unsigned int defaultcs = 256;
-const unsigned int defaultrcs = 257;
 
 /*
  * Default shape of cursor

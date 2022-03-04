@@ -858,7 +858,7 @@ void
 xclear(int x1, int y1, int x2, int y2)
 {
 	XftDrawRect(xw.draw,
-			&dc.col[IS_SET(MODE_REVERSE)? defaultfg : defaultbg],
+			&dc.col[IS_SET(MODE_REVERSE)? nst::config::DEFAULTFG : nst::config::DEFAULTBG],
 			x1, y1, x2-x1, y2-y1);
 }
 
@@ -1181,8 +1181,8 @@ xinit(int p_cols, int p_rows)
 		xw.t += DisplayHeight(xw.dpy, xw.scr) - win.h - 2;
 
 	/* Events */
-	xw.attrs.background_pixel = dc.col[defaultbg].pixel;
-	xw.attrs.border_pixel = dc.col[defaultbg].pixel;
+	xw.attrs.background_pixel = dc.col[nst::config::DEFAULTBG].pixel;
+	xw.attrs.border_pixel = dc.col[nst::config::DEFAULTBG].pixel;
 	xw.attrs.bit_gravity = NorthWestGravity;
 	xw.attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
@@ -1202,7 +1202,7 @@ xinit(int p_cols, int p_rows)
 			&gcvalues);
 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
 			DefaultDepth(xw.dpy, xw.scr));
-	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
+	XSetForeground(xw.dpy, dc.gc, dc.col[nst::config::DEFAULTBG].pixel);
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
 	/* font spec buffer */
@@ -1439,8 +1439,8 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		fg = &dc.col[base.fg + 8];
 
 	if (IS_SET(MODE_REVERSE)) {
-		if (fg == &dc.col[defaultfg]) {
-			fg = &dc.col[defaultbg];
+		if (fg == &dc.col[nst::config::DEFAULTFG]) {
+			fg = &dc.col[nst::config::DEFAULTBG];
 		} else {
 			colfg.red = ~fg->color.red;
 			colfg.green = ~fg->color.green;
@@ -1451,8 +1451,8 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 			fg = &revfg;
 		}
 
-		if (bg == &dc.col[defaultbg]) {
-			bg = &dc.col[defaultfg];
+		if (bg == &dc.col[nst::config::DEFAULTBG]) {
+			bg = &dc.col[nst::config::DEFAULTFG];
 		} else {
 			colbg.red = ~bg->color.red;
 			colbg.green = ~bg->color.green;
@@ -1558,21 +1558,21 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 
 	if (IS_SET(MODE_REVERSE)) {
 		g.mode.set(Attr::REVERSE);
-		g.bg = defaultfg;
+		g.bg = nst::config::DEFAULTFG;
 		if (g_sel.isSelected(cx, cy)) {
-			drawcol = dc.col[defaultcs];
-			g.fg = defaultrcs;
+			drawcol = dc.col[nst::config::DEFAULTCS];
+			g.fg = nst::config::DEFAULTRCS;
 		} else {
-			drawcol = dc.col[defaultrcs];
-			g.fg = defaultcs;
+			drawcol = dc.col[nst::config::DEFAULTRCS];
+			g.fg = nst::config::DEFAULTCS;
 		}
 	} else {
 		if (g_sel.isSelected(cx, cy)) {
-			g.fg = defaultfg;
-			g.bg = defaultrcs;
+			g.fg = nst::config::DEFAULTFG;
+			g.bg = nst::config::DEFAULTRCS;
 		} else {
-			g.fg = defaultbg;
-			g.bg = defaultcs;
+			g.fg = nst::config::DEFAULTBG;
+			g.bg = nst::config::DEFAULTCS;
 		}
 		drawcol = dc.col[g.bg];
 	}
@@ -1702,7 +1702,7 @@ xfinishdraw(void)
 			win.h, 0, 0);
 	XSetForeground(xw.dpy, dc.gc,
 			dc.col[IS_SET(MODE_REVERSE)?
-				defaultfg : defaultbg].pixel);
+				nst::config::DEFAULTFG : nst::config::DEFAULTBG].pixel);
 }
 
 void

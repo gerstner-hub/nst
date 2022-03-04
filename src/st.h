@@ -25,8 +25,6 @@ void toggleprinter(const Arg *);
 int twrite(const char *, int, int);
 void csidump(void);
 
-char *getsel(void);
-
 size_t utf8encode(nst::Rune, char *);
 
 void *xmalloc(size_t);
@@ -37,13 +35,7 @@ void xfreeglobals();
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
 /* config.h globals */
-extern const char *vtiden;
 extern int allowaltscreen;
-extern const int allowwindowops;
-extern const unsigned int TABSPACES;
-extern const unsigned int defaultfg;
-extern const unsigned int defaultbg;
-extern const unsigned int defaultcs;
 extern unsigned int cols;
 extern unsigned int rows;
 

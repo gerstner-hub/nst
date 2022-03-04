@@ -79,10 +79,10 @@ static char base64dec_getc(const char **);
 static CSIEscape csiescseq;
 static STREscape strescseq;
 
-static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
-static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
-static const nst::Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
-static const nst::Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+static constexpr uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
+static constexpr uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
+static constexpr nst::Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
+static constexpr nst::Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
 
 void *
 xmalloc(size_t len)
@@ -185,7 +185,7 @@ utf8validate(nst::Rune *u, size_t i)
 	return i;
 }
 
-static const char base64_digits[] = {
+static constexpr char base64_digits[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 0, 0, 0,
 	63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 0, 0, 0, -1, 0, 0, 0, 0, 1,
@@ -363,7 +363,7 @@ csihandle(void)
 		break;
 	case 'c': /* DA -- Device Attributes */
 		if (csiescseq.arg[0] == 0)
-			g_tty.write(vtiden, strlen(vtiden), 0);
+			g_tty.write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
 		break;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		DEFAULT(csiescseq.arg[0], 1);
@@ -622,7 +622,7 @@ strhandle(void)
 				xsettitle(strescseq.args[1]);
 			return;
 		case 52:
-			if (narg > 2 && allowwindowops) {
+			if (narg > 2 && nst::config::ALLOWWINDOWOPS) {
 				dec = base64dec(strescseq.args[2]);
 				if (dec) {
 					xsetsel(dec);
@@ -639,8 +639,8 @@ strhandle(void)
 			p = strescseq.args[1];
 
 			if (!strcmp(p, "?"))
-				osc_color_response(defaultfg, 10);
-			else if (xsetcolorname(defaultfg, p))
+				osc_color_response(nst::config::DEFAULTFG, 10);
+			else if (xsetcolorname(nst::config::DEFAULTFG, p))
 				fprintf(stderr, "erresc: invalid foreground color: %s\n", p);
 			else
 				redraw();
@@ -652,8 +652,8 @@ strhandle(void)
 			p = strescseq.args[1];
 
 			if (!strcmp(p, "?"))
-				osc_color_response(defaultbg, 11);
-			else if (xsetcolorname(defaultbg, p))
+				osc_color_response(nst::config::DEFAULTBG, 11);
+			else if (xsetcolorname(nst::config::DEFAULTBG, p))
 				fprintf(stderr, "erresc: invalid background color: %s\n", p);
 			else
 				redraw();
@@ -665,8 +665,8 @@ strhandle(void)
 			p = strescseq.args[1];
 
 			if (!strcmp(p, "?"))
-				osc_color_response(defaultcs, 12);
-			else if (xsetcolorname(defaultcs, p))
+				osc_color_response(nst::config::DEFAULTCS, 12);
+			else if (xsetcolorname(nst::config::DEFAULTCS, p))
 				fprintf(stderr, "erresc: invalid cursor color: %s\n", p);
 			else
 				redraw();
@@ -924,7 +924,7 @@ tcontrolcode(uchar ascii)
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		g_tty.write(vtiden, strlen(vtiden), 0);
+		g_tty.write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -996,7 +996,7 @@ eschandle(uchar ascii)
 		}
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
-		g_tty.write(vtiden, strlen(vtiden), 0);
+		g_tty.write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();
@@ -1204,9 +1204,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
 void
 drawregion(int x1, int y1, int x2, int y2)
 {
-	int y;
-
-	for (y = y1; y < y2; y++) {
+	for (int y = y1; y < y2; y++) {
 		if (!term.dirty[y])
 			continue;
 

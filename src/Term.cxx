@@ -9,6 +9,7 @@
 #include "cosmos/algs.hxx"
 
 // nst
+#include "nst_config.h"
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "Selection.hxx"
@@ -30,12 +31,12 @@ Term::Term(int _cols, int _rows) {
 void Term::reset(void) {
 	c = (TCursor){.attr = {
 		.mode = nst::Glyph::AttrBitMask(),
-		.fg = defaultfg,
-		.bg = defaultbg
+		.fg = nst::config::DEFAULTFG,
+		.bg = nst::config::DEFAULTBG
 	}, .x = 0, .y = 0, .state = TCursor::StateBitMask()};
 
 	memset(tabs, 0, col * sizeof(*tabs));
-	for (size_t i = TABSPACES; (int)i < col; i += TABSPACES)
+	for (size_t i = nst::config::TABSPACES; (int)i < col; i += nst::config::TABSPACES)
 		tabs[i] = 1;
 	top = 0;
 	bot = row - 1;
@@ -116,7 +117,7 @@ void Term::resize(int new_cols, int new_rows) {
 		memset(bp, 0, sizeof(*tabs) * (new_cols - col));
 		while (--bp > tabs && !*bp)
 			/* nothing */ ;
-		for (bp += TABSPACES; bp < tabs + new_cols; bp += TABSPACES)
+		for (bp += nst::config::TABSPACES; bp < tabs + new_cols; bp += nst::config::TABSPACES)
 			*bp = 1;
 	}
 	/* update terminal size */
@@ -337,8 +338,8 @@ void Term::setAttr(const int *attr, size_t len) {
 				Attr::INVISIBLE,
 				Attr::STRUCK
 			});
-			c.attr.fg = defaultfg;
-			c.attr.bg = defaultbg;
+			c.attr.fg = nst::config::DEFAULTFG;
+			c.attr.bg = nst::config::DEFAULTBG;
 			break;
 		case 1:
 			c.attr.mode.set(Attr::BOLD);
@@ -392,14 +393,14 @@ void Term::setAttr(const int *attr, size_t len) {
 				c.attr.fg = idx;
 			break;
 		case 39:
-			c.attr.fg = defaultfg;
+			c.attr.fg = nst::config::DEFAULTFG;
 			break;
 		case 48:
 			if ((idx = defcolor(attr, &i, len)) >= 0)
 				c.attr.bg = idx;
 			break;
 		case 49:
-			c.attr.bg = defaultbg;
+			c.attr.bg = nst::config::DEFAULTBG;
 			break;
 		default:
 			if (in_range(attr[i], 30, 37)) {

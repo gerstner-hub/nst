@@ -22,8 +22,6 @@ void printsel(const Arg *);
 void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
-int tattrset(nst::Glyph::Attr);
-void tsetdirtattr(nst::Glyph::Attr);
 int twrite(const char *, int, int);
 void csidump(void);
 

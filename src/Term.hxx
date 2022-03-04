@@ -127,6 +127,12 @@ public: // functions
 	//! write the given line into the I/O file
 	void dumpLine(size_t n) const;
 
+	//! returns whether any glyph currently has this attribute set
+	bool testAttrSet(const nst::Glyph::Attr &attr) const;
+
+	//! sets all lines as dirty that have a glyph matching the given attribute
+	void setDirtyByAttr(const nst::Glyph::Attr &attr);
+
 protected: // functions
 
 	int32_t defcolor(const int *attr, size_t *npar, size_t len);

@@ -595,3 +595,25 @@ void Term::dumpLine(size_t n) const {
 	}
 	m_tty->printToIoFile("\n", 1);
 }
+
+bool Term::testAttrSet(const nst::Glyph::Attr &attr) const {
+	for (int i = 0; i < row-1; i++) {
+		for (int j = 0; j < col-1; j++) {
+			if (line[i][j].mode.test(attr))
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
+void Term::setDirtyByAttr(const nst::Glyph::Attr &attr) {
+	for (int i = 0; i < row-1; i++) {
+		for (int j = 0; j < col-1; j++) {
+			if (line[i][j].mode.test(attr)) {
+				setDirty(i, i);
+				break;
+			}
+		}
+	}
+}

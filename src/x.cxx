@@ -2022,13 +2022,13 @@ run(void)
 
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = -1;
-		if (blinktimeout && tattrset(Attr::BLINK)) {
+		if (blinktimeout && term.testAttrSet(Attr::BLINK)) {
 			timeout = blinktimeout - TIMEDIFF(now, lastblink);
 			if (timeout <= 0) {
 				if (-timeout > blinktimeout) /* start visible */
 					win.mode |= MODE_BLINK;
 				win.mode ^= MODE_BLINK;
-				tsetdirtattr(Attr::BLINK);
+				term.setDirtyByAttr(Attr::BLINK);
 				lastblink = now;
 				timeout = blinktimeout;
 			}

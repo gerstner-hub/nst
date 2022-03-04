@@ -16,7 +16,7 @@ class Term {
 
 public: // types
 
-	enum class Mode {
+	enum class Mode : unsigned {
 		WRAP        = 1 << 0,
 		INSERT      = 1 << 1,
 		ALTSCREEN   = 1 << 2,
@@ -34,7 +34,7 @@ public: // types
 			SAVE,
 			LOAD
 		};
-		enum class State {
+		enum class State : unsigned {
 			WRAPNEXT = 1,
 			ORIGIN   = 2
 		};

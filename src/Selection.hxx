@@ -7,18 +7,18 @@ class TTY;
 class Selection {
 public: // types
 
-	enum class Mode {
+	enum class Mode : unsigned {
 		IDLE = 0,
 		EMPTY = 1,
 		READY = 2
 	};
 
-	enum class Type {
+	enum class Type : unsigned {
 		REGULAR = 1,
 		RECTANGULAR = 2
 	};
 
-	enum Snap {
+	enum class Snap : unsigned {
 		NONE = 0,
 		WORD = 1,
 		LINE = 2

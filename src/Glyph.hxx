@@ -11,7 +11,7 @@ typedef uint_least32_t Rune;
 struct Glyph {
 public: // types
 
-	enum class Attr {
+	enum class Attr : unsigned {
 		NONE       = 0,
 		BOLD       = 1 << 0,
 		FAINT      = 1 << 1,

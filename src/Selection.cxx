@@ -51,8 +51,8 @@ bool Selection::isSelected(int x, int y) const {
 
 void Selection::start(int col, int row, Snap p_snap) {
 	clear();
-	mode = Selection::Mode::EMPTY;
-	type = Selection::Type::REGULAR;
+	mode = Mode::EMPTY;
+	type = Type::REGULAR;
 	alt = m_term->getMode().test(Term::Mode::ALTSCREEN);
 	snap = p_snap;
 	oe.x = ob.x = col;
@@ -66,7 +66,7 @@ void Selection::start(int col, int row, Snap p_snap) {
 }
 
 void Selection::normalize(void) {
-	if (type == Selection::Type::REGULAR && ob.y != oe.y) {
+	if (type == Type::REGULAR && ob.y != oe.y) {
 		nb.x = ob.y < oe.y ? ob.x : oe.x;
 		ne.x = ob.y < oe.y ? oe.x : ob.x;
 	} else {
@@ -219,7 +219,7 @@ char* Selection::getSelection() const {
 			continue;
 		}
 
-		if (type == Selection::Type::RECTANGULAR) {
+		if (type == Type::RECTANGULAR) {
 			gp = &m_term->line[y][nb.x];
 			lastx = ne.x;
 		} else {
@@ -247,7 +247,7 @@ char* Selection::getSelection() const {
 		 * FIXME: Fix the computer world.
 		 */
 		if ((y < ne.y || lastx >= linelen) &&
-		    (!(last->mode & ATTR_WRAP) || type == Selection::Type::RECTANGULAR))
+		    (!(last->mode & ATTR_WRAP) || type == Type::RECTANGULAR))
 			*ptr++ = '\n';
 	}
 	*ptr = 0;

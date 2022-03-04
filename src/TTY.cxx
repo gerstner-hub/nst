@@ -43,6 +43,9 @@ int TTY::create(const Params &pars) {
 			std::cerr << "Error opening " << pars.out << ": " << strerror(errno) << std::endl;
 		}
 	}
+	else {
+		iofd = -1;
+	}
 
 	// operate an a real TTY line, running stty on it
 	if (!pars.line.empty()) {
@@ -307,4 +310,20 @@ void TTY::sigChildEvent() {
 void TTY::sendBreak() {
 	if (tcsendbreak(m_cmdfd, 0))
 		perror("Error sending break");
+}
+
+void TTY::doPrintToIoFile(const char *s, size_t len) {
+	ssize_t r;
+
+	while (len > 0) {
+		r = ::write(iofd, s, len);
+		if (r < 0) {
+			perror("Error writing to output file");
+			close(iofd);
+			iofd = -1;
+			return;
+		}
+		len -= r;
+		s += r;
+	}
 }

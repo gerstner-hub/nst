@@ -37,6 +37,11 @@ public: // functions
 	void resize(int tw, int th);
 	void hangup();
 	void sendBreak();
+	void printToIoFile(const char *s, size_t len) {
+		if (iofd == -1)
+			return;
+		doPrintToIoFile(s, len);
+	}
 
 protected: // functions
 
@@ -44,6 +49,7 @@ protected: // functions
 	void runStty(const Params &pars);
 	void executeShell(const Params &pars);
 	void sigChildEvent();
+	void doPrintToIoFile(const char *s, size_t len);
 };
 
 extern TTY g_tty;

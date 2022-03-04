@@ -1,12 +1,16 @@
 // stdlib
 #include <algorithm>
 
+// libc
+#include <string.h>
+
 // cosmos
 #include "cosmos/algs.hxx"
 
 // nst
 #include "Selection.hxx"
 #include "Term.hxx"
+#include "TTY.hxx"
 #include "macros.hxx"
 #include "nst_config.h"
 #include "st.h"
@@ -18,6 +22,7 @@ Selection g_sel;
 Selection::Selection() {
 	ob.x = -1;
 	m_term = &term;
+	m_tty = &g_tty;
 }
 
 void Selection::clear() {
@@ -247,4 +252,14 @@ char* Selection::getSelection() const {
 	}
 	*ptr = 0;
 	return str;
+}
+
+void Selection::dump() const {
+	char *ptr = getSelection();
+
+	if (!ptr)
+		return;
+
+	m_tty->printToIoFile(ptr, strlen(ptr));
+	free(ptr);
 }

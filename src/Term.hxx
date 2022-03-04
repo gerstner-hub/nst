@@ -8,6 +8,7 @@
 #include "cosmos/BitMask.hxx"
 
 class Selection;
+class TTY;
 
 /// Internal representation of the screen
 class Term {
@@ -69,6 +70,7 @@ public: // data
 protected: // data
 
 	Selection *m_selection = nullptr;
+	TTY *m_tty = nullptr;
 
 public: // functions
 
@@ -114,6 +116,15 @@ public: // functions
 	void insertBlankLine(int n);
 	void setAttr(const int *attr, size_t len);
 	void setMode(int priv, int set, const int *args, int narg);
+
+	//! write all current lines into the I/O file
+	void dump() const {
+		for (size_t i = 0; i < static_cast<size_t>(row); ++i)
+			dumpLine(i);
+	}
+
+	//! write the given line into the I/O file
+	void dumpLine(size_t n) const;
 
 protected: // functions
 

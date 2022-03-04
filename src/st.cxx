@@ -56,10 +56,6 @@ static void strhandle(void);
 static void strparse(void);
 static void strreset(void);
 
-static void tprinter(const char *, size_t);
-static void tdumpsel(void);
-static void tdumpline(int);
-static void tdump(void);
 static void tputc(nst::Rune);
 static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
 static void tcontrolcode(uchar );
@@ -78,8 +74,6 @@ static size_t utf8validate(nst::Rune *, size_t);
 static char *base64dec(const char *);
 static char base64dec_getc(const char **);
 
-static ssize_t xwrite(int, const char *, size_t);
-
 /* Globals */
 static CSIEscape csiescseq;
 static STREscape strescseq;
@@ -88,23 +82,6 @@ static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 static const nst::Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
 static const nst::Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
-
-ssize_t
-xwrite(int fd, const char *s, size_t len)
-{
-	size_t aux = len;
-	ssize_t r;
-
-	while (len > 0) {
-		r = write(fd, s, len);
-		if (r < 0)
-			return r;
-		len -= r;
-		s += r;
-	}
-
-	return aux;
-}
 
 void *
 xmalloc(size_t len)
@@ -397,13 +374,13 @@ csihandle(void)
 	case 'i': /* MC -- Media Copy */
 		switch (csiescseq.arg[0]) {
 		case 0:
-			tdump();
+			term.dump();
 			break;
 		case 1:
-			tdumpline(term.c.y);
+			term.dumpLine(term.c.y);
 			break;
 		case 2:
-			tdumpsel();
+			g_sel.dump();
 			break;
 		case 4:
 			term.mode.reset(Term::Mode::PRINT);
@@ -820,17 +797,6 @@ strreset(void)
 }
 
 void
-tprinter(const char *s, size_t len)
-{
-	auto &iofd = g_tty.iofd;
-	if (iofd != -1 && xwrite(iofd, s, len) < 0) {
-		perror("Error writing to output file");
-		close(iofd);
-		iofd = -1;
-	}
-}
-
-void
 toggleprinter(const Arg *)
 {
 	term.mode.flip(Term::Mode::PRINT);
@@ -839,49 +805,13 @@ toggleprinter(const Arg *)
 void
 printscreen(const Arg *)
 {
-	tdump();
+	term.dump();
 }
 
 void
 printsel(const Arg *)
 {
-	tdumpsel();
-}
-
-void
-tdumpsel(void)
-{
-	char *ptr = g_sel.getSelection();
-
-	if (!ptr)
-		return;
-
-	tprinter(ptr, strlen(ptr));
-	free(ptr);
-}
-
-void
-tdumpline(int n)
-{
-	char buf[UTF_SIZ];
-	const nst::Glyph *bp, *end;
-
-	bp = &term.line[n][0];
-	end = &bp[std::min(term.getLineLen(n), term.col) - 1];
-	if (bp != end || bp->u != ' ') {
-		for ( ; bp <= end; ++bp)
-			tprinter(buf, utf8encode(bp->u, buf));
-	}
-	tprinter("\n", 1);
-}
-
-void
-tdump(void)
-{
-	int i;
-
-	for (i = 0; i < term.row; ++i)
-		tdumpline(i);
+	g_sel.dump();
 }
 
 void
@@ -1145,7 +1075,7 @@ tputc(nst::Rune u)
 	}
 
 	if (term.mode.test(Term::Mode::PRINT))
-		tprinter(c, len);
+		g_tty.printToIoFile(c, len);
 
 	/*
 	 * STR sequence must be checked before anything else

@@ -10,6 +10,7 @@
 
 // nst
 #include "Term.hxx"
+#include "TTY.hxx"
 #include "Selection.hxx"
 #include "st.h"
 #include "win.h"
@@ -20,6 +21,7 @@ Term term;
 
 Term::Term(int _cols, int _rows) {
 	m_selection = &g_sel;
+	m_tty = &g_tty;
 	resize(_cols, _rows);
 	reset();
 }
@@ -578,4 +580,17 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 			}
 		}
 	}
+}
+
+void Term::dumpLine(size_t n) const {
+	char buf[UTF_SIZ];
+	const nst::Glyph *bp, *end;
+
+	bp = &line[n][0];
+	end = &bp[std::min(getLineLen(n), col) - 1];
+	if (bp != end || bp->u != ' ') {
+		for ( ; bp <= end; ++bp)
+			m_tty->printToIoFile(buf, utf8encode(bp->u, buf));
+	}
+	m_tty->printToIoFile("\n", 1);
 }

@@ -2,6 +2,7 @@
 #define NST_SELECTION_HXX
 
 class Term;
+class TTY;
 
 class Selection {
 public: // types
@@ -45,6 +46,7 @@ public: // data
 protected: // data
 
 	Term *m_term = nullptr;
+	TTY *m_tty = nullptr;
 
 public: // functions
 
@@ -57,6 +59,8 @@ public: // functions
 	void extend(int col, int row, const Type &type, const bool &done);
 	void scroll(int orig, int n);
 	char* getSelection() const;
+	//! dump current selection into I/O file
+	void dump() const;
 
 protected: // functions
 

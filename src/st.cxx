@@ -22,6 +22,7 @@
 
 // stdlib
 #include <algorithm>
+#include <cstring>
 
 using cosmos::in_range;
 typedef nst::Glyph::Attr Attr;
@@ -40,14 +41,25 @@ typedef struct {
 
 /* STR Escape sequence structs */
 /* ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\' */
-typedef struct {
+struct STREscape {
+public: // data
 	char type = 0;         /* ESC type ... */
 	char *buf = nullptr;   /* allocated raw string */
 	size_t siz = 0;        /* allocation size */
 	size_t len = 0;        /* raw string length */
 	char *args[STR_ARG_SIZ] = {nullptr};
 	int narg = 0;          /* nb of args */
-} STREscape;
+public: // functions
+
+	~STREscape() {
+		delete[] buf;
+	}
+
+	void resize(size_t alloc) {
+		buf = renew(buf, siz, alloc);
+		siz = alloc;
+	}
+};
 
 static void csihandle(void);
 static void csiparse(void);
@@ -74,37 +86,6 @@ static char base64dec_getc(const char **);
 /* Globals */
 static CSIEscape csiescseq;
 static STREscape strescseq;
-
-void *
-xmalloc(size_t len)
-{
-	void *p;
-
-	if (!(p = malloc(len)))
-		die("malloc: %s\n", strerror(errno));
-
-	return p;
-}
-
-void *
-xrealloc(void *p, size_t len)
-{
-	if ((p = realloc(p, len)) == NULL)
-		die("realloc: %s\n", strerror(errno));
-
-	return p;
-}
-
-char *
-xstrdup(const char *s)
-{
-	char *p;
-
-	if ((p = strdup(s)) == NULL)
-		die("strdup: %s\n", strerror(errno));
-
-	return p;
-}
 
 static constexpr char base64_digits[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -137,7 +118,7 @@ base64dec(const char *src)
 
 	if (in_len % 4)
 		in_len += 4 - (in_len % 4);
-	result = dst = (char*)xmalloc(in_len / 4 * 3 + 1);
+	result = dst = new char[in_len / 4 * 3 + 1];
 	while (*src) {
 		int a = base64_digits[(unsigned char) base64dec_getc(&src)];
 		int b = base64_digits[(unsigned char) base64dec_getc(&src)];
@@ -682,10 +663,7 @@ strdump(void)
 void
 strreset(void)
 {
-	strescseq = (STREscape){
-		.buf = (char*)xrealloc(strescseq.buf, STR_BUF_SIZ),
-		.siz = STR_BUF_SIZ,
-	};
+	strescseq.resize(STR_BUF_SIZ);
 }
 
 void
@@ -999,8 +977,7 @@ tputc(nst::Rune u)
 			 */
 			if (strescseq.siz > (SIZE_MAX - nst::utf8::UTF_SIZE) / 2)
 				return;
-			strescseq.siz *= 2;
-			strescseq.buf = (char*)xrealloc(strescseq.buf, strescseq.siz);
+			strescseq.resize(strescseq.siz << 1);
 		}
 
 		memmove(&strescseq.buf[strescseq.len], c, len);

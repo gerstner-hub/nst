@@ -89,7 +89,8 @@ typedef struct {
 	Colormap cmap;
 	Window win;
 	Drawable buf;
-	GlyphFontSpec *specbuf; /* font spec buffer used for rendering */
+	GlyphFontSpec *specbuf = nullptr; /* font spec buffer used for rendering */
+	size_t specbuf_len = 0;
 	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
 	struct {
 		XIM xim;
@@ -268,7 +269,10 @@ clipcopy(const Arg *)
 	xsel.clipboard = NULL;
 
 	if (xsel.primary != NULL) {
-		xsel.clipboard = xstrdup(xsel.primary);
+		xsel.clipboard = strdup(xsel.primary);
+		if (!xsel.clipboard) {
+			die("failed to strdup() primary selection");
+		}
 		clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
 		XSetSelectionOwner(xw.dpy, clipboard, xw.win, CurrentTime);
 	}
@@ -687,7 +691,7 @@ setsel(char *str, Time t)
 	if (!str)
 		return;
 
-	free(xsel.primary);
+	delete[] xsel.primary;
 	xsel.primary = str;
 
 	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
@@ -764,7 +768,8 @@ xresize(int col, int row)
 	xclear(0, 0, win.w, win.h);
 
 	/* resize to new width */
-	xw.specbuf = (GlyphFontSpec*)xrealloc(xw.specbuf, col * sizeof(GlyphFontSpec));
+	xw.specbuf = renew(xw.specbuf, xw.specbuf_len, col);
+	xw.specbuf_len = col;
 }
 
 ushort
@@ -809,7 +814,7 @@ xloadcols(void)
 			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
 	} else {
 		dc.collen = std::max(LEN(colorname), 256UL);
-		dc.col = (Color*)xmalloc(dc.collen * sizeof(Color));
+		dc.col = new Color[dc.collen];
 	}
 
 	for (i = 0; i < dc.collen; i++)
@@ -1207,7 +1212,8 @@ xinit(int p_cols, int p_rows)
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
 	/* font spec buffer */
-	xw.specbuf = (GlyphFontSpec*)xmalloc(p_cols * sizeof(GlyphFontSpec));
+	xw.specbuf = new GlyphFontSpec[p_cols];
+	xw.specbuf_len = p_cols;
 
 	/* Xft rendering context */
 	xw.draw = XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
@@ -1362,8 +1368,8 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 
 			/* Allocate memory for the new cache entry. */
 			if (frclen >= frccap) {
+				frc = renew(frc, frccap, frccap + 16);
 				frccap += 16;
-				frc = (Fontcache*)xrealloc(frc, frccap * sizeof(Fontcache));
 			}
 
 			frc[frclen].font = XftFontOpenPattern(xw.dpy,

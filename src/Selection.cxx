@@ -264,7 +264,7 @@ void Selection::dump() const {
 		return;
 
 	m_tty->printToIoFile(ptr, strlen(ptr));
-	free(ptr);
+	delete[] ptr;
 }
 
 } // end ns

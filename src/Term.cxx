@@ -85,8 +85,8 @@ void Term::resize(int new_cols, int new_rows) {
 	 * memmove because we're freeing the earlier lines
 	 */
 	for (i = 0; i <= c.y - new_rows; i++) {
-		free(line[i]);
-		free(alt[i]);
+		delete[] line[i];
+		delete[] alt[i];
 	}
 	/* ensure that both src and dst are not NULL */
 	if (i > 0) {
@@ -94,26 +94,26 @@ void Term::resize(int new_cols, int new_rows) {
 		memmove(alt, alt + i, new_rows * sizeof(Line));
 	}
 	for (i += new_rows; i < row; i++) {
-		free(line[i]);
-		free(alt[i]);
+		delete[] line[i];
+		delete[] alt[i];
 	}
 
-	/* resize to new height */
-	line = (Glyph**)xrealloc(line, new_rows * sizeof(Line));
-	alt  = (Glyph**)xrealloc(alt,  new_rows * sizeof(Line));
-	dirty = (int*)xrealloc(dirty, new_rows * sizeof(*dirty));
-	tabs = (int*)xrealloc(tabs, new_cols * sizeof(*tabs));
+	/* allocate new memory with new height */
+	line = renew(line, row, new_rows);
+	alt = renew(alt, row, new_rows);
+	dirty = renew(dirty, row, new_rows);
+	tabs = renew(tabs, col, new_cols);
 
 	/* resize each row to new width, zero-pad if needed */
 	for (i = 0; i < minrow; i++) {
-		line[i] = (Line)xrealloc(line[i], new_cols * sizeof(Glyph));
-		alt[i]  = (Line)xrealloc(alt[i],  new_cols * sizeof(Glyph));
+		line[i] = renew(line[i], col, new_cols);
+		alt[i] = renew(alt[i], col, new_cols);
 	}
 
 	/* allocate any new rows */
-	for (/* i = minrow */; i < new_rows; i++) {
-		line[i] = (Line)xmalloc(new_cols * sizeof(Glyph));
-		alt[i] = (Line)xmalloc(new_cols * sizeof(Glyph));
+	for (i = minrow; i < new_rows; i++) {
+		line[i] = new Glyph[new_cols];
+		alt[i] = new Glyph[new_cols];
 	}
 	if (new_cols > col) {
 		int *bp = tabs + col;

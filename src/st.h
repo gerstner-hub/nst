@@ -7,7 +7,7 @@
 
 // stdlib
 #include <vector>
-#include <string>
+#include <cstring>
 
 #include "types.hxx"
 #include "Glyph.hxx"
@@ -24,16 +24,20 @@ void toggleprinter(const Arg *);
 int twrite(const char *, int, int);
 void csidump(void);
 
-void *xmalloc(size_t);
-void *xrealloc(void *, size_t);
-char *xstrdup(const char *);
-void xfreeglobals();
-
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
 /* config.h globals */
 extern int allowaltscreen;
 extern unsigned int cols;
 extern unsigned int rows;
+
+template <typename T>
+T* renew(T *oldptr, size_t oldsize, size_t newsize) {
+	T* ret = new T[newsize];
+	std::memcpy(ret, oldptr, sizeof(T) * std::min(oldsize, newsize));
+
+	delete[] oldptr;
+	return ret;
+}
 
 #endif // inc. guard

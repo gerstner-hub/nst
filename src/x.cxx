@@ -246,8 +246,8 @@ static const char *usedfont = NULL;
 static double usedfontsize = 0;
 static double defaultfontsize = 0;
 
-static char *opt_class = NULL;
-static char *opt_name  = NULL;
+static std::string opt_class;
+static std::string opt_name;
 static const char *opt_embed = NULL;
 static const char *opt_font  = NULL;
 static const char *opt_io    = "";
@@ -869,25 +869,15 @@ xclear(int x1, int y1, int x2, int y2)
 }
 
 void
-xfreeglobals(void)
-{
-	free(opt_name);
-	opt_name = NULL;
-
-	free(opt_class);
-	opt_class = NULL;
-}
-
-void
 xhints(void)
 {
-	if (!opt_name) {
-		opt_name = strdup(nst::config::TERMNAME);
+	if (opt_name.empty()) {
+		opt_name = nst::config::TERMNAME;
 	}
-	if (!opt_class) {
-		opt_class = strdup(nst::config::TERMNAME);
+	if (opt_class.empty()) {
+		opt_class = nst::config::TERMNAME;
 	}
-	XClassHint clazz = {opt_name, opt_class};
+	XClassHint clazz = {&opt_name[0], &opt_class[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
 	XSizeHints *sizeh;
 
@@ -2058,11 +2048,11 @@ void applyCmdline(const nst::Cmdline &cmd) {
 	allowaltscreen = cmd.use_alt_screen.getValue();
 
 	if (cmd.window_class.isSet()) {
-		opt_class = strdup(cmd.window_class.getValue().c_str());
+		opt_class = cmd.window_class.getValue();
 	}
 
 	if (cmd.window_name.isSet()) {
-		opt_name = strdup(cmd.window_name.getValue().c_str());
+		opt_name = cmd.window_name.getValue();
 	}
 
 	if (cmd.fixed_geometry.isSet()) {
@@ -2116,7 +2106,6 @@ main(int argc, const char **argv)
 	xinit(cols, rows);
 	xsetenv();
 	run();
-	xfreeglobals();
 
 	return 0;
 }

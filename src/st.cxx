@@ -79,8 +79,6 @@ static void tdefutf8(char);
 static void tdeftran(char);
 static void tstrsequence(uchar);
 
-static void drawregion(int, int, int, int);
-
 static char *base64dec(const char *);
 static char base64dec_getc(const char **);
 
@@ -546,7 +544,7 @@ strhandle(void)
 			else if (xsetcolorname(nst::config::DEFAULTFG, p))
 				fprintf(stderr, "erresc: invalid foreground color: %s\n", p);
 			else
-				redraw();
+				term.redraw();
 			return;
 		case 11:
 			if (narg < 2)
@@ -559,7 +557,7 @@ strhandle(void)
 			else if (xsetcolorname(nst::config::DEFAULTBG, p))
 				fprintf(stderr, "erresc: invalid background color: %s\n", p);
 			else
-				redraw();
+				term.redraw();
 			return;
 		case 12:
 			if (narg < 2)
@@ -572,7 +570,7 @@ strhandle(void)
 			else if (xsetcolorname(nst::config::DEFAULTCS, p))
 				fprintf(stderr, "erresc: invalid cursor color: %s\n", p);
 			else
-				redraw();
+				term.redraw();
 			return;
 		case 4: /* color set */
 			if (narg < 3)
@@ -594,7 +592,7 @@ strhandle(void)
 				 * TODO if defaultbg color is changed, borders
 				 * are dirty
 				 */
-				redraw();
+				term.redraw();
 			}
 			return;
 		}
@@ -1098,49 +1096,4 @@ twrite(const char *buf, int buflen, int show_ctrl)
 		tputc(u);
 	}
 	return n;
-}
-
-void
-drawregion(int x1, int y1, int x2, int y2)
-{
-	for (int y = y1; y < y2; y++) {
-		if (!term.dirty[y])
-			continue;
-
-		term.dirty[y] = 0;
-		xdrawline(term.line[y], x1, y, x2);
-	}
-}
-
-void
-draw(void)
-{
-	int cx = term.c.x, ocx = term.ocx, ocy = term.ocy;
-
-	if (!xstartdraw())
-		return;
-
-	/* adjust cursor position */
-	std::clamp(term.ocx, 0, term.col-1);
-	std::clamp(term.ocy, 0, term.row-1);
-	if (term.line[term.ocy][term.ocx].mode.test(Attr::WDUMMY))
-		term.ocx--;
-	if (term.line[term.c.y][cx].mode.test(Attr::WDUMMY))
-		cx--;
-
-	drawregion(0, 0, term.col, term.row);
-	xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
-			term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
-	term.ocx = cx;
-	term.ocy = term.c.y;
-	xfinishdraw();
-	if (ocx != term.ocx || ocy != term.ocy)
-		xximspot(term.ocx, term.ocy);
-}
-
-void
-redraw(void)
-{
-	term.setAllDirty();
-	draw();
 }

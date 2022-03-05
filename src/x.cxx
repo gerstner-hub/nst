@@ -317,7 +317,7 @@ zoomabs(const Arg *arg)
 	xunloadfonts();
 	xloadfonts(usedfont, arg->f);
 	cresize(0, 0);
-	redraw();
+	term.redraw();
 	xhints();
 }
 
@@ -1718,7 +1718,7 @@ xximspot(int x, int y)
 void
 expose(XEvent *)
 {
-	redraw();
+	term.redraw();
 }
 
 void
@@ -1748,7 +1748,7 @@ xsetmode(int set, unsigned int flags)
 	int mode = win.mode;
 	MODBIT(win.mode, set, flags);
 	if ((win.mode & MODE_REVERSE) != (mode & MODE_REVERSE))
-		redraw();
+		term.redraw();
 }
 
 int
@@ -2032,7 +2032,7 @@ run(void)
 			}
 		}
 
-		draw();
+		term.draw();
 		XFlush(xw.dpy);
 		drawing = 0;
 	}

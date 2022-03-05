@@ -623,4 +623,38 @@ void Term::setDirtyByAttr(const Glyph::Attr &attr) {
 	}
 }
 
+void Term::drawRegion(int x1, int y1, int x2, int y2) const {
+	for (int y = y1; y < y2; y++) {
+		if (!dirty[y])
+			continue;
+
+		dirty[y] = 0;
+		xdrawline(line[y], x1, y, x2);
+	}
+}
+
+void Term::draw() {
+	if (!xstartdraw())
+		return;
+
+	int old_cx = c.x, old_ocx = ocx, old_ocy = ocy;
+
+	/* adjust cursor position */
+	std::clamp(ocx, 0, col-1);
+	std::clamp(ocy, 0, row-1);
+
+	if (line[ocy][ocx].mode.test(Attr::WDUMMY))
+		ocx--;
+	if (line[c.y][old_cx].mode.test(Attr::WDUMMY))
+		old_cx--;
+
+	drawRegion(0, 0, col, row);
+	xdrawcursor(old_cx, c.y, line[c.y][old_cx], ocx, ocy, line[ocy][ocx]);
+	ocx = old_cx;
+	ocy = c.y;
+	xfinishdraw();
+	if (old_ocx != ocx || old_ocy != ocy)
+		xximspot(ocx, ocy);
+}
+
 } // end ns

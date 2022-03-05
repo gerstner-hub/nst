@@ -11,8 +11,6 @@
 #include "types.hxx"
 
 void die(const char *, ...);
-void redraw(void);
-void draw(void);
 
 void printscreen(const Arg *);
 void printsel(const Arg *);

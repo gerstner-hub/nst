@@ -55,7 +55,7 @@ public: // data
 	int col = 0;            /* nb col */
 	Line *line = nullptr; /* screen */
 	Line *alt = nullptr; /* alternate screen */
-	int *dirty = nullptr;   /* dirtyness of lines */
+	mutable int *dirty = nullptr;   /* dirtyness of lines */
 	TCursor c;              /* cursor */
 	int ocx = 0;            /* old cursor col */
 	int ocy = 0;            /* old cursor row */
@@ -135,6 +135,13 @@ public: // functions
 	//! sets all lines as dirty that have a glyph matching the given attribute
 	void setDirtyByAttr(const Glyph::Attr &attr);
 
+	void redraw() {
+		setAllDirty();
+		draw();
+	}
+
+	void draw();
+
 protected: // functions
 
 	int32_t defcolor(const int *attr, size_t *npar, size_t len);
@@ -142,6 +149,8 @@ protected: // functions
 	int32_t toTrueColor(uint r, uint g, uint b) {
 		return (1 << 24) | (r << 16) | (g << 8) | b;
 	}
+
+	void drawRegion(int x1, int y1, int x2, int  y2) const;
 };
 
 } // end ns

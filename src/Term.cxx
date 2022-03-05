@@ -13,6 +13,7 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "Selection.hxx"
+#include "codecs.hxx"
 #include "st.h"
 #include "win.h"
 
@@ -585,14 +586,14 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 }
 
 void Term::dumpLine(size_t n) const {
-	char buf[UTF_SIZ];
+	char buf[nst::utf8::UTF_SIZE];
 	const nst::Glyph *bp, *end;
 
 	bp = &line[n][0];
 	end = &bp[std::min(getLineLen(n), col) - 1];
 	if (bp != end || bp->u != ' ') {
 		for ( ; bp <= end; ++bp)
-			m_tty->printToIoFile(buf, utf8encode(bp->u, buf));
+			m_tty->printToIoFile(buf, nst::utf8::encode(bp->u, buf));
 	}
 	m_tty->printToIoFile("\n", 1);
 }

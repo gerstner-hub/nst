@@ -11,6 +11,7 @@
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
+#include "codecs.hxx"
 #include "macros.hxx"
 #include "nst_config.h"
 #include "st.h"
@@ -208,7 +209,7 @@ char* Selection::getSelection() const {
 	if (ob.x == -1)
 		return nullptr;
 
-	const size_t bufsize = (m_term->col+1) * (ne.y-nb.y+1) * UTF_SIZ;
+	const size_t bufsize = (m_term->col+1) * (ne.y-nb.y+1) * nst::utf8::UTF_SIZE;
 	ptr = str = new char[bufsize];
 
 	/* append every set & selected glyph to the selection */
@@ -233,7 +234,7 @@ char* Selection::getSelection() const {
 			if (gp->mode.test(Attr::WDUMMY))
 				continue;
 
-			ptr += utf8encode(gp->u, ptr);
+			ptr += nst::utf8::encode(gp->u, ptr);
 		}
 
 		/*

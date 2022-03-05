@@ -25,8 +25,6 @@ void toggleprinter(const Arg *);
 int twrite(const char *, int, int);
 void csidump(void);
 
-size_t utf8encode(nst::Rune, char *);
-
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);

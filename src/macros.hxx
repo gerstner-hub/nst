@@ -7,6 +7,9 @@
 // libc
 #include <wchar.h>
 
+// nst
+#include "codecs.hxx"
+
 /* macros */
 #define LEN(a)			(sizeof(a) / sizeof(a)[0])
 #define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
@@ -25,9 +28,7 @@
 #define ISDELIM(u)		(u && wcschr(nst::config::WORDDELIMITERS, u))
 
 /* Arbitrary sizes */
-#define UTF_SIZ       4
-#define UTF_INVALID   0xFFFD
-#define ESC_BUF_SIZ   (128*UTF_SIZ)
+#define ESC_BUF_SIZ   (128*nst::utf8::UTF_SIZE)
 #define ESC_ARG_SIZ   16
 #define STR_BUF_SIZ   ESC_BUF_SIZ
 #define STR_ARG_SIZ   ESC_ARG_SIZ

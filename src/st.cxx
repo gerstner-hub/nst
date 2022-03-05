@@ -67,22 +67,12 @@ static void tstrsequence(uchar);
 
 static void drawregion(int, int, int, int);
 
-static size_t utf8decode(const char *, nst::Rune *, size_t);
-static nst::Rune utf8decodebyte(char, size_t *);
-static char utf8encodebyte(nst::Rune, size_t);
-static size_t utf8validate(nst::Rune *, size_t);
-
 static char *base64dec(const char *);
 static char base64dec_getc(const char **);
 
 /* Globals */
 static CSIEscape csiescseq;
 static STREscape strescseq;
-
-static constexpr uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
-static constexpr uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
-static constexpr nst::Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
-static constexpr nst::Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
 
 void *
 xmalloc(size_t len)
@@ -113,76 +103,6 @@ xstrdup(const char *s)
 		die("strdup: %s\n", strerror(errno));
 
 	return p;
-}
-
-size_t
-utf8decode(const char *c, nst::Rune *u, size_t clen)
-{
-	size_t i, j, len, type;
-	nst::Rune udecoded;
-
-	*u = UTF_INVALID;
-	if (!clen)
-		return 0;
-	udecoded = utf8decodebyte(c[0], &len);
-	if (!in_range(len, 1, UTF_SIZ))
-		return 1;
-	for (i = 1, j = 1; i < clen && j < len; ++i, ++j) {
-		udecoded = (udecoded << 6) | utf8decodebyte(c[i], &type);
-		if (type != 0)
-			return j;
-	}
-	if (j < len)
-		return 0;
-	*u = udecoded;
-	utf8validate(u, len);
-
-	return len;
-}
-
-nst::Rune
-utf8decodebyte(char c, size_t *i)
-{
-	for (*i = 0; *i < LEN(utfmask); ++(*i))
-		if (((uchar)c & utfmask[*i]) == utfbyte[*i])
-			return (uchar)c & ~utfmask[*i];
-
-	return 0;
-}
-
-size_t
-utf8encode(nst::Rune u, char *c)
-{
-	size_t len, i;
-
-	len = utf8validate(&u, 0);
-	if (len > UTF_SIZ)
-		return 0;
-
-	for (i = len - 1; i != 0; --i) {
-		c[i] = utf8encodebyte(u, 0);
-		u >>= 6;
-	}
-	c[0] = utf8encodebyte(u, len);
-
-	return len;
-}
-
-char
-utf8encodebyte(nst::Rune u, size_t i)
-{
-	return utfbyte[i] | (u & ~utfmask[i]);
-}
-
-size_t
-utf8validate(nst::Rune *u, size_t i)
-{
-	if (!in_range(*u, utfmin[i], utfmax[i]) || in_range(*u, 0xD800, 0xDFFF))
-		*u = UTF_INVALID;
-	for (i = 1; *u > utfmax[i]; ++i)
-		;
-
-	return i;
 }
 
 static constexpr char base64_digits[] = {
@@ -299,7 +219,7 @@ tsetchar(nst::Rune u, const nst::Glyph *attr, int x, int y)
 	 */
 	if (term.trantbl[term.charset] == CS_GRAPHIC0 &&
 	   in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
-		utf8decode(vt100_0[u - 0x41], &u, UTF_SIZ);
+		nst::utf8::decode(vt100_0[u - 0x41], &u, nst::utf8::UTF_SIZE);
 
 	if (term.line[y][x].mode.test(Attr::WIDE)) {
 		if (x+1 < term.col) {
@@ -1030,7 +950,7 @@ eschandle(uchar ascii)
 void
 tputc(nst::Rune u)
 {
-	char c[UTF_SIZ];
+	char c[nst::utf8::UTF_SIZE];
 	int control;
 	int width, len;
 	nst::Glyph *gp;
@@ -1040,7 +960,7 @@ tputc(nst::Rune u)
 		c[0] = u;
 		width = len = 1;
 	} else {
-		len = utf8encode(u, c);
+		len = nst::utf8::encode(u, c);
 		if (!control && (width = wcwidth(u)) == -1)
 			width = 1;
 	}
@@ -1076,7 +996,7 @@ tputc(nst::Rune u)
 			 * term.esc = 0;
 			 * strhandle();
 			 */
-			if (strescseq.siz > (SIZE_MAX - UTF_SIZ) / 2)
+			if (strescseq.siz > (SIZE_MAX - nst::utf8::UTF_SIZE) / 2)
 				return;
 			strescseq.siz *= 2;
 			strescseq.buf = (char*)xrealloc(strescseq.buf, strescseq.siz);
@@ -1179,7 +1099,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
 	for (n = 0; n < buflen; n += charsize) {
 		if (term.mode.test(Term::Mode::UTF8)) {
 			/* process a complete utf8 char */
-			charsize = utf8decode(buf + n, &u, buflen - n);
+			charsize = nst::utf8::decode(buf + n, &u, buflen - n);
 			if (charsize == 0)
 				break;
 		} else {

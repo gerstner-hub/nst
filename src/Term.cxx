@@ -58,8 +58,8 @@ void Term::reset(void) {
 }
 
 void Term::setDirty(int p_top, int p_bot) {
-	std::clamp(p_top, 0, row-1);
-	std::clamp(p_bot, 0, row-1);
+	p_top = std::clamp(p_top, 0, row-1);
+	p_bot = std::clamp(p_bot, 0, row-1);
 
 	if (!dirty)
 		return;
@@ -152,10 +152,10 @@ void Term::clearRegion(int x1, int y1, int x2, int y2) {
 	if (y1 > y2)
 		std::swap(y1, y2);
 
-	std::clamp(x1, 0, col-1);
-	std::clamp(x2, 0, col-1);
-	std::clamp(y1, 0, row-1);
-	std::clamp(y2, 0, row-1);
+	x1 = std::clamp(x1, 0, col-1);
+	x2 = std::clamp(x2, 0, col-1);
+	y1 = std::clamp(y1, 0, row-1);
+	y2 = std::clamp(y2, 0, row-1);
 
 	Glyph *gp;
 
@@ -174,8 +174,8 @@ void Term::clearRegion(int x1, int y1, int x2, int y2) {
 }
 
 void Term::setScroll(int t, int b) {
-	std::clamp(t, 0, row-1);
-	std::clamp(b, 0, row-1);
+	t = std::clamp(t, 0, row-1);
+	b = std::clamp(b, 0, row-1);
 	if (t > b) {
 		std::swap(t, b);
 	}
@@ -263,7 +263,7 @@ void Term::putNewline(bool first_col) {
 }
 
 void Term::deleteChar(int n) {
-	std::clamp(n, 0, col - c.x);
+	n = std::clamp(n, 0, col - c.x);
 
 	const int dst = c.x;
 	const int src = c.x + n;
@@ -281,7 +281,7 @@ void Term::deleteLine(int n) {
 
 void Term::insertBlank(int n)
 {
-	std::clamp(n, 0, col - c.x);
+	n = std::clamp(n, 0, col - c.x);
 
 	const int dst = c.x + n;
 	const int src = c.x;
@@ -300,7 +300,7 @@ void Term::insertBlankLine(int n)
 
 void Term::scrollDown(int orig, int n)
 {
-	std::clamp(n, 0, bot-orig+1);
+	n = std::clamp(n, 0, bot-orig+1);
 
 	setDirty(orig, bot-n);
 	clearRegion(0, bot-n+1, col-1, bot);
@@ -314,7 +314,7 @@ void Term::scrollDown(int orig, int n)
 
 void Term::scrollUp(int orig, int n)
 {
-	std::clamp(n, 0, bot-orig+1);
+	n = std::clamp(n, 0, bot-orig+1);
 
 	clearRegion(0, orig, col-1, orig+n-1);
 	setDirty(orig+n, bot);
@@ -640,8 +640,8 @@ void Term::draw() {
 	int old_cx = c.x, old_ocx = ocx, old_ocy = ocy;
 
 	/* adjust cursor position */
-	std::clamp(ocx, 0, col-1);
-	std::clamp(ocy, 0, row-1);
+	ocx = std::clamp(ocx, 0, col-1);
+	ocy = std::clamp(ocy, 0, row-1);
 
 	if (line[ocy][ocx].mode.test(Attr::WDUMMY))
 		ocx--;

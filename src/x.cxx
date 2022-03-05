@@ -342,7 +342,7 @@ int
 evcol(XEvent *e)
 {
 	int x = e->xbutton.x - borderpx;
-	std::clamp(x, 0, win.tw - 1);
+	x = std::clamp(x, 0, win.tw - 1);
 	return x / win.cw;
 }
 
@@ -350,7 +350,7 @@ int
 evrow(XEvent *e)
 {
 	int y = e->xbutton.y - borderpx;
-	std::clamp(y, 0, win.th - 1);
+	y = std::clamp(y, 0, win.th - 1);
 	return y / win.ch;
 }
 

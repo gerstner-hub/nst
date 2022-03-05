@@ -20,12 +20,12 @@ static constexpr Rune UTF_MAX[UTF_SIZE + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x
 
 static constexpr Rune UTF_INVALID = 0xFFFD;
 
-static char encodebyte(Rune u, size_t i) {
-	return UTF_BYTE[i] | (u & ~UTF_MASK[i]);
+static char encodebyte(Rune u, size_t which) {
+	return UTF_BYTE[which] | (u & ~UTF_MASK[which]);
 }
 
-static Rune decodebyte(char c, size_t &i) {
-	auto byte = static_cast<utf8_t>(c);
+static Rune decodebyte(const char c, size_t &i) {
+	const auto byte = static_cast<utf8_t>(c);
 
 	for (i = 0; i < cosmos::num_elements(UTF_MASK); ++i)
 		if ((byte & UTF_MASK[i]) == UTF_BYTE[i])

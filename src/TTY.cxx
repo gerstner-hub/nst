@@ -18,7 +18,9 @@
 #include "st.h"
 #include "nst_config.h"
 
-TTY g_tty;
+nst::TTY g_tty;
+
+namespace nst {
 
 // TODO: replace with libcosmos signal handler
 void sigchld(int) {
@@ -92,7 +94,7 @@ int TTY::create(const Params &pars) {
 
 void TTY::runStty(const Params &pars) {
 	std::stringstream cmd;
-	cmd << nst::config::STTY_ARGS;
+	cmd << config::STTY_ARGS;
 
 	bool first = true;
 
@@ -249,11 +251,11 @@ void TTY::executeShell(const Params &pars)
 
 	if (!pars.args.empty()) {
 		prog = pars.args[0].c_str();
-	} else if (nst::config::SCROLL) {
-		prog = nst::config::SCROLL;
-		arg = nst::config::UTMP ? nst::config::UTMP : sh;
-	} else if (nst::config::UTMP) {
-		prog = nst::config::UTMP;
+	} else if (config::SCROLL) {
+		prog = config::SCROLL;
+		arg = config::UTMP ? config::UTMP : sh;
+	} else if (config::UTMP) {
+		prog = config::UTMP;
 	} else {
 		prog = sh;
 	}
@@ -276,7 +278,7 @@ void TTY::executeShell(const Params &pars)
 	setenv("USER", pw->pw_name, 1);
 	setenv("SHELL", sh, 1);
 	setenv("HOME", pw->pw_dir, 1);
-	setenv("TERM", nst::config::TERMNAME, 1);
+	setenv("TERM", config::TERMNAME, 1);
 
 	signal(SIGCHLD, SIG_DFL);
 	signal(SIGHUP, SIG_DFL);
@@ -327,3 +329,5 @@ void TTY::doPrintToIoFile(const char *s, size_t len) {
 		s += r;
 	}
 }
+
+} // end ns

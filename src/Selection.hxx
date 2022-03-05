@@ -1,6 +1,8 @@
 #ifndef NST_SELECTION_HXX
 #define NST_SELECTION_HXX
 
+namespace nst {
+
 class Term;
 class TTY;
 
@@ -68,6 +70,8 @@ protected: // functions
 	void checkSnap(int *x, int *y, int direction);
 };
 
-extern Selection g_sel;
+} // end ns
+
+extern nst::Selection g_sel;
 
 #endif // inc. guard

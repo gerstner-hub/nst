@@ -18,9 +18,12 @@
 #include "win.h"
 
 using cosmos::in_range;
-typedef nst::Glyph::Attr Attr;
 
-Term term;
+nst::Term term;
+
+namespace nst {
+
+typedef Glyph::Attr Attr;
 
 Term::Term(int _cols, int _rows) {
 	m_selection = &g_sel;
@@ -31,13 +34,13 @@ Term::Term(int _cols, int _rows) {
 
 void Term::reset(void) {
 	c = (TCursor){.attr = {
-		.mode = nst::Glyph::AttrBitMask(),
-		.fg = nst::config::DEFAULTFG,
-		.bg = nst::config::DEFAULTBG
+		.mode = Glyph::AttrBitMask(),
+		.fg = config::DEFAULTFG,
+		.bg = config::DEFAULTBG
 	}, .x = 0, .y = 0, .state = TCursor::StateBitMask()};
 
 	memset(tabs, 0, col * sizeof(*tabs));
-	for (size_t i = nst::config::TABSPACES; (int)i < col; i += nst::config::TABSPACES)
+	for (size_t i = config::TABSPACES; (int)i < col; i += config::TABSPACES)
 		tabs[i] = 1;
 	top = 0;
 	bot = row - 1;
@@ -87,8 +90,8 @@ void Term::resize(int new_cols, int new_rows) {
 	}
 	/* ensure that both src and dst are not NULL */
 	if (i > 0) {
-		memmove(line, line + i, new_rows * sizeof(nst::Line));
-		memmove(alt, alt + i, new_rows * sizeof(nst::Line));
+		memmove(line, line + i, new_rows * sizeof(Line));
+		memmove(alt, alt + i, new_rows * sizeof(Line));
 	}
 	for (i += new_rows; i < row; i++) {
 		free(line[i]);
@@ -96,21 +99,21 @@ void Term::resize(int new_cols, int new_rows) {
 	}
 
 	/* resize to new height */
-	line = (nst::Glyph**)xrealloc(line, new_rows * sizeof(nst::Line));
-	alt  = (nst::Glyph**)xrealloc(alt,  new_rows * sizeof(nst::Line));
+	line = (Glyph**)xrealloc(line, new_rows * sizeof(Line));
+	alt  = (Glyph**)xrealloc(alt,  new_rows * sizeof(Line));
 	dirty = (int*)xrealloc(dirty, new_rows * sizeof(*dirty));
 	tabs = (int*)xrealloc(tabs, new_cols * sizeof(*tabs));
 
 	/* resize each row to new width, zero-pad if needed */
 	for (i = 0; i < minrow; i++) {
-		line[i] = (nst::Line)xrealloc(line[i], new_cols * sizeof(nst::Glyph));
-		alt[i]  = (nst::Line)xrealloc(alt[i],  new_cols * sizeof(nst::Glyph));
+		line[i] = (Line)xrealloc(line[i], new_cols * sizeof(Glyph));
+		alt[i]  = (Line)xrealloc(alt[i],  new_cols * sizeof(Glyph));
 	}
 
 	/* allocate any new rows */
 	for (/* i = minrow */; i < new_rows; i++) {
-		line[i] = (nst::Line)xmalloc(new_cols * sizeof(nst::Glyph));
-		alt[i] = (nst::Line)xmalloc(new_cols * sizeof(nst::Glyph));
+		line[i] = (Line)xmalloc(new_cols * sizeof(Glyph));
+		alt[i] = (Line)xmalloc(new_cols * sizeof(Glyph));
 	}
 	if (new_cols > col) {
 		int *bp = tabs + col;
@@ -118,7 +121,7 @@ void Term::resize(int new_cols, int new_rows) {
 		memset(bp, 0, sizeof(*tabs) * (new_cols - col));
 		while (--bp > tabs && !*bp)
 			/* nothing */ ;
-		for (bp += nst::config::TABSPACES; bp < tabs + new_cols; bp += nst::config::TABSPACES)
+		for (bp += config::TABSPACES; bp < tabs + new_cols; bp += config::TABSPACES)
 			*bp = 1;
 	}
 	/* update terminal size */
@@ -154,7 +157,7 @@ void Term::clearRegion(int x1, int y1, int x2, int y2) {
 	std::clamp(y1, 0, row-1);
 	std::clamp(y2, 0, row-1);
 
-	nst::Glyph *gp;
+	Glyph *gp;
 
 	for (int y = y1; y <= y2; y++) {
 		dirty[y] = 1;
@@ -265,9 +268,9 @@ void Term::deleteChar(int n) {
 	const int dst = c.x;
 	const int src = c.x + n;
 	const int size = col - src;
-	nst::Glyph *l = line[c.y];
+	Glyph *l = line[c.y];
 
-	memmove(&l[dst], &l[src], size * sizeof(nst::Glyph));
+	memmove(&l[dst], &l[src], size * sizeof(Glyph));
 	clearRegion(col-n, c.y, col-1, c.y);
 }
 
@@ -283,9 +286,9 @@ void Term::insertBlank(int n)
 	const int dst = c.x + n;
 	const int src = c.x;
 	const int size = col - dst;
-	nst::Glyph *l = line[c.y];
+	Glyph *l = line[c.y];
 
-	memmove(&l[dst], &l[src], size * sizeof(nst::Glyph));
+	memmove(&l[dst], &l[src], size * sizeof(Glyph));
 	clearRegion(src, c.y, dst - 1, c.y);
 }
 
@@ -339,8 +342,8 @@ void Term::setAttr(const int *attr, size_t len) {
 				Attr::INVISIBLE,
 				Attr::STRUCK
 			});
-			c.attr.fg = nst::config::DEFAULTFG;
-			c.attr.bg = nst::config::DEFAULTBG;
+			c.attr.fg = config::DEFAULTFG;
+			c.attr.bg = config::DEFAULTBG;
 			break;
 		case 1:
 			c.attr.mode.set(Attr::BOLD);
@@ -394,14 +397,14 @@ void Term::setAttr(const int *attr, size_t len) {
 				c.attr.fg = idx;
 			break;
 		case 39:
-			c.attr.fg = nst::config::DEFAULTFG;
+			c.attr.fg = config::DEFAULTFG;
 			break;
 		case 48:
 			if ((idx = defcolor(attr, &i, len)) >= 0)
 				c.attr.bg = idx;
 			break;
 		case 49:
-			c.attr.bg = nst::config::DEFAULTBG;
+			c.attr.bg = config::DEFAULTBG;
 			break;
 		default:
 			if (in_range(attr[i], 30, 37)) {
@@ -586,19 +589,19 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 }
 
 void Term::dumpLine(size_t n) const {
-	char buf[nst::utf8::UTF_SIZE];
-	const nst::Glyph *bp, *end;
+	char buf[utf8::UTF_SIZE];
+	const Glyph *bp, *end;
 
 	bp = &line[n][0];
 	end = &bp[std::min(getLineLen(n), col) - 1];
 	if (bp != end || bp->u != ' ') {
 		for ( ; bp <= end; ++bp)
-			m_tty->printToIoFile(buf, nst::utf8::encode(bp->u, buf));
+			m_tty->printToIoFile(buf, utf8::encode(bp->u, buf));
 	}
 	m_tty->printToIoFile("\n", 1);
 }
 
-bool Term::testAttrSet(const nst::Glyph::Attr &attr) const {
+bool Term::testAttrSet(const Glyph::Attr &attr) const {
 	for (int i = 0; i < row-1; i++) {
 		for (int j = 0; j < col-1; j++) {
 			if (line[i][j].mode.test(attr))
@@ -609,7 +612,7 @@ bool Term::testAttrSet(const nst::Glyph::Attr &attr) const {
 	return 0;
 }
 
-void Term::setDirtyByAttr(const nst::Glyph::Attr &attr) {
+void Term::setDirtyByAttr(const Glyph::Attr &attr) {
 	for (int i = 0; i < row-1; i++) {
 		for (int j = 0; j < col-1; j++) {
 			if (line[i][j].mode.test(attr)) {
@@ -619,3 +622,5 @@ void Term::setDirtyByAttr(const nst::Glyph::Attr &attr) {
 		}
 	}
 }
+
+} // end ns

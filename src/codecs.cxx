@@ -15,16 +15,16 @@ typedef unsigned char utf8_t;
 static constexpr utf8_t UTF_BYTE[UTF_SIZE + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static constexpr utf8_t UTF_MASK[UTF_SIZE + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 
-static constexpr nst::Rune UTF_MIN[UTF_SIZE + 1] = {       0,    0,  0x80,  0x800,  0x10000};
-static constexpr nst::Rune UTF_MAX[UTF_SIZE + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+static constexpr Rune UTF_MIN[UTF_SIZE + 1] = {       0,    0,  0x80,  0x800,  0x10000};
+static constexpr Rune UTF_MAX[UTF_SIZE + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
 
-static constexpr nst::Rune UTF_INVALID = 0xFFFD;
+static constexpr Rune UTF_INVALID = 0xFFFD;
 
-static char encodebyte(nst::Rune u, size_t i) {
+static char encodebyte(Rune u, size_t i) {
 	return UTF_BYTE[i] | (u & ~UTF_MASK[i]);
 }
 
-static nst::Rune decodebyte(char c, size_t &i) {
+static Rune decodebyte(char c, size_t &i) {
 	auto byte = static_cast<utf8_t>(c);
 
 	for (i = 0; i < cosmos::num_elements(UTF_MASK); ++i)
@@ -39,7 +39,7 @@ size_t decode(const char *c, Rune *u, size_t clen) {
 	if (!clen)
 		return 0;
 	size_t len, type;
-	nst::Rune udecoded = decodebyte(c[0], len);
+	Rune udecoded = decodebyte(c[0], len);
 	if (!in_range(len, 1, UTF_SIZE))
 		return 1;
 
@@ -60,7 +60,7 @@ size_t decode(const char *c, Rune *u, size_t clen) {
 	return len;
 }
 
-size_t encode(nst::Rune u, char *c) {
+size_t encode(Rune u, char *c) {
 	const size_t len = validate(&u, 0);
 	if (len > UTF_SIZE)
 		return 0;
@@ -75,7 +75,7 @@ size_t encode(nst::Rune u, char *c) {
 	return len;
 }
 
-size_t validate(nst::Rune *u, size_t i) {
+size_t validate(Rune *u, size_t i) {
 	if (!in_range(*u, UTF_MIN[i], UTF_MAX[i]) || in_range(*u, 0xD800, 0xDFFF))
 		*u = UTF_INVALID;
 	for (i = 1; *u > UTF_MAX[i]; ++i)

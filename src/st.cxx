@@ -25,6 +25,7 @@
 
 using cosmos::in_range;
 typedef nst::Glyph::Attr Attr;
+using namespace nst;
 
 /* CSI Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */

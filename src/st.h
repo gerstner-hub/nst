@@ -19,7 +19,6 @@ void draw(void);
 
 void printscreen(const Arg *);
 void printsel(const Arg *);
-void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
 int twrite(const char *, int, int);

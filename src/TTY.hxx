@@ -7,6 +7,10 @@
 // cosmos
 #include "cosmos/types.hxx"
 
+namespace nst {
+
+void sendbreak(const Arg *);
+
 class TTY {
 	friend void sigchld(int);
 	friend void sendbreak(const Arg*);
@@ -52,6 +56,8 @@ protected: // functions
 	void doPrintToIoFile(const char *s, size_t len);
 };
 
-extern TTY g_tty;
+} // end ns
+
+extern nst::TTY g_tty;
 
 #endif // inc. guard

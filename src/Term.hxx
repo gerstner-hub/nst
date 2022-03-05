@@ -8,6 +8,8 @@
 // libcosmos
 #include "cosmos/BitMask.hxx"
 
+namespace nst {
+
 class Selection;
 class TTY;
 
@@ -41,7 +43,7 @@ public: // types
 
 		typedef cosmos::BitMask<State> StateBitMask;
 	public: // data
-		nst::Glyph attr; /* current char attributes */
+		Glyph attr; /* current char attributes */
 		int x = 0;
 		int y = 0;
 		StateBitMask state;
@@ -51,8 +53,8 @@ public: // data
 
 	int row = 0;            /* nb row */
 	int col = 0;            /* nb col */
-	nst::Line *line = nullptr; /* screen */
-	nst::Line *alt = nullptr; /* alternate screen */
+	Line *line = nullptr; /* screen */
+	Line *alt = nullptr; /* alternate screen */
 	int *dirty = nullptr;   /* dirtyness of lines */
 	TCursor c;              /* cursor */
 	int ocx = 0;            /* old cursor col */
@@ -66,7 +68,7 @@ public: // data
 	int icharset = 0;       /* selected charset for sequence */
 	int *tabs = nullptr;
 
-	nst::Rune lastc = 0;    /* last printed char outside of sequence, 0 if control */
+	Rune lastc = 0;    /* last printed char outside of sequence, 0 if control */
 
 protected: // data
 
@@ -128,10 +130,10 @@ public: // functions
 	void dumpLine(size_t n) const;
 
 	//! returns whether any glyph currently has this attribute set
-	bool testAttrSet(const nst::Glyph::Attr &attr) const;
+	bool testAttrSet(const Glyph::Attr &attr) const;
 
 	//! sets all lines as dirty that have a glyph matching the given attribute
-	void setDirtyByAttr(const nst::Glyph::Attr &attr);
+	void setDirtyByAttr(const Glyph::Attr &attr);
 
 protected: // functions
 
@@ -142,6 +144,8 @@ protected: // functions
 	}
 };
 
-extern Term term;
+} // end ns
+
+extern nst::Term term;
 
 #endif // inc. guard

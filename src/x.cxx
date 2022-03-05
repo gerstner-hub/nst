@@ -58,6 +58,7 @@ static void ttysend(const Arg *);
 #endif
 
 typedef nst::Glyph::Attr Attr;
+using namespace nst;
 
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4

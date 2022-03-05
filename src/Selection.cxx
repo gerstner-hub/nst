@@ -17,9 +17,12 @@
 #include "st.h"
 
 using cosmos::in_range;
-typedef nst::Glyph::Attr Attr;
 
-Selection g_sel;
+nst::Selection g_sel;
+
+namespace nst {
+
+typedef Glyph::Attr Attr;
 
 Selection::Selection() {
 	ob.x = -1;
@@ -99,7 +102,7 @@ void Selection::checkSnap(int *x, int *y, int direction) {
 		 * Snap around if the word wraps around at the end or
 		 * beginning of a line.
 		 */
-		const nst::Glyph *prevgp = &m_term->line[*y][*x];
+		const Glyph *prevgp = &m_term->line[*y][*x];
 		int prevdelim = ISDELIM(prevgp->u);
 		int newx, newy, delim, xt, yt;
 		while(true) {
@@ -122,7 +125,7 @@ void Selection::checkSnap(int *x, int *y, int direction) {
 			if (newx >= m_term->getLineLen(newy))
 				break;
 
-			const nst::Glyph *gp = &m_term->line[newy][newx];
+			const Glyph *gp = &m_term->line[newy][newx];
 			delim = ISDELIM(gp->u);
 			if (!(gp->mode[Attr::WDUMMY]) && (delim != prevdelim
 					|| (delim && gp->u != prevgp->u)))
@@ -204,12 +207,12 @@ void Selection::scroll(int orig, int n) {
 char* Selection::getSelection() const {
 	char *str, *ptr;
 	int lastx, linelen;
-	const nst::Glyph *gp, *last;
+	const Glyph *gp, *last;
 
 	if (ob.x == -1)
 		return nullptr;
 
-	const size_t bufsize = (m_term->col+1) * (ne.y-nb.y+1) * nst::utf8::UTF_SIZE;
+	const size_t bufsize = (m_term->col+1) * (ne.y-nb.y+1) * utf8::UTF_SIZE;
 	ptr = str = new char[bufsize];
 
 	/* append every set & selected glyph to the selection */
@@ -234,7 +237,7 @@ char* Selection::getSelection() const {
 			if (gp->mode.test(Attr::WDUMMY))
 				continue;
 
-			ptr += nst::utf8::encode(gp->u, ptr);
+			ptr += utf8::encode(gp->u, ptr);
 		}
 
 		/*
@@ -263,3 +266,5 @@ void Selection::dump() const {
 	m_tty->printToIoFile(ptr, strlen(ptr));
 	free(ptr);
 }
+
+} // end ns

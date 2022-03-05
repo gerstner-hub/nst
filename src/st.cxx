@@ -12,6 +12,7 @@
 
 #include "st.h"
 #include "win.h"
+#include "macros.hxx"
 #include "nst_config.h"
 #include "Selection.hxx"
 #include "Term.hxx"

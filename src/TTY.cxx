@@ -15,8 +15,9 @@
 
 // nst
 #include "TTY.hxx"
-#include "st.h"
+#include "macros.hxx"
 #include "nst_config.h"
+#include "st.h"
 
 nst::TTY g_tty;
 

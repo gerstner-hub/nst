@@ -4,7 +4,7 @@
 // libc
 #include <limits.h>
 
-/* types used in config.h */
+/* types used in nst_config.h */
 typedef struct {
 	uint mod;
 	KeySym keysym;

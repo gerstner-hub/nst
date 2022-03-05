@@ -1,4 +1,7 @@
-/* See LICENSE for license details. */
+#ifndef NST_WIN_H
+#define NST_WIN_H
+
+#include "Glyph.hxx"
 
 enum win_mode {
 	MODE_VISIBLE     = 1 << 0,
@@ -38,3 +41,5 @@ void xsetpointermotion(int);
 void xsetsel(char *);
 int xstartdraw(void);
 void xximspot(int, int);
+
+#endif // inc. guard

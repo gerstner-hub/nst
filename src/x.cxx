@@ -26,10 +26,11 @@
 // cosmos
 #include "cosmos/algs.hxx"
 
+#include "macros.hxx"
 #include "types.hxx"
 #include "st.h"
 #define FULL_NST_CONFIG
-/* function definitions used in config.h */
+/* function definitions used in nst_config.h */
 static void clipcopy(const Arg *);
 static void clippaste(const Arg *);
 static void numlock(const Arg *);
@@ -47,7 +48,7 @@ static void ttysend(const Arg *);
 #include "Term.hxx"
 #include "TTY.hxx"
 
-/* config.h for applying patches and the configuration. */
+/* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"
 
 #include "Cmdline.hxx"
@@ -1872,7 +1873,7 @@ kpress(XEvent *ev)
 		}
 	}
 
-	/* 2. custom keys from config.h */
+	/* 2. custom keys from nst_config.h */
 	if ((customkey = kmap(ksym, e->state))) {
 		g_tty.write(customkey, strlen(customkey), 1);
 		return;

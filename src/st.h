@@ -3,15 +3,12 @@
 
 // libc
 #include <stdint.h>
-#include <sys/types.h>
 
 // stdlib
-#include <vector>
 #include <cstring>
+#include <algorithm>
 
 #include "types.hxx"
-#include "Glyph.hxx"
-#include "macros.hxx"
 
 void die(const char *, ...);
 void redraw(void);
@@ -26,10 +23,8 @@ void csidump(void);
 
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
-/* config.h globals */
+/* nst_config.h globals */
 extern int allowaltscreen;
-extern unsigned int cols;
-extern unsigned int rows;
 
 template <typename T>
 T* renew(T *oldptr, size_t oldsize, size_t newsize) {

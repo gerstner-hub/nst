@@ -8,8 +8,6 @@
 #include <cstring>
 #include <algorithm>
 
-void die(const char *, ...);
-
 template <typename T>
 T* renew(T *oldptr, size_t oldsize, size_t newsize) {
 	T* ret = new T[newsize];

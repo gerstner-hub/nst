@@ -74,7 +74,7 @@ void CSIEscape::dump(const char *prefix) {
 void CSIEscape::handle() {
 	switch (mode[0]) {
 	default:
-		/* die(""); */
+		/* cosmos_throw RuntimeError("bad CSIEscape"); */
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
 		setDefault(arg[0], 1);

@@ -19,13 +19,26 @@
 #include "nst_config.h"
 #include "st.h"
 
+// libcosmos
+#include "cosmos/errors/ApiError.hxx"
+#include "cosmos/errors/InternalError.hxx"
+#include "cosmos/errors/RuntimeError.hxx"
+#include "cosmos/formatting.hxx"
+
 nst::TTY g_tty;
 
 namespace nst {
 
+using cosmos::ApiError;
+
 // TODO: replace with libcosmos signal handler
 void sigchld(int) {
-	g_tty.sigChildEvent();
+	try {
+		g_tty.sigChildEvent();
+	} catch (const std::exception &e) {
+		std::cerr << "waiting for child failed: " << e.what() << std::endl;
+		_exit(0);
+	}
 }
 
 // TODO: check if we can C++ify this callback
@@ -52,9 +65,9 @@ int TTY::create(const Params &pars) {
 
 	// operate an a real TTY line, running stty on it
 	if (!pars.line.empty()) {
-		if ((m_cmdfd = open(pars.line.c_str(), O_RDWR)) < 0)
-			die("open line '%s' failed: %s\n",
-			    pars.line.c_str(), strerror(errno));
+		if ((m_cmdfd = open(pars.line.c_str(), O_RDWR)) < 0) {
+			cosmos_throw (ApiError(cosmos::sprintf("open line '%s' failed", pars.line.c_str())));
+		}
 		dup2(m_cmdfd, 0);
 		runStty(pars);
 		return m_cmdfd;
@@ -64,12 +77,13 @@ int TTY::create(const Params &pars) {
 	int master, slave;
 
 	/* seems to work fine on linux, openbsd and freebsd */
-	if (openpty(&master, &slave, NULL, NULL, NULL) < 0)
-		die("openpty failed: %s\n", strerror(errno));
+	if (openpty(&master, &slave, NULL, NULL, NULL) < 0) {
+		cosmos_throw (ApiError("openpty failed"));
+	}
 
 	switch (m_pid = fork()) {
 	case -1:
-		die("fork failed: %s\n", strerror(errno));
+		cosmos_throw (ApiError("fork failed"));
 		break;
 	case 0:
 		close(iofd);
@@ -78,8 +92,9 @@ int TTY::create(const Params &pars) {
 		dup2(slave, 0);
 		dup2(slave, 1);
 		dup2(slave, 2);
-		if (ioctl(slave, TIOCSCTTY, NULL) < 0)
-			die("ioctl TIOCSCTTY failed: %s\n", strerror(errno));
+		if (ioctl(slave, TIOCSCTTY, NULL) < 0) {
+			cosmos_throw (ApiError("ioctl TIOCSCTTY failed"));
+		}
 		if (slave > 2)
 			close(slave);
 		executeShell(pars);
@@ -124,7 +139,7 @@ size_t TTY::read() {
 		// EOF
 		exit(0);
 	case -1:
-		die("couldn't read from shell: %s\n", strerror(errno));
+		cosmos_throw (ApiError("couldn't read from shell"));
 		return -1;
 	default:
 		buflen += ret;
@@ -186,7 +201,7 @@ void TTY::writeRaw(const char *s, size_t n) {
 		if (pselect(m_cmdfd+1, &rfd, &wfd, nullptr, nullptr, nullptr) < 0) {
 			if (errno == EINTR)
 				continue;
-			die("select failed: %s\n", strerror(errno));
+			cosmos_throw (ApiError("select failed"));
 		}
 		if (FD_ISSET(m_cmdfd, &wfd)) {
 			/*
@@ -195,7 +210,7 @@ void TTY::writeRaw(const char *s, size_t n) {
 			 * for a serial line. Bigger values might clog the I/O.
 			 */
 			if ((r = ::write(m_cmdfd, s, std::min(n, lim))) < 0)
-				die("write error on tty: %s\n", strerror(errno));
+				cosmos_throw (ApiError("write error on tty"));
 			if ((size_t)r < n) {
 				/*
 				 * We weren't able to write out everything.
@@ -242,9 +257,9 @@ void TTY::executeShell(const Params &pars)
 	errno = 0;
 	if ((pw = getpwuid(getuid())) == NULL) {
 		if (errno)
-			die("getpwuid: %s\n", strerror(errno));
+			cosmos_throw (ApiError(("getpwuid failed")));
 		else
-			die("who are you?\n");
+			cosmos_throw (cosmos::InternalError("who are you?"));
 	}
 
 	if ((sh = getenv("SHELL")) == NULL)
@@ -297,16 +312,16 @@ void TTY::sigChildEvent() {
 	pid_t p;
 
 	if ((p = waitpid(m_pid, &stat, WNOHANG)) < 0)
-		die("waiting for pid %hd failed: %s\n", m_pid, strerror(errno));
+		cosmos_throw (ApiError(cosmos::sprintf("waiting for pid %hd failed", m_pid)));
 
 	if (p != m_pid)
 		// should actually never happen
 		return;
 
 	if (WIFEXITED(stat) && WEXITSTATUS(stat))
-		die("child exited with status %d\n", WEXITSTATUS(stat));
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child exited with status %d", WEXITSTATUS(stat))));
 	else if (WIFSIGNALED(stat))
-		die("child terminated due to signal %d\n", WTERMSIG(stat));
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child terminated due to signal %d", WTERMSIG(stat))));
 	_exit(0);
 }
 

@@ -25,7 +25,11 @@
 
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/formatting.hxx"
+#include "cosmos/errors/ApiError.hxx"
+#include "cosmos/errors/RuntimeError.hxx"
 
+// nst
 #include "macros.hxx"
 #include "types.hxx"
 #include "st.h"
@@ -42,27 +46,19 @@ static void ttysend(const Arg *);
 static void printscreen(const Arg *);
 static void printsel(const Arg *);
 static void toggleprinter(const Arg *);
-
-// nst
 #include "win.h"
-
 #include "xtypes.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
-
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"
-
 #include "Cmdline.hxx"
-
-// autotools config.h
-#ifdef HAVE_CONFIG_H
-#	include "config.h"
-#endif
 
 typedef nst::Glyph::Attr Attr;
 using namespace nst;
+using cosmos::ApiError;
+using cosmos::RuntimeError;
 
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
@@ -275,7 +271,7 @@ clipcopy(const Arg *)
 	if (xsel.primary != NULL) {
 		xsel.clipboard = strdup(xsel.primary);
 		if (!xsel.clipboard) {
-			die("failed to strdup() primary selection");
+			cosmos_throw (ApiError("failed to strpdup() primary selection"));
 		}
 		clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
 		XSetSelectionOwner(xw.dpy, clipboard, xw.win, CurrentTime);
@@ -844,9 +840,9 @@ xloadcols(void)
 	for (i = 0; i < dc.collen; i++)
 		if (!xloadcolor(i, NULL, &dc.col[i])) {
 			if (colorname[i])
-				die("could not allocate color '%s'\n", colorname[i]);
+				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color '%s'", colorname[i])));
 			else
-				die("could not allocate color %d\n", i);
+				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
 	loaded = 1;
 }
@@ -1033,7 +1029,7 @@ xloadfonts(const char *fontstr, double fontsize)
 		pattern = FcNameParse((const FcChar8 *)fontstr);
 
 	if (!pattern)
-		die("can't open font %s\n", fontstr);
+		goto failed;
 
 	if (fontsize > 1) {
 		FcPatternDel(pattern, FC_PIXEL_SIZE);
@@ -1059,7 +1055,7 @@ xloadfonts(const char *fontstr, double fontsize)
 	}
 
 	if (xloadfont(&dc.font, pattern))
-		die("can't open font %s\n", fontstr);
+		goto failed;
 
 	if (usedfontsize < 0) {
 		FcPatternGetDouble(dc.font.match->pattern,
@@ -1076,19 +1072,23 @@ xloadfonts(const char *fontstr, double fontsize)
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
 	if (xloadfont(&dc.ifont, pattern))
-		die("can't open font %s\n", fontstr);
+		goto failed;
 
 	FcPatternDel(pattern, FC_WEIGHT);
 	FcPatternAddInteger(pattern, FC_WEIGHT, FC_WEIGHT_BOLD);
 	if (xloadfont(&dc.ibfont, pattern))
-		die("can't open font %s\n", fontstr);
+		goto failed;
 
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ROMAN);
 	if (xloadfont(&dc.bfont, pattern))
-		die("can't open font %s\n", fontstr);
+		goto failed;
 
 	FcPatternDestroy(pattern);
+
+	return;
+failed:
+	cosmos_throw (RuntimeError(cosmos::sprintf("failed to open font %s", fontstr)));
 }
 
 void
@@ -1177,13 +1177,13 @@ xinit(int p_cols, int p_rows)
 	XColor xmousefg, xmousebg;
 
 	if (!(xw.dpy = XOpenDisplay(NULL)))
-		die("can't open display\n");
+		cosmos_throw (RuntimeError("cannot open display"));
 	xw.scr = XDefaultScreen(xw.dpy);
 	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
 
 	/* font */
 	if (!FcInit())
-		die("could not init fontconfig.\n");
+		cosmos_throw (RuntimeError("could not init fontconfig"));
 
 	usedfont = opt_font;
 	xloadfonts(usedfont, 0);
@@ -1386,11 +1386,9 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 				frccap += 16;
 			}
 
-			frc[frclen].font = XftFontOpenPattern(xw.dpy,
-					fontpattern);
+			frc[frclen].font = XftFontOpenPattern(xw.dpy, fontpattern);
 			if (!frc[frclen].font)
-				die("XftFontOpenPattern failed seeking fallback font: %s\n",
-					strerror(errno));
+				cosmos_throw (ApiError("XftFontOpenPattern failed seeking fallback font"));
 			frc[frclen].flags = frcflags;
 			frc[frclen].unicodep = rune;
 
@@ -1999,7 +1997,7 @@ run(void)
 		if (pselect(std::max(xfd, ttyfd)+1, &rfd, NULL, NULL, tv, NULL) < 0) {
 			if (errno == EINTR)
 				continue;
-			die("select failed: %s\n", strerror(errno));
+			cosmos_throw (ApiError("select failed"));
 		}
 		clock_gettime(CLOCK_MONOTONIC, &now);
 
@@ -2120,21 +2118,25 @@ void applyCmdline(const nst::Cmdline &cmd) {
 int
 main(int argc, const char **argv)
 {
-	fixup_colornames();
-	xsetcursor(cursorshape);
+	try {
+		fixup_colornames();
+		xsetcursor(cursorshape);
 
-	cmdline.parse(argc, argv);
+		cmdline.parse(argc, argv);
+		cols = std::max(cols, 1U);
+		rows = std::max(rows, 1U);
+		term = Term(cols, rows);
+		applyCmdline(cmdline);
 
-	cols = std::max(cols, 1U);
-	rows = std::max(rows, 1U);
-	term = Term(cols, rows);
-	applyCmdline(cmdline);
-
-	setlocale(LC_CTYPE, "");
-	XSetLocaleModifiers("");
-	xinit(cols, rows);
-	xsetenv();
-	run();
+		setlocale(LC_CTYPE, "");
+		XSetLocaleModifiers("");
+		xinit(cols, rows);
+		xsetenv();
+		run();
+	} catch (const std::exception &ex) {
+		std::cerr << ex.what() << std::endl;
+		return EXIT_FAILURE;
+	}
 
 	return 0;
 }

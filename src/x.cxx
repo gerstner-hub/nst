@@ -2048,7 +2048,11 @@ void fixup_colornames()
 }
 
 void applyCmdline(const nst::Cmdline &cmd) {
-	allowaltscreen = cmd.use_alt_screen.getValue();
+	if (cmd.use_alt_screen.isSet()) {
+		term.allowaltscreen = cmd.use_alt_screen.getValue();
+	} else {
+		term.allowaltscreen = nst::config::ALLOWALTSCREEN;
+	}
 
 	if (cmd.window_class.isSet()) {
 		opt_class = cmd.window_class.getValue();
@@ -2099,13 +2103,14 @@ main(int argc, const char **argv)
 	xsetcursor(cursorshape);
 
 	cmdline.parse(argc, argv);
+
+	cols = std::max(cols, 1U);
+	rows = std::max(rows, 1U);
+	term = Term(cols, rows);
 	applyCmdline(cmdline);
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
-	cols = std::max(cols, 1U);
-	rows = std::max(rows, 1U);
-	term = Term(cols, rows);
 	xinit(cols, rows);
 	xsetenv();
 	run();

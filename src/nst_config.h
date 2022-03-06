@@ -79,6 +79,10 @@ constexpr unsigned int DEFAULTBG = 259;
 constexpr unsigned int DEFAULTCS = 256;
 constexpr unsigned int DEFAULTRCS = 257;
 
+/* alt screens */
+constexpr bool ALLOWALTSCREEN = true;
+
+
 }} // end ns nst::config
 
 #ifdef FULL_NST_CONFIG
@@ -92,9 +96,6 @@ const float chscale = 1.0;
 /* selection timeouts (in milliseconds) */
 const unsigned int doubleclicktimeout = 300;
 const unsigned int tripleclicktimeout = 600;
-
-/* alt screens */
-int allowaltscreen = 1;
 
 /*
  * draw latency range in ms - from new content/keypress/etc until drawing.

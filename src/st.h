@@ -16,9 +16,6 @@ void printscreen(const Arg *);
 void printsel(const Arg *);
 void toggleprinter(const Arg *);
 
-/* nst_config.h globals */
-extern int allowaltscreen;
-
 template <typename T>
 T* renew(T *oldptr, size_t oldsize, size_t newsize) {
 	T* ret = new T[newsize];

@@ -67,6 +67,7 @@ public: // data
 	int charset = 0;        /* current charset */
 	int icharset = 0;       /* selected charset for sequence */
 	int *tabs = nullptr;
+	bool allowaltscreen = false;
 
 	Rune lastc = 0;    /* last printed char outside of sequence, 0 if control */
 

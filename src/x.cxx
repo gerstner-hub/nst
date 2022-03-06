@@ -39,6 +39,9 @@ static void zoom(const Arg *);
 static void zoomabs(const Arg *);
 static void zoomreset(const Arg *);
 static void ttysend(const Arg *);
+static void printscreen(const Arg *);
+static void printsel(const Arg *);
+static void toggleprinter(const Arg *);
 
 // nst
 #include "win.h"
@@ -336,6 +339,24 @@ void
 ttysend(const Arg *arg)
 {
 	g_tty.write(arg->s, strlen(arg->s), 1);
+}
+
+void
+toggleprinter(const Arg *)
+{
+	term.mode.flip(nst::Term::Mode::PRINT);
+}
+
+void
+printscreen(const Arg *)
+{
+	term.dump();
+}
+
+void
+printsel(const Arg *)
+{
+	g_sel.dump();
 }
 
 int

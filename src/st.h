@@ -8,13 +8,7 @@
 #include <cstring>
 #include <algorithm>
 
-#include "types.hxx"
-
 void die(const char *, ...);
-
-void printscreen(const Arg *);
-void printsel(const Arg *);
-void toggleprinter(const Arg *);
 
 template <typename T>
 T* renew(T *oldptr, size_t oldsize, size_t newsize) {

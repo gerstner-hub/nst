@@ -17,4 +17,11 @@ size_t validate(Rune *, size_t);
 
 }
 
+namespace nst::base64 {
+
+/// decodes a base64 encoded string and returns new[] allocated string containing the result
+char* decode(const char *);
+
+}
+
 #endif // inc. guard

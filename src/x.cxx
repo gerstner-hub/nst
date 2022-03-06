@@ -692,6 +692,8 @@ setsel(char *str, Time t)
 	if (!str)
 		return;
 
+	// this pointer originally comes from base64::decode()
+	// TODO: allocation/deallocation should be symmetric
 	delete[] xsel.primary;
 	xsel.primary = str;
 

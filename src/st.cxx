@@ -17,6 +17,7 @@
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
+#include "StringEscape.hxx"
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -40,36 +41,10 @@ typedef struct {
 	char mode[2];
 } CSIEscape;
 
-/* STR Escape sequence structs */
-/* ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\' */
-struct STREscape {
-public: // data
-	char type = 0;         /* ESC type ... */
-	char *buf = nullptr;   /* allocated raw string */
-	size_t siz = 0;        /* allocation size */
-	size_t len = 0;        /* raw string length */
-	char *args[STR_ARG_SIZ] = {nullptr};
-	int narg = 0;          /* nb of args */
-public: // functions
-
-	~STREscape() {
-		delete[] buf;
-	}
-
-	void resize(size_t alloc) {
-		buf = renew(buf, siz, alloc);
-		siz = alloc;
-	}
-};
-
 static void csihandle(void);
 static void csiparse(void);
 static void csireset(void);
 static int eschandle(uchar);
-static void strdump(void);
-static void strhandle(void);
-static void strparse(void);
-static void strreset(void);
 
 static void tputc(nst::Rune);
 static void tsetchar(nst::Rune, const nst::Glyph *, int, int);
@@ -79,66 +54,8 @@ static void tdefutf8(char);
 static void tdeftran(char);
 static void tstrsequence(uchar);
 
-static char *base64dec(const char *);
-static char base64dec_getc(const char **);
-
 /* Globals */
 static CSIEscape csiescseq;
-static STREscape strescseq;
-
-static constexpr char base64_digits[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 0, 0, 0,
-	63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 0, 0, 0, -1, 0, 0, 0, 0, 1,
-	2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-	22, 23, 24, 25, 0, 0, 0, 0, 0, 0, 26, 27, 28, 29, 30, 31, 32, 33, 34,
-	35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-
-char
-base64dec_getc(const char **src)
-{
-	while (**src && !isprint(**src))
-		(*src)++;
-	return **src ? *((*src)++) : '=';  /* emulate padding if string ends */
-}
-
-char *
-base64dec(const char *src)
-{
-	size_t in_len = strlen(src);
-	char *result, *dst;
-
-	if (in_len % 4)
-		in_len += 4 - (in_len % 4);
-	result = dst = new char[in_len / 4 * 3 + 1];
-	while (*src) {
-		int a = base64_digits[(unsigned char) base64dec_getc(&src)];
-		int b = base64_digits[(unsigned char) base64dec_getc(&src)];
-		int c = base64_digits[(unsigned char) base64dec_getc(&src)];
-		int d = base64_digits[(unsigned char) base64dec_getc(&src)];
-
-		/* invalid input. 'a' can be -1, e.g. if src is "\n" (c-str) */
-		if (a == -1 || b == -1)
-			break;
-
-		*dst++ = (a << 2) | ((b & 0x30) >> 4);
-		if (c == -1)
-			break;
-		*dst++ = ((b & 0x0f) << 4) | ((c & 0x3c) >> 2);
-		if (d == -1)
-			break;
-		*dst++ = ((c & 0x03) << 6) | d;
-	}
-	*dst = '\0';
-	return result;
-}
 
 void
 die(const char *errstr, ...)
@@ -460,212 +377,6 @@ csireset(void)
 }
 
 void
-osc4_color_response(int num)
-{
-	int n;
-	char buf[32];
-	unsigned char r, g, b;
-
-	if (xgetcolor(num, &r, &g, &b)) {
-		fprintf(stderr, "erresc: failed to fetch osc4 color %d\n", num);
-		return;
-	}
-
-	n = snprintf(buf, sizeof buf, "\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
-		     num, r, r, g, g, b, b);
-
-	g_tty.write(buf, n, 1);
-}
-
-void
-osc_color_response(int index, int num)
-{
-	int n;
-	char buf[32];
-	unsigned char r, g, b;
-
-	if (xgetcolor(index, &r, &g, &b)) {
-		fprintf(stderr, "erresc: failed to fetch osc color %d\n", index);
-		return;
-	}
-
-	n = snprintf(buf, sizeof buf, "\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
-		     num, r, r, g, g, b, b);
-
-	g_tty.write(buf, n, 1);
-}
-
-void
-strhandle(void)
-{
-	char *p = NULL, *dec;
-	int j, narg, par;
-
-	term.esc &= ~(ESC_STR_END|ESC_STR);
-	strparse();
-	par = (narg = strescseq.narg) ? atoi(strescseq.args[0]) : 0;
-
-	switch (strescseq.type) {
-	case ']': /* OSC -- Operating System Command */
-		switch (par) {
-		case 0:
-			if (narg > 1) {
-				xsettitle(strescseq.args[1]);
-				xseticontitle(strescseq.args[1]);
-			}
-			return;
-		case 1:
-			if (narg > 1)
-				xseticontitle(strescseq.args[1]);
-			return;
-		case 2:
-			if (narg > 1)
-				xsettitle(strescseq.args[1]);
-			return;
-		case 52:
-			if (narg > 2 && nst::config::ALLOWWINDOWOPS) {
-				dec = base64dec(strescseq.args[2]);
-				if (dec) {
-					xsetsel(dec);
-					xclipcopy();
-				} else {
-					fprintf(stderr, "erresc: invalid base64\n");
-				}
-			}
-			return;
-		case 10:
-			if (narg < 2)
-				break;
-
-			p = strescseq.args[1];
-
-			if (!strcmp(p, "?"))
-				osc_color_response(nst::config::DEFAULTFG, 10);
-			else if (xsetcolorname(nst::config::DEFAULTFG, p))
-				fprintf(stderr, "erresc: invalid foreground color: %s\n", p);
-			else
-				term.redraw();
-			return;
-		case 11:
-			if (narg < 2)
-				break;
-
-			p = strescseq.args[1];
-
-			if (!strcmp(p, "?"))
-				osc_color_response(nst::config::DEFAULTBG, 11);
-			else if (xsetcolorname(nst::config::DEFAULTBG, p))
-				fprintf(stderr, "erresc: invalid background color: %s\n", p);
-			else
-				term.redraw();
-			return;
-		case 12:
-			if (narg < 2)
-				break;
-
-			p = strescseq.args[1];
-
-			if (!strcmp(p, "?"))
-				osc_color_response(nst::config::DEFAULTCS, 12);
-			else if (xsetcolorname(nst::config::DEFAULTCS, p))
-				fprintf(stderr, "erresc: invalid cursor color: %s\n", p);
-			else
-				term.redraw();
-			return;
-		case 4: /* color set */
-			if (narg < 3)
-				break;
-			p = strescseq.args[2];
-			/* FALLTHROUGH */
-		case 104: /* color reset */
-			j = (narg > 1) ? atoi(strescseq.args[1]) : -1;
-
-			if (p && !strcmp(p, "?"))
-				osc4_color_response(j);
-			else if (xsetcolorname(j, p)) {
-				if (par == 104 && narg <= 1)
-					return; /* color reset without parameter */
-				fprintf(stderr, "erresc: invalid color j=%d, p=%s\n",
-				        j, p ? p : "(null)");
-			} else {
-				/*
-				 * TODO if defaultbg color is changed, borders
-				 * are dirty
-				 */
-				term.redraw();
-			}
-			return;
-		}
-		break;
-	case 'k': /* old title set compatibility */
-		xsettitle(strescseq.args[0]);
-		return;
-	case 'P': /* DCS -- Device Control String */
-	case '_': /* APC -- Application Program Command */
-	case '^': /* PM -- Privacy Message */
-		return;
-	}
-
-	fprintf(stderr, "erresc: unknown str ");
-	strdump();
-}
-
-void
-strparse(void)
-{
-	int c;
-	char *p = strescseq.buf;
-
-	strescseq.narg = 0;
-	strescseq.buf[strescseq.len] = '\0';
-
-	if (*p == '\0')
-		return;
-
-	while (strescseq.narg < STR_ARG_SIZ) {
-		strescseq.args[strescseq.narg++] = p;
-		while ((c = *p) != ';' && c != '\0')
-			++p;
-		if (c == '\0')
-			return;
-		*p++ = '\0';
-	}
-}
-
-void
-strdump(void)
-{
-	size_t i;
-	uint c;
-
-	fprintf(stderr, "ESC%c", strescseq.type);
-	for (i = 0; i < strescseq.len; i++) {
-		c = strescseq.buf[i] & 0xff;
-		if (c == '\0') {
-			putc('\n', stderr);
-			return;
-		} else if (isprint(c)) {
-			putc(c, stderr);
-		} else if (c == '\n') {
-			fprintf(stderr, "(\\n)");
-		} else if (c == '\r') {
-			fprintf(stderr, "(\\r)");
-		} else if (c == 0x1b) {
-			fprintf(stderr, "(\\e)");
-		} else {
-			fprintf(stderr, "(%02x)", c);
-		}
-	}
-	fprintf(stderr, "ESC\\\n");
-}
-
-void
-strreset(void)
-{
-	strescseq.resize(STR_BUF_SIZ);
-}
-
-void
 toggleprinter(const Arg *)
 {
 	term.mode.flip(Term::Mode::PRINT);
@@ -736,7 +447,7 @@ tstrsequence(uchar c)
 		c = ']';
 		break;
 	}
-	strreset();
+	strescseq.reset();
 	strescseq.type = c;
 	term.esc |= ESC_STR;
 }
@@ -763,7 +474,7 @@ tcontrolcode(uchar ascii)
 	case '\a':   /* BEL */
 		if (term.esc & ESC_STR_END) {
 			/* backwards compatibility to xterm */
-			strhandle();
+			strescseq.handle();
 		} else {
 			xbell();
 		}
@@ -915,7 +626,7 @@ eschandle(uchar ascii)
 		break;
 	case '\\': /* ST -- String Terminator */
 		if (term.esc & ESC_STR_END)
-			strhandle();
+			strescseq.handle();
 		break;
 	default:
 		fprintf(stderr, "erresc: unknown sequence ESC 0x%02X '%c'\n",
@@ -972,7 +683,7 @@ tputc(nst::Rune u)
 			 */
 			/*
 			 * term.esc = 0;
-			 * strhandle();
+			 * strescseq.handle();
 			 */
 			if (strescseq.siz > (SIZE_MAX - nst::utf8::UTF_SIZE) / 2)
 				return;

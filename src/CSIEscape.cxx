@@ -116,7 +116,7 @@ void CSIEscape::handle() {
 		setDefault(arg[0], 1);
 		if (term.lastc)
 			while (arg[0]-- > 0)
-				tputc(term.lastc);
+				term.putChar(term.lastc);
 		return;
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */

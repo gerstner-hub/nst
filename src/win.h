@@ -41,5 +41,6 @@ void xsetpointermotion(int);
 void xsetsel(char *);
 int xstartdraw(void);
 void xximspot(int, int);
+int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
 #endif // inc. guard

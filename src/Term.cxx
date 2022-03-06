@@ -680,4 +680,324 @@ void Term::strSequence(unsigned char ch) {
 	esc |= ESC_STR;
 }
 
+void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
+	constexpr const char *vt100_0[62] = { /* 0x41 - 0x7e */
+		"↑", "↓", "→", "←", "█", "▚", "☃", /* A - G */
+		0, 0, 0, 0, 0, 0, 0, 0, /* H - O */
+		0, 0, 0, 0, 0, 0, 0, 0, /* P - W */
+		0, 0, 0, 0, 0, 0, 0, " ", /* X - _ */
+		"◆", "▒", "␉", "␌", "␍", "␊", "°", "±", /* ` - g */
+		"␤", "␋", "┘", "┐", "┌", "└", "┼", "⎺", /* h - o */
+		"⎻", "─", "⎼", "⎽", "├", "┤", "┴", "┬", /* p - w */
+		"│", "≤", "≥", "π", "≠", "£", "·", /* x - ~ */
+	};
+
+	/*
+	 * The table is proudly stolen from rxvt.
+	 */
+	if (trantbl[charset] == CS_GRAPHIC0 && in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
+		utf8::decode(vt100_0[u - 0x41], &u, utf8::UTF_SIZE);
+
+	if (line[y][x].mode.test(Attr::WIDE)) {
+		if (x+1 < col) {
+			line[y][x+1].u = ' ';
+			line[y][x+1].mode.reset(Attr::WDUMMY);
+		}
+	} else if (line[y][x].mode.test(Attr::WDUMMY)) {
+		line[y][x-1].u = ' ';
+		line[y][x-1].mode.reset(Attr::WIDE);
+	}
+
+	dirty[y] = 1;
+	line[y][x] = *attr;
+	line[y][x].u = u;
+}
+
+void Term::setDefTran(char ascii) {
+	constexpr char cs[] = "0B";
+	constexpr int vcs[] = {CS_GRAPHIC0, CS_USA};
+	const char *p = strchr(cs, ascii);
+
+	if (p == nullptr) {
+		std::cerr << "esc unhandled charset: ESC ( " << ascii << "\n";
+	} else {
+		trantbl[icharset] = vcs[p - cs];
+	}
+}
+
+void Term::decTest(char ch) {
+	if (ch == '8') { /* DEC screen alignment test. */
+		for (int x = 0; x < col; ++x) {
+			for (int y = 0; y < row; ++y)
+				setChar('E', &c.attr, x, y);
+		}
+	}
+}
+
+void Term::handleControlCode(uchar ascii) {
+	switch (ascii) {
+	case '\t':   /* HT */
+		putTab(1);
+		return;
+	case '\b':   /* BS */
+		moveTo(c.x - 1, c.y);
+		return;
+	case '\r':   /* CR */
+		moveTo(0, c.y);
+		return;
+	case '\f':   /* LF */
+	case '\v':   /* VT */
+	case '\n':   /* LF */
+		/* go to first col if the mode is set */
+		putNewline(mode.test(Mode::CRLF));
+		return;
+	case '\a':   /* BEL */
+		if (esc & ESC_STR_END) {
+			/* backwards compatibility to xterm */
+			strescseq.handle();
+		} else {
+			xbell();
+		}
+		break;
+	case '\033': /* ESC */
+		csiescseq = CSIEscape();
+		esc &= ~(ESC_CSI|ESC_ALTCHARSET|ESC_TEST);
+		esc |= ESC_START;
+		return;
+	case '\016': /* SO (LS1 -- Locking shift 1) */
+	case '\017': /* SI (LS0 -- Locking shift 0) */
+		charset = 1 - (ascii - '\016');
+		return;
+	case '\032': /* SUB */
+		setChar('?', &c.attr, c.x, c.y);
+		/* FALLTHROUGH */
+	case '\030': /* CAN */
+		csiescseq = CSIEscape();
+		break;
+	case '\005': /* ENQ (IGNORED) */
+	case '\000': /* NUL (IGNORED) */
+	case '\021': /* XON (IGNORED) */
+	case '\023': /* XOFF (IGNORED) */
+	case 0177:   /* DEL (IGNORED) */
+		return;
+	case 0x80:   /* TODO: PAD */
+	case 0x81:   /* TODO: HOP */
+	case 0x82:   /* TODO: BPH */
+	case 0x83:   /* TODO: NBH */
+	case 0x84:   /* TODO: IND */
+		break;
+	case 0x85:   /* NEL -- Next line */
+		putNewline(); /* always go to first col */
+		break;
+	case 0x86:   /* TODO: SSA */
+	case 0x87:   /* TODO: ESA */
+		break;
+	case 0x88:   /* HTS -- Horizontal tab stop */
+		tabs[c.x] = 1;
+		break;
+	case 0x89:   /* TODO: HTJ */
+	case 0x8a:   /* TODO: VTS */
+	case 0x8b:   /* TODO: PLD */
+	case 0x8c:   /* TODO: PLU */
+	case 0x8d:   /* TODO: RI */
+	case 0x8e:   /* TODO: SS2 */
+	case 0x8f:   /* TODO: SS3 */
+	case 0x91:   /* TODO: PU1 */
+	case 0x92:   /* TODO: PU2 */
+	case 0x93:   /* TODO: STS */
+	case 0x94:   /* TODO: CCH */
+	case 0x95:   /* TODO: MW */
+	case 0x96:   /* TODO: SPA */
+	case 0x97:   /* TODO: EPA */
+	case 0x98:   /* TODO: SOS */
+	case 0x99:   /* TODO: SGCI */
+		break;
+	case 0x9a:   /* DECID -- Identify Terminal */
+		g_tty.write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
+		break;
+	case 0x9b:   /* TODO: CSI */
+	case 0x9c:   /* TODO: ST */
+		break;
+	case 0x90:   /* DCS -- Device Control String */
+	case 0x9d:   /* OSC -- Operating System Command */
+	case 0x9e:   /* PM -- Privacy Message */
+	case 0x9f:   /* APC -- Application Program Command */
+		strSequence(ascii);
+		return;
+	}
+	/* only CAN, SUB, \a and C1 chars interrupt a sequence */
+	esc &= ~(ESC_STR_END|ESC_STR);
+}
+
+void Term::putChar(Rune u) {
+	char ch[nst::utf8::UTF_SIZE];
+	int width, len;
+
+	const int control = ISCONTROL(u);
+	if (u < 127 || !mode.test(Mode::UTF8)) {
+		ch[0] = u;
+		width = len = 1;
+	} else {
+		len = nst::utf8::encode(u, ch);
+		if (!control && (width = wcwidth(u)) == -1)
+			width = 1;
+	}
+
+	if (mode.test(Mode::PRINT))
+		g_tty.printToIoFile(ch, len);
+
+	/*
+	 * STR sequence must be checked before anything else
+	 * because it uses all following characters until it
+	 * receives a ESC, a SUB, a ST or any other C1 control
+	 * character.
+	 */
+	if (esc & ESC_STR) {
+		if (u == '\a' || u == 030 || u == 032 || u == 033 || ISCONTROLC1(u)) {
+			esc &= ~(ESC_START|ESC_STR);
+			esc |= ESC_STR_END;
+			goto check_control_code;
+		}
+
+		if (strescseq.len + len >= strescseq.siz) {
+			/*
+			 * Here is a bug in terminals. If the user never sends
+			 * some code to stop the str or esc command, then st
+			 * will stop responding. But this is better than
+			 * silently failing with unknown characters. At least
+			 * then users will report back.
+			 *
+			 * In the case users ever get fixed, here is the code:
+			 */
+			/*
+			 * term.esc = 0;
+			 * strescseq.handle();
+			 */
+			if (strescseq.siz > (SIZE_MAX - utf8::UTF_SIZE) / 2)
+				return;
+			strescseq.resize(strescseq.siz << 1);
+		}
+
+		std::memmove(&strescseq.buf[strescseq.len], ch, len);
+		strescseq.len += len;
+		return;
+	}
+
+check_control_code:
+	/*
+	 * Actions of control codes must be performed as soon they arrive
+	 * because they can be embedded inside a control sequence, and
+	 * they must not cause conflicts with sequences.
+	 */
+	if (control) {
+		handleControlCode(u);
+		/*
+		 * control codes are not shown ever
+		 */
+		if (!esc)
+			lastc = 0;
+		return;
+	} else if (esc & ESC_START) {
+		if (esc & ESC_CSI) {
+			csiescseq.buf[csiescseq.len++] = u;
+			if (in_range(u, 0x40, 0x7E) || csiescseq.len >= sizeof(csiescseq.buf)-1) {
+				esc = 0;
+				csiescseq.parse();
+				csiescseq.handle();
+			}
+			return;
+		} else if (esc & ESC_UTF8) {
+			switch (static_cast<char>(u)) {
+			case 'G':
+				mode.set(Mode::UTF8);
+				break;
+			case '@':
+				mode.reset(Mode::UTF8);
+				break;
+			}
+		} else if (esc & ESC_ALTCHARSET) {
+			setDefTran(u);
+		} else if (esc & ESC_TEST) {
+			decTest(u);
+		} else {
+			if (!csiescseq.eschandle(u))
+				return;
+			/* sequence already finished */
+		}
+		esc = 0;
+		/*
+		 * All characters which form part of a sequence are not
+		 * printed
+		 */
+		return;
+	}
+	if (g_sel.isSelected(c.x, c.y))
+		g_sel.clear();
+
+	nst::Glyph *gp = &line[c.y][c.x];
+	if (mode.test(Mode::WRAP) && c.state.test(TCursor::State::WRAPNEXT)) {
+		gp->mode.set(Attr::WRAP);
+		putNewline();
+		gp = &line[c.y][c.x];
+	}
+
+	if (mode.test(Mode::INSERT) && c.x + width < col)
+		std::memmove(gp+width, gp, (col - c.x - width) * sizeof(nst::Glyph));
+
+	if (c.x + width > col) {
+		putNewline();
+		gp = &line[c.y][c.x];
+	}
+
+	setChar(u, &c.attr, c.x, c.y);
+	lastc = u;
+
+	if (width == 2) {
+		gp->mode.set(Attr::WIDE);
+		if (c.x + 1 < col) {
+			if (gp[1].mode.test(Attr::WIDE) && c.x+2 < col) {
+				gp[2].u = ' ';
+				gp[2].mode.reset(Attr::WDUMMY);
+			}
+			gp[1].u = '\0';
+			gp[1].mode.limit(Attr::WDUMMY);
+		}
+	}
+	if (c.x + width < col) {
+		moveTo(c.x + width, c.y);
+	} else {
+		c.state.set(TCursor::State::WRAPNEXT);
+	}
+}
+
+int Term::write(const char *buf, int buflen, int show_ctrl) {
+	int charsize;
+	nst::Rune u;
+	int n;
+
+	for (n = 0; n < buflen; n += charsize) {
+		if (mode.test(Mode::UTF8)) {
+			/* process a complete utf8 char */
+			charsize = utf8::decode(buf + n, &u, buflen - n);
+			if (charsize == 0)
+				break;
+		} else {
+			u = buf[n] & 0xFF;
+			charsize = 1;
+		}
+		if (show_ctrl && ISCONTROL(u)) {
+			if (u & 0x80) {
+				u &= 0x7f;
+				putChar('^');
+				putChar('[');
+			} else if (u != '\n' && u != '\r' && u != '\t') {
+				u ^= 0x40;
+				putChar('^');
+			}
+		}
+		putChar(u);
+	}
+	return n;
+}
+
 } // end ns

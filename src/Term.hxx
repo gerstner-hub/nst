@@ -145,6 +145,9 @@ public: // functions
 	//! process a terminal string sequence
 	void strSequence(unsigned char c);
 
+	void putChar(Rune u);
+	int write(const char *buf, int buflen, int show_ctrl);
+
 protected: // functions
 
 	int32_t defcolor(const int *attr, size_t *npar, size_t len);
@@ -154,6 +157,11 @@ protected: // functions
 	}
 
 	void drawRegion(int x1, int y1, int x2, int  y2) const;
+
+	void setChar(Rune u, const Glyph *attr, int x, int y);
+	void setDefTran(char ascii);
+	void decTest(char c);
+	void handleControlCode(unsigned char ascii);
 };
 
 } // end ns

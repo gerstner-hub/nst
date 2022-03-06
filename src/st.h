@@ -9,18 +9,12 @@
 #include <algorithm>
 
 #include "types.hxx"
-#include "Glyph.hxx"
 
 void die(const char *, ...);
 
 void printscreen(const Arg *);
 void printsel(const Arg *);
 void toggleprinter(const Arg *);
-
-int twrite(const char *, int, int);
-void tputc(nst::Rune);
-
-int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
 /* nst_config.h globals */
 extern int allowaltscreen;

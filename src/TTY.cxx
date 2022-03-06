@@ -128,7 +128,7 @@ size_t TTY::read() {
 		return -1;
 	default:
 		buflen += ret;
-		written = twrite(buf, buflen, 0);
+		written = term.write(buf, buflen, 0);
 		buflen -= written;
 		/* keep any incomplete UTF-8 byte sequence for the next call */
 		if (buflen > 0)
@@ -140,7 +140,7 @@ size_t TTY::read() {
 void TTY::write(const char *s, size_t n, bool may_echo) {
 
 	if (may_echo && m_term->mode.test(Term::Mode::TECHO))
-		twrite(s, n, 1);
+		term.write(s, n, 1);
 
 	if (!m_term->mode.test(Term::Mode::CRLF)) {
 		writeRaw(s, n);

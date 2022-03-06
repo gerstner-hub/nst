@@ -142,6 +142,9 @@ public: // functions
 
 	void draw();
 
+	//! process a terminal string sequence
+	void strSequence(unsigned char c);
+
 protected: // functions
 
 	int32_t defcolor(const int *attr, size_t *npar, size_t len);

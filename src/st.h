@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "types.hxx"
+#include "Glyph.hxx"
 
 void die(const char *, ...);
 
@@ -17,7 +18,7 @@ void printsel(const Arg *);
 void toggleprinter(const Arg *);
 
 int twrite(const char *, int, int);
-void csidump(void);
+void tputc(nst::Rune);
 
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
@@ -31,6 +32,12 @@ T* renew(T *oldptr, size_t oldsize, size_t newsize) {
 
 	delete[] oldptr;
 	return ret;
+}
+
+template <typename T>
+void setDefault(T &v, const T &def) {
+	if (!v)
+		v = def;
 }
 
 #endif // inc. guard

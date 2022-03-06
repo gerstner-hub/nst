@@ -10,9 +10,11 @@
 
 // nst
 #include "nst_config.h"
+#include "CSIEscape.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "Selection.hxx"
+#include "StringEscape.hxx"
 #include "codecs.hxx"
 #include "st.h"
 #include "win.h"
@@ -417,7 +419,7 @@ void Term::setAttr(const int *attr, size_t len) {
 				c.attr.bg = attr[i] - 100 + 8;
 			} else {
 				std::cerr << "erresc(default): gfx attr " << attr[i] << " unknown\n",
-				csidump();
+				csiescseq.dump("");
 			}
 			break;
 		}
@@ -655,6 +657,27 @@ void Term::draw() {
 	xfinishdraw();
 	if (old_ocx != ocx || old_ocy != ocy)
 		xximspot(ocx, ocy);
+}
+
+void Term::strSequence(unsigned char ch) {
+	switch (ch) {
+	case 0x90:   /* DCS -- Device Control String */
+		ch = 'P';
+		break;
+	case 0x9f:   /* APC -- Application Program Command */
+		ch = '_';
+		break;
+	case 0x9e:   /* PM -- Privacy Message */
+		ch = '^';
+		break;
+	case 0x9d:   /* OSC -- Operating System Command */
+		ch = ']';
+		break;
+	}
+
+	strescseq.reset();
+	strescseq.type = ch;
+	esc |= ESC_STR;
 }
 
 } // end ns

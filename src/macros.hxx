@@ -13,7 +13,6 @@
 /* macros */
 #define LEN(a)			(sizeof(a) / sizeof(a)[0])
 #define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
-#define DEFAULT(a, b)		(a) = (a) ? (a) : (b)
 #define ATTRCMP(a, b)		((a).mode != (b).mode || (a).fg != (b).fg || \
 				(a).bg != (b).bg)
 #define TIMEDIFF(t1, t2)	((t1.tv_sec-t2.tv_sec)*1000 + \
@@ -26,9 +25,5 @@
 #define ISCONTROLC1(c)		(cosmos::in_range(c, 0x80, 0x9f))
 #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
 #define ISDELIM(u)		(u && wcschr(nst::config::WORDDELIMITERS, u))
-
-/* Arbitrary sizes */
-#define ESC_BUF_SIZ   (128*nst::utf8::UTF_SIZE)
-#define ESC_ARG_SIZ   16
 
 #endif // inc. guard

@@ -1634,7 +1634,7 @@ void
 xseticontitle(const char *p)
 {
 	XTextProperty prop;
-	DEFAULT(p, opt_title);
+	setDefault(p, opt_title);
 
 	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
@@ -1648,7 +1648,7 @@ void
 xsettitle(const char *p)
 {
 	XTextProperty prop;
-	DEFAULT(p, opt_title);
+	setDefault(p, opt_title);
 
 	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)

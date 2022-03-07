@@ -9,6 +9,7 @@
 #ifdef FULL_NST_CONFIG
 // nst
 #include "xtypes.hxx"
+#include "TTY.hxx"
 #endif
 
 namespace nst {

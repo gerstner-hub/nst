@@ -33,7 +33,6 @@
 #include "macros.hxx"
 #include "types.hxx"
 #include "st.h"
-#define FULL_NST_CONFIG
 /* function definitions used in nst_config.h */
 static void clipcopy(const Arg *);
 static void clippaste(const Arg *);
@@ -46,13 +45,14 @@ static void ttysend(const Arg *);
 static void printscreen(const Arg *);
 static void printsel(const Arg *);
 static void toggleprinter(const Arg *);
+#define FULL_NST_CONFIG
+/* nst_config.h for applying patches and the configuration. */
+#include "nst_config.h"
 #include "win.h"
 #include "xtypes.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
-/* nst_config.h for applying patches and the configuration. */
-#include "nst_config.h"
 #include "Cmdline.hxx"
 
 typedef nst::Glyph::Attr Attr;

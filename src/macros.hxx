@@ -24,6 +24,5 @@
 #define ISCONTROLC0(c)		((c < 0x1f) || (c) == 0x7f)
 #define ISCONTROLC1(c)		(cosmos::in_range(c, 0x80, 0x9f))
 #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
-#define ISDELIM(u)		(u && wcschr(nst::config::WORDDELIMITERS, u))
 
 #endif // inc. guard

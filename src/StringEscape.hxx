@@ -13,29 +13,33 @@ namespace nst {
 /* STR Escape sequence structs */
 /* ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\' */
 struct STREscape {
-public: // data
-	static constexpr int STR_ARG_SIZE = 16;
-	char type = 0;         /* ESC type ... */
-	char *buf = nullptr;   /* allocated raw string */
-	size_t siz = 0;        /* allocation size */
-	size_t len = 0;        /* raw string length */
-	char *args[STR_ARG_SIZE] = {nullptr};
-	int narg = 0;          /* nb of args */
+protected: // data
+
+	static constexpr int MAX_STR_ARGS = 16;
+	size_t m_alloc_size = 0;
+	size_t m_used_len = 0;
+
+	char *m_buf = nullptr; /* allocated raw string */
+	char *m_args[MAX_STR_ARGS] = {nullptr};
+	char m_esc_type = 0;
+	size_t m_num_args = 0;
+
 public: // functions
 
 	~STREscape() {
-		delete[] buf;
+		delete[] m_buf;
 	}
 
-	void resize(size_t alloc) {
-		buf = renew(buf, siz, alloc);
-		siz = alloc;
-	}
-
-	void reset();
+	void reset(const char type);
+	void add(const char *ch, size_t len);
 	void handle();
 
 protected: // functions
+
+	void resize(size_t alloc) {
+		m_buf = renew(m_buf, m_alloc_size, alloc);
+		m_alloc_size = alloc;
+	}
 
 	/// prints the current escape status to stderr
 	void dump(const char *prefix) const;

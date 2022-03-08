@@ -1,8 +1,8 @@
 // nst
-#include "StringEscape.hxx"
-#include "win.h"
 #include "nst_config.h"
+#include "StringEscape.hxx"
 #include "TTY.hxx"
+#include "win.h"
 
 // stdlib
 #include <iostream>
@@ -14,11 +14,9 @@ nst::STREscape strescseq;
 
 namespace nst {
 
-constexpr size_t STR_BUF_SIZE = 128 * utf8::UTF_SIZE;
+constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
 
 static void osc4_color_response(int num) {
-	int n;
-	char buf[32];
 	unsigned char r, g, b;
 
 	if (xgetcolor(num, &r, &g, &b)) {
@@ -26,15 +24,12 @@ static void osc4_color_response(int num) {
 		return;
 	}
 
-	n = snprintf(buf, sizeof(buf), "\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
-		     num, r, r, g, g, b, b);
+	const auto res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
 
-	g_tty.write(buf, n, true);
+	g_tty.write(res.c_str(), res.size(), true);
 }
 
 static void osc_color_response(int index, int num) {
-	int n;
-	char buf[32];
 	unsigned char r, g, b;
 
 	if (xgetcolor(index, &r, &g, &b)) {
@@ -42,38 +37,37 @@ static void osc_color_response(int index, int num) {
 		return;
 	}
 
-	n = snprintf(buf, sizeof buf, "\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007",
-		     num, r, r, g, g, b, b);
+	const auto res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
 
-	g_tty.write(buf, n, true);
+	g_tty.write(res.c_str(), res.size(), true);
 }
 
 void STREscape::handle() {
 	term.esc &= ~(ESC_STR_END|ESC_STR);
 	parse();
-	const int par = narg ? atoi(args[0]) : 0;
+	const int par = m_num_args ? atoi(m_args[0]) : 0;
 	char *p = nullptr;
 
-	switch (type) {
+	switch (m_esc_type) {
 	case ']': /* OSC -- Operating System Command */
 		switch (par) {
 		case 0:
-			if (narg > 1) {
-				xsettitle(args[1]);
-				xseticontitle(args[1]);
+			if (m_num_args > 1) {
+				xsettitle(m_args[1]);
+				xseticontitle(m_args[1]);
 			}
 			return;
 		case 1:
-			if (narg > 1)
-				xseticontitle(args[1]);
+			if (m_num_args > 1)
+				xseticontitle(m_args[1]);
 			return;
 		case 2:
-			if (narg > 1)
-				xsettitle(args[1]);
+			if (m_num_args > 1)
+				xsettitle(m_args[1]);
 			return;
 		case 52:
-			if (narg > 2 && config::ALLOWWINDOWOPS) {
-				char *dec = base64::decode(args[2]);
+			if (m_num_args > 2 && config::ALLOWWINDOWOPS) {
+				char *dec = base64::decode(m_args[2]);
 				if (dec) {
 					xsetsel(dec);
 					xclipcopy();
@@ -83,10 +77,10 @@ void STREscape::handle() {
 			}
 			return;
 		case 10:
-			if (narg < 2)
+			if (m_num_args < 2)
 				break;
 
-			p = args[1];
+			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
 				osc_color_response(config::DEFAULTFG, 10);
@@ -96,10 +90,10 @@ void STREscape::handle() {
 				term.redraw();
 			return;
 		case 11:
-			if (narg < 2)
+			if (m_num_args < 2)
 				break;
 
-			p = args[1];
+			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
 				osc_color_response(config::DEFAULTBG, 11);
@@ -109,10 +103,10 @@ void STREscape::handle() {
 				term.redraw();
 			return;
 		case 12:
-			if (narg < 2)
+			if (m_num_args < 2)
 				break;
 
-			p = args[1];
+			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
 				osc_color_response(config::DEFAULTCS, 12);
@@ -122,17 +116,17 @@ void STREscape::handle() {
 				term.redraw();
 			return;
 		case 4: /* color set */
-			if (narg < 3)
+			if (m_num_args < 3)
 				break;
-			p = args[2];
+			p = m_args[2];
 			/* FALLTHROUGH */
 		case 104: /* color reset */ {
-			int j = (narg > 1) ? atoi(args[1]) : -1;
+			int j = (m_num_args > 1) ? atoi(m_args[1]) : -1;
 
 			if (p && !std::strcmp(p, "?"))
 				osc4_color_response(j);
 			else if (xsetcolorname(j, p)) {
-				if (par == 104 && narg <= 1)
+				if (par == 104 && m_num_args <= 1)
 					return; /* color reset without parameter */
 				std::cerr << "erresc: invalid color j=" << j << ", p=" << (p ? p : "(null)") << "\n";
 			} else {
@@ -147,7 +141,7 @@ void STREscape::handle() {
 		}
 		break;
 	case 'k': /* old title set compatibility */
-		xsettitle(args[0]);
+		xsettitle(m_args[0]);
 		return;
 	case 'P': /* DCS -- Device Control String */
 	case '_': /* APC -- Application Program Command */
@@ -160,16 +154,16 @@ void STREscape::handle() {
 
 void STREscape::parse() {
 	int c;
-	char *p = buf;
+	char *p = m_buf;
 
-	narg = 0;
-	buf[len] = '\0';
+	m_num_args = 0;
+	m_buf[m_used_len] = '\0';
 
 	if (*p == '\0')
 		return;
 
-	while (narg < STR_ARG_SIZE) {
-		args[narg++] = p;
+	while (m_num_args < MAX_STR_ARGS) {
+		m_args[m_num_args++] = p;
 		while ((c = *p) != ';' && c != '\0')
 			++p;
 		if (c == '\0')
@@ -179,11 +173,11 @@ void STREscape::parse() {
 }
 
 void STREscape::dump(const char *prefix) const {
-	std::cerr << prefix << " ESC" << type;
+	std::cerr << prefix << " ESC" << m_esc_type;
 
 	unsigned int c;
-	for (size_t i = 0; i < len; i++) {
-		c = buf[i] & 0xFF;
+	for (size_t i = 0; i < m_used_len; i++) {
+		c = m_buf[i] & 0xFF;
 		if (c == '\0') {
 			std::cerr << '\n';
 			return;
@@ -202,8 +196,33 @@ void STREscape::dump(const char *prefix) const {
 	std::cerr << "ESC\\\n";
 }
 
-void STREscape::reset() {
-	resize(STR_BUF_SIZE);
+void STREscape::reset(const char type) {
+	resize(DEF_BUF_SIZE);
+	m_esc_type = type;
+}
+
+void STREscape::add(const char *ch, size_t len) {
+	if (m_used_len + len >= m_alloc_size) {
+		/*
+		 * Here is a bug in terminals. If the user never sends
+		 * some code to stop the str or esc command, then st
+		 * will stop responding. But this is better than
+		 * silently failing with unknown characters. At least
+		 * then users will report back.
+		 *
+		 * In the case users ever get fixed, here is the code:
+		 */
+		/*
+		 * term.esc = 0;
+		 * strescseq.handle();
+		 */
+		if (m_alloc_size > (SIZE_MAX - utf8::UTF_SIZE) / 2)
+			return;
+		resize(m_alloc_size << 1);
+	}
+
+	std::memmove(m_buf + m_used_len, ch, len);
+	m_used_len += len;
 }
 
 } // end ns

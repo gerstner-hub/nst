@@ -675,8 +675,7 @@ void Term::strSequence(unsigned char ch) {
 		break;
 	}
 
-	strescseq.reset();
-	strescseq.type = ch;
+	strescseq.reset(ch);
 	esc |= ESC_STR;
 }
 
@@ -859,27 +858,7 @@ void Term::putChar(Rune u) {
 			goto check_control_code;
 		}
 
-		if (strescseq.len + len >= strescseq.siz) {
-			/*
-			 * Here is a bug in terminals. If the user never sends
-			 * some code to stop the str or esc command, then st
-			 * will stop responding. But this is better than
-			 * silently failing with unknown characters. At least
-			 * then users will report back.
-			 *
-			 * In the case users ever get fixed, here is the code:
-			 */
-			/*
-			 * term.esc = 0;
-			 * strescseq.handle();
-			 */
-			if (strescseq.siz > (SIZE_MAX - utf8::UTF_SIZE) / 2)
-				return;
-			strescseq.resize(strescseq.siz << 1);
-		}
-
-		std::memmove(&strescseq.buf[strescseq.len], ch, len);
-		strescseq.len += len;
+		strescseq.add(ch, len);
 		return;
 	}
 

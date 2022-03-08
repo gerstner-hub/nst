@@ -5,6 +5,7 @@
 #include "win.h"
 
 // stdlib
+#include <cstdlib>
 #include <iostream>
 
 // cosmos
@@ -15,6 +16,8 @@ nst::STREscape strescseq;
 namespace nst {
 
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
+constexpr size_t MAX_STR_ARGS = 16;
+
 
 static void osc4_color_response(int num) {
 	unsigned char r, g, b;
@@ -45,28 +48,28 @@ static void osc_color_response(int index, int num) {
 void STREscape::handle() {
 	term.esc &= ~(ESC_STR_END|ESC_STR);
 	parse();
-	const int par = m_num_args ? atoi(m_args[0]) : 0;
-	char *p = nullptr;
+	const int par = m_args.empty() ? 0 : std::atoi(m_args[0]);
+	const char *p = nullptr;
 
 	switch (m_esc_type) {
 	case ']': /* OSC -- Operating System Command */
 		switch (par) {
 		case 0:
-			if (m_num_args > 1) {
+			if (m_args.size() > 1) {
 				xsettitle(m_args[1]);
 				xseticontitle(m_args[1]);
 			}
 			return;
 		case 1:
-			if (m_num_args > 1)
+			if (m_args.size() > 1)
 				xseticontitle(m_args[1]);
 			return;
 		case 2:
-			if (m_num_args > 1)
+			if (m_args.size() > 1)
 				xsettitle(m_args[1]);
 			return;
 		case 52:
-			if (m_num_args > 2 && config::ALLOWWINDOWOPS) {
+			if (m_args.size() > 2 && config::ALLOWWINDOWOPS) {
 				char *dec = base64::decode(m_args[2]);
 				if (dec) {
 					xsetsel(dec);
@@ -77,7 +80,7 @@ void STREscape::handle() {
 			}
 			return;
 		case 10:
-			if (m_num_args < 2)
+			if (m_args.size() < 2)
 				break;
 
 			p = m_args[1];
@@ -90,7 +93,7 @@ void STREscape::handle() {
 				term.redraw();
 			return;
 		case 11:
-			if (m_num_args < 2)
+			if (m_args.size() < 2)
 				break;
 
 			p = m_args[1];
@@ -103,7 +106,7 @@ void STREscape::handle() {
 				term.redraw();
 			return;
 		case 12:
-			if (m_num_args < 2)
+			if (m_args.size() < 2)
 				break;
 
 			p = m_args[1];
@@ -116,17 +119,17 @@ void STREscape::handle() {
 				term.redraw();
 			return;
 		case 4: /* color set */
-			if (m_num_args < 3)
+			if (m_args.size() < 3)
 				break;
 			p = m_args[2];
 			/* FALLTHROUGH */
 		case 104: /* color reset */ {
-			int j = (m_num_args > 1) ? atoi(m_args[1]) : -1;
+			int j = (m_args.size() > 1) ? atoi(m_args[1]) : -1;
 
 			if (p && !std::strcmp(p, "?"))
 				osc4_color_response(j);
 			else if (xsetcolorname(j, p)) {
-				if (par == 104 && m_num_args <= 1)
+				if (par == 104 && m_args.size() <= 1)
 					return; /* color reset without parameter */
 				std::cerr << "erresc: invalid color j=" << j << ", p=" << (p ? p : "(null)") << "\n";
 			} else {
@@ -153,17 +156,15 @@ void STREscape::handle() {
 }
 
 void STREscape::parse() {
-	int c;
-	char *p = m_buf;
-
-	m_num_args = 0;
-	m_buf[m_used_len] = '\0';
+	char *p = m_str.data();
+	m_args.clear();
 
 	if (*p == '\0')
 		return;
 
-	while (m_num_args < MAX_STR_ARGS) {
-		m_args[m_num_args++] = p;
+	int c;
+	while (m_args.size() < MAX_STR_ARGS) {
+		m_args.push_back(p);
 		while ((c = *p) != ';' && c != '\0')
 			++p;
 		if (c == '\0')
@@ -175,9 +176,7 @@ void STREscape::parse() {
 void STREscape::dump(const char *prefix) const {
 	std::cerr << prefix << " ESC" << m_esc_type;
 
-	unsigned int c;
-	for (size_t i = 0; i < m_used_len; i++) {
-		c = m_buf[i] & 0xFF;
+	for (auto c: m_str) {
 		if (c == '\0') {
 			std::cerr << '\n';
 			return;
@@ -197,12 +196,13 @@ void STREscape::dump(const char *prefix) const {
 }
 
 void STREscape::reset(const char type) {
-	resize(DEF_BUF_SIZE);
+	m_str.clear();
+	m_str.reserve(DEF_BUF_SIZE);
 	m_esc_type = type;
 }
 
 void STREscape::add(const char *ch, size_t len) {
-	if (m_used_len + len >= m_alloc_size) {
+	if (m_str.size() + len >= m_str.capacity()) {
 		/*
 		 * Here is a bug in terminals. If the user never sends
 		 * some code to stop the str or esc command, then st
@@ -214,15 +214,14 @@ void STREscape::add(const char *ch, size_t len) {
 		 */
 		/*
 		 * term.esc = 0;
-		 * strescseq.handle();
+		 * handle();
 		 */
-		if (m_alloc_size > (SIZE_MAX - utf8::UTF_SIZE) / 2)
+		if (m_str.size() > (SIZE_MAX - utf8::UTF_SIZE) / 2)
 			return;
-		resize(m_alloc_size << 1);
+		m_str.reserve(m_str.capacity() << 1);
 	}
 
-	std::memmove(m_buf + m_used_len, ch, len);
-	m_used_len += len;
+	m_str.append(ch, len);
 }
 
 } // end ns

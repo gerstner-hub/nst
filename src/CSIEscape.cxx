@@ -22,42 +22,53 @@ nst::CSIEscape csiescseq;
 
 namespace nst {
 
-void CSIEscape::parse(void) {
-	char *p = buf, *np;
-	long int v;
-
-	narg = 0;
-	if (*p == '?') {
-		priv = 1;
-		p++;
-	}
-
-	buf[len] = '\0';
-	while (p < buf + len) {
-		np = nullptr;
-		v = strtol(p, &np, 10);
-		if (np == p)
-			v = 0;
-		if (v == LONG_MAX || v == LONG_MIN)
-			v = -1;
-		arg[narg++] = v;
-		p = np;
-		if (*p != ';' || narg == ESC_ARG_SIZE)
-			break;
-		p++;
-	}
-	mode[0] = *p++;
-	mode[1] = (p < buf+len) ? *p : '\0';
+namespace {
+constexpr size_t MAX_ARG_SIZE = 16;
 }
 
-void CSIEscape::dump(const char *prefix) {
+CSIEscape::CSIEscape() {
+	m_args.reserve(MAX_ARG_SIZE);
+	m_str.reserve(MAX_STR_SIZE);
+}
+
+void CSIEscape::parse(void) {
+	m_args.clear();
+
+	auto it = m_str.begin();
+	if (*it == '?') {
+		m_priv = true;
+		it++;
+	}
+
+	long int v;
+	size_t parsed;
+
+	while (it < m_str.end()) {
+		try {
+			v = std::stol(&(*it), &parsed);
+			it += parsed;
+		} catch(const std::invalid_argument &) {
+			v = 0;
+		} catch(const std::out_of_range &) {
+			v = -1;
+		}
+
+		m_args.push_back(v);
+		if (*it != ';' || m_args.size() == MAX_ARG_SIZE)
+			break;
+		it++;
+	}
+
+	m_mode[0] = *it++;
+	m_mode[1] = (it < m_str.end()) ? *it : '\0';
+}
+
+void CSIEscape::dump(const char *prefix) const {
 	std::cerr << prefix << " ESC[";
 
-	unsigned int c;
-	for (size_t i = 0; i < len; i++) {
-		c = buf[i] & 0xff;
+	for (auto c: m_str) {
 		if (std::isprint(c)) {
-			std::cerr << (char)c;
+			std::cerr << c;
 		} else if (c == '\n') {
 			std::cerr << "(\\n)";
 		} else if (c == '\r') {
@@ -72,25 +83,29 @@ void CSIEscape::dump(const char *prefix) {
 }
 
 void CSIEscape::handle() {
-	switch (mode[0]) {
+
+	ensureArg(0, 0);
+	auto &arg0 = m_args[0];
+
+	switch (m_mode[0]) {
 	default:
 		/* cosmos_throw RuntimeError("bad CSIEscape"); */
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
-		setDefault(arg[0], 1);
-		term.insertBlank(arg[0]);
+		setDefault(arg0, 1);
+		term.insertBlank(arg0);
 		return;
 	case 'A': /* CUU -- Cursor <n> Up */
-		setDefault(arg[0], 1);
-		term.moveTo(term.c.x, term.c.y - arg[0]);
+		setDefault(arg0, 1);
+		term.moveTo(term.c.x, term.c.y - arg0);
 		return;
 	case 'B': /* CUD -- Cursor <n> Down */
 	case 'e': /* VPR --Cursor <n> Down */
-		setDefault(arg[0], 1);
-		term.moveTo(term.c.x, term.c.y + arg[0]);
+		setDefault(arg0, 1);
+		term.moveTo(term.c.x, term.c.y + arg0);
 		return;
 	case 'i': /* MC -- Media Copy */
-		switch (arg[0]) {
+		switch (arg0) {
 		case 0:
 			term.dump();
 			break;
@@ -109,34 +124,35 @@ void CSIEscape::handle() {
 		}
 		return;
 	case 'c': /* DA -- Device Attributes */
-		if (arg[0] == 0)
-			g_tty.write(config::VTIDEN, strlen(config::VTIDEN), 0);
+		if (arg0 == 0)
+			g_tty.write(config::VTIDEN, std::strlen(config::VTIDEN), 0);
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
-		setDefault(arg[0], 1);
-		if (term.lastc)
-			while (arg[0]-- > 0)
+		setDefault(arg0, 1);
+		if (term.lastc) {
+			while (arg0-- > 0)
 				term.putChar(term.lastc);
+		}
 		return;
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */
-		setDefault(arg[0], 1);
-		term.moveTo(term.c.x + arg[0], term.c.y);
+		setDefault(arg0, 1);
+		term.moveTo(term.c.x + arg0, term.c.y);
 		return;
 	case 'D': /* CUB -- Cursor <n> Backward */
-		setDefault(arg[0], 1);
-		term.moveTo(term.c.x - arg[0], term.c.y);
+		setDefault(arg0, 1);
+		term.moveTo(term.c.x - arg0, term.c.y);
 		return;
 	case 'E': /* CNL -- Cursor <n> Down and first col */
-		setDefault(arg[0], 1);
-		term.moveTo(0, term.c.y + arg[0]);
+		setDefault(arg0, 1);
+		term.moveTo(0, term.c.y + arg0);
 		return;
 	case 'F': /* CPL -- Cursor <n> Up and first col */
-		setDefault(arg[0], 1);
-		term.moveTo(0, term.c.y - arg[0]);
+		setDefault(arg0, 1);
+		term.moveTo(0, term.c.y - arg0);
 		return;
 	case 'g': /* TBC -- Tabulation clear */
-		switch (arg[0]) {
+		switch (arg0) {
 		case 0: /* clear current tab stop */
 			term.tabs[term.c.x] = 0;
 			return;
@@ -149,21 +165,21 @@ void CSIEscape::handle() {
 		break;
 	case 'G': /* CHA -- Move to <col> */
 	case '`': /* HPA */
-		setDefault(arg[0], 1);
-		term.moveTo(arg[0] - 1, term.c.y);
+		setDefault(arg0, 1);
+		term.moveTo(arg0 - 1, term.c.y);
 		return;
 	case 'H': /* CUP -- Move to <row> <col> */
 	case 'f': /* HVP */
-		setDefault(arg[0], 1);
-		setDefault(arg[1], 1);
-		term.moveAbsTo(arg[1] - 1, arg[0] - 1);
+		setDefault(arg0, 1);
+		ensureArg(1, 1);
+		term.moveAbsTo(m_args[1] - 1, arg0 - 1);
 		return;
 	case 'I': /* CHT -- Cursor Forward Tabulation <n> tab stops */
-		setDefault(arg[0], 1);
-		term.putTab(arg[0]);
+		setDefault(arg0, 1);
+		term.putTab(arg0);
 		return;
 	case 'J': /* ED -- Clear screen */
-		switch (arg[0]) {
+		switch (arg0) {
 		case 0: /* below */
 			term.clearRegion(term.c.x, term.c.y, term.col - 1, term.c.y);
 			if (term.c.y < term.row - 1) {
@@ -183,7 +199,7 @@ void CSIEscape::handle() {
 		}
 		break;
 	case 'K': /* EL -- Clear line */
-		switch (arg[0]) {
+		switch (arg0) {
 		case 0: /* right */
 			term.clearRegion(term.c.x, term.c.y, term.col - 1, term.c.y);
 			return;
@@ -196,60 +212,59 @@ void CSIEscape::handle() {
 		}
 		return;
 	case 'S': /* SU -- Scroll <n> line up */
-		setDefault(arg[0], 1);
-		term.scrollUp(term.top, arg[0]);
+		setDefault(arg0, 1);
+		term.scrollUp(term.top, arg0);
 		return;
 	case 'T': /* SD -- Scroll <n> line down */
-		setDefault(arg[0], 1);
-		term.scrollDown(term.top, arg[0]);
+		setDefault(arg0, 1);
+		term.scrollDown(term.top, arg0);
 		return;
 	case 'L': /* IL -- Insert <n> blank lines */
-		setDefault(arg[0], 1);
-		term.insertBlankLine(arg[0]);
+		setDefault(arg0, 1);
+		term.insertBlankLine(arg0);
 		return;
 	case 'l': /* RM -- Reset Mode */
-		term.setMode(priv, 0, arg, narg);
+		term.setMode(m_priv, 0, m_args.data(), m_args.size());
 		return;
 	case 'M': /* DL -- Delete <n> lines */
-		setDefault(arg[0], 1);
-		term.deleteLine(arg[0]);
+		setDefault(arg0, 1);
+		term.deleteLine(arg0);
 		return;
 	case 'X': /* ECH -- Erase <n> char */
-		setDefault(arg[0], 1);
-		term.clearRegion(term.c.x, term.c.y, term.c.x + arg[0] - 1, term.c.y);
+		setDefault(arg0, 1);
+		term.clearRegion(term.c.x, term.c.y, term.c.x + arg0 - 1, term.c.y);
 		return;
 	case 'P': /* DCH -- Delete <n> char */
-		setDefault(arg[0], 1);
-		term.deleteChar(arg[0]);
+		setDefault(arg0, 1);
+		term.deleteChar(arg0);
 		return;
 	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
-		setDefault(arg[0], 1);
-		term.putTab(-arg[0]);
+		setDefault(arg0, 1);
+		term.putTab(-arg0);
 		return;
 	case 'd': /* VPA -- Move to <row> */
-		setDefault(arg[0], 1);
-		term.moveAbsTo(term.c.x, arg[0] - 1);
+		setDefault(arg0, 1);
+		term.moveAbsTo(term.c.x, arg0 - 1);
 		return;
 	case 'h': /* SM -- Set terminal mode */
-		term.setMode(priv, 1, arg, narg);
+		term.setMode(m_priv, 1, m_args.data(), m_args.size());
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		term.setAttr(arg, narg);
+		term.setAttr(m_args.data(), m_args.size());
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
-		if (arg[0] == 6) {
-			char pbuf[40];
-			const int plen = snprintf(pbuf, sizeof(pbuf), "\033[%i;%iR", term.c.y + 1, term.c.x + 1);
-			g_tty.write(pbuf, plen, 0);
+		if (arg0 == 6) {
+			auto buf = cosmos::sprintf("\033[%i;%iR", term.c.y + 1, term.c.x + 1);
+			g_tty.write(buf.c_str(), buf.size(), 0);
 		}
 		return;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
-		if (priv) {
+		if (m_priv) {
 			break;
 		} else {
-			setDefault(arg[0], 1);
-			setDefault(arg[1], term.row);
-			term.setScroll(arg[0] - 1, arg[1] - 1);
+			setDefault(arg0, 1);
+			ensureArg(1, term.row);
+			term.setScroll(arg0 - 1, m_args[1] - 1);
 			term.moveAbsTo(0, 0);
 		}
 		return;
@@ -260,9 +275,9 @@ void CSIEscape::handle() {
 		term.cursorControl(Term::TCursor::Control::LOAD);
 		return;
 	case ' ':
-		switch (mode[1]) {
+		switch (m_mode[1]) {
 		case 'q': /* DECSCUSR -- Set Cursor Style */
-			if (xsetcursor(arg[0]) == 0)
+			if (xsetcursor(arg0) == 0)
 				return;
 			break;
 		default:

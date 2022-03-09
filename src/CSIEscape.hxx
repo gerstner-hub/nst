@@ -4,27 +4,41 @@
 // libc
 #include <stddef.h>
 
+// stdlib
+#include <string>
+#include <vector>
+
 // nst
-#include "macros.hxx"
 #include "codecs.hxx"
+#include "st.h"
 
 namespace nst {
 
 /* CSI (Control Sequence Introducer) Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
 struct CSIEscape {
-public: // data
-	static constexpr size_t ESC_BUF_SIZE = 128 * utf8::UTF_SIZE;
-	static constexpr size_t ESC_ARG_SIZE = 16;
+protected: // data
 
-	char buf[ESC_BUF_SIZE] = {0}; /* raw string */
-	size_t len = 0;            /* raw string length */
-	char priv = 0;
-	int arg[ESC_ARG_SIZE] = {0};
-	int narg = 0;              /* nb of args */
-	char mode[2] = {0};
+	bool m_priv = false;
+	char m_mode[2] = {0};
+	std::vector<int> m_args;
+	std::string m_str;
+	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
+
+protected: // functions
+
+	//! makes sure the given argument index exists in m_args and if zero
+	//! sets it to defval
+	void ensureArg(size_t index, int defval) {
+		while (m_args.size() < (index + 1))
+			m_args.push_back(0);
+
+		setDefault(m_args[index], defval);
+	}
 
 public: // functions
+
+	CSIEscape();
 
 	void handle(void);
 	void parse(void);
@@ -34,7 +48,14 @@ public: // functions
 	 */
 	int eschandle(unsigned char);
 
-	void dump(const char *prefix);
+	void dump(const char *prefix) const;
+
+	//! adds the given character to the sequence, returns whether the
+	//! maximum sequence length has been reached
+	bool add(char ch) {
+		m_str.push_back(ch);
+		return m_str.length() >= MAX_STR_SIZE;
+	}
 };
 
 } // end ns

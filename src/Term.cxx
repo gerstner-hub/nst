@@ -9,14 +9,15 @@
 #include "cosmos/algs.hxx"
 
 // nst
-#include "nst_config.h"
+#include "codecs.hxx"
 #include "CSIEscape.hxx"
+#include "macros.hxx"
+#include "nst_config.h"
+#include "Selection.hxx"
+#include "st.h"
+#include "StringEscape.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
-#include "Selection.hxx"
-#include "StringEscape.hxx"
-#include "codecs.hxx"
-#include "st.h"
 #include "win.h"
 
 using cosmos::in_range;
@@ -878,8 +879,8 @@ check_control_code:
 		return;
 	} else if (esc & ESC_START) {
 		if (esc & ESC_CSI) {
-			csiescseq.buf[csiescseq.len++] = u;
-			if (in_range(u, 0x40, 0x7E) || csiescseq.len >= sizeof(csiescseq.buf)-1) {
+			const bool max_reached = csiescseq.add(u);
+			if (in_range(u, 0x40, 0x7E) || max_reached) {
 				esc = 0;
 				csiescseq.parse();
 				csiescseq.handle();

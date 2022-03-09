@@ -12,7 +12,6 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "codecs.hxx"
-#include "macros.hxx"
 #include "nst_config.h"
 #include "st.h"
 

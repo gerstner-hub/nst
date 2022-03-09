@@ -11,7 +11,6 @@
 // nst
 #include "codecs.hxx"
 #include "CSIEscape.hxx"
-#include "macros.hxx"
 #include "nst_config.h"
 #include "Selection.hxx"
 #include "st.h"
@@ -23,6 +22,22 @@
 using cosmos::in_range;
 
 nst::Term term;
+
+namespace {
+
+bool isControlC0(const nst::Rune &c) {
+	return c < 0x1f || c == 0x7f;
+}
+
+bool isControlC1(const nst::Rune &c) {
+	return in_range(c, 0x80, 0x9f);
+}
+
+bool isControlChar(const nst::Rune &c) {
+	return isControlC0(c) || isControlC1(c);
+}
+
+}
 
 namespace nst {
 
@@ -833,7 +848,7 @@ void Term::putChar(Rune u) {
 	char ch[nst::utf8::UTF_SIZE];
 	int width, len;
 
-	const int control = ISCONTROL(u);
+	const int control = isControlChar(u);
 	if (u < 127 || !mode.test(Mode::UTF8)) {
 		ch[0] = u;
 		width = len = 1;
@@ -853,7 +868,7 @@ void Term::putChar(Rune u) {
 	 * character.
 	 */
 	if (esc & ESC_STR) {
-		if (u == '\a' || u == 030 || u == 032 || u == 033 || ISCONTROLC1(u)) {
+		if (u == '\a' || u == 030 || u == 032 || u == 033 || isControlC1(u)) {
 			esc &= ~(ESC_START|ESC_STR);
 			esc |= ESC_STR_END;
 			goto check_control_code;
@@ -965,7 +980,7 @@ int Term::write(const char *buf, int buflen, int show_ctrl) {
 			u = buf[n] & 0xFF;
 			charsize = 1;
 		}
-		if (show_ctrl && ISCONTROL(u)) {
+		if (show_ctrl && isControlChar(u)) {
 			if (u & 0x80) {
 				u &= 0x7f;
 				putChar('^');

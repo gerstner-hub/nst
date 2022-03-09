@@ -33,6 +33,15 @@ public: // data
 	AttrBitMask mode;  /* attribute flags */
 	uint32_t fg = 0;  /* foreground  */
 	uint32_t bg = 0;  /* background  */
+
+public: // functions
+
+	bool isFgTrueColor() const {
+		return 1 << 24 & fg;
+	}
+	bool isBgTrueColor() const {
+		return 1 << 24 & bg;
+	}
 };
 
 typedef Glyph *Line;

@@ -15,7 +15,6 @@
 
 // nst
 #include "TTY.hxx"
-#include "macros.hxx"
 #include "nst_config.h"
 #include "st.h"
 
@@ -132,7 +131,7 @@ size_t TTY::read() {
 	int ret, written;
 
 	/* append read bytes to unprocessed bytes */
-	ret = ::read(m_cmdfd, buf+buflen, LEN(buf)-buflen);
+	ret = ::read(m_cmdfd, buf+buflen, sizeof(buf)-buflen);
 
 	switch (ret) {
 	case 0:

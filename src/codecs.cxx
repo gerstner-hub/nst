@@ -3,7 +3,6 @@
 
 // nst
 #include "codecs.hxx"
-#include "macros.hxx"
 #include "Glyph.hxx"
 
 // libcosmos

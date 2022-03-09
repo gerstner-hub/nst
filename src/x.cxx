@@ -30,7 +30,6 @@
 #include "cosmos/errors/RuntimeError.hxx"
 
 // nst
-#include "macros.hxx"
 #include "types.hxx"
 #include "st.h"
 /* function definitions used in nst_config.h */
@@ -48,12 +47,13 @@ static void toggleprinter(const Arg *);
 #define FULL_NST_CONFIG
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"
-#include "win.h"
-#include "xtypes.hxx"
+#include "Cmdline.hxx"
+#include "codecs.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
-#include "Cmdline.hxx"
+#include "win.h"
+#include "xtypes.hxx"
 
 typedef nst::Glyph::Attr Attr;
 using namespace nst;
@@ -69,6 +69,12 @@ using cosmos::RuntimeError;
 #define TRUERED(x)		(((x) & 0xff0000) >> 8)
 #define TRUEGREEN(x)		(((x) & 0xff00))
 #define TRUEBLUE(x)		(((x) & 0xff) << 8)
+#define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
+#define TIMEDIFF(t1, t2)	((t1.tv_sec-t2.tv_sec)*1000 + \
+				(t1.tv_nsec-t2.tv_nsec)/1E6)
+#define ATTRCMP(a, b)		((a).mode != (b).mode || (a).fg != (b).fg || \
+				(a).bg != (b).bg)
+#define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
 
 typedef XftDraw *Draw;
 typedef XftColor Color;
@@ -378,7 +384,7 @@ mousesel(XEvent *e, int done)
 	size_t type;
 	uint state = e->xbutton.state & ~(Button1Mask | forcemousemod);
 
-	for (type = 1; type < LEN(selmasks); ++type) {
+	for (type = 1; type < cosmos::num_elements(selmasks); ++type) {
 		if (match(selmasks[type], state)) {
 			seltype = static_cast<Selection::Type>(type);
 			break;
@@ -480,7 +486,7 @@ mouseaction(XEvent *e, uint release)
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
 
-	for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
+	for (ms = mshortcuts; ms < mshortcuts + cosmos::num_elements(mshortcuts); ms++) {
 		if (ms->release == release &&
 		    ms->button == e->xbutton.button &&
 		    (match(ms->mod, state) ||  /* exact or forced */
@@ -833,7 +839,7 @@ xloadcols(void)
 		for (cp = dc.col; cp < &dc.col[dc.collen]; ++cp)
 			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
 	} else {
-		dc.collen = std::max(LEN(colorname), 256UL);
+		dc.collen = std::max(cosmos::num_elements(colorname), 256UL);
 		dc.col = new Color[dc.collen];
 	}
 
@@ -1431,7 +1437,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		base.fg = defaultattr;
 	}
 
-	if (IS_TRUECOL(base.fg)) {
+	if (base.isFgTrueColor()) {
 		colfg.alpha = 0xffff;
 		colfg.red = TRUERED(base.fg);
 		colfg.green = TRUEGREEN(base.fg);
@@ -1442,7 +1448,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		fg = &dc.col[base.fg];
 	}
 
-	if (IS_TRUECOL(base.bg)) {
+	if (base.isBgTrueColor()) {
 		colbg.alpha = 0xffff;
 		colbg.green = TRUEGREEN(base.bg);
 		colbg.red = TRUERED(base.bg);
@@ -1837,16 +1843,16 @@ kmap(KeySym k, uint state)
 	size_t i;
 
 	/* Check for mapped keys out of X11 function keys. */
-	for (i = 0; i < LEN(mappedkeys); i++) {
+	for (i = 0; i < cosmos::num_elements(mappedkeys); i++) {
 		if (mappedkeys[i] == k)
 			break;
 	}
-	if (i == LEN(mappedkeys)) {
+	if (i == cosmos::num_elements(mappedkeys)) {
 		if ((k & 0xFFFF) < 0xFD00)
 			return NULL;
 	}
 
-	for (kp = key; kp < key + LEN(key); kp++) {
+	for (kp = key; kp < key + cosmos::num_elements(key); kp++) {
 		if (kp->k != k)
 			continue;
 
@@ -1887,7 +1893,7 @@ kpress(XEvent *ev)
 	else
 		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
 	/* 1. shortcuts */
-	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
+	for (bp = shortcuts; bp < shortcuts + cosmos::num_elements(shortcuts); bp++) {
 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
 			bp->func(&(bp->arg));
 			return;

@@ -6,6 +6,7 @@
 
 // cosmos
 #include "cosmos/types.hxx"
+#include "cosmos/fs/StreamFile.hxx"
 #include "cosmos/proc/SignalFD.hxx"
 
 namespace nst {
@@ -23,15 +24,13 @@ public: // types
 		const cosmos::StringVector &args;
 	};
 
-public: // data
-	int iofd = -1;
-
 protected: // data
 
 	Term *m_term;
 	pid_t m_pid = -1;
 	int m_cmdfd = -1;
 	cosmos::SignalFD m_child_sig_fd;
+	cosmos::StreamFile m_io_file;
 
 public: // functions
 
@@ -41,9 +40,8 @@ public: // functions
 	void write(const char *s, size_t n, bool may_echo);
 	void resize(int tw, int th);
 	void hangup();
-	void sendBreak();
 	void printToIoFile(const char *s, size_t len) {
-		if (iofd == -1)
+		if (!m_io_file.isOpen())
 			return;
 		doPrintToIoFile(s, len);
 	}
@@ -58,6 +56,7 @@ protected: // functions
 	void executeShell(const Params &pars);
 	void doPrintToIoFile(const char *s, size_t len);
 	void initSignalHandling();
+	void sendBreak();
 };
 
 } // end ns

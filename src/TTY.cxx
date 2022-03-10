@@ -41,15 +41,23 @@ int TTY::create(const Params &pars) {
 	if (!pars.out.empty()) {
 		m_term->mode.set(Term::Mode::PRINT);
 		if (pars.out == "-")
-			iofd = STDOUT_FILENO;
-		else
-			iofd = open(pars.out.c_str(), O_WRONLY|O_CREAT, 0666);
-		if (iofd < 0) {
-			std::cerr << "Error opening " << pars.out << ": " << strerror(errno) << std::endl;
+			m_io_file = m_io_file = cosmos::StreamFile(cosmos::stdout, false);
+		else {
+			try {
+				m_io_file.open(
+					pars.out,
+					cosmos::OpenMode::WRITE_ONLY,
+					cosmos::OpenFlags({cosmos::OpenSettings::CREATE,cosmos::OpenSettings::TRUNCATE}),
+					cosmos::FileMode(0666)
+				);
+			}
+			catch (const std::exception &ex) {
+				std::cerr << "Error opening " << pars.out << ": " << ex.what() << std::endl;
+			}
 		}
 	}
 	else {
-		iofd = -1;
+		m_io_file.close();
 	}
 
 	// operate an a real TTY line, running stty on it
@@ -77,7 +85,7 @@ int TTY::create(const Params &pars) {
 		cosmos_throw (ApiError("fork failed"));
 		break;
 	case 0:
-		close(iofd);
+		m_io_file.close();
 		close(master);
 		setsid(); /* create a new process group */
 		dup2(slave, 0);
@@ -323,18 +331,11 @@ void TTY::sendBreak() {
 }
 
 void TTY::doPrintToIoFile(const char *s, size_t len) {
-	ssize_t r;
-
-	while (len > 0) {
-		r = ::write(iofd, s, len);
-		if (r < 0) {
-			perror("Error writing to output file");
-			close(iofd);
-			iofd = -1;
-			return;
-		}
-		len -= r;
-		s += r;
+	try {
+		m_io_file.writeAll(s, len);
+	} catch (const std::exception &ex) {
+		std::cerr << "error writing to output file: " << ex.what() << std::endl;
+		m_io_file.close();
 	}
 }
 

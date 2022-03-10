@@ -48,7 +48,7 @@ int TTY::create(const Params &pars) {
 					pars.out,
 					cosmos::OpenMode::WRITE_ONLY,
 					cosmos::OpenFlags({cosmos::OpenSettings::CREATE,cosmos::OpenSettings::TRUNCATE}),
-					cosmos::FileMode(0666)
+					cosmos::FileMode(0640)
 				);
 			}
 			catch (const std::exception &ex) {

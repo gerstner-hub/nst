@@ -24,6 +24,7 @@
 #include <string>
 
 // cosmos
+#include "cosmos/Init.hxx"
 #include "cosmos/algs.hxx"
 #include "cosmos/formatting.hxx"
 #include "cosmos/errors/ApiError.hxx"
@@ -2130,6 +2131,7 @@ int
 main(int argc, const char **argv)
 {
 	try {
+		cosmos::Init init;
 		fixup_colornames();
 		xsetcursor(cursorshape);
 

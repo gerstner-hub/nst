@@ -1987,11 +1987,14 @@ run(void)
 	};
 	int ttyfd = g_tty.create(params);
 	cresize(w, h);
+	auto sigfd = g_tty.getSigFD();
+	int maxfd = std::max(std::max(xfd, ttyfd), sigfd);
 
 	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0, 0};;) {
 		FD_ZERO(&rfd);
 		FD_SET(ttyfd, &rfd);
 		FD_SET(xfd, &rfd);
+		FD_SET(sigfd, &rfd);
 
 		if (XPending(xw.dpy))
 			timeout = 0;  /* existing events might not set xfd */
@@ -2000,13 +2003,15 @@ run(void)
 		seltv.tv_nsec = 1E6 * (timeout - 1E3 * seltv.tv_sec);
 		tv = timeout >= 0 ? &seltv : NULL;
 
-		if (pselect(std::max(xfd, ttyfd)+1, &rfd, NULL, NULL, tv, NULL) < 0) {
+		if (pselect(maxfd + 1, &rfd, NULL, NULL, tv, NULL) < 0) {
 			if (errno == EINTR)
 				continue;
 			cosmos_throw (ApiError("select failed"));
 		}
 		clock_gettime(CLOCK_MONOTONIC, &now);
 
+		if (FD_ISSET(sigfd, &rfd))
+			g_tty.sigChildEvent();
 		if (FD_ISSET(ttyfd, &rfd))
 			g_tty.read();
 

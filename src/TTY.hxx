@@ -6,13 +6,13 @@
 
 // cosmos
 #include "cosmos/types.hxx"
+#include "cosmos/proc/SignalFD.hxx"
 
 namespace nst {
 
 void sendbreak(const Arg *);
 
 class TTY {
-	friend void sigchld(int);
 	friend void sendbreak(const Arg*);
 public: // types
 
@@ -31,6 +31,7 @@ protected: // data
 	Term *m_term;
 	pid_t m_pid = -1;
 	int m_cmdfd = -1;
+	cosmos::SignalFD m_child_sig_fd;
 
 public: // functions
 
@@ -47,13 +48,16 @@ public: // functions
 		doPrintToIoFile(s, len);
 	}
 
+	auto getSigFD() { return m_child_sig_fd.raw().raw(); }
+	void sigChildEvent();
+
 protected: // functions
 
 	void writeRaw(const char *s, size_t n);
 	void runStty(const Params &pars);
 	void executeShell(const Params &pars);
-	void sigChildEvent();
 	void doPrintToIoFile(const char *s, size_t len);
+	void initSignalHandling();
 };
 
 } // end ns

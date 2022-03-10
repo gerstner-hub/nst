@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <pty.h>
 #include <pwd.h>
-#include <sys/wait.h>
+#include <signal.h>
 #include <unistd.h>
 
 // libc
@@ -23,6 +23,7 @@
 #include "cosmos/errors/InternalError.hxx"
 #include "cosmos/errors/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
+#include "cosmos/proc/Process.hxx"
 
 nst::TTY g_tty;
 
@@ -30,19 +31,8 @@ namespace nst {
 
 using cosmos::ApiError;
 
-// TODO: replace with libcosmos signal handler
-void sigchld(int) {
-	try {
-		g_tty.sigChildEvent();
-	} catch (const std::exception &e) {
-		std::cerr << "waiting for child failed: " << e.what() << std::endl;
-		_exit(0);
-	}
-}
-
 // TODO: check if we can C++ify this callback
-void sendbreak(const Arg *)
-{
+void sendbreak(const Arg *) {
 	g_tty.sendBreak();
 }
 
@@ -80,6 +70,8 @@ int TTY::create(const Params &pars) {
 		cosmos_throw (ApiError("openpty failed"));
 	}
 
+	initSignalHandling();
+
 	switch (m_pid = fork()) {
 	case -1:
 		cosmos_throw (ApiError("fork failed"));
@@ -101,7 +93,6 @@ int TTY::create(const Params &pars) {
 	default:
 		close(slave);
 		m_cmdfd = master;
-		signal(SIGCHLD, sigchld);
 		break;
 	}
 	return m_cmdfd;
@@ -307,15 +298,17 @@ void TTY::executeShell(const Params &pars)
 }
 
 void TTY::sigChildEvent() {
-	int stat;
-	pid_t p;
+	cosmos::SignalFD::SigInfo info;
+	m_child_sig_fd.readEvent(info);
 
-	if ((p = waitpid(m_pid, &stat, WNOHANG)) < 0)
-		cosmos_throw (ApiError(cosmos::sprintf("waiting for pid %hd failed", m_pid)));
-
-	if (p != m_pid)
-		// should actually never happen
+	if (info.getSignal() != cosmos::Signal(SIGCHLD))
+		// should never happen
 		return;
+	else if (info.getSenderPID() != m_pid)
+		// should never happen
+		return;
+
+	auto stat = info.getChildStatus();
 
 	if (WIFEXITED(stat) && WEXITSTATUS(stat))
 		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child exited with status %d", WEXITSTATUS(stat))));
@@ -343,6 +336,14 @@ void TTY::doPrintToIoFile(const char *s, size_t len) {
 		len -= r;
 		s += r;
 	}
+}
+
+void TTY::initSignalHandling() {
+	if (m_child_sig_fd.valid())
+		// already setup
+		return;
+	cosmos::g_process.blockSignals({cosmos::Signal(SIGCHLD)});
+	m_child_sig_fd.create({cosmos::Signal(SIGCHLD)});
 }
 
 } // end ns

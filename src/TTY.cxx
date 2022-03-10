@@ -22,8 +22,10 @@
 #include "cosmos/errors/ApiError.hxx"
 #include "cosmos/errors/InternalError.hxx"
 #include "cosmos/errors/RuntimeError.hxx"
+#include "cosmos/proc/SubProc.hxx"
 #include "cosmos/formatting.hxx"
 #include "cosmos/proc/Process.hxx"
+#include "cosmos/algs.hxx"
 
 nst::TTY g_tty;
 
@@ -107,21 +109,24 @@ int TTY::create(const Params &pars) {
 }
 
 void TTY::runStty(const Params &pars) {
-	std::stringstream cmd;
-	cmd << config::STTY_ARGS;
+	cosmos::SubProc stty;
+	auto &args = stty.args();
+	// append fixed config strings
+	cosmos::append(args, config::STTY_ARGS);
+	// append STL strings
+	cosmos::append(args, pars.args);
 
-	bool first = true;
+	try {
+		stty.run();
+		auto res = stty.wait();
 
-	for (auto &arg: pars.args) {
-		if(first)
-			first = false;
-		else
-			cmd << " ";
-		cmd << arg;
+		if (res.exited() || res.exitStatus() != 0) {
+			cosmos_throw (cosmos::RuntimeError("stty returned non-zero"));
+		}
 	}
-
-	if (system(cmd.str().c_str()) != 0)
-		perror("Couldn't call stty");
+	catch (const std::exception &ex) {
+		std::cerr << "couldn't call stty: " << ex.what() << std::endl;
+	}
 }
 
 size_t TTY::read() {

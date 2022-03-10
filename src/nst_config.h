@@ -1,6 +1,9 @@
 #ifndef NST_CONFIG_H
 #define NST_CONFIG_H
 
+// stdlib
+#include <array>
+
 // Xlib
 #include <X11/cursorfont.h>
 #include <X11/Xlib.h>
@@ -30,7 +33,7 @@ constexpr const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohi
  */
 constexpr const wchar_t *WORDDELIMITERS = L" ";
 
-constexpr const char *STTY_ARGS = "stty raw pass8 nl -echo -iexten -cstopb 38400";
+constexpr std::array<const char*, 8> STTY_ARGS({"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"});
 
 /*
  * What program is execed by st depends on these precedence rules:

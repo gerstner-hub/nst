@@ -11,9 +11,11 @@
 template <typename T>
 T* renew(T *oldptr, size_t oldsize, size_t newsize) {
 	T* ret = new T[newsize];
-	std::memcpy(ret, oldptr, sizeof(T) * std::min(oldsize, newsize));
 
-	delete[] oldptr;
+	if (oldptr) {
+		std::memcpy(ret, oldptr, sizeof(T) * std::min(oldsize, newsize));
+		delete[] oldptr;
+	}
 	return ret;
 }
 

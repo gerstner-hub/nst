@@ -38,36 +38,24 @@ void sendbreak(const Arg *) {
 	g_tty.sendBreak();
 }
 
+TTY::~TTY() {
+	if (m_child_proc.running()) {
+		hangup();
+		close(m_cmdfd);
+		m_child_proc.wait();
+	}
+}
+
 int TTY::create(const Params &pars) {
 
-	if (!pars.out.empty()) {
-		m_term->mode.set(Term::Mode::PRINT);
-		if (pars.out == "-")
-			m_io_file = m_io_file = cosmos::StreamFile(cosmos::stdout, false);
-		else {
-			try {
-				m_io_file.open(
-					pars.out,
-					cosmos::OpenMode::WRITE_ONLY,
-					cosmos::OpenFlags({cosmos::OpenSettings::CREATE,cosmos::OpenSettings::TRUNCATE}),
-					cosmos::FileMode(0640)
-				);
-			}
-			catch (const std::exception &ex) {
-				std::cerr << "Error opening " << pars.out << ": " << ex.what() << std::endl;
-			}
-		}
-	}
-	else {
-		m_io_file.close();
-	}
+	setupIOFile(pars.out);
 
 	// operate an a real TTY line, running stty on it
 	if (!pars.line.empty()) {
 		if ((m_cmdfd = open(pars.line.c_str(), O_RDWR)) < 0) {
 			cosmos_throw (ApiError(cosmos::sprintf("open line '%s' failed", pars.line.c_str())));
 		}
-		dup2(m_cmdfd, 0);
+		dup2(m_cmdfd, STDIN_FILENO);
 		runStty(pars);
 		return m_cmdfd;
 	}
@@ -80,32 +68,48 @@ int TTY::create(const Params &pars) {
 		cosmos_throw (ApiError("openpty failed"));
 	}
 
-	initSignalHandling();
+	m_cmdfd = master;
 
-	switch (m_pid = fork()) {
-	case -1:
-		cosmos_throw (ApiError("fork failed"));
-		break;
-	case 0:
-		m_io_file.close();
-		close(master);
-		setsid(); /* create a new process group */
-		dup2(slave, 0);
-		dup2(slave, 1);
-		dup2(slave, 2);
-		if (ioctl(slave, TIOCSCTTY, NULL) < 0) {
-			cosmos_throw (ApiError("ioctl TIOCSCTTY failed"));
-		}
-		if (slave > 2)
-			close(slave);
-		executeShell(pars);
-		break;
-	default:
+	cosmos::g_process.blockSignals({cosmos::Signal(SIGCHLD)});
+
+	try {
+		executeShell(pars, slave);
+	} catch(...) {
+		close(m_cmdfd);
 		close(slave);
-		m_cmdfd = master;
-		break;
+		throw;
 	}
+
+	close(slave);
+
 	return m_cmdfd;
+}
+
+void TTY::setupIOFile(const std::string &path) {
+	if (path.empty()) {
+		m_io_file.close();
+		return;
+	}
+
+	m_term->mode.set(Term::Mode::PRINT);
+
+	if (path == "-")
+	{
+		m_io_file = cosmos::StreamFile(cosmos::stdout, false);
+		return;
+	}
+
+	try {
+		m_io_file.open(
+			path,
+			cosmos::OpenMode::WRITE_ONLY,
+			cosmos::OpenFlags({cosmos::OpenSettings::CREATE, cosmos::OpenSettings::TRUNCATE}),
+			cosmos::FileMode(0640)
+		);
+	}
+	catch (const std::exception &ex) {
+		std::cerr << "Error opening " << path << ": " << ex.what() << std::endl;
+	}
 }
 
 void TTY::runStty(const Params &pars) {
@@ -249,12 +253,11 @@ void TTY::resize(int tw, int th) {
 
 void TTY::hangup() {
 	/* Send SIGHUP to shell */
-	kill(m_pid, SIGHUP);
+	m_child_proc.kill(cosmos::Signal(SIGHUP));
 }
 
-void TTY::executeShell(const Params &pars)
+void TTY::executeShell(const Params &pars, int slave)
 {
-	const char *sh, *arg = nullptr, *prog;
 	const struct passwd *pw = nullptr;
 
 	errno = 0;
@@ -265,68 +268,68 @@ void TTY::executeShell(const Params &pars)
 			cosmos_throw (cosmos::InternalError("who are you?"));
 	}
 
-	if ((sh = getenv("SHELL")) == NULL)
-		sh = (pw->pw_shell[0]) ? pw->pw_shell : pars.cmd.c_str();
-
-	if (!pars.args.empty()) {
-		prog = pars.args[0].c_str();
-	} else if (config::SCROLL) {
-		prog = config::SCROLL;
-		arg = config::UTMP ? config::UTMP : sh;
-	} else if (config::UTMP) {
-		prog = config::UTMP;
-	} else {
-		prog = sh;
+	const char *sh = getenv("SHELL");
+	if(!sh) {
+		if (pw->pw_shell[0])
+			sh = pw->pw_shell;
+		else
+			sh = pars.cmd.c_str();
 	}
 
-	std::vector<const char*> cargs;
-
-	if (!pars.args.empty()) {
-		for (auto &v: pars.args) {
-			cargs.push_back(v.c_str());
+	m_child_proc.setPostForkCB([this, slave, pars, pw, sh](const cosmos::SubProc &proc) {
+		m_io_file.close();
+		close(m_cmdfd);
+		setsid(); /* create a new process group */
+		for (auto stdfd: {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO}) {
+			dup2(slave, stdfd);
 		}
-		cargs.push_back(nullptr);
+		if (ioctl(slave, TIOCSCTTY, nullptr) < 0) {
+			cosmos_throw (ApiError("ioctl TIOCSCTTY failed"));
+		}
+		if (slave > 2)
+			close(slave);
+
+		for (auto sig: {SIGCHLD, SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGALRM}) {
+			::signal(sig, SIG_DFL);
+		}
+
+		unsetenv("COLUMNS");
+		unsetenv("LINES");
+		unsetenv("TERMCAP");
+		setenv("LOGNAME", pw->pw_name, 1);
+		setenv("USER", pw->pw_name, 1);
+		setenv("SHELL", sh, 1);
+		setenv("HOME", pw->pw_dir, 1);
+		setenv("TERM", config::TERMNAME, 1);
+	});
+
+	if (pars.args.empty()) {
+		// use default configuration
+		if (config::SCROLL) {
+			m_child_proc.setArgs({config::SCROLL, config::UTMP ? config::UTMP : sh});
+		} else if (config::UTMP) {
+			m_child_proc.setExe(std::string(config::UTMP));
+		} else {
+			m_child_proc.setExe(sh);
+		}
 	} else {
-		cargs = {prog, arg, nullptr};
+		m_child_proc.setArgs(pars.args);
 	}
 
-	unsetenv("COLUMNS");
-	unsetenv("LINES");
-	unsetenv("TERMCAP");
-	setenv("LOGNAME", pw->pw_name, 1);
-	setenv("USER", pw->pw_name, 1);
-	setenv("SHELL", sh, 1);
-	setenv("HOME", pw->pw_dir, 1);
-	setenv("TERM", config::TERMNAME, 1);
-
-	signal(SIGCHLD, SIG_DFL);
-	signal(SIGHUP, SIG_DFL);
-	signal(SIGINT, SIG_DFL);
-	signal(SIGQUIT, SIG_DFL);
-	signal(SIGTERM, SIG_DFL);
-	signal(SIGALRM, SIG_DFL);
-
-	execvp(prog, const_cast<char *const*>(cargs.data()));
-	_exit(1);
+	// this may throw, we'll let it pass through to the caller
+	m_child_proc.run();
 }
 
 void TTY::sigChildEvent() {
-	cosmos::SignalFD::SigInfo info;
-	m_child_sig_fd.readEvent(info);
 
-	if (info.getSignal() != cosmos::Signal(SIGCHLD))
-		// should never happen
-		return;
-	else if (info.getSenderPID() != m_pid)
-		// should never happen
-		return;
+	auto res = m_child_proc.wait();
 
-	auto stat = info.getChildStatus();
+	if (res.exited() && res.exitStatus() != 0) {
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child exited with status %d", res.exitStatus())));
+	} else if (res.signaled()) {
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child terminated due to signal %d", res.termSignal().raw())));
+	}
 
-	if (WIFEXITED(stat) && WEXITSTATUS(stat))
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child exited with status %d", WEXITSTATUS(stat))));
-	else if (WIFSIGNALED(stat))
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child terminated due to signal %d", WTERMSIG(stat))));
 	_exit(0);
 }
 
@@ -342,14 +345,6 @@ void TTY::doPrintToIoFile(const char *s, size_t len) {
 		std::cerr << "error writing to output file: " << ex.what() << std::endl;
 		m_io_file.close();
 	}
-}
-
-void TTY::initSignalHandling() {
-	if (m_child_sig_fd.valid())
-		// already setup
-		return;
-	cosmos::g_process.blockSignals({cosmos::Signal(SIGCHLD)});
-	m_child_sig_fd.create({cosmos::Signal(SIGCHLD)});
 }
 
 } // end ns

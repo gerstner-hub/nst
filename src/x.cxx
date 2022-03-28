@@ -1988,14 +1988,14 @@ run(void)
 	};
 	int ttyfd = g_tty.create(params);
 	cresize(w, h);
-	auto sigfd = g_tty.getSigFD();
-	int maxfd = std::max(std::max(xfd, ttyfd), sigfd);
+	auto childfd = g_tty.getChildFD();
+	int maxfd = std::max({xfd, ttyfd, childfd});
 
 	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0, 0};;) {
 		FD_ZERO(&rfd);
 		FD_SET(ttyfd, &rfd);
 		FD_SET(xfd, &rfd);
-		FD_SET(sigfd, &rfd);
+		FD_SET(childfd, &rfd);
 
 		if (XPending(xw.dpy))
 			timeout = 0;  /* existing events might not set xfd */
@@ -2011,7 +2011,7 @@ run(void)
 		}
 		clock_gettime(CLOCK_MONOTONIC, &now);
 
-		if (FD_ISSET(sigfd, &rfd))
+		if (FD_ISSET(childfd, &rfd))
 			g_tty.sigChildEvent();
 		if (FD_ISSET(ttyfd, &rfd))
 			g_tty.read();

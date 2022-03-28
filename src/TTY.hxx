@@ -8,6 +8,7 @@
 #include "cosmos/types.hxx"
 #include "cosmos/fs/StreamFile.hxx"
 #include "cosmos/proc/SignalFD.hxx"
+#include "cosmos/proc/SubProc.hxx"
 
 namespace nst {
 
@@ -27,14 +28,14 @@ public: // types
 protected: // data
 
 	Term *m_term;
-	pid_t m_pid = -1;
 	int m_cmdfd = -1;
-	cosmos::SignalFD m_child_sig_fd;
+	cosmos::SubProc m_child_proc;
 	cosmos::StreamFile m_io_file;
 
 public: // functions
 
 	TTY() { m_term = &term; }
+	~TTY();
 	int create(const Params &pars);
 	size_t read();
 	void write(const char *s, size_t n, bool may_echo);
@@ -46,16 +47,16 @@ public: // functions
 		doPrintToIoFile(s, len);
 	}
 
-	auto getSigFD() { return m_child_sig_fd.raw().raw(); }
+	auto getChildFD() { return m_child_proc.pidFD().raw(); }
 	void sigChildEvent();
 
 protected: // functions
 
+	void setupIOFile(const std::string &path);
 	void writeRaw(const char *s, size_t n);
 	void runStty(const Params &pars);
-	void executeShell(const Params &pars);
+	void executeShell(const Params &pars, int slave);
 	void doPrintToIoFile(const char *s, size_t len);
-	void initSignalHandling();
 	void sendBreak();
 };
 

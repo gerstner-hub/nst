@@ -5,41 +5,40 @@
 #include "Term.hxx"
 
 // cosmos
-#include "cosmos/types.hxx"
 #include "cosmos/fs/StreamFile.hxx"
+#include "cosmos/io/Poller.hxx"
+#include "cosmos/io/Terminal.hxx"
 #include "cosmos/proc/SignalFD.hxx"
 #include "cosmos/proc/SubProc.hxx"
+#include "cosmos/types.hxx"
 
 namespace nst {
 
+class Cmdline;
 void sendbreak(const Arg *);
 
 class TTY {
 	friend void sendbreak(const Arg*);
-public: // types
-
-	struct Params {
-		std::string line;
-		std::string cmd;
-		std::string out;
-		const cosmos::StringVector &args;
-	};
 
 protected: // data
 
-	Term *m_term;
-	int m_cmdfd = -1;
+	Term *m_term = &term;
 	cosmos::SubProc m_child_proc;
 	cosmos::StreamFile m_io_file;
+	/// master end of pty
+	cosmos::StreamFile m_cmd_file;
+	cosmos::Poller m_cmd_poller;
+	cosmos::Terminal m_pty;
+	char m_buf[BUFSIZ];
+	size_t m_buf_bytes = 0;
 
 public: // functions
 
-	TTY() { m_term = &term; }
 	~TTY();
-	int create(const Params &pars);
+	int create(const Cmdline &cmdline);
 	size_t read();
 	void write(const char *s, size_t n, bool may_echo);
-	void resize(int tw, int th);
+	void resize(size_t tw, size_t th);
 	void hangup();
 	void printToIoFile(const char *s, size_t len) {
 		if (!m_io_file.isOpen())
@@ -54,8 +53,8 @@ protected: // functions
 
 	void setupIOFile(const std::string &path);
 	void writeRaw(const char *s, size_t n);
-	void runStty(const Params &pars);
-	void executeShell(const Params &pars, int slave);
+	void runStty(const Cmdline &cmdline);
+	void executeShell(const Cmdline &cmdline, cosmos::FileDescriptor slave);
 	void doPrintToIoFile(const char *s, size_t len);
 	void sendBreak();
 };

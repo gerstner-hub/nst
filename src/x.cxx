@@ -257,8 +257,6 @@ static std::string opt_class;
 static std::string opt_name;
 static const char *opt_embed = NULL;
 static const char *opt_font  = NULL;
-static const char *opt_io    = "";
-static const char *opt_line  = "";
 static const char *opt_title = NULL;
 static nst::Cmdline cmdline;
 
@@ -1980,13 +1978,7 @@ run(void)
 		}
 	} while (ev.type != MapNotify);
 
-	const TTY::Params params{
-		.line = opt_line,
-		.cmd = nst::config::SHELL,
-		.out = opt_io,
-		.args = cmdline.rest.getValue()
-	};
-	int ttyfd = g_tty.create(params);
+	int ttyfd = g_tty.create(cmdline);
 	cresize(w, h);
 	auto childfd = g_tty.getChildFD();
 	int maxfd = std::max({xfd, ttyfd, childfd});
@@ -2097,10 +2089,6 @@ void applyCmdline(const nst::Cmdline &cmd) {
 		xw.isfixed = True;
 	}
 
-	if (cmd.iofile.isSet()) {
-		opt_io = cmd.iofile.getValue().c_str();
-	}
-
 	if (cmd.window_geometry.isSet()) {
 		xw.gm = XParseGeometry(
 			cmd.window_geometry.getValue().c_str(),
@@ -2110,10 +2098,6 @@ void applyCmdline(const nst::Cmdline &cmd) {
 
 	if (cmd.embed_window.isSet()) {
 		opt_embed = cmd.embed_window.getValue().c_str();
-	}
-
-	if (cmd.tty_line.isSet()) {
-		opt_line = cmd.tty_line.getValue().c_str();
 	}
 
 	opt_title = cmd.window_title.getValue().c_str();

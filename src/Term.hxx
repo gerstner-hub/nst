@@ -30,6 +30,18 @@ public: // types
 
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
+	enum class Escape {
+		START      = 1,
+		CSI        = 2,
+		STR        = 4,  /* DCS, OSC, PM, APC */
+		ALTCHARSET = 8,
+		STR_END    = 16, /* a final string was encountered */
+		TEST       = 32, /* Enter in test mode */
+		UTF8       = 64,
+	};
+
+	typedef cosmos::BitMask<Escape> EscapeState;
+
 	struct TCursor { /* Cursor conflicts with X headers */
 	public: // types
 		enum class Control {
@@ -58,7 +70,6 @@ public: // data
 	int top = 0;            /* top    scroll limit */
 	int bot = 0;            /* bottom scroll limit */
 	ModeBitMask mode;       /* terminal mode flags */
-	int esc = 0;            /* escape state flags */
 	int *tabs = nullptr;
 
 protected: // data
@@ -74,6 +85,7 @@ protected: // data
 	int m_icharset = 0;       /* selected charset for sequence */
 	bool m_allowaltscreen = false;
 	Rune m_last_char = 0;    /* last printed char outside of sequence, 0 if control */
+	EscapeState m_esc_state; /* escape state flags */
 
 
 public: // functions
@@ -85,6 +97,12 @@ public: // functions
 	void resize(int cols, int rows);
 
 	void reset();
+
+	void resetStringEscape() {
+		m_esc_state.reset({Escape::STR_END, Escape::STR});
+	}
+
+	EscapeState& getEscapeState() { return m_esc_state; }
 
 	void clearRegion(int x1, int y1, int x2, int y2);
 

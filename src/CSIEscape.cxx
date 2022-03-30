@@ -290,15 +290,18 @@ void CSIEscape::handle() {
 }
 
 int CSIEscape::eschandle(unsigned char ascii) {
+	auto &esc = term.getEscapeState();
+	using Escape = Term::Escape;
+
 	switch (ascii) {
 	case '[':
-		term.esc |= ESC_CSI;
+		esc.set(Escape::CSI);
 		return 0;
 	case '#':
-		term.esc |= ESC_TEST;
+		esc.set(Escape::TEST);
 		return 0;
 	case '%':
-		term.esc |= ESC_UTF8;
+		esc.set(Escape::UTF8);
 		return 0;
 	case 'P': /* DCS -- Device Control String */
 	case '_': /* APC -- Application Program Command */
@@ -316,7 +319,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	case '*': /* G2D4 -- set tertiary charset G2 */
 	case '+': /* G3D4 -- set quaternary charset G3 */
 		term.setICharset(ascii - '(');
-		term.esc |= ESC_ALTCHARSET;
+		esc.set(Escape::ALTCHARSET);
 		return 0;
 	case 'D': /* IND -- Linefeed */
 		if (term.c.y == term.bot) {
@@ -359,7 +362,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
 	case '\\': /* ST -- String Terminator */
-		if (term.esc & ESC_STR_END)
+		if (esc.test(Escape::STR_END))
 			strescseq.handle();
 		break;
 	default:

@@ -43,9 +43,10 @@ namespace nst {
 
 typedef Glyph::Attr Attr;
 
-Term::Term(int _cols, int _rows) {
-	m_selection = &g_sel;
-	m_tty = &g_tty;
+Term::Term(int _cols, int _rows) :
+	m_selection(&g_sel),
+	m_tty(&g_tty) {
+
 	resize(_cols, _rows);
 	reset();
 }
@@ -692,7 +693,7 @@ void Term::strSequence(unsigned char ch) {
 	}
 
 	strescseq.reset(ch);
-	esc |= ESC_STR;
+	m_esc_state.set(Escape::STR);
 }
 
 void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
@@ -767,7 +768,7 @@ void Term::handleControlCode(uchar ascii) {
 		putNewline(mode.test(Mode::CRLF));
 		return;
 	case '\a':   /* BEL */
-		if (esc & ESC_STR_END) {
+		if (m_esc_state[Escape::STR_END]) {
 			/* backwards compatibility to xterm */
 			strescseq.handle();
 		} else {
@@ -776,8 +777,8 @@ void Term::handleControlCode(uchar ascii) {
 		break;
 	case '\033': /* ESC */
 		csiescseq = CSIEscape();
-		esc &= ~(ESC_CSI|ESC_ALTCHARSET|ESC_TEST);
-		esc |= ESC_START;
+		m_esc_state.reset({Escape::CSI, Escape::ALTCHARSET, Escape::TEST});
+		m_esc_state.set(Escape::START);
 		return;
 	case '\016': /* SO (LS1 -- Locking shift 1) */
 	case '\017': /* SI (LS0 -- Locking shift 0) */
@@ -841,7 +842,7 @@ void Term::handleControlCode(uchar ascii) {
 		return;
 	}
 	/* only CAN, SUB, \a and C1 chars interrupt a sequence */
-	esc &= ~(ESC_STR_END|ESC_STR);
+	resetStringEscape();
 }
 
 void Term::putChar(Rune u) {
@@ -867,10 +868,10 @@ void Term::putChar(Rune u) {
 	 * receives a ESC, a SUB, a ST or any other C1 control
 	 * character.
 	 */
-	if (esc & ESC_STR) {
+	if (m_esc_state[Escape::STR]) {
 		if (u == '\a' || u == 030 || u == 032 || u == 033 || isControlC1(u)) {
-			esc &= ~(ESC_START|ESC_STR);
-			esc |= ESC_STR_END;
+			m_esc_state.reset({Escape::START, Escape::STR});
+			m_esc_state.set(Escape::STR_END);
 			goto check_control_code;
 		}
 
@@ -889,19 +890,19 @@ check_control_code:
 		/*
 		 * control codes are not shown ever
 		 */
-		if (!esc)
+		if (m_esc_state.none())
 			m_last_char = 0;
 		return;
-	} else if (esc & ESC_START) {
-		if (esc & ESC_CSI) {
+	} else if (m_esc_state[Escape::START]) {
+		if (m_esc_state[Escape::CSI]) {
 			const bool max_reached = csiescseq.add(u);
 			if (in_range(u, 0x40, 0x7E) || max_reached) {
-				esc = 0;
+				m_esc_state.reset();
 				csiescseq.parse();
 				csiescseq.handle();
 			}
 			return;
-		} else if (esc & ESC_UTF8) {
+		} else if (m_esc_state[Escape::UTF8]) {
 			switch (static_cast<char>(u)) {
 			case 'G':
 				mode.set(Mode::UTF8);
@@ -910,16 +911,16 @@ check_control_code:
 				mode.reset(Mode::UTF8);
 				break;
 			}
-		} else if (esc & ESC_ALTCHARSET) {
+		} else if (m_esc_state[Escape::ALTCHARSET]) {
 			setDefTran(u);
-		} else if (esc & ESC_TEST) {
+		} else if (m_esc_state[Escape::TEST]) {
 			decTest(u);
 		} else {
 			if (!csiescseq.eschandle(u))
 				return;
 			/* sequence already finished */
 		}
-		esc = 0;
+		m_esc_state.reset();
 		/*
 		 * All characters which form part of a sequence are not
 		 * printed

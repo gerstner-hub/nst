@@ -46,7 +46,7 @@ static void osc_color_response(int index, int num) {
 }
 
 void STREscape::handle() {
-	term.esc &= ~(ESC_STR_END|ESC_STR);
+	term.resetStringEscape();
 	parse();
 	const int par = m_args.empty() ? 0 : std::atoi(m_args[0]);
 	const char *p = nullptr;
@@ -213,7 +213,7 @@ void STREscape::add(const char *ch, size_t len) {
 		 * In the case users ever get fixed, here is the code:
 		 */
 		/*
-		 * term.esc = 0;
+		 * term.m_esc_state.reset();
 		 * handle();
 		 */
 		if (m_str.size() > (SIZE_MAX - utf8::UTF_SIZE) / 2)

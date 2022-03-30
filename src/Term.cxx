@@ -43,6 +43,11 @@ namespace nst {
 
 typedef Glyph::Attr Attr;
 
+Term::TCursor::TCursor() {
+	attr.fg = config::DEFAULTFG;
+	attr.bg = config::DEFAULTBG;
+}
+
 Term::Term(int _cols, int _rows) :
 	m_selection(&g_sel),
 	m_tty(&g_tty) {
@@ -52,11 +57,7 @@ Term::Term(int _cols, int _rows) :
 }
 
 void Term::reset(void) {
-	c = (TCursor){.attr = {
-		.mode = Glyph::AttrBitMask(),
-		.fg = config::DEFAULTFG,
-		.bg = config::DEFAULTBG
-	}, .x = 0, .y = 0, .state = TCursor::StateBitMask()};
+	m_cursor = TCursor();
 
 	memset(tabs, 0, col * sizeof(*tabs));
 	for (size_t i = config::TABSPACES; (int)i < col; i += config::TABSPACES)
@@ -103,7 +104,7 @@ void Term::resize(int new_cols, int new_rows) {
 	 * tscrollup would work here, but we can optimize to
 	 * memmove because we're freeing the earlier lines
 	 */
-	for (i = 0; i <= c.y - new_rows; i++) {
+	for (i = 0; i <= m_cursor.y - new_rows; i++) {
 		delete[] line[i];
 		delete[] m_alt[i];
 	}
@@ -149,9 +150,9 @@ void Term::resize(int new_cols, int new_rows) {
 	/* reset scrolling region */
 	setScroll(0, new_rows-1);
 	/* make use of the LIMIT in moveTo */
-	moveTo(c.x, c.y);
+	moveTo(m_cursor.x, m_cursor.y);
 	/* Clearing both screens (it makes dirty all lines) */
-	TCursor saved_c = c;
+	TCursor saved_c = m_cursor;
 	for (i = 0; i < 2; i++) {
 		if (mincol < new_cols && 0 < minrow) {
 			clearRegion(mincol, 0, new_cols - 1, minrow - 1);
@@ -162,7 +163,7 @@ void Term::resize(int new_cols, int new_rows) {
 		swapScreen();
 		cursorControl(TCursor::Control::LOAD);
 	}
-	c = saved_c;
+	m_cursor = saved_c;
 }
 
 void Term::clearRegion(int x1, int y1, int x2, int y2) {
@@ -184,8 +185,8 @@ void Term::clearRegion(int x1, int y1, int x2, int y2) {
 			gp = &line[y][x];
 			if (m_selection->isSelected(x, y))
 				m_selection->clear();
-			gp->fg = c.attr.fg;
-			gp->bg = c.attr.bg;
+			gp->fg = m_cursor.attr.fg;
+			gp->bg = m_cursor.attr.bg;
 			gp->mode.reset();
 			gp->u = ' ';
 		}
@@ -206,21 +207,21 @@ void Term::moveTo(int x, int y)
 {
 	int miny, maxy;
 
-	if (c.state.test(TCursor::State::ORIGIN)) {
+	if (m_cursor.state[TCursor::State::ORIGIN]) {
 		miny = top;
 		maxy = bot;
 	} else {
 		miny = 0;
 		maxy = row - 1;
 	}
-	c.state.reset(TCursor::State::WRAPNEXT);
-	c.x = std::clamp(x, 0, col-1);
-	c.y = std::clamp(y, miny, maxy);
+	m_cursor.state.reset(TCursor::State::WRAPNEXT);
+	m_cursor.x = std::clamp(x, 0, col-1);
+	m_cursor.y = std::clamp(y, miny, maxy);
 }
 
 /* for absolute user moves, when decom is set */
 void Term::moveAbsTo(int x, int y) {
-	moveTo(x, y + ((c.state.test(TCursor::State::ORIGIN)) ? top: 0));
+	moveTo(x, y + (m_cursor.state[TCursor::State::ORIGIN] ? top: 0));
 }
 
 void Term::swapScreen() {
@@ -231,13 +232,12 @@ void Term::swapScreen() {
 
 void Term::cursorControl(const TCursor::Control &ctrl)
 {
-	static TCursor cached[2];
-	auto &cursor = mode.test(Mode::ALTSCREEN) ? cached[1] : cached[0];
+	auto &cursor = mode[Mode::ALTSCREEN] ? m_cached_cursors[1] : m_cached_cursors[0];
 
 	if (ctrl == TCursor::Control::SAVE) {
-		cursor = c;
+		cursor = m_cursor;
 	} else if (ctrl == TCursor::Control::LOAD) {
-		c = cursor;
+		m_cursor = cursor;
 		moveTo(cursor.x, cursor.y);
 	}
 }
@@ -256,7 +256,7 @@ int Term::getLineLen(int y) const
 }
 
 void Term::putTab(int n) {
-	auto x = c.x;
+	auto x = m_cursor.x;
 
 	if (n > 0) {
 		while (x < col && n--)
@@ -267,54 +267,54 @@ void Term::putTab(int n) {
 			for (--x; x > 0 && !tabs[x]; --x)
 				/* nothing */ ;
 	}
-	c.x = std::clamp(x, 0, col-1);
+	m_cursor.x = std::clamp(x, 0, col-1);
 }
 
 void Term::putNewline(bool first_col) {
-	auto y = c.y;
+	auto y = m_cursor.y;
 
 	if (y == bot) {
 		scrollUp(top, 1);
 	} else {
 		y++;
 	}
-	moveTo(first_col ? 0 : c.x, y);
+	moveTo(first_col ? 0 : m_cursor.x, y);
 }
 
 void Term::deleteChar(int n) {
-	n = std::clamp(n, 0, col - c.x);
+	n = std::clamp(n, 0, col - m_cursor.x);
 
-	const int dst = c.x;
-	const int src = c.x + n;
+	const int dst = m_cursor.x;
+	const int src = m_cursor.x + n;
 	const int size = col - src;
-	Glyph *l = line[c.y];
+	Glyph *l = line[m_cursor.y];
 
 	memmove(&l[dst], &l[src], size * sizeof(Glyph));
-	clearRegion(col-n, c.y, col-1, c.y);
+	clearRegion(col-n, m_cursor.y, col-1, m_cursor.y);
 }
 
 void Term::deleteLine(int n) {
-	if (in_range(c.y, top, bot))
-		scrollUp(c.y, n);
+	if (in_range(m_cursor.y, top, bot))
+		scrollUp(m_cursor.y, n);
 }
 
 void Term::insertBlank(int n)
 {
-	n = std::clamp(n, 0, col - c.x);
+	n = std::clamp(n, 0, col - m_cursor.x);
 
-	const int dst = c.x + n;
-	const int src = c.x;
+	const int dst = m_cursor.x + n;
+	const int src = m_cursor.x;
 	const int size = col - dst;
-	Glyph *l = line[c.y];
+	Glyph *l = line[m_cursor.y];
 
 	memmove(&l[dst], &l[src], size * sizeof(Glyph));
-	clearRegion(src, c.y, dst - 1, c.y);
+	clearRegion(src, m_cursor.y, dst - 1, m_cursor.y);
 }
 
 void Term::insertBlankLine(int n)
 {
-	if (in_range(c.y, top, bot))
-		scrollDown(c.y, n);
+	if (in_range(m_cursor.y, top, bot))
+		scrollDown(m_cursor.y, n);
 }
 
 void Term::scrollDown(int orig, int n)
@@ -351,7 +351,7 @@ void Term::setAttr(const int *attr, size_t len) {
 	for (size_t i = 0; i < len; i++) {
 		switch (attr[i]) {
 		case 0:
-			c.attr.mode.reset({
+			m_cursor.attr.mode.reset({
 				Attr::BOLD,
 				Attr::FAINT,
 				Attr::ITALIC,
@@ -361,79 +361,79 @@ void Term::setAttr(const int *attr, size_t len) {
 				Attr::INVISIBLE,
 				Attr::STRUCK
 			});
-			c.attr.fg = config::DEFAULTFG;
-			c.attr.bg = config::DEFAULTBG;
+			m_cursor.attr.fg = config::DEFAULTFG;
+			m_cursor.attr.bg = config::DEFAULTBG;
 			break;
 		case 1:
-			c.attr.mode.set(Attr::BOLD);
+			m_cursor.attr.mode.set(Attr::BOLD);
 			break;
 		case 2:
-			c.attr.mode.set(Attr::FAINT);
+			m_cursor.attr.mode.set(Attr::FAINT);
 			break;
 		case 3:
-			c.attr.mode.set(Attr::ITALIC);
+			m_cursor.attr.mode.set(Attr::ITALIC);
 			break;
 		case 4:
-			c.attr.mode.set(Attr::UNDERLINE);
+			m_cursor.attr.mode.set(Attr::UNDERLINE);
 			break;
 		case 5: /* slow blink */
 			/* FALLTHROUGH */
 		case 6: /* rapid blink */
-			c.attr.mode.set(Attr::BLINK);
+			m_cursor.attr.mode.set(Attr::BLINK);
 			break;
 		case 7:
-			c.attr.mode.set(Attr::REVERSE);
+			m_cursor.attr.mode.set(Attr::REVERSE);
 			break;
 		case 8:
-			c.attr.mode.set(Attr::INVISIBLE);
+			m_cursor.attr.mode.set(Attr::INVISIBLE);
 			break;
 		case 9:
-			c.attr.mode.set(Attr::STRUCK);
+			m_cursor.attr.mode.set(Attr::STRUCK);
 			break;
 		case 22:
-			c.attr.mode.reset({Attr::BOLD, Attr::FAINT});
+			m_cursor.attr.mode.reset({Attr::BOLD, Attr::FAINT});
 			break;
 		case 23:
-			c.attr.mode.reset(Attr::ITALIC);
+			m_cursor.attr.mode.reset(Attr::ITALIC);
 			break;
 		case 24:
-			c.attr.mode.reset(Attr::UNDERLINE);
+			m_cursor.attr.mode.reset(Attr::UNDERLINE);
 			break;
 		case 25:
-			c.attr.mode.reset(Attr::BLINK);
+			m_cursor.attr.mode.reset(Attr::BLINK);
 			break;
 		case 27:
-			c.attr.mode.reset(Attr::REVERSE);
+			m_cursor.attr.mode.reset(Attr::REVERSE);
 			break;
 		case 28:
-			c.attr.mode.reset(Attr::INVISIBLE);
+			m_cursor.attr.mode.reset(Attr::INVISIBLE);
 			break;
 		case 29:
-			c.attr.mode.reset(Attr::STRUCK);
+			m_cursor.attr.mode.reset(Attr::STRUCK);
 			break;
 		case 38:
 			if ((idx = defcolor(attr, &i, len)) >= 0)
-				c.attr.fg = idx;
+				m_cursor.attr.fg = idx;
 			break;
 		case 39:
-			c.attr.fg = config::DEFAULTFG;
+			m_cursor.attr.fg = config::DEFAULTFG;
 			break;
 		case 48:
 			if ((idx = defcolor(attr, &i, len)) >= 0)
-				c.attr.bg = idx;
+				m_cursor.attr.bg = idx;
 			break;
 		case 49:
-			c.attr.bg = config::DEFAULTBG;
+			m_cursor.attr.bg = config::DEFAULTBG;
 			break;
 		default:
 			if (in_range(attr[i], 30, 37)) {
-				c.attr.fg = attr[i] - 30;
+				m_cursor.attr.fg = attr[i] - 30;
 			} else if (in_range(attr[i], 40, 47)) {
-				c.attr.bg = attr[i] - 40;
+				m_cursor.attr.bg = attr[i] - 40;
 			} else if (in_range(attr[i], 90, 97)) {
-				c.attr.fg = attr[i] - 90 + 8;
+				m_cursor.attr.fg = attr[i] - 90 + 8;
 			} else if (in_range(attr[i], 100, 107)) {
-				c.attr.bg = attr[i] - 100 + 8;
+				m_cursor.attr.bg = attr[i] - 100 + 8;
 			} else {
 				std::cerr << "erresc(default): gfx attr " << attr[i] << " unknown\n",
 				csiescseq.dump("");
@@ -496,7 +496,7 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 				xsetmode(set, MODE_REVERSE);
 				break;
 			case 6: /* DECOM -- Origin */
-				c.state.set(TCursor::State::ORIGIN, set);
+				m_cursor.state.set(TCursor::State::ORIGIN, set);
 				moveAbsTo(0, 0);
 				break;
 			case 7: /* DECAWM -- Auto wrap */
@@ -656,7 +656,7 @@ void Term::draw() {
 	if (!xstartdraw())
 		return;
 
-	int old_cx = c.x, old_ocx = m_ocx, old_ocy = m_ocy;
+	int old_cx = m_cursor.x, old_ocx = m_ocx, old_ocy = m_ocy;
 
 	/* adjust cursor position */
 	m_ocx = std::clamp(m_ocx, 0, col-1);
@@ -664,13 +664,13 @@ void Term::draw() {
 
 	if (line[m_ocy][m_ocx].mode.test(Attr::WDUMMY))
 		m_ocx--;
-	if (line[c.y][old_cx].mode.test(Attr::WDUMMY))
+	if (line[m_cursor.y][old_cx].mode.test(Attr::WDUMMY))
 		old_cx--;
 
 	drawRegion(0, 0, col, row);
-	xdrawcursor(old_cx, c.y, line[c.y][old_cx], m_ocx, m_ocy, line[m_ocy][m_ocx]);
+	xdrawcursor(old_cx, m_cursor.y, line[m_cursor.y][old_cx], m_ocx, m_ocy, line[m_ocy][m_ocx]);
 	m_ocx = old_cx;
-	m_ocy = c.y;
+	m_ocy = m_cursor.y;
 	xfinishdraw();
 	if (old_ocx != m_ocx || old_ocy != m_ocy)
 		xximspot(m_ocx, m_ocy);
@@ -745,7 +745,7 @@ void Term::decTest(char ch) {
 	if (ch == '8') { /* DEC screen alignment test. */
 		for (int x = 0; x < col; ++x) {
 			for (int y = 0; y < row; ++y)
-				setChar('E', &c.attr, x, y);
+				setChar('E', &m_cursor.attr, x, y);
 		}
 	}
 }
@@ -756,10 +756,10 @@ void Term::handleControlCode(uchar ascii) {
 		putTab(1);
 		return;
 	case '\b':   /* BS */
-		moveTo(c.x - 1, c.y);
+		moveTo(m_cursor.x - 1, m_cursor.y);
 		return;
 	case '\r':   /* CR */
-		moveTo(0, c.y);
+		moveTo(0, m_cursor.y);
 		return;
 	case '\f':   /* LF */
 	case '\v':   /* VT */
@@ -785,7 +785,7 @@ void Term::handleControlCode(uchar ascii) {
 		m_charset = 1 - (ascii - '\016');
 		return;
 	case '\032': /* SUB */
-		setChar('?', &c.attr, c.x, c.y);
+		setChar('?', &m_cursor.attr, m_cursor.x, m_cursor.y);
 		/* FALLTHROUGH */
 	case '\030': /* CAN */
 		csiescseq = CSIEscape();
@@ -809,7 +809,7 @@ void Term::handleControlCode(uchar ascii) {
 	case 0x87:   /* TODO: ESA */
 		break;
 	case 0x88:   /* HTS -- Horizontal tab stop */
-		tabs[c.x] = 1;
+		tabs[m_cursor.x] = 1;
 		break;
 	case 0x89:   /* TODO: HTJ */
 	case 0x8a:   /* TODO: VTS */
@@ -927,31 +927,31 @@ check_control_code:
 		 */
 		return;
 	}
-	if (g_sel.isSelected(c.x, c.y))
+	if (g_sel.isSelected(m_cursor.x, m_cursor.y))
 		g_sel.clear();
 
-	nst::Glyph *gp = &line[c.y][c.x];
-	if (mode.test(Mode::WRAP) && c.state.test(TCursor::State::WRAPNEXT)) {
+	nst::Glyph *gp = &line[m_cursor.y][m_cursor.x];
+	if (mode.test(Mode::WRAP) && m_cursor.state[TCursor::State::WRAPNEXT]) {
 		gp->mode.set(Attr::WRAP);
 		putNewline();
-		gp = &line[c.y][c.x];
+		gp = &line[m_cursor.y][m_cursor.x];
 	}
 
-	if (mode.test(Mode::INSERT) && c.x + width < col)
-		std::memmove(gp+width, gp, (col - c.x - width) * sizeof(nst::Glyph));
+	if (mode.test(Mode::INSERT) && m_cursor.x + width < col)
+		std::memmove(gp+width, gp, (col - m_cursor.x - width) * sizeof(nst::Glyph));
 
-	if (c.x + width > col) {
+	if (m_cursor.x + width > col) {
 		putNewline();
-		gp = &line[c.y][c.x];
+		gp = &line[m_cursor.y][m_cursor.x];
 	}
 
-	setChar(u, &c.attr, c.x, c.y);
+	setChar(u, &m_cursor.attr, m_cursor.x, m_cursor.y);
 	m_last_char = u;
 
 	if (width == 2) {
 		gp->mode.set(Attr::WIDE);
-		if (c.x + 1 < col) {
-			if (gp[1].mode.test(Attr::WIDE) && c.x+2 < col) {
+		if (m_cursor.x + 1 < col) {
+			if (gp[1].mode[Attr::WIDE] && m_cursor.x+2 < col) {
 				gp[2].u = ' ';
 				gp[2].mode.reset(Attr::WDUMMY);
 			}
@@ -959,10 +959,10 @@ check_control_code:
 			gp[1].mode.limit(Attr::WDUMMY);
 		}
 	}
-	if (c.x + width < col) {
-		moveTo(c.x + width, c.y);
+	if (m_cursor.x + width < col) {
+		moveTo(m_cursor.x + width, m_cursor.y);
 	} else {
-		c.state.set(TCursor::State::WRAPNEXT);
+		m_cursor.state.set(TCursor::State::WRAPNEXT);
 	}
 }
 

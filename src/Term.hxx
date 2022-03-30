@@ -59,6 +59,8 @@ public: // types
 		int x = 0;
 		int y = 0;
 		StateBitMask state;
+	public: // functions
+		TCursor();
 	};
 
 public: // data
@@ -66,7 +68,6 @@ public: // data
 	int row = 0;            /* nb row */
 	int col = 0;            /* nb col */
 	Line *line = nullptr; /* screen */
-	TCursor c;              /* cursor */
 	int top = 0;            /* top    scroll limit */
 	int bot = 0;            /* bottom scroll limit */
 	ModeBitMask mode;       /* terminal mode flags */
@@ -86,7 +87,8 @@ protected: // data
 	bool m_allowaltscreen = false;
 	Rune m_last_char = 0;    /* last printed char outside of sequence, 0 if control */
 	EscapeState m_esc_state; /* escape state flags */
-
+	TCursor m_cursor;        /* cursor */
+	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
 
 public: // functions
 
@@ -180,6 +182,8 @@ public: // functions
 	int write(const char *buf, int buflen, int show_ctrl);
 
 	Rune getLastChar() const { return m_last_char; }
+
+	const TCursor& getCursor() const { return m_cursor; }
 
 protected: // functions
 

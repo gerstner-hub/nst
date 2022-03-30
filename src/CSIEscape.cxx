@@ -129,9 +129,9 @@ void CSIEscape::handle() {
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		setDefault(arg0, 1);
-		if (term.lastc) {
+		if (term.getLastChar()) {
 			while (arg0-- > 0)
-				term.putChar(term.lastc);
+				term.putChar(term.getLastChar());
 		}
 		return;
 	case 'C': /* CUF -- Cursor <n> Forward */
@@ -309,13 +309,13 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		return 0;
 	case 'n': /* LS2 -- Locking shift 2 */
 	case 'o': /* LS3 -- Locking shift 3 */
-		term.charset = 2 + (ascii - 'n');
+		term.setCharset(2 + (ascii - 'n'));
 		break;
 	case '(': /* GZD4 -- set primary charset G0 */
 	case ')': /* G1D4 -- set secondary charset G1 */
 	case '*': /* G2D4 -- set tertiary charset G2 */
 	case '+': /* G3D4 -- set quaternary charset G3 */
-		term.icharset = ascii - '(';
+		term.setICharset(ascii - '(');
 		term.esc |= ESC_ALTCHARSET;
 		return 0;
 	case 'D': /* IND -- Linefeed */

@@ -64,8 +64,8 @@ void Term::reset(void) {
 	bot = row - 1;
 	mode.set(Mode::WRAP);
 	mode.set(Mode::UTF8);
-	memset(trantbl, CS_USA, sizeof(trantbl));
-	charset = 0;
+	memset(m_trantbl, CS_USA, sizeof(m_trantbl));
+	m_charset = 0;
 
 	for (size_t i = 0; i < 2; i++) {
 		moveTo(0, 0);
@@ -79,11 +79,11 @@ void Term::setDirty(int p_top, int p_bot) {
 	p_top = std::clamp(p_top, 0, row-1);
 	p_bot = std::clamp(p_bot, 0, row-1);
 
-	if (!dirty)
+	if (!m_dirty)
 		return;
 
 	for (int i = p_top; i <= p_bot; i++)
-		dirty[i] = 1;
+		m_dirty[i] = 1;
 }
 
 void Term::resize(int new_cols, int new_rows) {
@@ -104,34 +104,34 @@ void Term::resize(int new_cols, int new_rows) {
 	 */
 	for (i = 0; i <= c.y - new_rows; i++) {
 		delete[] line[i];
-		delete[] alt[i];
+		delete[] m_alt[i];
 	}
 	/* ensure that both src and dst are not NULL */
 	if (i > 0) {
 		memmove(line, line + i, new_rows * sizeof(Line));
-		memmove(alt, alt + i, new_rows * sizeof(Line));
+		memmove(m_alt, m_alt + i, new_rows * sizeof(Line));
 	}
 	for (i += new_rows; i < row; i++) {
 		delete[] line[i];
-		delete[] alt[i];
+		delete[] m_alt[i];
 	}
 
 	/* allocate new memory with new height */
 	line = renew(line, row, new_rows);
-	alt = renew(alt, row, new_rows);
-	dirty = renew(dirty, row, new_rows);
+	m_alt = renew(m_alt, row, new_rows);
+	m_dirty = renew(m_dirty, row, new_rows);
 	tabs = renew(tabs, col, new_cols);
 
 	/* resize each row to new width, zero-pad if needed */
 	for (i = 0; i < minrow; i++) {
 		line[i] = renew(line[i], col, new_cols);
-		alt[i] = renew(alt[i], col, new_cols);
+		m_alt[i] = renew(m_alt[i], col, new_cols);
 	}
 
 	/* allocate any new rows */
 	for (i = minrow; i < new_rows; i++) {
 		line[i] = new Glyph[new_cols];
-		alt[i] = new Glyph[new_cols];
+		m_alt[i] = new Glyph[new_cols];
 	}
 	if (new_cols > col) {
 		int *bp = tabs + col;
@@ -178,7 +178,7 @@ void Term::clearRegion(int x1, int y1, int x2, int y2) {
 	Glyph *gp;
 
 	for (int y = y1; y <= y2; y++) {
-		dirty[y] = 1;
+		m_dirty[y] = 1;
 		for (int x = x1; x <= x2; x++) {
 			gp = &line[y][x];
 			if (m_selection->isSelected(x, y))
@@ -223,7 +223,7 @@ void Term::moveAbsTo(int x, int y) {
 }
 
 void Term::swapScreen() {
-	std::swap(line, alt);
+	std::swap(line, m_alt);
 	mode.flip(Mode::ALTSCREEN);
 	setAllDirty();
 }
@@ -544,13 +544,13 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 				xsetmode(set, MODE_8BIT);
 				break;
 			case 1049: /* swap screen & set/restore cursor as xterm */
-				if (!allowaltscreen)
+				if (!m_allowaltscreen)
 					break;
 				cursorControl((set) ? TCursor::Control::SAVE : TCursor::Control::LOAD);
 				/* FALLTHROUGH */
 			case 47: /* swap screen */
 			case 1047: {
-				if (!allowaltscreen)
+				if (!m_allowaltscreen)
 					break;
 				const auto is_alt = mode.test(Mode::ALTSCREEN);
 				if (is_alt) {
@@ -643,10 +643,10 @@ void Term::setDirtyByAttr(const Glyph::Attr &attr) {
 
 void Term::drawRegion(int x1, int y1, int x2, int y2) const {
 	for (int y = y1; y < y2; y++) {
-		if (!dirty[y])
+		if (!m_dirty[y])
 			continue;
 
-		dirty[y] = 0;
+		m_dirty[y] = 0;
 		xdrawline(line[y], x1, y, x2);
 	}
 }
@@ -655,24 +655,24 @@ void Term::draw() {
 	if (!xstartdraw())
 		return;
 
-	int old_cx = c.x, old_ocx = ocx, old_ocy = ocy;
+	int old_cx = c.x, old_ocx = m_ocx, old_ocy = m_ocy;
 
 	/* adjust cursor position */
-	ocx = std::clamp(ocx, 0, col-1);
-	ocy = std::clamp(ocy, 0, row-1);
+	m_ocx = std::clamp(m_ocx, 0, col-1);
+	m_ocy = std::clamp(m_ocy, 0, row-1);
 
-	if (line[ocy][ocx].mode.test(Attr::WDUMMY))
-		ocx--;
+	if (line[m_ocy][m_ocx].mode.test(Attr::WDUMMY))
+		m_ocx--;
 	if (line[c.y][old_cx].mode.test(Attr::WDUMMY))
 		old_cx--;
 
 	drawRegion(0, 0, col, row);
-	xdrawcursor(old_cx, c.y, line[c.y][old_cx], ocx, ocy, line[ocy][ocx]);
-	ocx = old_cx;
-	ocy = c.y;
+	xdrawcursor(old_cx, c.y, line[c.y][old_cx], m_ocx, m_ocy, line[m_ocy][m_ocx]);
+	m_ocx = old_cx;
+	m_ocy = c.y;
 	xfinishdraw();
-	if (old_ocx != ocx || old_ocy != ocy)
-		xximspot(ocx, ocy);
+	if (old_ocx != m_ocx || old_ocy != m_ocy)
+		xximspot(m_ocx, m_ocy);
 }
 
 void Term::strSequence(unsigned char ch) {
@@ -710,7 +710,7 @@ void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
 	/*
 	 * The table is proudly stolen from rxvt.
 	 */
-	if (trantbl[charset] == CS_GRAPHIC0 && in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
+	if (m_trantbl[m_charset] == CS_GRAPHIC0 && in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
 		utf8::decode(vt100_0[u - 0x41], &u, utf8::UTF_SIZE);
 
 	if (line[y][x].mode.test(Attr::WIDE)) {
@@ -723,7 +723,7 @@ void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
 		line[y][x-1].mode.reset(Attr::WIDE);
 	}
 
-	dirty[y] = 1;
+	m_dirty[y] = 1;
 	line[y][x] = *attr;
 	line[y][x].u = u;
 }
@@ -736,7 +736,7 @@ void Term::setDefTran(char ascii) {
 	if (p == nullptr) {
 		std::cerr << "esc unhandled charset: ESC ( " << ascii << "\n";
 	} else {
-		trantbl[icharset] = vcs[p - cs];
+		m_trantbl[m_icharset] = vcs[p - cs];
 	}
 }
 
@@ -781,7 +781,7 @@ void Term::handleControlCode(uchar ascii) {
 		return;
 	case '\016': /* SO (LS1 -- Locking shift 1) */
 	case '\017': /* SI (LS0 -- Locking shift 0) */
-		charset = 1 - (ascii - '\016');
+		m_charset = 1 - (ascii - '\016');
 		return;
 	case '\032': /* SUB */
 		setChar('?', &c.attr, c.x, c.y);
@@ -890,7 +890,7 @@ check_control_code:
 		 * control codes are not shown ever
 		 */
 		if (!esc)
-			lastc = 0;
+			m_last_char = 0;
 		return;
 	} else if (esc & ESC_START) {
 		if (esc & ESC_CSI) {
@@ -945,7 +945,7 @@ check_control_code:
 	}
 
 	setChar(u, &c.attr, c.x, c.y);
-	lastc = u;
+	m_last_char = u;
 
 	if (width == 2) {
 		gp->mode.set(Attr::WIDE);

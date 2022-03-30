@@ -54,27 +54,27 @@ public: // data
 	int row = 0;            /* nb row */
 	int col = 0;            /* nb col */
 	Line *line = nullptr; /* screen */
-	Line *alt = nullptr; /* alternate screen */
-	mutable int *dirty = nullptr;   /* dirtyness of lines */
 	TCursor c;              /* cursor */
-	int ocx = 0;            /* old cursor col */
-	int ocy = 0;            /* old cursor row */
 	int top = 0;            /* top    scroll limit */
 	int bot = 0;            /* bottom scroll limit */
 	ModeBitMask mode;       /* terminal mode flags */
 	int esc = 0;            /* escape state flags */
-	char trantbl[4] = {0};  /* charset table translation */
-	int charset = 0;        /* current charset */
-	int icharset = 0;       /* selected charset for sequence */
 	int *tabs = nullptr;
-	bool allowaltscreen = false;
-
-	Rune lastc = 0;    /* last printed char outside of sequence, 0 if control */
 
 protected: // data
 
 	Selection *m_selection = nullptr;
 	TTY *m_tty = nullptr;
+	Line *m_alt = nullptr; /* alternate screen */
+	mutable int *m_dirty = nullptr;   /* dirtyness of lines */
+	int m_ocx = 0;            /* old cursor col */
+	int m_ocy = 0;            /* old cursor row */
+	char m_trantbl[4] = {0};  /* charset table translation */
+	int m_charset = 0;        /* current charset */
+	int m_icharset = 0;       /* selected charset for sequence */
+	bool m_allowaltscreen = false;
+	Rune m_last_char = 0;    /* last printed char outside of sequence, 0 if control */
+
 
 public: // functions
 
@@ -88,10 +88,22 @@ public: // functions
 
 	void clearRegion(int x1, int y1, int x2, int y2);
 
+	void setAllowAltScreen(bool allow) {
+		m_allowaltscreen = allow;
+	}
+
 	void setDirty(int top, int bot);
 
 	void setAllDirty() {
 		setDirty(0, row-1);
+	}
+
+	void setCharset(int charset) {
+		m_charset = charset;
+	}
+
+	void setICharset(int charset) {
+		m_icharset = charset;
 	}
 
 	void setScroll(int t, int b);
@@ -148,6 +160,8 @@ public: // functions
 
 	void putChar(Rune u);
 	int write(const char *buf, int buflen, int show_ctrl);
+
+	Rune getLastChar() const { return m_last_char; }
 
 protected: // functions
 

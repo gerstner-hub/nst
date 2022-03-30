@@ -2072,9 +2072,9 @@ void fixup_colornames()
 
 void applyCmdline(const nst::Cmdline &cmd) {
 	if (cmd.use_alt_screen.isSet()) {
-		term.allowaltscreen = cmd.use_alt_screen.getValue();
+		term.setAllowAltScreen(cmd.use_alt_screen.getValue());
 	} else {
-		term.allowaltscreen = nst::config::ALLOWALTSCREEN;
+		term.setAllowAltScreen(nst::config::ALLOWALTSCREEN);
 	}
 
 	if (cmd.window_class.isSet()) {

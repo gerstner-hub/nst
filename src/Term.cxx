@@ -64,8 +64,7 @@ void Term::reset(void) {
 		tabs[i] = 1;
 	top = 0;
 	bot = row - 1;
-	mode.set(Mode::WRAP);
-	mode.set(Mode::UTF8);
+	m_mode.set({Mode::WRAP, Mode::UTF8});
 	memset(m_trantbl, CS_USA, sizeof(m_trantbl));
 	m_charset = 0;
 
@@ -226,13 +225,13 @@ void Term::moveAbsTo(int x, int y) {
 
 void Term::swapScreen() {
 	std::swap(line, m_alt);
-	mode.flip(Mode::ALTSCREEN);
+	m_mode.flip(Mode::ALTSCREEN);
 	setAllDirty();
 }
 
 void Term::cursorControl(const TCursor::Control &ctrl)
 {
-	auto &cursor = mode[Mode::ALTSCREEN] ? m_cached_cursors[1] : m_cached_cursors[0];
+	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_cursors[1] : m_cached_cursors[0];
 
 	if (ctrl == TCursor::Control::SAVE) {
 		cursor = m_cursor;
@@ -500,7 +499,7 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 				moveAbsTo(0, 0);
 				break;
 			case 7: /* DECAWM -- Auto wrap */
-				mode.set(Mode::WRAP, set);
+				m_mode.set(Mode::WRAP, set);
 				break;
 			case 0:  /* Error (IGNORED) */
 			case 2:  /* DECANM -- ANSI/VT52 (IGNORED) */
@@ -553,7 +552,7 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 			case 1047: {
 				if (!m_allowaltscreen)
 					break;
-				const auto is_alt = mode.test(Mode::ALTSCREEN);
+				const auto is_alt = m_mode[Mode::ALTSCREEN];
 				if (is_alt) {
 					clearRegion(0, 0, col-1, row-1);
 				}
@@ -591,13 +590,13 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 				xsetmode(set, MODE_KBDLOCK);
 				break;
 			case 4:  /* IRM -- Insertion-replacement */
-				mode.set(Mode::INSERT, set);
+				m_mode.set(Mode::INSERT, set);
 				break;
 			case 12: /* SRM -- Send/Receive */
-				mode.set(Mode::TECHO, !set);
+				m_mode.set(Mode::TECHO, !set);
 				break;
 			case 20: /* LNM -- Linefeed/new line */
-				mode.set(Mode::CRLF, set);
+				m_mode.set(Mode::CRLF, set);
 				break;
 			default:
 				std::cerr << "erresc: unknown set/reset mode " << *args << "\n";
@@ -765,7 +764,7 @@ void Term::handleControlCode(uchar ascii) {
 	case '\v':   /* VT */
 	case '\n':   /* LF */
 		/* go to first col if the mode is set */
-		putNewline(mode.test(Mode::CRLF));
+		putNewline(m_mode[Mode::CRLF]);
 		return;
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {
@@ -850,7 +849,7 @@ void Term::putChar(Rune u) {
 	int width, len;
 
 	const int control = isControlChar(u);
-	if (u < 127 || !mode.test(Mode::UTF8)) {
+	if (u < 127 || !m_mode[Mode::UTF8]) {
 		ch[0] = u;
 		width = len = 1;
 	} else {
@@ -859,7 +858,7 @@ void Term::putChar(Rune u) {
 			width = 1;
 	}
 
-	if (mode.test(Mode::PRINT))
+	if (m_mode[Mode::PRINT])
 		g_tty.printToIoFile(ch, len);
 
 	/*
@@ -905,10 +904,10 @@ check_control_code:
 		} else if (m_esc_state[Escape::UTF8]) {
 			switch (static_cast<char>(u)) {
 			case 'G':
-				mode.set(Mode::UTF8);
+				m_mode.set(Mode::UTF8);
 				break;
 			case '@':
-				mode.reset(Mode::UTF8);
+				m_mode.reset(Mode::UTF8);
 				break;
 			}
 		} else if (m_esc_state[Escape::ALTCHARSET]) {
@@ -931,13 +930,13 @@ check_control_code:
 		g_sel.clear();
 
 	nst::Glyph *gp = &line[m_cursor.y][m_cursor.x];
-	if (mode.test(Mode::WRAP) && m_cursor.state[TCursor::State::WRAPNEXT]) {
+	if (m_mode[Mode::WRAP] && m_cursor.state[TCursor::State::WRAPNEXT]) {
 		gp->mode.set(Attr::WRAP);
 		putNewline();
 		gp = &line[m_cursor.y][m_cursor.x];
 	}
 
-	if (mode.test(Mode::INSERT) && m_cursor.x + width < col)
+	if (m_mode[Mode::INSERT] && m_cursor.x + width < col)
 		std::memmove(gp+width, gp, (col - m_cursor.x - width) * sizeof(nst::Glyph));
 
 	if (m_cursor.x + width > col) {
@@ -972,7 +971,7 @@ int Term::write(const char *buf, int buflen, int show_ctrl) {
 	int n;
 
 	for (n = 0; n < buflen; n += charsize) {
-		if (mode.test(Mode::UTF8)) {
+		if (m_mode[Mode::UTF8]) {
 			/* process a complete utf8 char */
 			charsize = utf8::decode(buf + n, &u, buflen - n);
 			if (charsize == 0)

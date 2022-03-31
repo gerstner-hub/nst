@@ -70,7 +70,6 @@ public: // data
 	Line *line = nullptr; /* screen */
 	int top = 0;            /* top    scroll limit */
 	int bot = 0;            /* bottom scroll limit */
-	ModeBitMask mode;       /* terminal mode flags */
 	int *tabs = nullptr;
 
 protected: // data
@@ -89,6 +88,7 @@ protected: // data
 	EscapeState m_esc_state; /* escape state flags */
 	TCursor m_cursor;        /* cursor */
 	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
+	ModeBitMask m_mode;       /* terminal mode flags */
 
 public: // functions
 
@@ -136,7 +136,7 @@ public: // functions
 
 	void cursorControl(const TCursor::Control &ctrl);
 
-	const auto& getMode() const { return mode; }
+	const auto& getMode() const { return m_mode; }
 
 	void putTab(int count);
 	void putNewline(bool firstcol = true);
@@ -184,6 +184,12 @@ public: // functions
 	Rune getLastChar() const { return m_last_char; }
 
 	const TCursor& getCursor() const { return m_cursor; }
+
+	void setPrintMode(const bool on_off) {
+		m_mode.set(Mode::PRINT, on_off);
+	}
+
+	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
 
 protected: // functions
 

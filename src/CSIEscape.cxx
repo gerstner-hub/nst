@@ -117,10 +117,10 @@ void CSIEscape::handle() {
 			g_sel.dump();
 			break;
 		case 4:
-			term.mode.reset(Term::Mode::PRINT);
+			term.setPrintMode(false);
 			break;
 		case 5:
-			term.mode.set(Term::Mode::PRINT);
+			term.setPrintMode(true);
 			break;
 		}
 		return;

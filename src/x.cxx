@@ -345,7 +345,7 @@ ttysend(const Arg *arg)
 void
 toggleprinter(const Arg *)
 {
-	term.mode.flip(nst::Term::Mode::PRINT);
+	term.setPrintMode(!term.isPrintMode());
 }
 
 void

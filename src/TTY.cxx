@@ -102,7 +102,7 @@ void TTY::setupIOFile(const std::string &path) {
 		return;
 	}
 
-	m_term->mode.set(Term::Mode::PRINT);
+	m_term->setPrintMode(true);
 
 	if (path == "-") {
 		m_io_file = cosmos::StreamFile(cosmos::stdout, false);
@@ -165,10 +165,12 @@ size_t TTY::read() {
 
 void TTY::write(const char *s, size_t n, bool may_echo) {
 
-	if (may_echo && m_term->mode.test(Term::Mode::TECHO))
+	auto &mode = m_term->getMode();
+
+	if (may_echo && mode[Term::Mode::TECHO])
 		m_term->write(s, n, 1);
 
-	if (!m_term->mode.test(Term::Mode::CRLF)) {
+	if (!mode[Term::Mode::CRLF]) {
 		writeRaw(s, n);
 		return;
 	}

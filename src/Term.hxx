@@ -2,6 +2,7 @@
 #define NST_TERM_HXX
 
 // C++
+#include <array>
 #include <vector>
 
 // nst
@@ -66,15 +67,25 @@ public: // types
 		TCursor();
 	};
 
+	enum class Charset {
+		GRAPHIC0,
+		GRAPHIC1,
+		UK,
+		USA,
+		MULTI,
+		GER,
+		FIN
+	};
+
 protected: // data
 
 	Selection *m_selection = nullptr;
 	TTY *m_tty = nullptr;
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
-	char m_trantbl[4] = {0};  /* charset table translation */
-	int m_charset = 0;        /* current charset */
-	int m_icharset = 0;       /* selected charset for sequence */
+	std::array<Charset, 4> m_trantbl;  /* charset table translation */
+	size_t m_charset = 0; /* current charset in m_trantbl */
+	size_t m_icharset = 0;       /* selected charset for sequence */
 	bool m_allowaltscreen = false;
 	Rune m_last_char = 0;     /* last printed char outside of sequence, 0 if control */
 	EscapeState m_esc_state;  /* escape state flags */
@@ -123,11 +134,11 @@ public: // functions
 		m_tabs.resize(m_cols);
 	}
 
-	void setCharset(int charset) {
+	void setCharset(size_t charset) {
 		m_charset = charset;
 	}
 
-	void setICharset(int charset) {
+	void setICharset(size_t charset) {
 		m_icharset = charset;
 	}
 

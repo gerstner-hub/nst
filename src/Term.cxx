@@ -65,7 +65,7 @@ void Term::reset(void) {
 	m_top_scroll = 0;
 	m_bottom_scroll = m_rows - 1;
 	m_mode.set({Mode::WRAP, Mode::UTF8});
-	memset(m_trantbl, CS_USA, sizeof(m_trantbl));
+	m_trantbl.fill(Charset::USA);
 	m_charset = 0;
 
 	for (size_t i = 0; i < 2; i++) {
@@ -694,7 +694,7 @@ void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
 	/*
 	 * The table is proudly stolen from rxvt.
 	 */
-	if (m_trantbl[m_charset] == CS_GRAPHIC0 && in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
+	if (m_trantbl[m_charset] == Charset::GRAPHIC0 && in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
 		utf8::decode(vt100_0[u - 0x41], &u, utf8::UTF_SIZE);
 
 	if (m_screen[y][x].mode[Attr::WIDE]) {
@@ -714,7 +714,7 @@ void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
 
 void Term::setDefTran(char ascii) {
 	constexpr char cs[] = "0B";
-	constexpr int vcs[] = {CS_GRAPHIC0, CS_USA};
+	constexpr Charset vcs[] = {Charset::GRAPHIC0, Charset::USA};
 	const char *p = strchr(cs, ascii);
 
 	if (p == nullptr) {

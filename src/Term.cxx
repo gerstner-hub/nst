@@ -62,8 +62,8 @@ void Term::reset(void) {
 	clearAllTabs();
 	for (size_t i = config::TABSPACES; (int)i < col; i += config::TABSPACES)
 		m_tabs[i] = true;
-	top = 0;
-	bot = row - 1;
+	m_top_scroll = 0;
+	m_bottom_scroll = row - 1;
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	memset(m_trantbl, CS_USA, sizeof(m_trantbl));
 	m_charset = 0;
@@ -198,8 +198,8 @@ void Term::setScroll(int t, int b) {
 	if (t > b) {
 		std::swap(t, b);
 	}
-	top = t;
-	bot = b;
+	m_top_scroll = t;
+	m_bottom_scroll = b;
 }
 
 void Term::moveTo(int x, int y)
@@ -207,8 +207,8 @@ void Term::moveTo(int x, int y)
 	int miny, maxy;
 
 	if (m_cursor.state[TCursor::State::ORIGIN]) {
-		miny = top;
-		maxy = bot;
+		miny = m_top_scroll;
+		maxy = m_bottom_scroll;
 	} else {
 		miny = 0;
 		maxy = row - 1;
@@ -220,7 +220,7 @@ void Term::moveTo(int x, int y)
 
 /* for absolute user moves, when decom is set */
 void Term::moveAbsTo(int x, int y) {
-	moveTo(x, y + (m_cursor.state[TCursor::State::ORIGIN] ? top: 0));
+	moveTo(x, y + (m_cursor.state[TCursor::State::ORIGIN] ? m_top_scroll: 0));
 }
 
 void Term::swapScreen() {
@@ -272,8 +272,8 @@ void Term::putTab(int n) {
 void Term::putNewline(bool first_col) {
 	auto y = m_cursor.y;
 
-	if (y == bot) {
-		scrollUp(top, 1);
+	if (y == m_bottom_scroll) {
+		scrollUp(m_top_scroll, 1);
 	} else {
 		y++;
 	}
@@ -293,7 +293,7 @@ void Term::deleteChar(int n) {
 }
 
 void Term::deleteLine(int n) {
-	if (in_range(m_cursor.y, top, bot))
+	if (in_range(m_cursor.y, m_top_scroll, m_bottom_scroll))
 		scrollUp(m_cursor.y, n);
 }
 
@@ -312,18 +312,18 @@ void Term::insertBlank(int n)
 
 void Term::insertBlankLine(int n)
 {
-	if (in_range(m_cursor.y, top, bot))
+	if (in_range(m_cursor.y, m_top_scroll, m_bottom_scroll))
 		scrollDown(m_cursor.y, n);
 }
 
 void Term::scrollDown(int orig, int n)
 {
-	n = std::clamp(n, 0, bot-orig+1);
+	n = std::clamp(n, 0, m_bottom_scroll-orig+1);
 
-	setDirty(orig, bot-n);
-	clearRegion(0, bot-n+1, col-1, bot);
+	setDirty(orig, m_bottom_scroll-n);
+	clearRegion(0, m_bottom_scroll-n+1, col-1, m_bottom_scroll);
 
-	for (int i = bot; i >= orig+n; i--) {
+	for (int i = m_bottom_scroll; i >= orig+n; i--) {
 		std::swap(line[i], line[i-n]);
 	}
 
@@ -332,12 +332,12 @@ void Term::scrollDown(int orig, int n)
 
 void Term::scrollUp(int orig, int n)
 {
-	n = std::clamp(n, 0, bot-orig+1);
+	n = std::clamp(n, 0, m_bottom_scroll-orig+1);
 
 	clearRegion(0, orig, col-1, orig+n-1);
-	setDirty(orig+n, bot);
+	setDirty(orig+n, m_bottom_scroll);
 
-	for (int i = orig; i <= bot-n; i++) {
+	for (int i = orig; i <= m_bottom_scroll-n; i++) {
 		std::swap(line[i], line[i+n]);
 	}
 

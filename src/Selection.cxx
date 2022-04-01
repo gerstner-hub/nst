@@ -183,13 +183,13 @@ void Selection::scroll(int orig, int n) {
 	if (!m_orig.isValid())
 		return;
 
-	if (in_range(m_normal.begin.y, orig, m_term->bot) != in_range(m_normal.end.y, orig, m_term->bot)) {
+	if (in_range(m_normal.begin.y, orig, m_term->bottomScrollLimit()) != in_range(m_normal.end.y, orig, m_term->bottomScrollLimit())) {
 		clear();
-	} else if (in_range(m_normal.begin.y, orig, m_term->bot)) {
+	} else if (in_range(m_normal.begin.y, orig, m_term->bottomScrollLimit())) {
 		m_orig.begin.y += n;
 		m_orig.end.y += n;
-		if (m_orig.begin.y < m_term->top || m_orig.begin.y > m_term->bot ||
-		    m_orig.end.y < m_term->top || m_orig.end.y > m_term->bot) {
+		if (m_orig.begin.y < m_term->topScrollLimit() || m_orig.begin.y > m_term->bottomScrollLimit() ||
+		    m_orig.end.y < m_term->topScrollLimit() || m_orig.end.y > m_term->bottomScrollLimit()) {
 			clear();
 		} else {
 			normalize();

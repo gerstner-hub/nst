@@ -214,11 +214,11 @@ void CSIEscape::handle() {
 		return;
 	case 'S': /* SU -- Scroll <n> line up */
 		setDefault(arg0, 1);
-		term.scrollUp(term.top, arg0);
+		term.scrollUp(term.topScrollLimit(), arg0);
 		return;
 	case 'T': /* SD -- Scroll <n> line down */
 		setDefault(arg0, 1);
-		term.scrollDown(term.top, arg0);
+		term.scrollDown(term.topScrollLimit(), arg0);
 		return;
 	case 'L': /* IL -- Insert <n> blank lines */
 		setDefault(arg0, 1);
@@ -324,8 +324,8 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		esc.set(Escape::ALTCHARSET);
 		return 0;
 	case 'D': /* IND -- Linefeed */
-		if (cursor.y == term.bot) {
-			term.scrollUp(term.top, 1);
+		if (cursor.y == term.bottomScrollLimit()) {
+			term.scrollUp(term.topScrollLimit(), 1);
 		} else {
 			term.moveTo(cursor.x, cursor.y+1);
 		}
@@ -337,8 +337,8 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		term.setTabAtCursor(true);
 		break;
 	case 'M': /* RI -- Reverse index */
-		if (cursor.y == term.top) {
-			term.scrollDown(term.top, 1);
+		if (cursor.y == term.topScrollLimit()) {
+			term.scrollDown(term.topScrollLimit(), 1);
 		} else {
 			term.moveTo(cursor.x, cursor.y - 1);
 		}

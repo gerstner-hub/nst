@@ -71,8 +71,6 @@ public: // data
 	int row = 0;            /* nb row */
 	int col = 0;            /* nb col */
 	Line *line = nullptr; /* screen */
-	int top = 0;            /* top    scroll limit */
-	int bot = 0;            /* bottom scroll limit */
 
 protected: // data
 
@@ -92,6 +90,8 @@ protected: // data
 	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
 	std::vector<bool> m_tabs; // marks horizontal tab positions
+	int m_top_scroll = 0;       /* top    scroll limit */
+	int m_bottom_scroll = 0;    /* bottom scroll limit */
 
 public: // functions
 
@@ -202,6 +202,9 @@ public: // functions
 	}
 
 	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
+
+	int bottomScrollLimit() const { return m_bottom_scroll; }
+	int topScrollLimit() const { return m_top_scroll; }
 
 protected: // functions
 

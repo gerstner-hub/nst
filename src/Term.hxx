@@ -1,6 +1,9 @@
 #ifndef NST_TERM_HXX
 #define NST_TERM_HXX
 
+// C++
+#include <vector>
+
 // nst
 #include "types.hxx"
 #include "Glyph.hxx"
@@ -70,7 +73,6 @@ public: // data
 	Line *line = nullptr; /* screen */
 	int top = 0;            /* top    scroll limit */
 	int bot = 0;            /* bottom scroll limit */
-	int *tabs = nullptr;
 
 protected: // data
 
@@ -89,6 +91,7 @@ protected: // data
 	TCursor m_cursor;        /* cursor */
 	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
+	std::vector<bool> m_tabs; // marks horizontal tab positions
 
 public: // functions
 
@@ -118,6 +121,11 @@ public: // functions
 		setDirty(0, row-1);
 	}
 
+	void clearAllTabs() {
+		m_tabs.clear();
+		m_tabs.resize(col);
+	}
+
 	void setCharset(int charset) {
 		m_charset = charset;
 	}
@@ -140,6 +148,10 @@ public: // functions
 
 	void putTab(int count);
 	void putNewline(bool firstcol = true);
+
+	void setTabAtCursor(const bool on_off) {
+		m_tabs[m_cursor.x] = on_off;
+	}
 
 	void scrollUp(int orig, int n);
 	void scrollDown(int orig, int n);

@@ -155,10 +155,10 @@ void CSIEscape::handle() {
 	case 'g': /* TBC -- Tabulation clear */
 		switch (arg0) {
 		case 0: /* clear current tab stop */
-			term.tabs[cursor.x] = 0;
+			term.setTabAtCursor(false);
 			return;
 		case 3: /* clear all the tabs */
-			std::memset(term.tabs, 0, term.col * sizeof(*term.tabs));
+			term.clearAllTabs();
 			return;
 		default:
 			break;
@@ -334,7 +334,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		term.putNewline(); /* always go to first col */
 		break;
 	case 'H': /* HTS -- Horizontal tab stop */
-		term.tabs[cursor.x] = 1;
+		term.setTabAtCursor(true);
 		break;
 	case 'M': /* RI -- Reverse index */
 		if (cursor.y == term.top) {

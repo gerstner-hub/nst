@@ -59,9 +59,9 @@ Term::Term(int _cols, int _rows) :
 void Term::reset(void) {
 	m_cursor = TCursor();
 
-	memset(tabs, 0, col * sizeof(*tabs));
+	clearAllTabs();
 	for (size_t i = config::TABSPACES; (int)i < col; i += config::TABSPACES)
-		tabs[i] = 1;
+		m_tabs[i] = true;
 	top = 0;
 	bot = row - 1;
 	m_mode.set({Mode::WRAP, Mode::UTF8});
@@ -121,7 +121,7 @@ void Term::resize(int new_cols, int new_rows) {
 	line = renew(line, row, new_rows);
 	m_alt = renew(m_alt, row, new_rows);
 	m_dirty = renew(m_dirty, row, new_rows);
-	tabs = renew(tabs, col, new_cols);
+	m_tabs.resize(new_cols);
 
 	/* resize each row to new width, zero-pad if needed */
 	for (i = 0; i < minrow; i++) {
@@ -135,13 +135,13 @@ void Term::resize(int new_cols, int new_rows) {
 		m_alt[i] = new Glyph[new_cols];
 	}
 	if (new_cols > col) {
-		int *bp = tabs + col;
+		auto it = m_tabs.begin() + col;
 
-		memset(bp, 0, sizeof(*tabs) * (new_cols - col));
-		while (--bp > tabs && !*bp)
-			/* nothing */ ;
-		for (bp += config::TABSPACES; bp < tabs + new_cols; bp += config::TABSPACES)
-			*bp = 1;
+		// find last tab marker
+		while (it > m_tabs.begin() && !*it)
+			it--;
+		for (it += config::TABSPACES; it < m_tabs.end(); it += config::TABSPACES)
+			*it = true;
 	}
 	/* update terminal size */
 	col = new_cols;
@@ -259,11 +259,11 @@ void Term::putTab(int n) {
 
 	if (n > 0) {
 		while (x < col && n--)
-			for (++x; x < col && !tabs[x]; ++x)
+			for (++x; x < col && !m_tabs[x]; ++x)
 				/* nothing */ ;
 	} else if (n < 0) {
 		while (x > 0 && n++)
-			for (--x; x > 0 && !tabs[x]; --x)
+			for (--x; x > 0 && !m_tabs[x]; --x)
 				/* nothing */ ;
 	}
 	m_cursor.x = std::clamp(x, 0, col-1);
@@ -808,7 +808,7 @@ void Term::handleControlCode(uchar ascii) {
 	case 0x87:   /* TODO: ESA */
 		break;
 	case 0x88:   /* HTS -- Horizontal tab stop */
-		tabs[m_cursor.x] = 1;
+		m_tabs[m_cursor.x] = true;
 		break;
 	case 0x89:   /* TODO: HTJ */
 	case 0x8a:   /* TODO: VTS */

@@ -253,7 +253,7 @@ void TTY::writeRaw(const char *s, size_t n) {
 }
 
 void TTY::resize(size_t tw, size_t th) {
-	cosmos::TermDimension dim(m_term->col, m_term->row);
+	cosmos::TermDimension dim(m_term->getNumCols(), m_term->getNumRows());
 	// according to the man page these fields are unused, but it seems nst
 	// wants to use them anyway
 	dim.ws_xpixel = tw;

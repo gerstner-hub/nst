@@ -86,7 +86,7 @@ void Selection::normalize(void) {
 	const auto len = m_term->getLineLen(m_normal.begin.y);
 	m_normal.begin.x = std::min(m_normal.begin.x, len);
 	if (m_term->getLineLen(m_normal.end.y) <= m_normal.end.x)
-		m_normal.end.x = m_term->col - 1;
+		m_normal.end.x = m_term->getNumCols() - 1;
 }
 
 void Selection::checkSnap(Coord &c, const int direction) const {
@@ -104,10 +104,11 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 		int delim;
 		while(true) {
 			newc.set(c.x + direction, c.y);
-			if (!in_range(newc.x, 0, m_term->col - 1)) {
+			const auto tcols = m_term->getNumCols();
+			if (!in_range(newc.x, 0, tcols - 1)) {
 				newc.y += direction;
-				newc.x = (newc.x + m_term->col) % m_term->col;
-				if (!in_range(newc.y, 0, m_term->row - 1))
+				newc.x = (newc.x + tcols) % tcols;
+				if (!in_range(newc.y, 0, m_term->getNumRows() - 1))
 					break;
 
 				if (direction > 0)
@@ -132,28 +133,30 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 			prevdelim = delim;
 		}
 		break;
-	} case Snap::LINE:
+	} case Snap::LINE: {
+		const auto tcols = m_term->getNumCols();
 		/*
 		 * Snap around if the the previous line or the current one
 		 * has set WRAP at its end. Then the whole next or previous
 		 * line will be selected.
 		 */
-		c.x = (direction < 0) ? 0 : m_term->col - 1;
+		c.x = (direction < 0) ? 0 : tcols - 1;
 		if (direction < 0) {
 			for (; c.y > 0; c.y += direction) {
-				if (!(m_term->line[c.y-1][m_term->col-1].mode[Attr::WRAP])) {
+				if (!(m_term->line[c.y-1][tcols-1].mode[Attr::WRAP])) {
 					break;
 				}
 			}
 		} else if (direction > 0) {
-			for (; c.y < m_term->row-1; c.y += direction) {
-				if (!(m_term->line[c.y][m_term->col-1].mode[Attr::WRAP])) {
+			for (; c.y < m_term->getNumRows()-1; c.y += direction) {
+				if (!(m_term->line[c.y][tcols-1].mode[Attr::WRAP])) {
 					break;
 				}
 			}
 		}
 		break;
-	}
+	} // case
+	} // switch
 }
 
 void Selection::extend(int col, int row, const Type &type, const bool &done) {
@@ -201,7 +204,7 @@ char* Selection::getSelection() const {
 	if (!m_orig.isValid())
 		return nullptr;
 
-	const size_t bufsize = (m_term->col+1) * (m_normal.end.y - m_normal.begin.y+1) * utf8::UTF_SIZE;
+	const size_t bufsize = (m_term->getNumCols()+1) * (m_normal.end.y - m_normal.begin.y+1) * utf8::UTF_SIZE;
 	char *str = new char[bufsize];
 	char *ptr = str;
 	const Glyph *gp, *last;
@@ -219,7 +222,7 @@ char* Selection::getSelection() const {
 			lastx = m_normal.end.x;
 		} else {
 			gp = &m_term->line[y][m_normal.begin.y == y ? m_normal.begin.x : 0];
-			lastx = (m_normal.end.y == y) ? m_normal.end.x : m_term->col - 1;
+			lastx = (m_normal.end.y == y) ? m_normal.end.x : m_term->getNumCols() - 1;
 		}
 		last = &m_term->line[y][std::min(lastx, linelen-1)];
 		while (last >= gp && last->u == ' ')

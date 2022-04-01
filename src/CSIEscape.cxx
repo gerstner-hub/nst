@@ -87,6 +87,8 @@ void CSIEscape::handle() {
 	ensureArg(0, 0);
 	auto &arg0 = m_args[0];
 	auto &cursor = term.getCursor();
+	const auto trows = term.getNumRows();
+	const auto tcols = term.getNumCols();
 
 	switch (m_mode[0]) {
 	default:
@@ -182,18 +184,18 @@ void CSIEscape::handle() {
 	case 'J': /* ED -- Clear screen */
 		switch (arg0) {
 		case 0: /* below */
-			term.clearRegion(cursor.x, cursor.y, term.col - 1, cursor.y);
-			if (cursor.y < term.row - 1) {
-				term.clearRegion(0, cursor.y + 1, term.col - 1, term.row - 1);
+			term.clearRegion(cursor.x, cursor.y, tcols - 1, cursor.y);
+			if (cursor.y < trows - 1) {
+				term.clearRegion(0, cursor.y + 1, tcols - 1, trows - 1);
 			}
 			return;
 		case 1: /* above */
 			if (cursor.y > 1)
-				term.clearRegion(0, 0, term.col - 1, cursor.y - 1);
+				term.clearRegion(0, 0, tcols - 1, cursor.y - 1);
 			term.clearRegion(0, cursor.y, cursor.x, cursor.y);
 			return;
 		case 2: /* all */
-			term.clearRegion(0, 0, term.col - 1, term.row - 1);
+			term.clearRegion(0, 0, tcols - 1, trows - 1);
 			return;
 		default:
 			break;
@@ -202,13 +204,13 @@ void CSIEscape::handle() {
 	case 'K': /* EL -- Clear line */
 		switch (arg0) {
 		case 0: /* right */
-			term.clearRegion(cursor.x, cursor.y, term.col - 1, cursor.y);
+			term.clearRegion(cursor.x, cursor.y, tcols - 1, cursor.y);
 			return;
 		case 1: /* left */
 			term.clearRegion(0, cursor.y, cursor.x, cursor.y);
 			return;
 		case 2: /* all */
-			term.clearRegion(0, cursor.y, term.col - 1, cursor.y);
+			term.clearRegion(0, cursor.y, tcols - 1, cursor.y);
 			return;
 		}
 		return;
@@ -264,7 +266,7 @@ void CSIEscape::handle() {
 			break;
 		} else {
 			setDefault(arg0, 1);
-			ensureArg(1, term.row);
+			ensureArg(1, trows);
 			term.setScroll(arg0 - 1, m_args[1] - 1);
 			term.moveAbsTo(0, 0);
 		}

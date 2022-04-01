@@ -68,15 +68,12 @@ public: // types
 
 public: // data
 
-	int row = 0;            /* nb row */
-	int col = 0;            /* nb col */
 	Line *line = nullptr; /* screen */
 
 protected: // data
 
 	Selection *m_selection = nullptr;
 	TTY *m_tty = nullptr;
-	Line *m_alt = nullptr; /* alternate screen */
 	mutable int *m_dirty = nullptr;   /* dirtyness of lines */
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
@@ -84,20 +81,23 @@ protected: // data
 	int m_charset = 0;        /* current charset */
 	int m_icharset = 0;       /* selected charset for sequence */
 	bool m_allowaltscreen = false;
-	Rune m_last_char = 0;    /* last printed char outside of sequence, 0 if control */
-	EscapeState m_esc_state; /* escape state flags */
-	TCursor m_cursor;        /* cursor */
+	Rune m_last_char = 0;     /* last printed char outside of sequence, 0 if control */
+	EscapeState m_esc_state;  /* escape state flags */
+	TCursor m_cursor;         /* cursor */
 	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
 	std::vector<bool> m_tabs; // marks horizontal tab positions
-	int m_top_scroll = 0;       /* top    scroll limit */
-	int m_bottom_scroll = 0;    /* bottom scroll limit */
+	int m_top_scroll = 0;     /* top    scroll limit */
+	int m_bottom_scroll = 0;  /* bottom scroll limit */
+	int m_rows = 0;        /* nb row */
+	int m_cols = 0;        /* nb col */
+	Line *m_alt = nullptr;    /* alternate screen */
 
 public: // functions
 
 	Term() {}
 
-	Term(int _cols, int _rows);
+	Term(int cols, int rows);
 
 	void resize(int cols, int rows);
 
@@ -118,12 +118,12 @@ public: // functions
 	void setDirty(int top, int bot);
 
 	void setAllDirty() {
-		setDirty(0, row-1);
+		setDirty(0, m_rows-1);
 	}
 
 	void clearAllTabs() {
 		m_tabs.clear();
-		m_tabs.resize(col);
+		m_tabs.resize(m_cols);
 	}
 
 	void setCharset(int charset) {
@@ -167,7 +167,7 @@ public: // functions
 
 	//! write all current lines into the I/O file
 	void dump() const {
-		for (size_t i = 0; i < static_cast<size_t>(row); ++i)
+		for (size_t i = 0; i < static_cast<size_t>(m_rows); ++i)
 			dumpLine(i);
 	}
 
@@ -205,6 +205,9 @@ public: // functions
 
 	int bottomScrollLimit() const { return m_bottom_scroll; }
 	int topScrollLimit() const { return m_top_scroll; }
+
+	auto getNumRows() const { return m_rows; }
+	auto getNumCols() const { return m_cols; }
 
 protected: // functions
 

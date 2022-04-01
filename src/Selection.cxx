@@ -90,14 +90,15 @@ void Selection::normalize(void) {
 }
 
 void Selection::checkSnap(Coord &c, const int direction) const {
+	const auto &screen = m_term->getScreen();
+
 	switch (m_snap) {
 	default: break;
 	case Snap::WORD: {
 		/*
-		 * Snap around if the word wraps around at the end or
-		 * beginning of a line.
+		 * Snap around if the word wraps around at the end or beginning of a line.
 		 */
-		const Glyph *prevgp = &m_term->line[c.y][c.x];
+		const Glyph *prevgp = &screen[c.y][c.x];
 		int prevdelim = isDelim(*prevgp);
 		Coord newc;
 		Coord t;
@@ -115,14 +116,14 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 					t = c;
 				else
 					t = newc;
-				if (!(m_term->line[t.y][t.x].mode[Attr::WRAP]))
+				if (!(screen[t.y][t.x].mode[Attr::WRAP]))
 					break;
 			}
 
 			if (newc.x >= m_term->getLineLen(newc.y))
 				break;
 
-			const Glyph *gp = &m_term->line[newc.y][newc.x];
+			const Glyph *gp = &screen[newc.y][newc.x];
 			delim = isDelim(*gp);
 			if (!(gp->mode[Attr::WDUMMY]) &&
 				(delim != prevdelim || (delim && gp->u != prevgp->u)))
@@ -143,13 +144,13 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 		c.x = (direction < 0) ? 0 : tcols - 1;
 		if (direction < 0) {
 			for (; c.y > 0; c.y += direction) {
-				if (!(m_term->line[c.y-1][tcols-1].mode[Attr::WRAP])) {
+				if (!(screen[c.y-1][tcols-1].mode[Attr::WRAP])) {
 					break;
 				}
 			}
 		} else if (direction > 0) {
 			for (; c.y < m_term->getNumRows()-1; c.y += direction) {
-				if (!(m_term->line[c.y][tcols-1].mode[Attr::WRAP])) {
+				if (!(screen[c.y][tcols-1].mode[Attr::WRAP])) {
 					break;
 				}
 			}
@@ -204,6 +205,7 @@ char* Selection::getSelection() const {
 	if (!m_orig.isValid())
 		return nullptr;
 
+	const auto &screen = m_term->getScreen();
 	const size_t bufsize = (m_term->getNumCols()+1) * (m_normal.end.y - m_normal.begin.y+1) * utf8::UTF_SIZE;
 	char *str = new char[bufsize];
 	char *ptr = str;
@@ -218,13 +220,13 @@ char* Selection::getSelection() const {
 		}
 
 		if (isRectType()) {
-			gp = &m_term->line[y][m_normal.begin.x];
+			gp = &screen[y][m_normal.begin.x];
 			lastx = m_normal.end.x;
 		} else {
-			gp = &m_term->line[y][m_normal.begin.y == y ? m_normal.begin.x : 0];
+			gp = &screen[y][m_normal.begin.y == y ? m_normal.begin.x : 0];
 			lastx = (m_normal.end.y == y) ? m_normal.end.x : m_term->getNumCols() - 1;
 		}
-		last = &m_term->line[y][std::min(lastx, linelen-1)];
+		last = &screen[y][std::min(lastx, linelen-1)];
 		while (last >= gp && last->u == ' ')
 			--last;
 

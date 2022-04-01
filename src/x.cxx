@@ -1689,7 +1689,7 @@ xstartdraw(void)
 }
 
 void
-xdrawline(nst::Line line, int x1, int y1, int x2)
+xdrawline(const nst::Line &line, int x1, int y1, int x2)
 {
 	int i, x, ox, numspecs;
 	nst::Glyph base, newone;

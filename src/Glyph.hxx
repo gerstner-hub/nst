@@ -1,6 +1,9 @@
 #ifndef NST_GLYPH_HXX
 #define NST_GLYPH_HXX
 
+// stdlib
+#include <vector>
+
 // libcosmos
 #include "cosmos/BitMask.hxx"
 
@@ -44,7 +47,7 @@ public: // functions
 	}
 };
 
-typedef Glyph *Line;
+using Line = std::vector<Glyph>;
 
 } // end ns
 

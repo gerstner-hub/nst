@@ -66,15 +66,10 @@ public: // types
 		TCursor();
 	};
 
-public: // data
-
-	Line *line = nullptr; /* screen */
-
 protected: // data
 
 	Selection *m_selection = nullptr;
 	TTY *m_tty = nullptr;
-	mutable int *m_dirty = nullptr;   /* dirtyness of lines */
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
 	char m_trantbl[4] = {0};  /* charset table translation */
@@ -87,11 +82,13 @@ protected: // data
 	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
 	std::vector<bool> m_tabs; // marks horizontal tab positions
+	mutable std::vector<bool> m_dirty_lines; /* dirtyness of lines */
 	int m_top_scroll = 0;     /* top    scroll limit */
 	int m_bottom_scroll = 0;  /* bottom scroll limit */
-	int m_rows = 0;        /* nb row */
-	int m_cols = 0;        /* nb col */
-	Line *m_alt = nullptr;    /* alternate screen */
+	int m_rows = 0;           /* nb row */
+	int m_cols = 0;           /* nb col */
+	std::vector<Line> m_alt_screen;
+	std::vector<Line> m_screen;
 
 public: // functions
 
@@ -208,6 +205,8 @@ public: // functions
 
 	auto getNumRows() const { return m_rows; }
 	auto getNumCols() const { return m_cols; }
+
+	auto& getScreen() const { return m_screen; }
 
 protected: // functions
 

@@ -812,7 +812,7 @@ void Term::handleControlCode(uchar ascii) {
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		g_tty.write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
+		m_tty->write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -843,7 +843,7 @@ void Term::putChar(Rune u) {
 	}
 
 	if (m_mode[Mode::PRINT])
-		g_tty.printToIoFile(ch, len);
+		m_tty->printToIoFile(ch, len);
 
 	/*
 	 * STR sequence must be checked before anything else
@@ -910,8 +910,8 @@ check_control_code:
 		 */
 		return;
 	}
-	if (g_sel.isSelected(m_cursor.x, m_cursor.y))
-		g_sel.clear();
+	if (m_selection->isSelected(m_cursor.x, m_cursor.y))
+		m_selection->clear();
 
 	nst::Glyph *gp = &m_screen[m_cursor.y][m_cursor.x];
 	if (m_mode[Mode::WRAP] && m_cursor.state[TCursor::State::WRAPNEXT]) {

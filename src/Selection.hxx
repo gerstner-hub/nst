@@ -4,6 +4,7 @@
 // nst
 #include "nst_config.h"
 #include "Glyph.hxx"
+#include "types.hxx"
 
 namespace nst {
 
@@ -40,24 +41,6 @@ protected: // data
 	Snap m_snap = Snap::WORD;
 	Type m_type = Type::REGULAR;
 	Mode m_mode = Mode::IDLE;
-
-	struct Coord {
-		int x = 0;
-		int y = 0;
-
-		void set(int _x, int _y) {
-			x = _x;
-			y = _y;
-		}
-	};
-
-	struct Range {
-		Coord begin;
-		Coord end;
-
-		void invalidate() { begin.x = -1; }
-		bool isValid() const { return begin.x != -1; }
-	};
 
 	/*
 	 * Selection ranges:

@@ -60,8 +60,7 @@ public: // types
 		typedef cosmos::BitMask<State> StateBitMask;
 	public: // data
 		Glyph attr; /* current char attributes */
-		int x = 0;
-		int y = 0;
+		Coord pos;
 		StateBitMask state;
 	public: // functions
 		TCursor();
@@ -117,7 +116,7 @@ public: // functions
 
 	EscapeState& getEscapeState() { return m_esc_state; }
 
-	void clearRegion(int x1, int y1, int x2, int y2);
+	void clearRegion(Range range);
 
 	void setAllowAltScreen(bool allow) {
 		m_allowaltscreen = allow;
@@ -142,11 +141,11 @@ public: // functions
 		m_icharset = charset;
 	}
 
-	void setScroll(int t, int b);
+	void setScroll(int top, int bottom);
 
-	void moveTo(int x, int y);
+	void moveCursorTo(Coord pos);
 
-	void moveAbsTo(int x, int y);
+	void moveCursorAbsTo(Coord pos);
 
 	void swapScreen();
 
@@ -158,7 +157,7 @@ public: // functions
 	void putNewline(bool firstcol = true);
 
 	void setTabAtCursor(const bool on_off) {
-		m_tabs[m_cursor.x] = on_off;
+		m_tabs[m_cursor.pos.x] = on_off;
 	}
 
 	void scrollUp(int orig, int n);
@@ -233,6 +232,16 @@ protected: // functions
 	void setDefTran(char ascii);
 	void decTest(char c);
 	void handleControlCode(unsigned char ascii);
+
+	Coord topLeft() const { return {0, 0}; }
+	Coord bottomRight() const { return {m_cols-1, m_rows-1}; }
+
+	auto limitRow(int row) { return std::clamp(row, 0, m_rows-1); }
+	auto limitCol(int col) { return std::clamp(col, 0, m_cols-1); }
+	auto clampRow(int &row) { row = limitRow(row); return row; }
+	auto clampCol(int &col) { col = limitCol(col); return col; }
+
+	Glyph& getGlyphAt(const Coord &c) { return m_screen[c.y][c.x]; }
 };
 
 } // end ns

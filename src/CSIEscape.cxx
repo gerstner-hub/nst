@@ -100,12 +100,12 @@ void CSIEscape::handle() {
 		return;
 	case 'A': /* CUU -- Cursor <n> Up */
 		setDefault(arg0, 1);
-		term.moveCursorTo(cursor.pos - Coord{.y = arg0});
+		term.moveCursorTo(cursor.pos.prevLine(arg0));
 		return;
 	case 'B': /* CUD -- Cursor <n> Down */
 	case 'e': /* VPR --Cursor <n> Down */
 		setDefault(arg0, 1);
-		term.moveCursorTo(cursor.pos + Coord{.y = arg0});
+		term.moveCursorTo(cursor.pos.nextLine(arg0));
 		return;
 	case 'i': /* MC -- Media Copy */
 		switch (arg0) {
@@ -140,11 +140,11 @@ void CSIEscape::handle() {
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */
 		setDefault(arg0, 1);
-		term.moveCursorTo(cursor.pos + Coord{.x = arg0});
+		term.moveCursorTo(cursor.pos.nextCol(arg0));
 		return;
 	case 'D': /* CUB -- Cursor <n> Backward */
 		setDefault(arg0, 1);
-		term.moveCursorTo(cursor.pos - Coord{.x = arg0});
+		term.moveCursorTo(cursor.pos.prevCol(arg0));
 		return;
 	case 'E': /* CNL -- Cursor <n> Down and first col */
 		setDefault(arg0, 1);
@@ -235,7 +235,7 @@ void CSIEscape::handle() {
 		return;
 	case 'X': /* ECH -- Erase <n> char */
 		setDefault(arg0, 1);
-		term.clearRegion({cursor.pos, cursor.pos + Coord{.x = arg0 - 1}});
+		term.clearRegion({cursor.pos, cursor.pos.nextCol(arg0 -1)});
 		return;
 	case 'P': /* DCH -- Delete <n> char */
 		setDefault(arg0, 1);
@@ -329,7 +329,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		if (cursor.pos.y == term.bottomScrollLimit()) {
 			term.scrollUp(term.topScrollLimit(), 1);
 		} else {
-			term.moveCursorTo(cursor.pos + Coord{.y = 1});
+			term.moveCursorTo(cursor.pos.nextLine());
 		}
 		break;
 	case 'E': /* NEL -- Next line */
@@ -342,7 +342,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		if (cursor.pos.y == term.topScrollLimit()) {
 			term.scrollDown(term.topScrollLimit(), 1);
 		} else {
-			term.moveCursorTo(cursor.pos - Coord{.y = 1});
+			term.moveCursorTo(cursor.pos.prevLine());
 		}
 		break;
 	case 'Z': /* DECID -- Identify Terminal */

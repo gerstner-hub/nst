@@ -80,6 +80,7 @@ protected: // data
 
 	Selection *m_selection = nullptr;
 	TTY *m_tty = nullptr;
+	Coord m_old_cursor_pos;
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
 	std::array<Charset, 4> m_trantbl;  /* charset table translation */
@@ -199,7 +200,7 @@ public: // functions
 	void strSequence(unsigned char c);
 
 	void putChar(Rune u);
-	int write(const char *buf, int buflen, int show_ctrl);
+	size_t write(const char *buf, const size_t buflen, const bool show_ctrl);
 
 	Rune getLastChar() const { return m_last_char; }
 
@@ -223,14 +224,16 @@ protected: // functions
 
 	int32_t defcolor(const std::vector<int> &attr, size_t &npar);
 
-	int32_t toTrueColor(uint r, uint g, uint b) {
+	int32_t toTrueColor(uint r, uint g, uint b) const {
 		return (1 << 24) | (r << 16) | (g << 8) | b;
 	}
 
 	/// draws the given rectangular screen region
 	void drawRegion(const Range &range) const;
 
-	void setChar(Rune u, const Glyph *attr, int x, int y);
+	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
+
+	void setChar(Rune u, const Glyph &attr, const Coord &pos);
 	void setDefTran(char ascii);
 	void decTest(char c);
 	void handleControlCode(unsigned char ascii);
@@ -242,6 +245,10 @@ protected: // functions
 	auto limitCol(int col) { return std::clamp(col, 0, m_cols-1); }
 	auto clampRow(int &row) { row = limitRow(row); return row; }
 	auto clampCol(int &col) { col = limitCol(col); return col; }
+	auto clampToScreen(Coord &c) {
+		clampRow(c.y);
+		clampCol(c.x);
+	}
 
 	Glyph& getGlyphAt(const Coord &c) { return m_screen[c.y][c.x]; }
 };

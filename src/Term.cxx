@@ -652,24 +652,32 @@ void Term::draw() {
 	if (!xstartdraw())
 		return;
 
-	int old_cx = m_cursor.pos.x, old_ocx = m_ocx, old_ocy = m_ocy;
+	// TODO: pretty confusing logic, further comments or improved
+	// readability required
+
+	auto old_cursor_pos = m_old_cursor_pos;
+	int old_cx = m_cursor.pos.x;
 
 	/* adjust cursor position */
-	m_ocx = std::clamp(m_ocx, 0, m_cols-1);
-	m_ocy = std::clamp(m_ocy, 0, m_rows-1);
+	clampToScreen(m_old_cursor_pos);
 
-	if (m_screen[m_ocy][m_ocx].mode[Attr::WDUMMY])
-		m_ocx--;
+	if (getGlyphAt(m_old_cursor_pos).mode[Attr::WDUMMY])
+		m_old_cursor_pos.x--;
 	if (m_screen[m_cursor.pos.y][old_cx].mode[Attr::WDUMMY])
 		old_cx--;
 
-	drawRegion(Range{topLeft(), bottomRight()});
-	xdrawcursor(old_cx, m_cursor.pos.y, m_screen[m_cursor.pos.y][old_cx], m_ocx, m_ocy, m_screen[m_ocy][m_ocx]);
-	m_ocx = old_cx;
-	m_ocy = m_cursor.pos.y;
+	drawScreen();
+	xdrawcursor(
+		old_cx, m_cursor.pos.y,
+		m_screen[m_cursor.pos.y][old_cx],
+		m_old_cursor_pos.x, m_old_cursor_pos.y,
+		getGlyphAt(m_old_cursor_pos)
+	);
+
+	m_old_cursor_pos.set(old_cx, m_cursor.pos.y);
 	xfinishdraw();
-	if (old_ocx != m_ocx || old_ocy != m_ocy)
-		xximspot(m_ocx, m_ocy);
+	if (m_old_cursor_pos != old_cursor_pos)
+		xximspot(m_old_cursor_pos.x, m_old_cursor_pos.y);
 }
 
 void Term::strSequence(unsigned char ch) {
@@ -692,8 +700,8 @@ void Term::strSequence(unsigned char ch) {
 	m_esc_state.set(Escape::STR);
 }
 
-void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
-	constexpr const char *vt100_0[62] = { /* 0x41 - 0x7e */
+void Term::setChar(Rune u, const Glyph &attr, const Coord &pos) {
+	constexpr const char *VT100_0[0x7e - 0x41 + 1] = { /* 0x41 - 0x7e */
 		"↑", "↓", "→", "←", "█", "▚", "☃", /* A - G */
 		0, 0, 0, 0, 0, 0, 0, 0, /* H - O */
 		0, 0, 0, 0, 0, 0, 0, 0, /* P - W */
@@ -707,22 +715,26 @@ void Term::setChar(nst::Rune u, const nst::Glyph *attr, int x, int y) {
 	/*
 	 * The table is proudly stolen from rxvt.
 	 */
-	if (m_trantbl[m_charset] == Charset::GRAPHIC0 && in_range(u, 0x41, 0x7e) && vt100_0[u - 0x41])
-		utf8::decode(vt100_0[u - 0x41], &u, utf8::UTF_SIZE);
+	if (m_trantbl[m_charset] == Charset::GRAPHIC0 && in_range(u, 0x41, 0x7e) && VT100_0[u - 0x41])
+		utf8::decode(VT100_0[u - 0x41], &u, utf8::UTF_SIZE);
 
-	if (m_screen[y][x].mode[Attr::WIDE]) {
-		if (x+1 < m_cols) {
-			m_screen[y][x+1].u = ' ';
-			m_screen[y][x+1].mode.reset(Attr::WDUMMY);
+	auto &glyph = getGlyphAt(pos);
+
+	if (glyph.mode[Attr::WIDE]) {
+		if (pos.x+1 < m_cols) {
+			auto &next_glyph = getGlyphAt(pos.nextCol());
+			next_glyph.u = ' ';
+			next_glyph.mode.reset(Attr::WDUMMY);
 		}
-	} else if (m_screen[y][x].mode.test(Attr::WDUMMY)) {
-		m_screen[y][x-1].u = ' ';
-		m_screen[y][x-1].mode.reset(Attr::WIDE);
+	} else if (glyph.mode[Attr::WDUMMY]) {
+		auto &prev_glyph = getGlyphAt(pos.prevCol());
+		prev_glyph.u = ' ';
+		prev_glyph.mode.reset(Attr::WIDE);
 	}
 
-	m_dirty_lines[y] = true;
-	m_screen[y][x] = *attr;
-	m_screen[y][x].u = u;
+	m_dirty_lines[pos.y] = true;
+	glyph = attr;
+	glyph.u = u;
 }
 
 void Term::setDefTran(char ascii) {
@@ -741,18 +753,18 @@ void Term::decTest(char ch) {
 	if (ch == '8') { /* DEC screen alignment test. */
 		for (int x = 0; x < m_cols; ++x) {
 			for (int y = 0; y < m_rows; ++y)
-				setChar('E', &m_cursor.attr, x, y);
+				setChar('E', m_cursor.attr, Coord{x, y});
 		}
 	}
 }
 
-void Term::handleControlCode(uchar ascii) {
+void Term::handleControlCode(unsigned char ascii) {
 	switch (ascii) {
 	case '\t':   /* HT */
 		putTab(1);
 		return;
 	case '\b':   /* BS */
-		moveCursorTo(m_cursor.pos + Coord{.x = -1});
+		moveCursorTo(m_cursor.pos.prevCol());
 		return;
 	case '\r':   /* CR */
 		moveCursorTo({0, m_cursor.pos.y});
@@ -781,7 +793,7 @@ void Term::handleControlCode(uchar ascii) {
 		m_charset = 1 - (ascii - '\016');
 		return;
 	case '\032': /* SUB */
-		setChar('?', &m_cursor.attr, m_cursor.pos.x, m_cursor.pos.y);
+		setChar('?', m_cursor.attr, m_cursor.pos);
 		/* FALLTHROUGH */
 	case '\030': /* CAN */
 		csiescseq = CSIEscape();
@@ -825,7 +837,7 @@ void Term::handleControlCode(uchar ascii) {
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		m_tty->write(nst::config::VTIDEN, strlen(nst::config::VTIDEN), 0);
+		m_tty->write(config::VTIDEN, strlen(config::VTIDEN), 0);
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -842,16 +854,17 @@ void Term::handleControlCode(uchar ascii) {
 }
 
 void Term::putChar(Rune u) {
-	char ch[nst::utf8::UTF_SIZE];
-	int width, len;
+	char ch[utf8::UTF_SIZE];
+	int width;
+	size_t len;
 
-	const int control = isControlChar(u);
+	const int is_control = isControlChar(u);
 	if (u < 127 || !m_mode[Mode::UTF8]) {
 		ch[0] = u;
 		width = len = 1;
 	} else {
-		len = nst::utf8::encode(u, ch);
-		if (!control && (width = wcwidth(u)) == -1)
+		len = utf8::encode(u, ch);
+		if (!is_control && (width = wcwidth(u)) == -1)
 			width = 1;
 	}
 
@@ -859,29 +872,26 @@ void Term::putChar(Rune u) {
 		m_tty->printToIoFile(ch, len);
 
 	/*
-	 * STR sequence must be checked before anything else
-	 * because it uses all following characters until it
-	 * receives a ESC, a SUB, a ST or any other C1 control
-	 * character.
+	 * STR sequence must be checked before anything else because it uses
+	 * all following characters until it receives a ESC, a SUB, a ST or
+	 * any other C1 control character.
 	 */
 	if (m_esc_state[Escape::STR]) {
 		if (u == '\a' || u == 030 || u == 032 || u == 033 || isControlC1(u)) {
 			m_esc_state.reset({Escape::START, Escape::STR});
 			m_esc_state.set(Escape::STR_END);
-			goto check_control_code;
+		} else {
+			strescseq.add(ch, len);
+			return;
 		}
-
-		strescseq.add(ch, len);
-		return;
 	}
 
-check_control_code:
 	/*
 	 * Actions of control codes must be performed as soon they arrive
-	 * because they can be embedded inside a control sequence, and
-	 * they must not cause conflicts with sequences.
+	 * because they can be embedded inside a control sequence, and they
+	 * must not cause conflicts with sequences.
 	 */
-	if (control) {
+	if (is_control) {
 		handleControlCode(u);
 		/*
 		 * control codes are not shown ever
@@ -892,7 +902,7 @@ check_control_code:
 	} else if (m_esc_state[Escape::START]) {
 		if (m_esc_state[Escape::CSI]) {
 			const bool max_reached = csiescseq.add(u);
-			if (in_range(u, 0x40, 0x7E) || max_reached) {
+			if (max_reached || in_range(u, 0x40, 0x7E)) {
 				m_esc_state.reset();
 				csiescseq.parse();
 				csiescseq.handle();
@@ -911,18 +921,20 @@ check_control_code:
 			setDefTran(u);
 		} else if (m_esc_state[Escape::TEST]) {
 			decTest(u);
-		} else {
-			if (!csiescseq.eschandle(u))
-				return;
+		} else if (!csiescseq.eschandle(u)) {
+			return;
 			/* sequence already finished */
 		}
+
 		m_esc_state.reset();
+
 		/*
 		 * All characters which form part of a sequence are not
 		 * printed
 		 */
 		return;
 	}
+
 	if (m_selection->isSelected(m_cursor.pos.x, m_cursor.pos.y))
 		m_selection->clear();
 
@@ -934,20 +946,20 @@ check_control_code:
 	}
 
 	if (m_mode[Mode::INSERT] && m_cursor.pos.x + width < m_cols)
-		std::memmove(gp+width, gp, (m_cols - m_cursor.pos.x - width) * sizeof(nst::Glyph));
+		std::memmove(gp+width, gp, (m_cols - m_cursor.pos.x - width) * sizeof(Glyph));
 
 	if (m_cursor.pos.x + width > m_cols) {
 		putNewline();
 		gp = &getGlyphAt(m_cursor.pos);
 	}
 
-	setChar(u, &m_cursor.attr, m_cursor.pos.x, m_cursor.pos.y);
+	setChar(u, m_cursor.attr, m_cursor.pos);
 	m_last_char = u;
 
 	if (width == 2) {
 		gp->mode.set(Attr::WIDE);
 		if (m_cursor.pos.x + 1 < m_cols) {
-			if (gp[1].mode[Attr::WIDE] && m_cursor.pos.x+2 < m_cols) {
+			if (gp[1].mode[Attr::WIDE] && m_cursor.pos.x + 2 < m_cols) {
 				gp[2].u = ' ';
 				gp[2].mode.reset(Attr::WDUMMY);
 			}
@@ -955,17 +967,17 @@ check_control_code:
 			gp[1].mode.limit(Attr::WDUMMY);
 		}
 	}
+
 	if (m_cursor.pos.x + width < m_cols) {
-		moveCursorTo(m_cursor.pos + Coord{.x = width});
+		moveCursorTo(m_cursor.pos.nextCol(width));
 	} else {
 		m_cursor.state.set(TCursor::State::WRAPNEXT);
 	}
 }
 
-int Term::write(const char *buf, int buflen, int show_ctrl) {
-	int charsize;
-	nst::Rune u;
-	int n;
+size_t Term::write(const char *buf, const size_t buflen, const bool show_ctrl) {
+	Rune u;
+	size_t charsize = 0, n;
 
 	for (n = 0; n < buflen; n += charsize) {
 		if (m_mode[Mode::UTF8]) {
@@ -977,6 +989,7 @@ int Term::write(const char *buf, int buflen, int show_ctrl) {
 			u = buf[n] & 0xFF;
 			charsize = 1;
 		}
+
 		if (show_ctrl && isControlChar(u)) {
 			if (u & 0x80) {
 				u &= 0x7f;

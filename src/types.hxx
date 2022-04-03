@@ -55,6 +55,19 @@ struct Coord {
 		ret.y -= other.y;
 		return ret;
 	}
+
+	bool operator==(const Coord &other) const {
+		return x == other.x && y == other.y;
+	}
+
+	bool operator!=(const Coord &other) const {
+		return !(*this == other);
+	}
+
+	Coord nextCol(const int n=1)  const { return Coord{x + n, y    }; }
+	Coord prevCol(const int n=1)  const { return Coord{x - n, y    }; }
+	Coord nextLine(const int n=1) const { return Coord{x,     y + n}; }
+	Coord prevLine(const int n=1) const { return Coord{x,     y - n}; }
 };
 
 struct Range {

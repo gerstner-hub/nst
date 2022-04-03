@@ -235,15 +235,16 @@ void Term::cursorControl(const TCursor::Control &ctrl)
 
 int Term::getLineLen(int y) const
 {
-	auto i = m_cols;
+	auto col = m_cols;
+	const auto &line = m_screen[y];
 
-	if (m_screen[y][i-1].mode.test(Attr::WRAP))
-		return i;
+	if (line[col-1].mode[Attr::WRAP])
+		return col;
 
-	while (i > 0 && m_screen[y][i-1].u == ' ')
-		--i;
+	while (col > 0 && line[col-1].u == ' ')
+		--col;
 
-	return i;
+	return col;
 }
 
 void Term::putTab(int n) {
@@ -258,18 +259,23 @@ void Term::putTab(int n) {
 			for (--x; x > 0 && !m_tabs[x]; --x)
 				/* nothing */ ;
 	}
+
 	m_cursor.pos.x = limitCol(x);
 }
 
 void Term::putNewline(bool first_col) {
-	auto y = m_cursor.pos.y;
+	Coord new_pos = m_cursor.pos;
 
-	if (y == m_bottom_scroll) {
+	if (first_col)
+		new_pos.x = 0;
+
+	if (new_pos.y == m_bottom_scroll) {
 		scrollUp(m_top_scroll, 1);
 	} else {
-		y++;
+		new_pos.y++;
 	}
-	moveCursorTo({first_col ? 0 : m_cursor.pos.x, y});
+
+	moveCursorTo(new_pos);
 }
 
 void Term::deleteChar(int n) {
@@ -280,7 +286,9 @@ void Term::deleteChar(int n) {
 	const int size = m_cols - src;
 	auto &line = m_screen[m_cursor.pos.y];
 
-	memmove(&line[dst], &line[src], size * sizeof(Glyph));
+	// slide remaining line content n characters to the left
+	std::memmove(&line[dst], &line[src], size * sizeof(Glyph));
+	// clear n characters at end of line
 	clearRegion({Coord{m_cols-n, m_cursor.pos.y}, Coord{m_cols-1, m_cursor.pos.y}});
 }
 
@@ -297,7 +305,7 @@ void Term::insertBlank(int n) {
 	const int size = m_cols - dst;
 	auto &line = m_screen[m_cursor.pos.y];
 
-	memmove(&line[dst], &line[src], size * sizeof(Glyph));
+	std::memmove(&line[dst], &line[src], size * sizeof(Glyph));
 	clearRegion({Coord{src, m_cursor.pos.y}, Coord{dst - 1, m_cursor.pos.y}});
 }
 
@@ -325,8 +333,8 @@ void Term::scrollUp(int orig, int n)
 {
 	n = std::clamp(n, 0, m_bottom_scroll-orig+1);
 
-	clearRegion({Coord{0, orig}, Coord{m_cols-1, orig+n-1}});
 	setDirty(orig+n, m_bottom_scroll);
+	clearRegion({Coord{0, orig}, Coord{m_cols-1, orig+n-1}});
 
 	for (int i = orig; i <= m_bottom_scroll-n; i++) {
 		std::swap(m_screen[i], m_screen[i+n]);
@@ -335,10 +343,8 @@ void Term::scrollUp(int orig, int n)
 	m_selection->scroll(orig, -n);
 }
 
-void Term::setAttr(const int *attr, size_t len) {
-	int32_t idx;
-
-	for (size_t i = 0; i < len; i++) {
+void Term::setAttr(const std::vector<int> &attr) {
+	for (size_t i = 0; i < attr.size(); i++) {
 		switch (attr[i]) {
 		case 0:
 			m_cursor.attr.mode.reset({
@@ -402,14 +408,14 @@ void Term::setAttr(const int *attr, size_t len) {
 			m_cursor.attr.mode.reset(Attr::STRUCK);
 			break;
 		case 38:
-			if ((idx = defcolor(attr, &i, len)) >= 0)
+			if (auto idx = defcolor(attr, i); idx >= 0)
 				m_cursor.attr.fg = idx;
 			break;
 		case 39:
 			m_cursor.attr.fg = config::DEFAULTFG;
 			break;
 		case 48:
-			if ((idx = defcolor(attr, &i, len)) >= 0)
+			if (auto idx = defcolor(attr, i); idx >= 0)
 				m_cursor.attr.bg = idx;
 			break;
 		case 49:
@@ -433,17 +439,18 @@ void Term::setAttr(const int *attr, size_t len) {
 	}
 }
 
-int32_t Term::defcolor(const int *attr, size_t *npar, size_t len) {
-	switch (attr[*npar + 1]) {
+int32_t Term::defcolor(const std::vector<int> &attr, size_t &npar) {
+	// TODO: could this be a possible out of bound access here if attr.size() == 1?
+	switch (attr[npar + 1]) {
 	case 2: /* direct color in RGB space */ {
-		if (*npar + 4 >= len) {
-			std::cerr << "erresc(38): Incorrect number of parameters (" << *npar << ")\n";
+		if (npar + 4 >= attr.size()) {
+			std::cerr << "erresc(38): Incorrect number of parameters (" << npar << ")\n";
 			break;
 		}
-		const uint r = attr[*npar + 2];
-		const uint g = attr[*npar + 3];
-		const uint b = attr[*npar + 4];
-		*npar += 4;
+		const uint r = attr[npar + 2];
+		const uint g = attr[npar + 3];
+		const uint b = attr[npar + 4];
+		npar += 4;
 		if (r > 255 || g > 255 || b > 255) {
 			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
 			break;
@@ -452,33 +459,33 @@ int32_t Term::defcolor(const int *attr, size_t *npar, size_t len) {
 		return toTrueColor(r, g, b);
 	}
 	case 5: /* indexed color */
-		if (*npar + 2 >= len) {
-			std::cerr << "erresc(38): Incorrect number of parameters (" << *npar << ")" << std::endl;
+		if (npar + 2 >= attr.size()) {
+			std::cerr << "erresc(38): Incorrect number of parameters (" << npar << ")" << std::endl;
 			break;
 		}
-		*npar += 2;
-		if (!in_range(attr[*npar], 0, 255)) {
-			std::cerr << "erresc: bad fgcolor " << attr[*npar] << std::endl;
+		npar += 2;
+		if (!in_range(attr[npar], 0, 255)) {
+			std::cerr << "erresc: bad fgcolor " << attr[npar] << std::endl;
 			break;
 		}
 
-		return attr[*npar];
+		return attr[npar];
 	case 0: /* implementation defined (only foreground) */
 	case 1: /* transparent */
 	case 3: /* direct color in CMY space */
 	case 4: /* direct color in CMYK space */
 	default:
-		std::cerr << "erresc(38): gfx attr " << attr[*npar] << " unknown" << std::endl;
+		std::cerr << "erresc(38): gfx attr " << attr[npar] << " unknown" << std::endl;
 		break;
 	}
 
 	return -1;
 }
 
-void Term::setMode(int priv, int set, const int *args, int narg) {
-	for (const int *lim = args + narg; args < lim; ++args) {
+void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
+	for (const auto arg: args) {
 		if (priv) {
-			switch (*args) {
+			switch (arg) {
 			case 1: /* DECCKM -- Cursor key */
 				xsetmode(set, MODE_APPCURSOR);
 				break;
@@ -545,16 +552,16 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 					break;
 				const auto is_alt = m_mode[Mode::ALTSCREEN];
 				if (is_alt) {
-					clearRegion({Coord{0, 0}, Coord{m_cols-1, m_rows-1}});
+					clearRegion({topLeft(), bottomRight()});
 				}
 				if (set ^ is_alt) /* set is always 1 or 0 */
 					swapScreen();
-				if (*args != 1049)
+				if (arg != 1049)
 					break;
 			}
 				/* FALLTHROUGH */
 			case 1048:
-				cursorControl((set) ? TCursor::Control::SAVE : TCursor::Control::LOAD);
+				cursorControl(set ? TCursor::Control::SAVE : TCursor::Control::LOAD);
 				break;
 			case 2004: /* 2004: bracketed paste mode */
 				xsetmode(set, MODE_BRCKTPASTE);
@@ -570,11 +577,11 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 				      codes. */
 				break;
 			default:
-				std::cerr << "erresc: unknown private set/reset mode " << *args << "\n";
+				std::cerr << "erresc: unknown private set/reset mode " << arg << "\n";
 				break;
 			}
 		} else {
-			switch (*args) {
+			switch (arg) {
 			case 0:  /* Error (IGNORED) */
 				break;
 			case 2:
@@ -590,7 +597,7 @@ void Term::setMode(int priv, int set, const int *args, int narg) {
 				m_mode.set(Mode::CRLF, set);
 				break;
 			default:
-				std::cerr << "erresc: unknown set/reset mode " << *args << "\n";
+				std::cerr << "erresc: unknown set/reset mode " << arg << "\n";
 				break;
 			}
 		}
@@ -610,34 +617,34 @@ void Term::dumpLine(size_t n) const {
 }
 
 bool Term::testAttrSet(const Glyph::Attr &attr) const {
-	for (int i = 0; i < m_rows-1; i++) {
-		for (int j = 0; j < m_cols-1; j++) {
-			if (m_screen[i][j].mode[attr])
-				return 1;
+	for (int y = 0; y < m_rows-1; y++) {
+		for (int x = 0; x < m_cols-1; x++) {
+			if (m_screen[y][x].mode[attr])
+				return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 void Term::setDirtyByAttr(const Glyph::Attr &attr) {
-	for (int i = 0; i < m_rows-1; i++) {
-		for (int j = 0; j < m_cols-1; j++) {
-			if (m_screen[i][j].mode[attr]) {
-				setDirty(i, i);
+	for (int y = 0; y < m_rows-1; y++) {
+		for (int x = 0; x < m_cols-1; x++) {
+			if (m_screen[y][x].mode[attr]) {
+				setDirty(y, y);
 				break;
 			}
 		}
 	}
 }
 
-void Term::drawRegion(int x1, int y1, int x2, int y2) const {
-	for (int y = y1; y < y2; y++) {
+void Term::drawRegion(const Range &range) const {
+	for (int y = range.begin.y; y <= range.end.y; y++) {
 		if (!m_dirty_lines[y])
 			continue;
 
 		m_dirty_lines[y] = false;
-		xdrawline(m_screen[y], x1, y, x2);
+		xdrawline(m_screen[y], range.begin.x, y, range.end.x);
 	}
 }
 
@@ -656,7 +663,7 @@ void Term::draw() {
 	if (m_screen[m_cursor.pos.y][old_cx].mode[Attr::WDUMMY])
 		old_cx--;
 
-	drawRegion(0, 0, m_cols, m_rows);
+	drawRegion(Range{topLeft(), bottomRight()});
 	xdrawcursor(old_cx, m_cursor.pos.y, m_screen[m_cursor.pos.y][old_cx], m_ocx, m_ocy, m_screen[m_ocy][m_ocx]);
 	m_ocx = old_cx;
 	m_ocy = m_cursor.pos.y;

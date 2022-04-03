@@ -165,12 +165,13 @@ public: // functions
 
 	int getLineLen(int y) const;
 
+	/// delete the given number of characters from the cursor position to the right
 	void deleteChar(int n);
 	void deleteLine(int n);
 	void insertBlank(int n);
 	void insertBlankLine(int n);
-	void setAttr(const int *attr, size_t len);
-	void setMode(int priv, int set, const int *args, int narg);
+	void setAttr(const std::vector<int> &attrs);
+	void setMode(bool priv, bool set, const std::vector<int> &args);
 
 	//! write all current lines into the I/O file
 	void dump() const {
@@ -220,13 +221,14 @@ public: // functions
 
 protected: // functions
 
-	int32_t defcolor(const int *attr, size_t *npar, size_t len);
+	int32_t defcolor(const std::vector<int> &attr, size_t &npar);
 
 	int32_t toTrueColor(uint r, uint g, uint b) {
 		return (1 << 24) | (r << 16) | (g << 8) | b;
 	}
 
-	void drawRegion(int x1, int y1, int x2, int  y2) const;
+	/// draws the given rectangular screen region
+	void drawRegion(const Range &range) const;
 
 	void setChar(Rune u, const Glyph *attr, int x, int y);
 	void setDefTran(char ascii);

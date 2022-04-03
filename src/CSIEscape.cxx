@@ -227,7 +227,7 @@ void CSIEscape::handle() {
 		term.insertBlankLine(arg0);
 		return;
 	case 'l': /* RM -- Reset Mode */
-		term.setMode(m_priv, 0, m_args.data(), m_args.size());
+		term.setMode(m_priv, false, m_args);
 		return;
 	case 'M': /* DL -- Delete <n> lines */
 		setDefault(arg0, 1);
@@ -250,10 +250,10 @@ void CSIEscape::handle() {
 		term.moveCursorAbsTo({cursor.pos.x, arg0 - 1});
 		return;
 	case 'h': /* SM -- Set terminal mode */
-		term.setMode(m_priv, 1, m_args.data(), m_args.size());
+		term.setMode(m_priv, true, m_args);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		term.setAttr(m_args.data(), m_args.size());
+		term.setAttr(m_args);
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {

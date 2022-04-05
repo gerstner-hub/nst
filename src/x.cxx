@@ -26,9 +26,10 @@
 // cosmos
 #include "cosmos/Init.hxx"
 #include "cosmos/algs.hxx"
-#include "cosmos/formatting.hxx"
 #include "cosmos/errors/ApiError.hxx"
 #include "cosmos/errors/RuntimeError.hxx"
+#include "cosmos/formatting.hxx"
+#include "cosmos/io/Poller.hxx"
 #include "cosmos/time/TimeSpec.hxx"
 #include "cosmos/time/Clock.hxx"
 
@@ -194,8 +195,6 @@ static void mousesel(XEvent *, int);
 static void mousereport(XEvent *);
 static const char *kmap(KeySym, uint);
 static int match(uint, uint);
-
-static void run(void);
 
 typedef void (*XEventCallback)(XEvent*);
 
@@ -1977,57 +1976,49 @@ void waitForWindowMapping() {
 	cresize(w, h);
 }
 
-void run() {
-	int ttyfd = g_tty.create(cmdline);
+static void run() {
+	auto ttyfd = g_tty.create(cmdline);
 
 	waitForWindowMapping();
 
 	auto childfd = g_tty.getChildFD();
-	int xfd = XConnectionNumber(xw.dpy);
-	int maxfd = std::max({xfd, ttyfd, childfd});
-
+	auto xfd = cosmos::FileDescriptor(XConnectionNumber(xw.dpy));
 	XEvent ev;
 	bool drawing = false;
 	cosmos::TimeSpec lastblink{0,0};
-	cosmos::TimeSpec seltv;
 	cosmos::TimeSpec now, trigger;
 	cosmos::Clock clock(cosmos::ClockType::MONOTONIC);
 	std::chrono::milliseconds timeout(-1);
-	struct timespec *tv;
-	fd_set rfd;
+	cosmos::Poller poller;
+
+	poller.create();
+	for (auto fd: {ttyfd, xfd, childfd}) {
+		poller.addFD(fd, cosmos::Poller::MonitorMask({cosmos::Poller::MonitorSetting::INPUT}));
+	}
 
 	while (true) {
-		FD_ZERO(&rfd);
-		FD_SET(ttyfd, &rfd);
-		FD_SET(xfd, &rfd);
-		FD_SET(childfd, &rfd);
-
 		if (XPending(xw.dpy))
 			timeout = std::chrono::milliseconds(0);  /* existing events might not set xfd */
 
-		if (timeout.count() >= 0) {
-			seltv.setAsMilliseconds(timeout);
-			tv = &seltv;
-		} else {
-			tv = nullptr;
-		}
-
-		if (pselect(maxfd + 1, &rfd, NULL, NULL, tv, NULL) < 0) {
-			if (errno == EINTR)
-				continue;
-			cosmos_throw (ApiError("select failed"));
-		}
+		auto events = poller.wait(timeout.count() >= 0 ?
+				std::optional<std::chrono::milliseconds>(timeout) :
+				std::nullopt);
 
 		clock.now(now);
+		bool tty_ev = false;
+		bool x_ev = false;
 
-		if (FD_ISSET(childfd, &rfd))
-			g_tty.sigChildEvent();
-		if (FD_ISSET(ttyfd, &rfd))
-			g_tty.read();
+		for (const auto &event: events) {
+			if (event.fd() == childfd)
+				g_tty.sigChildEvent();
+			else if (event.fd() == ttyfd) {
+				g_tty.read();
+				tty_ev = true;
+			}
+		}
 
-		bool xev = false;
 		while (XPending(xw.dpy)) {
-			xev = true;
+			x_ev = true;
 			XNextEvent(xw.dpy, &ev);
 			if (XFilterEvent(&ev, None))
 				continue;
@@ -2048,7 +2039,7 @@ void run() {
 		 * maximum latency intervals during `cat huge.txt`, and perfect
 		 * sync with periodic updates from animations/key-repeats/etc.
 		 */
-		if (FD_ISSET(ttyfd, &rfd) || xev) {
+		if (tty_ev || x_ev) {
 			if (!drawing) {
 				trigger = now;
 				drawing = true;

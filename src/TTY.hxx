@@ -35,7 +35,7 @@ protected: // data
 public: // functions
 
 	~TTY();
-	int create(const Cmdline &cmdline);
+	cosmos::FileDescriptor create(const Cmdline &cmdline);
 	size_t read();
 	void write(const char *s, size_t n, bool may_echo);
 	void resize(size_t tw, size_t th);
@@ -46,7 +46,7 @@ public: // functions
 		doPrintToIoFile(s, len);
 	}
 
-	auto getChildFD() { return m_child_proc.pidFD().raw(); }
+	auto getChildFD() { return m_child_proc.pidFD(); }
 	void sigChildEvent();
 
 protected: // functions

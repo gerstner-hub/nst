@@ -60,7 +60,7 @@ TTY::~TTY() {
 	}
 }
 
-int TTY::create(const Cmdline &cmdline) {
+cosmos::FileDescriptor TTY::create(const Cmdline &cmdline) {
 
 	setupIOFile(cmdline.iofile.getValue());
 
@@ -75,7 +75,7 @@ int TTY::create(const Cmdline &cmdline) {
 		m_pty.setFD(m_cmd_file);
 		m_cmd_file.getFD().duplicate(cosmos::stdin, /*cloexec=*/false);
 		runStty(cmdline);
-		return m_cmd_file.getFD().raw();
+		return m_cmd_file.getFD();
 	}
 
 	// create a pseudo TTY
@@ -93,7 +93,7 @@ int TTY::create(const Cmdline &cmdline) {
 		throw;
 	}
 
-	return m_cmd_file.getFD().raw();
+	return m_cmd_file.getFD();
 }
 
 void TTY::setupIOFile(const std::string &path) {

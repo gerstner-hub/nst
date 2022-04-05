@@ -3,6 +3,7 @@
 
 // stdlib
 #include <array>
+#include <chrono>
 
 // Xlib
 #include <X11/cursorfont.h>
@@ -102,19 +103,19 @@ const unsigned int doubleclicktimeout = 300;
 const unsigned int tripleclicktimeout = 600;
 
 /*
- * draw latency range in ms - from new content/keypress/etc until drawing.
- * within this range, st draws when content stops arriving (idle). mostly it's
- * near minlatency, but it waits longer for slow updates to avoid partial draw.
- * low minlatency will tear/flicker more, as it can "detect" idle too early.
+ * draw latency range - from new content/keypress/etc until drawing.
+ * within this range, nst draws when content stops arriving (idle). mostly it's
+ * near MINLATENCY, but it waits longer for slow updates to avoid partial draw.
+ * low MINLATENCY Will tear/flicker more, as it can "detect" idle too early.
  */
-const double minlatency = 8;
-const double maxlatency = 33;
+constexpr std::chrono::milliseconds MINLATENCY(8);
+constexpr std::chrono::milliseconds MAXLATENCY(33);
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
  * attribute.
  */
-const unsigned int blinktimeout = 800;
+constexpr std::chrono::milliseconds BLINKTIMEOUT(800);
 
 /*
  * thickness of underline and bar cursors

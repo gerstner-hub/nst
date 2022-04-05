@@ -1,12 +1,8 @@
 #ifndef NST_ST_H
 #define NST_ST_H
 
-// libc
-#include <stdint.h>
-
 // stdlib
 #include <cstring>
-#include <algorithm>
 
 template <typename T>
 T* renew(T *oldptr, size_t oldsize, size_t newsize) {

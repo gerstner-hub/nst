@@ -29,6 +29,8 @@
 #include "cosmos/formatting.hxx"
 #include "cosmos/errors/ApiError.hxx"
 #include "cosmos/errors/RuntimeError.hxx"
+#include "cosmos/time/TimeSpec.hxx"
+#include "cosmos/time/Clock.hxx"
 
 // nst
 #include "types.hxx"
@@ -1952,15 +1954,9 @@ resize(XEvent *e)
 	cresize(e->xconfigure.width, e->xconfigure.height);
 }
 
-void
-run(void)
-{
+void waitForWindowMapping() {
 	XEvent ev;
 	int w = win.w, h = win.h;
-	fd_set rfd;
-	int xfd = XConnectionNumber(xw.dpy), xev, drawing;
-	struct timespec seltv, *tv, now, lastblink, trigger;
-	double timeout;
 
 	/* Waiting for window mapping */
 	do {
@@ -1978,44 +1974,64 @@ run(void)
 		}
 	} while (ev.type != MapNotify);
 
-	int ttyfd = g_tty.create(cmdline);
 	cresize(w, h);
+}
+
+void run() {
+	int ttyfd = g_tty.create(cmdline);
+
+	waitForWindowMapping();
+
 	auto childfd = g_tty.getChildFD();
+	int xfd = XConnectionNumber(xw.dpy);
 	int maxfd = std::max({xfd, ttyfd, childfd});
 
-	for (timeout = -1, drawing = 0, lastblink = (struct timespec){0, 0};;) {
+	XEvent ev;
+	bool drawing = false;
+	cosmos::TimeSpec lastblink{0,0};
+	cosmos::TimeSpec seltv;
+	cosmos::TimeSpec now, trigger;
+	cosmos::Clock clock(cosmos::ClockType::MONOTONIC);
+	std::chrono::milliseconds timeout(-1);
+	struct timespec *tv;
+	fd_set rfd;
+
+	while (true) {
 		FD_ZERO(&rfd);
 		FD_SET(ttyfd, &rfd);
 		FD_SET(xfd, &rfd);
 		FD_SET(childfd, &rfd);
 
 		if (XPending(xw.dpy))
-			timeout = 0;  /* existing events might not set xfd */
+			timeout = std::chrono::milliseconds(0);  /* existing events might not set xfd */
 
-		seltv.tv_sec = timeout / 1E3;
-		seltv.tv_nsec = 1E6 * (timeout - 1E3 * seltv.tv_sec);
-		tv = timeout >= 0 ? &seltv : NULL;
+		if (timeout.count() >= 0) {
+			seltv.setAsMilliseconds(timeout);
+			tv = &seltv;
+		} else {
+			tv = nullptr;
+		}
 
 		if (pselect(maxfd + 1, &rfd, NULL, NULL, tv, NULL) < 0) {
 			if (errno == EINTR)
 				continue;
 			cosmos_throw (ApiError("select failed"));
 		}
-		clock_gettime(CLOCK_MONOTONIC, &now);
+
+		clock.now(now);
 
 		if (FD_ISSET(childfd, &rfd))
 			g_tty.sigChildEvent();
 		if (FD_ISSET(ttyfd, &rfd))
 			g_tty.read();
 
-		xev = 0;
+		bool xev = false;
 		while (XPending(xw.dpy)) {
-			xev = 1;
+			xev = true;
 			XNextEvent(xw.dpy, &ev);
 			if (XFilterEvent(&ev, None))
 				continue;
-			auto it = handlers.find(ev.type);
-			if (it != handlers.end()) {
+			else if (auto it = handlers.find(ev.type); it != handlers.end()) {
 				auto handler = it->second;
 				handler(&ev);
 			}
@@ -2027,7 +2043,7 @@ run(void)
 		 * everything, and if nothing new arrives - we draw.
 		 * We start with trying to wait minlatency ms. If more content
 		 * arrives sooner, we retry with shorter and shorter periods,
-		 * and eventually draw even without idle after maxlatency ms.
+		 * and eventually draw even without idle after MAXLATENCY ms.
 		 * Typically this results in low latency while interacting,
 		 * maximum latency intervals during `cat huge.txt`, and perfect
 		 * sync with periodic updates from animations/key-repeats/etc.
@@ -2035,36 +2051,37 @@ run(void)
 		if (FD_ISSET(ttyfd, &rfd) || xev) {
 			if (!drawing) {
 				trigger = now;
-				drawing = 1;
+				drawing = true;
 			}
-			timeout = (maxlatency - TIMEDIFF(now, trigger)) \
-			          / maxlatency * minlatency;
-			if (timeout > 0)
+
+			const auto diff = static_cast<std::chrono::milliseconds>((now - trigger));
+			timeout = (MAXLATENCY - diff) / MAXLATENCY * MINLATENCY;
+
+			if (timeout.count() > 0)
 				continue;  /* we have time, try to find idle */
 		}
 
 		/* idle detected or maxlatency exhausted -> draw */
-		timeout = -1;
-		if (blinktimeout && term.testAttrSet(Attr::BLINK)) {
-			timeout = blinktimeout - TIMEDIFF(now, lastblink);
-			if (timeout <= 0) {
-				if (-timeout > blinktimeout) /* start visible */
+		timeout = std::chrono::milliseconds(-1);
+		if (BLINKTIMEOUT.count() > 0 && term.testAttrSet(Attr::BLINK)) {
+			timeout = BLINKTIMEOUT - static_cast<std::chrono::milliseconds>(now - lastblink);
+			if (timeout.count() <= 0) {
+				if (-timeout.count() > BLINKTIMEOUT.count()) /* start visible */
 					win.mode |= MODE_BLINK;
 				win.mode ^= MODE_BLINK;
 				term.setDirtyByAttr(Attr::BLINK);
 				lastblink = now;
-				timeout = blinktimeout;
+				timeout = BLINKTIMEOUT;
 			}
 		}
 
 		term.draw();
 		XFlush(xw.dpy);
-		drawing = 0;
+		drawing = false;
 	}
 }
 
-void fixup_colornames()
-{
+void fixup_colornames() {
 	for (size_t index = 0; index < sizeof(extended_colors)/sizeof(const char*); index++) {
 		colorname[256+index] = extended_colors[index];
 	}
@@ -2111,9 +2128,7 @@ void applyCmdline(const nst::Cmdline &cmd) {
 	}
 }
 
-int
-main(int argc, const char **argv)
-{
+int main(int argc, const char **argv) {
 	try {
 		cosmos::Init init;
 		fixup_colornames();

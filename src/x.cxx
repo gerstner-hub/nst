@@ -65,9 +65,6 @@ using cosmos::RuntimeError;
 #define XEMBED_FOCUS_OUT 5
 
 /* macros */
-#define TRUERED(x)		(((x) & 0xff0000) >> 8)
-#define TRUEGREEN(x)		(((x) & 0xff00))
-#define TRUEBLUE(x)		(((x) & 0xff) << 8)
 #define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
 #define ATTRCMP(a, b)		((a).mode != (b).mode || (a).fg != (b).fg || \
 				(a).bg != (b).bg)
@@ -1409,6 +1406,16 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 	return numspecs;
 }
 
+static void setRenderColor(XRenderColor &out, const uint32_t in) {
+	/* seems like the X color values are 16-bit wide and we need to
+	 * translate the one color bytes into the upper byte in the
+	 * XRenderColor */
+	out.alpha = 0xffff;
+	out.red = (in & 0xff0000) >> 8;
+	out.green = (in & 0xff00);
+	out.blue = (in & 0xff) << 8;
+}
+
 void
 xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int x, int y)
 {
@@ -1429,10 +1436,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 	}
 
 	if (base.isFgTrueColor()) {
-		colfg.alpha = 0xffff;
-		colfg.red = TRUERED(base.fg);
-		colfg.green = TRUEGREEN(base.fg);
-		colfg.blue = TRUEBLUE(base.fg);
+		setRenderColor(colfg, base.fg);
 		XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colfg, &truefg);
 		fg = &truefg;
 	} else {
@@ -1440,10 +1444,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 	}
 
 	if (base.isBgTrueColor()) {
-		colbg.alpha = 0xffff;
-		colbg.green = TRUEGREEN(base.bg);
-		colbg.red = TRUERED(base.bg);
-		colbg.blue = TRUEBLUE(base.bg);
+		setRenderColor(colbg, base.bg);
 		XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colbg, &truebg);
 		bg = &truebg;
 	} else {

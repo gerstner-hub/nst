@@ -99,8 +99,8 @@ const float cwscale = 1.0;
 const float chscale = 1.0;
 
 /* selection timeouts (in milliseconds) */
-const unsigned int doubleclicktimeout = 300;
-const unsigned int tripleclicktimeout = 600;
+constexpr std::chrono::milliseconds DOUBLECLICKTIMEOUT(300);
+constexpr std::chrono::milliseconds TRIPLECLICKTIMEOUT(600);
 
 /*
  * draw latency range - from new content/keypress/etc until drawing.

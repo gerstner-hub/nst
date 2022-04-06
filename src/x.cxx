@@ -74,8 +74,6 @@ using cosmos::RuntimeError;
 #define TRUEGREEN(x)		(((x) & 0xff00))
 #define TRUEBLUE(x)		(((x) & 0xff) << 8)
 #define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
-#define TIMEDIFF(t1, t2)	((t1.tv_sec-t2.tv_sec)*1000 + \
-				(t1.tv_nsec-t2.tv_nsec)/1E6)
 #define ATTRCMP(a, b)		((a).mode != (b).mode || (a).fg != (b).fg || \
 				(a).bg != (b).bg)
 #define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
@@ -120,8 +118,8 @@ typedef struct {
 typedef struct {
 	Atom xtarget;
 	char *primary, *clipboard;
-	struct timespec tclick1;
-	struct timespec tclick2;
+	cosmos::TimeSpec tclick1;
+	cosmos::TimeSpec tclick2;
 } XSelection;
 
 /* Font structure */
@@ -262,6 +260,7 @@ static const char *opt_title = NULL;
 static nst::Cmdline cmdline;
 
 static uint buttons; /* bit field of pressed buttons */
+static cosmos::Clock g_clock(cosmos::ClockType::MONOTONIC);
 
 unsigned int cols = COLS;
 unsigned int rows = ROWS;
@@ -502,8 +501,8 @@ mouseaction(XEvent *e, uint release)
 void
 bpress(XEvent *e)
 {
-	int btn = e->xbutton.button;
-	struct timespec now;
+	const auto btn = e->xbutton.button;
+	cosmos::TimeSpec now;
 
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
@@ -523,10 +522,10 @@ bpress(XEvent *e)
 		 * If the user clicks below predefined timeouts specific
 		 * snapping behaviour is exposed.
 		 */
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
+		g_clock.now(now);
+		if (static_cast<std::chrono::milliseconds>(now - xsel.tclick2) <= TRIPLECLICKTIMEOUT) {
 			snap = Selection::Snap::LINE;
-		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
+		} else if (static_cast<std::chrono::milliseconds>(now - xsel.tclick1) <= DOUBLECLICKTIMEOUT) {
 			snap = Selection::Snap::WORD;
 		}
 		xsel.tclick2 = xsel.tclick1;
@@ -1278,8 +1277,8 @@ xinit(int p_cols, int p_rows)
 	XMapWindow(xw.dpy, xw.win);
 	XSync(xw.dpy, False);
 
-	clock_gettime(CLOCK_MONOTONIC, &xsel.tclick1);
-	clock_gettime(CLOCK_MONOTONIC, &xsel.tclick2);
+	g_clock.now(xsel.tclick1);
+	g_clock.now(xsel.tclick2);
 	xsel.primary = NULL;
 	xsel.clipboard = NULL;
 	xsel.xtarget = XInternAtom(xw.dpy, "UTF8_STRING", 0);
@@ -1987,7 +1986,6 @@ static void run() {
 	bool drawing = false;
 	cosmos::TimeSpec lastblink{0,0};
 	cosmos::TimeSpec now, trigger;
-	cosmos::Clock clock(cosmos::ClockType::MONOTONIC);
 	std::chrono::milliseconds timeout(-1);
 	cosmos::Poller poller;
 
@@ -2004,7 +2002,7 @@ static void run() {
 				std::optional<std::chrono::milliseconds>(timeout) :
 				std::nullopt);
 
-		clock.now(now);
+		g_clock.now(now);
 		bool tty_ev = false;
 		bool x_ev = false;
 

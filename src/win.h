@@ -1,30 +1,35 @@
 #ifndef NST_WIN_H
 #define NST_WIN_H
 
+// cosmos
+#include "cosmos/BitMask.hxx"
+
+// nst
 #include "Glyph.hxx"
 
-enum win_mode {
-	MODE_VISIBLE     = 1 << 0,
-	MODE_FOCUSED     = 1 << 1,
-	MODE_APPKEYPAD   = 1 << 2,
-	MODE_MOUSEBTN    = 1 << 3,
-	MODE_MOUSEMOTION = 1 << 4,
-	MODE_REVERSE     = 1 << 5,
-	MODE_KBDLOCK     = 1 << 6,
-	MODE_HIDE        = 1 << 7,
-	MODE_APPCURSOR   = 1 << 8,
-	MODE_MOUSESGR    = 1 << 9,
-	MODE_8BIT        = 1 << 10,
-	MODE_BLINK       = 1 << 11,
-	MODE_FBLINK      = 1 << 12,
-	MODE_FOCUS       = 1 << 13,
-	MODE_MOUSEX10    = 1 << 14,
-	MODE_MOUSEMANY   = 1 << 15,
-	MODE_BRCKTPASTE  = 1 << 16,
-	MODE_NUMLOCK     = 1 << 17,
-	MODE_MOUSE       = MODE_MOUSEBTN|MODE_MOUSEMOTION|MODE_MOUSEX10\
-	                  |MODE_MOUSEMANY,
+enum class WinMode {
+	VISIBLE     = 1 << 0,
+	FOCUSED     = 1 << 1,
+	APPKEYPAD   = 1 << 2,
+	MOUSEBTN    = 1 << 3,
+	MOUSEMOTION = 1 << 4,
+	REVERSE     = 1 << 5,
+	KBDLOCK     = 1 << 6,
+	HIDE        = 1 << 7,
+	APPCURSOR   = 1 << 8,
+	MOUSESGR    = 1 << 9,
+	EIGHT_BIT   = 1 << 10,
+	BLINK       = 1 << 11,
+	FBLINK      = 1 << 12,
+	FOCUS       = 1 << 13,
+	MOUSEX10    = 1 << 14,
+	MOUSEMANY   = 1 << 15,
+	BRCKTPASTE  = 1 << 16,
+	NUMLOCK     = 1 << 17,
+	MOUSE       = MOUSEBTN|MOUSEMOTION|MOUSEX10|MOUSEMANY
 };
+
+typedef cosmos::BitMask<WinMode> WinModeMask;
 
 void xbell(void);
 void xclipcopy(void);
@@ -36,7 +41,7 @@ int xsetcolorname(size_t, const char *);
 void xseticontitle(const char *);
 void xsettitle(const char *);
 int xsetcursor(int);
-void xsetmode(int, unsigned int);
+void xsetmode(bool, const WinMode &);
 void xsetpointermotion(int);
 void xsetsel(char *);
 int xstartdraw(void);

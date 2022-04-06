@@ -354,10 +354,10 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		xloadcols();
 		break;
 	case '=': /* DECPAM -- Application keypad */
-		xsetmode(1, MODE_APPKEYPAD);
+		xsetmode(true, WinMode::APPKEYPAD);
 		break;
 	case '>': /* DECPNM -- Normal keypad */
-		xsetmode(0, MODE_APPKEYPAD);
+		xsetmode(false, WinMode::APPKEYPAD);
 		break;
 	case '7': /* DECSC -- Save Cursor */
 		term.cursorControl(Term::TCursor::Control::SAVE);

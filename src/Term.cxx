@@ -487,10 +487,10 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 		if (priv) {
 			switch (arg) {
 			case 1: /* DECCKM -- Cursor key */
-				xsetmode(set, MODE_APPCURSOR);
+				xsetmode(set, WinMode::APPCURSOR);
 				break;
 			case 5: /* DECSCNM -- Reverse video */
-				xsetmode(set, MODE_REVERSE);
+				xsetmode(set, WinMode::REVERSE);
 				break;
 			case 6: /* DECOM -- Origin */
 				m_cursor.state.set(TCursor::State::ORIGIN, set);
@@ -510,36 +510,36 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 			case 12: /* att610 -- Start blinking cursor (IGNORED) */
 				break;
 			case 25: /* DECTCEM -- Text Cursor Enable Mode */
-				xsetmode(!set, MODE_HIDE);
+				xsetmode(!set, WinMode::HIDE);
 				break;
 			case 9:    /* X10 mouse compatibility mode */
 				xsetpointermotion(0);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEX10);
+				xsetmode(false, WinMode::MOUSE);
+				xsetmode(set, WinMode::MOUSEX10);
 				break;
 			case 1000: /* 1000: report button press */
 				xsetpointermotion(0);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEBTN);
+				xsetmode(false, WinMode::MOUSE);
+				xsetmode(set, WinMode::MOUSEBTN);
 				break;
 			case 1002: /* 1002: report motion on button press */
 				xsetpointermotion(0);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEMOTION);
+				xsetmode(false, WinMode::MOUSE);
+				xsetmode(set, WinMode::MOUSEMOTION);
 				break;
 			case 1003: /* 1003: enable all mouse motions */
 				xsetpointermotion(set);
-				xsetmode(0, MODE_MOUSE);
-				xsetmode(set, MODE_MOUSEMANY);
+				xsetmode(false, WinMode::MOUSE);
+				xsetmode(set, WinMode::MOUSEMANY);
 				break;
 			case 1004: /* 1004: send focus events to tty */
-				xsetmode(set, MODE_FOCUS);
+				xsetmode(set, WinMode::FOCUS);
 				break;
 			case 1006: /* 1006: extended reporting mode */
-				xsetmode(set, MODE_MOUSESGR);
+				xsetmode(set, WinMode::MOUSESGR);
 				break;
 			case 1034:
-				xsetmode(set, MODE_8BIT);
+				xsetmode(set, WinMode::EIGHT_BIT);
 				break;
 			case 1049: /* swap screen & set/restore cursor as xterm */
 				if (!m_allowaltscreen)
@@ -564,7 +564,7 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 				cursorControl(set ? TCursor::Control::SAVE : TCursor::Control::LOAD);
 				break;
 			case 2004: /* 2004: bracketed paste mode */
-				xsetmode(set, MODE_BRCKTPASTE);
+				xsetmode(set, WinMode::BRCKTPASTE);
 				break;
 			/* Not implemented mouse modes. See comments there. */
 			case 1001: /* mouse highlight mode; can hang the
@@ -585,7 +585,7 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 			case 0:  /* Error (IGNORED) */
 				break;
 			case 2:
-				xsetmode(set, MODE_KBDLOCK);
+				xsetmode(set, WinMode::KBDLOCK);
 				break;
 			case 4:  /* IRM -- Insertion-replacement */
 				m_mode.set(Mode::INSERT, set);

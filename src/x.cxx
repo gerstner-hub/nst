@@ -3,11 +3,7 @@
 #include <math.h>
 #include <limits.h>
 #include <locale.h>
-#include <signal.h>
-#include <sys/select.h>
-#include <time.h>
 #include <unistd.h>
-#include <libgen.h>
 
 // libX11 et al
 #include <X11/Xatom.h>
@@ -69,7 +65,6 @@ using cosmos::RuntimeError;
 #define XEMBED_FOCUS_OUT 5
 
 /* macros */
-#define IS_SET(flag)		((win.mode & (flag)) != 0)
 #define TRUERED(x)		(((x) & 0xff0000) >> 8)
 #define TRUEGREEN(x)		(((x) & 0xff00))
 #define TRUEBLUE(x)		(((x) & 0xff) << 8)
@@ -83,16 +78,16 @@ typedef XftColor Color;
 typedef XftGlyphFontSpec GlyphFontSpec;
 
 /* Purely graphic info */
-typedef struct {
+struct TermWindow {
 	int tw, th; /* tty width and height */
 	int w, h; /* window width and height */
 	int ch; /* char height */
 	int cw; /* char width  */
-	int mode; /* window state/mode flags */
+	WinModeMask mode; /* window state/mode flags */
 	int cursor; /* cursor style */
-} TermWindow;
+};
 
-typedef struct {
+struct XWindow {
 	Display *dpy;
 	Colormap cmap;
 	Window win;
@@ -113,7 +108,7 @@ typedef struct {
 	int isfixed = False; /* is fixed geometry? */
 	int l = 0, t = 0; /* left and top offset */
 	int gm; /* geometry mask */
-} XWindow;
+};
 
 struct XSelection {
 	Atom xtarget;
@@ -124,7 +119,7 @@ struct XSelection {
 
 /* Font structure */
 #define Font Font_
-typedef struct {
+struct Font {
 	int height;
 	int width;
 	int ascent;
@@ -136,15 +131,15 @@ typedef struct {
 	XftFont *match;
 	FcFontSet *set;
 	FcPattern *pattern;
-} Font;
+};
 
 /* Drawing Context */
-typedef struct {
+struct DC {
 	Color *col;
 	size_t collen;
 	Font font, bfont, ifont, ibfont;
 	GC gc;
-} DC;
+};
 
 static inline ushort sixd_to_16bit(size_t);
 static int xmakeglyphfontspecs(XftGlyphFontSpec *, const nst::Glyph *, int, int, int);
@@ -238,11 +233,11 @@ enum {
 	FRC_ITALICBOLD
 };
 
-typedef struct {
+struct Fontcache {
 	XftFont *font;
 	int flags;
 	nst::Rune unicodep;
-} Fontcache;
+};
 
 /* Fontcache is an array now. A new font will be appended to the array. */
 static Fontcache *frc = NULL;
@@ -302,7 +297,7 @@ selpaste(const Arg *)
 void
 numlock(const Arg *)
 {
-	win.mode ^= MODE_NUMLOCK;
+	win.mode.flip(WinMode::NUMLOCK);
 }
 
 void
@@ -405,10 +400,10 @@ mousereport(XEvent *e)
 	if (e->type == MotionNotify) {
 		if (x == ox && y == oy)
 			return;
-		if (!IS_SET(MODE_MOUSEMOTION) && !IS_SET(MODE_MOUSEMANY))
+		if (!win.mode[WinMode::MOUSEMOTION] && !win.mode[WinMode::MOUSEMANY])
 			return;
 		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
-		if (IS_SET(MODE_MOUSEMOTION) && buttons == 0)
+		if (win.mode[WinMode::MOUSEMOTION] && buttons == 0)
 			return;
 		/* Set btn to lowest-numbered pressed button, or 12 if no
 		 * buttons are pressed. */
@@ -422,7 +417,7 @@ mousereport(XEvent *e)
 			return;
 		if (e->type == ButtonRelease) {
 			/* MODE_MOUSEX10: no button release reporting */
-			if (IS_SET(MODE_MOUSEX10))
+			if (win.mode[WinMode::MOUSEX10])
 				return;
 			/* Don't send release events for the scroll wheel */
 			if (btn == 4 || btn == 5)
@@ -436,7 +431,7 @@ mousereport(XEvent *e)
 
 	/* Encode btn into code. If no button is pressed for a motion event in
 	 * MODE_MOUSEMANY, then encode it as a release. */
-	if ((!IS_SET(MODE_MOUSESGR) && e->type == ButtonRelease) || btn == 12)
+	if ((!win.mode[WinMode::MOUSESGR] && e->type == ButtonRelease) || btn == 12)
 		code += 3;
 	else if (btn >= 8)
 		code += 128 + btn - 8;
@@ -445,13 +440,13 @@ mousereport(XEvent *e)
 	else
 		code += btn - 1;
 
-	if (!IS_SET(MODE_MOUSEX10)) {
+	if (!win.mode[WinMode::MOUSEX10]) {
 		code += ((state & ShiftMask  ) ?  4 : 0)
 		      + ((state & Mod1Mask   ) ?  8 : 0) /* meta key: alt */
 		      + ((state & ControlMask) ? 16 : 0);
 	}
 
-	if (IS_SET(MODE_MOUSESGR)) {
+	if (win.mode[WinMode::MOUSESGR]) {
 		len = snprintf(buf, sizeof(buf), "\033[<%d;%d;%d%c",
 				code, x+1, y+1,
 				e->type == ButtonRelease ? 'm' : 'M');
@@ -505,7 +500,7 @@ bpress(XEvent *e)
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 
-	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
+	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
 	}
@@ -616,10 +611,10 @@ selnotify(XEvent *e)
 			*repl++ = '\r';
 		}
 
-		if (IS_SET(MODE_BRCKTPASTE) && ofs == 0)
+		if (win.mode[WinMode::BRCKTPASTE] && ofs == 0)
 			g_tty.write("\033[200~", 6, 0);
 		g_tty.write((char *)data, nitems * format / 8, 1);
-		if (IS_SET(MODE_BRCKTPASTE) && rem == 0)
+		if (win.mode[WinMode::BRCKTPASTE] && rem == 0)
 			g_tty.write("\033[201~", 6, 0);
 		XFree(data);
 		/* number of 32-bit chunks returned */
@@ -735,7 +730,7 @@ brelease(XEvent *e)
 	if (1 <= btn && btn <= 11)
 		buttons &= ~(1 << (btn-1));
 
-	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
+	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
 	}
@@ -749,7 +744,7 @@ brelease(XEvent *e)
 void
 bmotion(XEvent *e)
 {
-	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
+	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
 	}
@@ -886,7 +881,7 @@ void
 xclear(int x1, int y1, int x2, int y2)
 {
 	XftDrawRect(xw.draw,
-			&dc.col[IS_SET(MODE_REVERSE)? nst::config::DEFAULTFG : nst::config::DEFAULTBG],
+			&dc.col[win.mode[WinMode::REVERSE]? nst::config::DEFAULTFG : nst::config::DEFAULTBG],
 			x1, y1, x2-x1, y2-y1);
 }
 
@@ -1268,7 +1263,7 @@ xinit(int p_cols, int p_rows)
 	XChangeProperty(xw.dpy, xw.win, xw.netwmpid, XA_CARDINAL, 32,
 			PropModeReplace, (uchar *)&thispid, 1);
 
-	win.mode = MODE_NUMLOCK;
+	win.mode = WinModeMask(WinMode::NUMLOCK);
 	xsettitle(NULL);
 	xhints();
 	XMapWindow(xw.dpy, xw.win);
@@ -1459,7 +1454,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 	if (base.mode[Attr::BOLD] && !base.mode[Attr::FAINT] && base.fg <= 7)
 		fg = &dc.col[base.fg + 8];
 
-	if (IS_SET(MODE_REVERSE)) {
+	if (win.mode[WinMode::REVERSE]) {
 		if (fg == &dc.col[nst::config::DEFAULTFG]) {
 			fg = &dc.col[nst::config::DEFAULTBG];
 		} else {
@@ -1500,7 +1495,7 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		bg = temp;
 	}
 
-	if (base.mode.test(Attr::BLINK) && win.mode & MODE_BLINK)
+	if (base.mode.test(Attr::BLINK) && win.mode[WinMode::BLINK])
 		fg = bg;
 
 	if (base.mode.test(Attr::INVISIBLE))
@@ -1569,7 +1564,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 		og.mode.flip(Attr::REVERSE);
 	xdrawglyph(og, ox, oy);
 
-	if (IS_SET(MODE_HIDE))
+	if (win.mode[WinMode::HIDE])
 		return;
 
 	/*
@@ -1577,7 +1572,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	 */
 	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 
-	if (IS_SET(MODE_REVERSE)) {
+	if (win.mode[WinMode::REVERSE]) {
 		g.mode.set(Attr::REVERSE);
 		g.bg = nst::config::DEFAULTFG;
 		if (g_sel.isSelected(cx, cy)) {
@@ -1599,7 +1594,7 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 	}
 
 	/* draw the new one */
-	if (IS_SET(MODE_FOCUSED)) {
+	if (win.mode[WinMode::FOCUSED]) {
 		switch (win.cursor) {
 		case 7: /* st extension */
 			g.u = 0x2603; /* snowman (U+2603) */
@@ -1682,7 +1677,7 @@ xsettitle(const char *p)
 int
 xstartdraw(void)
 {
-	return IS_SET(MODE_VISIBLE);
+	return win.mode[WinMode::VISIBLE];
 }
 
 void
@@ -1722,7 +1717,7 @@ xfinishdraw(void)
 	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w,
 			win.h, 0, 0);
 	XSetForeground(xw.dpy, dc.gc,
-			dc.col[IS_SET(MODE_REVERSE)?
+			dc.col[win.mode[WinMode::REVERSE]?
 				nst::config::DEFAULTFG : nst::config::DEFAULTBG].pixel);
 }
 
@@ -1749,13 +1744,13 @@ visibility(XEvent *ev)
 {
 	XVisibilityEvent *e = &ev->xvisibility;
 
-	MODBIT(win.mode, e->state != VisibilityFullyObscured, MODE_VISIBLE);
+	win.mode.set(WinMode::VISIBLE, e->state != VisibilityFullyObscured);
 }
 
 void
 unmap(XEvent *)
 {
-	win.mode &= ~MODE_VISIBLE;
+	win.mode.reset(WinMode::VISIBLE);
 }
 
 void
@@ -1766,11 +1761,11 @@ xsetpointermotion(int set)
 }
 
 void
-xsetmode(int set, unsigned int flags)
+xsetmode(bool set, const WinMode &flag)
 {
-	int mode = win.mode;
-	MODBIT(win.mode, set, flags);
-	if ((win.mode & MODE_REVERSE) != (mode & MODE_REVERSE))
+	auto mode = win.mode;
+	win.mode.set(flag, set);
+	if (win.mode[WinMode::REVERSE] != mode[WinMode::REVERSE])
 		term.redraw();
 }
 
@@ -1796,7 +1791,7 @@ xseturgency(int add)
 void
 xbell(void)
 {
-	if (!(IS_SET(MODE_FOCUSED)))
+	if (!(win.mode[WinMode::FOCUSED]))
 		xseturgency(1);
 	if (bellvolume)
 		XkbBell(xw.dpy, xw.win, bellvolume, (Atom)NULL);
@@ -1813,15 +1808,15 @@ focus(XEvent *ev)
 	if (ev->type == FocusIn) {
 		if (xw.ime.xic)
 			XSetICFocus(xw.ime.xic);
-		win.mode |= MODE_FOCUSED;
+		win.mode.set(WinMode::FOCUSED);
 		xseturgency(0);
-		if (IS_SET(MODE_FOCUS))
+		if (win.mode[WinMode::FOCUS])
 			g_tty.write("\033[I", 3, 0);
 	} else {
 		if (xw.ime.xic)
 			XUnsetICFocus(xw.ime.xic);
-		win.mode &= ~MODE_FOCUSED;
-		if (IS_SET(MODE_FOCUS))
+		win.mode.reset(WinMode::FOCUSED);
+		if (win.mode[WinMode::FOCUS])
 			g_tty.write("\033[O", 3, 0);
 	}
 }
@@ -1855,12 +1850,12 @@ kmap(KeySym k, uint state)
 		if (!match(kp->mask, state))
 			continue;
 
-		if (IS_SET(MODE_APPKEYPAD) ? kp->appkey < 0 : kp->appkey > 0)
+		if (win.mode[WinMode::APPKEYPAD] ? kp->appkey < 0 : kp->appkey > 0)
 			continue;
-		if (IS_SET(MODE_NUMLOCK) && kp->appkey == 2)
+		if (win.mode[WinMode::NUMLOCK] && kp->appkey == 2)
 			continue;
 
-		if (IS_SET(MODE_APPCURSOR) ? kp->appcursor < 0 : kp->appcursor > 0)
+		if (win.mode[WinMode::APPCURSOR] ? kp->appcursor < 0 : kp->appcursor > 0)
 			continue;
 
 		return kp->s;
@@ -1881,7 +1876,7 @@ kpress(XEvent *ev)
 	Status status;
 	const Shortcut *bp;
 
-	if (IS_SET(MODE_KBDLOCK))
+	if (win.mode[WinMode::KBDLOCK])
 		return;
 
 	if (xw.ime.xic)
@@ -1906,7 +1901,7 @@ kpress(XEvent *ev)
 	if (len == 0)
 		return;
 	if (len == 1 && e->state & Mod1Mask) {
-		if (IS_SET(MODE_8BIT)) {
+		if (win.mode[WinMode::EIGHT_BIT]) {
 			if (*buf < 0177) {
 				c = *buf | 0x80;
 				len = nst::utf8::encode(c, buf);
@@ -1929,10 +1924,10 @@ cmessage(XEvent *e)
 	 */
 	if (e->xclient.message_type == xw.xembed && e->xclient.format == 32) {
 		if (e->xclient.data.l[1] == XEMBED_FOCUS_IN) {
-			win.mode |= MODE_FOCUSED;
+			win.mode.set(WinMode::FOCUSED);
 			xseturgency(0);
 		} else if (e->xclient.data.l[1] == XEMBED_FOCUS_OUT) {
-			win.mode &= ~MODE_FOCUSED;
+			win.mode.reset(WinMode::FOCUSED);
 		}
 	} else if ((Atom)e->xclient.data.l[0] == xw.wmdeletewin) {
 		g_tty.hangup();
@@ -1981,13 +1976,10 @@ static void run() {
 	auto xfd = cosmos::FileDescriptor(XConnectionNumber(xw.dpy));
 	XEvent ev;
 	bool drawing = false;
-	cosmos::MonotonicStopWatch draw_watch, blink_watch;
+	cosmos::MonotonicStopWatch draw_watch, blink_watch(cosmos::MonotonicStopWatch::InitialMark(true));
 	cosmos::TimeSpec trigger;
 	std::chrono::milliseconds timeout(-1);
 	cosmos::Poller poller;
-
-	// initial mark
-	blink_watch.mark();
 
 	poller.create();
 	for (auto fd: {ttyfd, xfd, childfd}) {
@@ -2055,8 +2047,8 @@ static void run() {
 			timeout = BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > BLINKTIMEOUT.count()) /* start visible */
-					win.mode |= MODE_BLINK;
-				win.mode ^= MODE_BLINK;
+					win.mode.set(WinMode::BLINK);
+				win.mode.flip(WinMode::BLINK);
 				term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
 				timeout = BLINKTIMEOUT;

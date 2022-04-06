@@ -115,12 +115,12 @@ typedef struct {
 	int gm; /* geometry mask */
 } XWindow;
 
-typedef struct {
+struct XSelection {
 	Atom xtarget;
 	char *primary, *clipboard;
-	cosmos::TimeSpec tclick1;
-	cosmos::TimeSpec tclick2;
-} XSelection;
+	cosmos::MonotonicStopWatch tclick1;
+	cosmos::MonotonicStopWatch tclick2;
+};
 
 /* Font structure */
 #define Font Font_
@@ -260,7 +260,7 @@ static const char *opt_title = NULL;
 static nst::Cmdline cmdline;
 
 static uint buttons; /* bit field of pressed buttons */
-static cosmos::Clock g_clock(cosmos::ClockType::MONOTONIC);
+static cosmos::MonotonicClock g_clock;
 
 unsigned int cols = COLS;
 unsigned int rows = ROWS;
@@ -502,7 +502,6 @@ void
 bpress(XEvent *e)
 {
 	const auto btn = e->xbutton.button;
-	cosmos::TimeSpec now;
 
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
@@ -522,14 +521,13 @@ bpress(XEvent *e)
 		 * If the user clicks below predefined timeouts specific
 		 * snapping behaviour is exposed.
 		 */
-		g_clock.now(now);
-		if (static_cast<std::chrono::milliseconds>(now - xsel.tclick2) <= TRIPLECLICKTIMEOUT) {
+		if (xsel.tclick2.elapsed() <= TRIPLECLICKTIMEOUT) {
 			snap = Selection::Snap::LINE;
-		} else if (static_cast<std::chrono::milliseconds>(now - xsel.tclick1) <= DOUBLECLICKTIMEOUT) {
+		} else if (xsel.tclick1.elapsed() <= DOUBLECLICKTIMEOUT) {
 			snap = Selection::Snap::WORD;
 		}
 		xsel.tclick2 = xsel.tclick1;
-		xsel.tclick1 = now;
+		xsel.tclick1.mark();
 
 		g_sel.start(evcol(e), evrow(e), snap);
 	}
@@ -1277,8 +1275,8 @@ xinit(int p_cols, int p_rows)
 	XMapWindow(xw.dpy, xw.win);
 	XSync(xw.dpy, False);
 
-	g_clock.now(xsel.tclick1);
-	g_clock.now(xsel.tclick2);
+	xsel.tclick1.mark();
+	xsel.tclick2.mark();
 	xsel.primary = NULL;
 	xsel.clipboard = NULL;
 	xsel.xtarget = XInternAtom(xw.dpy, "UTF8_STRING", 0);

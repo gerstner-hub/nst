@@ -260,7 +260,6 @@ static const char *opt_title = NULL;
 static nst::Cmdline cmdline;
 
 static uint buttons; /* bit field of pressed buttons */
-static cosmos::MonotonicClock g_clock;
 
 unsigned int cols = COLS;
 unsigned int rows = ROWS;
@@ -1982,10 +1981,13 @@ static void run() {
 	auto xfd = cosmos::FileDescriptor(XConnectionNumber(xw.dpy));
 	XEvent ev;
 	bool drawing = false;
-	cosmos::TimeSpec lastblink{0,0};
-	cosmos::TimeSpec now, trigger;
+	cosmos::MonotonicStopWatch draw_watch, blink_watch;
+	cosmos::TimeSpec trigger;
 	std::chrono::milliseconds timeout(-1);
 	cosmos::Poller poller;
+
+	// initial mark
+	blink_watch.mark();
 
 	poller.create();
 	for (auto fd: {ttyfd, xfd, childfd}) {
@@ -2000,7 +2002,6 @@ static void run() {
 				std::optional<std::chrono::milliseconds>(timeout) :
 				std::nullopt);
 
-		g_clock.now(now);
 		bool tty_ev = false;
 		bool x_ev = false;
 
@@ -2037,11 +2038,11 @@ static void run() {
 		 */
 		if (tty_ev || x_ev) {
 			if (!drawing) {
-				trigger = now;
+				draw_watch.mark();
 				drawing = true;
 			}
 
-			const auto diff = static_cast<std::chrono::milliseconds>((now - trigger));
+			const auto diff = draw_watch.elapsed();
 			timeout = (MAXLATENCY - diff) / MAXLATENCY * MINLATENCY;
 
 			if (timeout.count() > 0)
@@ -2051,13 +2052,13 @@ static void run() {
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = std::chrono::milliseconds(-1);
 		if (BLINKTIMEOUT.count() > 0 && term.testAttrSet(Attr::BLINK)) {
-			timeout = BLINKTIMEOUT - static_cast<std::chrono::milliseconds>(now - lastblink);
+			timeout = BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > BLINKTIMEOUT.count()) /* start visible */
 					win.mode |= MODE_BLINK;
 				win.mode ^= MODE_BLINK;
 				term.setDirtyByAttr(Attr::BLINK);
-				lastblink = now;
+				blink_watch.mark();
 				timeout = BLINKTIMEOUT;
 			}
 		}

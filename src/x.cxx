@@ -31,18 +31,6 @@
 // nst
 #include "types.hxx"
 #include "st.h"
-/* function definitions used in nst_config.h */
-static void clipcopy(const Arg *);
-static void clippaste(const Arg *);
-static void numlock(const Arg *);
-static void selpaste(const Arg *);
-static void zoom(const Arg *);
-static void zoomabs(const Arg *);
-static void zoomreset(const Arg *);
-static void ttysend(const Arg *);
-static void printscreen(const Arg *);
-static void printsel(const Arg *);
-static void toggleprinter(const Arg *);
 #define FULL_NST_CONFIG
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"
@@ -54,8 +42,6 @@ static void toggleprinter(const Arg *);
 #include "win.h"
 #include "xtypes.hxx"
 
-typedef nst::Glyph::Attr Attr;
-using namespace nst;
 using cosmos::ApiError;
 using cosmos::RuntimeError;
 
@@ -63,6 +49,9 @@ using cosmos::RuntimeError;
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
 
+namespace nst {
+
+typedef Glyph::Attr Attr;
 typedef XftDraw *Draw;
 typedef XftColor Color;
 typedef XftGlyphFontSpec GlyphFontSpec;
@@ -108,7 +97,6 @@ struct XSelection {
 };
 
 /* Font structure */
-#define Font Font_
 struct Font {
 	int height;
 	int width;
@@ -132,9 +120,9 @@ struct DrawingContext {
 };
 
 static inline ushort sixd_to_16bit(size_t);
-static int xmakeglyphfontspecs(XftGlyphFontSpec *, const nst::Glyph *, int, int, int);
-static void xdrawglyphfontspecs(const XftGlyphFontSpec *, nst::Glyph, int, int, int);
-static void xdrawglyph(nst::Glyph, int, int);
+static int xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, int, int, int);
+static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
+static void xdrawglyph(Glyph, int, int);
 static void xclear(int, int, int, int);
 static int xgeommasktogravity(int);
 static int ximopen(Display *);
@@ -246,8 +234,8 @@ static Cmdline cmdline;
 
 static uint buttons; /* bit field of pressed buttons */
 
-unsigned int cols = COLS;
-unsigned int rows = ROWS;
+unsigned int cols = config::COLS;
+unsigned int rows = config::ROWS;
 
 void clipcopy(const Arg *) {
 	Atom clipboard;
@@ -323,13 +311,13 @@ void printsel(const Arg *) {
 }
 
 int evcol(XEvent *e) {
-	int x = e->xbutton.x - borderpx;
+	int x = e->xbutton.x - config::BORDERPX;
 	x = std::clamp(x, 0, win.tw - 1);
 	return x / win.cw;
 }
 
 int evrow(XEvent *e) {
-	int y = e->xbutton.y - borderpx;
+	int y = e->xbutton.y - config::BORDERPX;
 	y = std::clamp(y, 0, win.th - 1);
 	return y / win.ch;
 }
@@ -337,10 +325,10 @@ int evrow(XEvent *e) {
 void mousesel(XEvent *e, int done) {
 	auto seltype = Selection::Type::REGULAR;
 	size_t type;
-	uint state = e->xbutton.state & ~(Button1Mask | forcemousemod);
+	uint state = e->xbutton.state & ~(Button1Mask | config::FORCEMOUSEMOD);
 
-	for (type = 1; type < cosmos::num_elements(selmasks); ++type) {
-		if (match(selmasks[type], state)) {
+	for (type = 1; type < cosmos::num_elements(config::SELMASKS); ++type) {
+		if (match(config::SELMASKS[type], state)) {
 			seltype = static_cast<Selection::Type>(type);
 			break;
 		}
@@ -443,11 +431,11 @@ int mouseaction(XEvent *e, uint release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
 
-	for (ms = mshortcuts; ms < mshortcuts + cosmos::num_elements(mshortcuts); ms++) {
+	for (ms = config::MSHORTCUTS; ms < config::MSHORTCUTS + cosmos::num_elements(config::MSHORTCUTS); ms++) {
 		if (ms->release == release &&
 		    ms->button == e->xbutton.button &&
 		    (match(ms->mod, state) ||  /* exact or forced */
-		     match(ms->mod, state & ~forcemousemod))) {
+		     match(ms->mod, state & ~config::FORCEMOUSEMOD))) {
 			ms->func(&(ms->arg));
 			return 1;
 		}
@@ -462,7 +450,7 @@ void bpress(XEvent *e) {
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 
-	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & forcemousemod)) {
+	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -477,9 +465,9 @@ void bpress(XEvent *e) {
 		 * If the user clicks below predefined timeouts specific
 		 * snapping behaviour is exposed.
 		 */
-		if (xsel.tclick2.elapsed() <= TRIPLECLICKTIMEOUT) {
+		if (xsel.tclick2.elapsed() <= config::TRIPLECLICKTIMEOUT) {
 			snap = Selection::Snap::LINE;
-		} else if (xsel.tclick1.elapsed() <= DOUBLECLICKTIMEOUT) {
+		} else if (xsel.tclick1.elapsed() <= config::DOUBLECLICKTIMEOUT) {
 			snap = Selection::Snap::WORD;
 		}
 		xsel.tclick2 = xsel.tclick1;
@@ -676,7 +664,7 @@ void brelease(XEvent *e) {
 	if (1 <= btn && btn <= 11)
 		buttons &= ~(1 << (btn-1));
 
-	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & forcemousemod)) {
+	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -688,7 +676,7 @@ void brelease(XEvent *e) {
 }
 
 void bmotion(XEvent *e) {
-	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & forcemousemod)) {
+	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -704,8 +692,8 @@ void cresize(int width, int height) {
 	if (height != 0)
 		win.h = height;
 
-	col = (win.w - 2 * borderpx) / win.cw;
-	row = (win.h - 2 * borderpx) / win.ch;
+	col = (win.w - 2 * config::BORDERPX) / win.cw;
+	row = (win.h - 2 * config::BORDERPX) / win.ch;
 	col = std::max(1, col);
 	row = std::max(1, row);
 
@@ -749,7 +737,7 @@ int xloadcolor(size_t i, const char *name, Color *ncolor) {
 			return XftColorAllocValue(xw.dpy, xw.vis,
 			                          xw.cmap, &color, ncolor);
 		} else
-			name = colorname[i];
+			name = config::colorname[i];
 	}
 
 	return XftColorAllocName(xw.dpy, xw.vis, xw.cmap, name, ncolor);
@@ -764,14 +752,15 @@ void xloadcols(void) {
 		for (cp = dc.col; cp < &dc.col[dc.collen]; ++cp)
 			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
 	} else {
-		dc.collen = std::max(cosmos::num_elements(colorname), 256UL);
+		dc.collen = std::max(cosmos::num_elements(config::colorname), 256UL);
 		dc.col = new Color[dc.collen];
 	}
 
 	for (i = 0; i < dc.collen; i++)
 		if (!xloadcolor(i, NULL, &dc.col[i])) {
-			if (colorname[i])
-				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color '%s'", colorname[i])));
+			if (config::colorname[i])
+				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color '%s'",
+								config::colorname[i])));
 			else
 				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
@@ -831,10 +820,10 @@ void xhints(void) {
 	sizeh->width = win.w;
 	sizeh->height_inc = win.ch;
 	sizeh->width_inc = win.cw;
-	sizeh->base_height = 2 * borderpx;
-	sizeh->base_width = 2 * borderpx;
-	sizeh->min_height = win.ch + 2 * borderpx;
-	sizeh->min_width = win.cw + 2 * borderpx;
+	sizeh->base_height = 2 * config::BORDERPX;
+	sizeh->base_width = 2 * config::BORDERPX;
+	sizeh->min_height = win.ch + 2 * config::BORDERPX;
+	sizeh->min_width = win.cw + 2 * config::BORDERPX;
 	if (xw.isfixed) {
 		sizeh->flags |= PMaxSize;
 		sizeh->min_width = sizeh->max_width = win.w;
@@ -919,8 +908,8 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	}
 
 	XftTextExtentsUtf8(xw.dpy, f->match,
-		(const FcChar8 *) ASCII_PRINTABLE,
-		ASCII_PRINTABLE_LEN, &extents);
+		(const FcChar8 *) config::ASCII_PRINTABLE,
+		config::ASCII_PRINTABLE_LEN, &extents);
 
 	f->set = NULL;
 	f->pattern = configured;
@@ -931,7 +920,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	f->rbearing = f->match->max_advance_width;
 
 	f->height = f->ascent + f->descent;
-	f->width = (extents.xOff + ASCII_PRINTABLE_LEN - 1) / ASCII_PRINTABLE_LEN;
+	f->width = (extents.xOff + config::ASCII_PRINTABLE_LEN - 1) / config::ASCII_PRINTABLE_LEN;
 
 	return 0;
 }
@@ -983,8 +972,8 @@ void xloadfonts(const char *fontstr, double fontsize) {
 	}
 
 	/* Setting character width and height. */
-	win.cw = ceilf(dc.font.width * cwscale);
-	win.ch = ceilf(dc.font.height * chscale);
+	win.cw = ceilf(dc.font.width * config::CWSCALE);
+	win.ch = ceilf(dc.font.height * config::CHSCALE);
 
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
@@ -1096,8 +1085,8 @@ void xinit(int p_cols, int p_rows) {
 	xloadcols();
 
 	/* adjust fixed window geometry */
-	win.w = 2 * borderpx + p_cols * win.cw;
-	win.h = 2 * borderpx + p_rows * win.ch;
+	win.w = 2 * config::BORDERPX + p_cols * win.cw;
+	win.h = 2 * config::BORDERPX + p_rows * win.ch;
 	if (xw.gm & XNegative)
 		xw.l += DisplayWidth(xw.dpy, xw.scr) - win.w - 2;
 	if (xw.gm & YNegative)
@@ -1142,16 +1131,16 @@ void xinit(int p_cols, int p_rows) {
 	}
 
 	/* white cursor, black outline */
-	cursor = XCreateFontCursor(xw.dpy, mouseshape);
+	cursor = XCreateFontCursor(xw.dpy, config::MOUSESHAPE);
 	XDefineCursor(xw.dpy, xw.win, cursor);
 
-	if (XParseColor(xw.dpy, xw.cmap, colorname[mousefg], &xmousefg) == 0) {
+	if (XParseColor(xw.dpy, xw.cmap, config::colorname[config::MOUSEFG], &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
 		xmousefg.green = 0xffff;
 		xmousefg.blue  = 0xffff;
 	}
 
-	if (XParseColor(xw.dpy, xw.cmap, colorname[mousebg], &xmousebg) == 0) {
+	if (XParseColor(xw.dpy, xw.cmap, config::colorname[config::MOUSEBG], &xmousebg) == 0) {
 		xmousebg.red   = 0x0000;
 		xmousebg.green = 0x0000;
 		xmousebg.blue  = 0x0000;
@@ -1185,9 +1174,9 @@ void xinit(int p_cols, int p_rows) {
 }
 
 int xmakeglyphfontspecs(
-		XftGlyphFontSpec *specs, const nst::Glyph *glyphs,
+		XftGlyphFontSpec *specs, const Glyph *glyphs,
 		int len, int x, int y) {
-	float winx = borderpx + x * win.cw, winy = borderpx + y * win.ch;
+	float winx = config::BORDERPX + x * win.cw, winy = config::BORDERPX + y * win.ch;
 	Font *fnt = &dc.font;
 	int frcflags = FRC_NORMAL;
 	float runewidth = win.cw;
@@ -1198,7 +1187,7 @@ int xmakeglyphfontspecs(
 	FcFontSet *fcsets[] = { NULL };
 	FcCharSet *fccharset;
 	int numspecs = 0;
-	nst::Glyph::AttrBitMask prevmode(nst::Glyph::AttrBitMask::all);
+	Glyph::AttrBitMask prevmode(Glyph::AttrBitMask::all);
 
 	for (int i = 0, xp = winx, yp = winy + fnt->ascent; i < len; ++i) {
 		/* Fetch rune and mode for current glyph. */
@@ -1206,7 +1195,7 @@ int xmakeglyphfontspecs(
 		const auto &mode = glyphs[i].mode;
 
 		/* Skip dummy wide-character spacing. */
-		if (mode == nst::Glyph::AttrBitMask({Attr::WDUMMY}))
+		if (mode == Glyph::AttrBitMask({Attr::WDUMMY}))
 			continue;
 
 		/* Determine font for glyph if different from previous glyph. */
@@ -1325,9 +1314,9 @@ static void setRenderColor(XRenderColor &out, const uint32_t in) {
 	out.blue = (in & 0xff) << 8;
 }
 
-void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int x, int y) {
+void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, int y) {
 	int charlen = len * (base.mode.test(Attr::WIDE) ? 2 : 1);
-	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch,
+	int winx = config::BORDERPX + x * win.cw, winy = config::BORDERPX + y * win.ch,
 	    width = charlen * win.cw;
 	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
 	XRenderColor colfg, colbg;
@@ -1336,10 +1325,10 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len
 	/* Fallback on color display for attributes not supported by the font */
 	if (base.mode.test(Attr::ITALIC) && base.mode.test(Attr::BOLD)) {
 		if (dc.ibfont.badslant || dc.ibfont.badweight)
-			base.fg = defaultattr;
+			base.fg = config::DEFAULTATTR;
 	} else if ((base.mode.test(Attr::ITALIC) && dc.ifont.badslant) ||
 	    (base.mode.test(Attr::BOLD) && dc.bfont.badweight)) {
-		base.fg = defaultattr;
+		base.fg = config::DEFAULTATTR;
 	}
 
 	if (base.isFgTrueColor()) {
@@ -1411,17 +1400,17 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len
 
 	/* Intelligent cleaning up of the borders. */
 	if (x == 0) {
-		xclear(0, (y == 0)? 0 : winy, borderpx,
+		xclear(0, (y == 0)? 0 : winy, config::BORDERPX,
 			winy + win.ch +
-			((winy + win.ch >= borderpx + win.th)? win.h : 0));
+			((winy + win.ch >= config::BORDERPX + win.th)? win.h : 0));
 	}
-	if (winx + width >= borderpx + win.tw) {
+	if (winx + width >= config::BORDERPX + win.tw) {
 		xclear(winx + width, (y == 0)? 0 : winy, win.w,
-			((winy + win.ch >= borderpx + win.th)? win.h : (winy + win.ch)));
+			((winy + win.ch >= config::BORDERPX + win.th)? win.h : (winy + win.ch)));
 	}
 	if (y == 0)
-		xclear(winx, 0, winx + width, borderpx);
-	if (winy + win.ch >= borderpx + win.th)
+		xclear(winx, 0, winx + width, config::BORDERPX);
+	if (winy + win.ch >= config::BORDERPX + win.th)
 		xclear(winx, winy + win.ch, winx + width, win.h);
 
 	/* Clean up the region we want to draw to. */
@@ -1452,7 +1441,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len
 	XftDrawSetClip(xw.draw, 0);
 }
 
-void xdrawglyph(nst::Glyph g, int x, int y) {
+void xdrawglyph(Glyph g, int x, int y) {
 	int numspecs;
 	XftGlyphFontSpec spec;
 
@@ -1460,7 +1449,7 @@ void xdrawglyph(nst::Glyph g, int x, int y) {
 	xdrawglyphfontspecs(&spec, g, numspecs, x, y);
 }
 
-void xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og) {
+void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	Color drawcol;
 
 	/* remove the old cursor */
@@ -1511,35 +1500,35 @@ void xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og) {
 		case 3: /* Blinking Underline */
 		case 4: /* Steady Underline */
 			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + (cy + 1) * win.ch - \
-						cursorthickness,
-					win.cw, cursorthickness);
+					config::BORDERPX + cx * win.cw,
+					config::BORDERPX + (cy + 1) * win.ch - \
+						config::CURSORTHICKNESS,
+					win.cw, config::CURSORTHICKNESS);
 			break;
 		case 5: /* Blinking bar */
 		case 6: /* Steady bar */
 			XftDrawRect(xw.draw, &drawcol,
-					borderpx + cx * win.cw,
-					borderpx + cy * win.ch,
-					cursorthickness, win.ch);
+					config::BORDERPX + cx * win.cw,
+					config::BORDERPX + cy * win.ch,
+					config::CURSORTHICKNESS, win.ch);
 			break;
 		}
 	} else {
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
+				config::BORDERPX + cx * win.cw,
+				config::BORDERPX + cy * win.ch,
 				win.cw - 1, 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + cy * win.ch,
+				config::BORDERPX + cx * win.cw,
+				config::BORDERPX + cy * win.ch,
 				1, win.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + (cx + 1) * win.cw - 1,
-				borderpx + cy * win.ch,
+				config::BORDERPX + (cx + 1) * win.cw - 1,
+				config::BORDERPX + cy * win.ch,
 				1, win.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				borderpx + cx * win.cw,
-				borderpx + (cy + 1) * win.ch - 1,
+				config::BORDERPX + cx * win.cw,
+				config::BORDERPX + (cy + 1) * win.ch - 1,
 				win.cw, 1);
 	}
 }
@@ -1576,13 +1565,13 @@ int xstartdraw(void) {
 	return win.mode[WinMode::VISIBLE];
 }
 
-bool attrsDiffer(const nst::Glyph &a, const nst::Glyph &b) {
+bool attrsDiffer(const Glyph &a, const Glyph &b) {
 	return a.mode != b.mode || a.fg != b.fg || a.bg != b.bg;
 }
 
 void xdrawline(const Line &line, int x1, int y1, int x2) {
 	int i, x, ox, numspecs;
-	nst::Glyph base, newone;
+	Glyph base, newone;
 	XftGlyphFontSpec *specs = xw.specbuf;
 
 	numspecs = xmakeglyphfontspecs(specs, &line[x1], x2 - x1, x1, y1);
@@ -1621,8 +1610,8 @@ void xximspot(int x, int y) {
 	if (xw.ime.xic == NULL)
 		return;
 
-	xw.ime.spot.x = borderpx + x * win.cw;
-	xw.ime.spot.y = borderpx + (y + 1) * win.ch;
+	xw.ime.spot.x = config::BORDERPX + x * win.cw;
+	xw.ime.spot.y = config::BORDERPX + (y + 1) * win.ch;
 
 	XSetICValues(xw.ime.xic, XNPreeditAttributes, xw.ime.spotlist, NULL);
 }
@@ -1671,8 +1660,8 @@ void xseturgency(int add) {
 void xbell(void) {
 	if (!(win.mode[WinMode::FOCUSED]))
 		xseturgency(1);
-	if (bellvolume)
-		XkbBell(xw.dpy, xw.win, bellvolume, (Atom)NULL);
+	if (config::BELLVOLUME)
+		XkbBell(xw.dpy, xw.win, config::BELLVOLUME, (Atom)NULL);
 }
 
 void focus(XEvent *ev) {
@@ -1698,7 +1687,7 @@ void focus(XEvent *ev) {
 }
 
 int match(uint mask, uint state) {
-	return mask == XK_ANY_MOD || mask == (state & ~ignoremod);
+	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
 
 const char* kmap(KeySym k, uint state) {
@@ -1706,16 +1695,16 @@ const char* kmap(KeySym k, uint state) {
 	size_t i;
 
 	/* Check for mapped keys out of X11 function keys. */
-	for (i = 0; i < cosmos::num_elements(mappedkeys); i++) {
-		if (mappedkeys[i] == k)
+	for (i = 0; i < cosmos::num_elements(config::MAPPEDKEYS); i++) {
+		if (config::MAPPEDKEYS[i] == k)
 			break;
 	}
-	if (i == cosmos::num_elements(mappedkeys)) {
+	if (i == cosmos::num_elements(config::MAPPEDKEYS)) {
 		if ((k & 0xFFFF) < 0xFD00)
 			return NULL;
 	}
 
-	for (kp = key; kp < key + cosmos::num_elements(key); kp++) {
+	for (kp = config::KEY; kp < config::KEY + cosmos::num_elements(config::KEY); kp++) {
 		if (kp->k != k)
 			continue;
 
@@ -1754,7 +1743,7 @@ void kpress(XEvent *ev) {
 	else
 		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
 	/* 1. shortcuts */
-	for (bp = shortcuts; bp < shortcuts + cosmos::num_elements(shortcuts); bp++) {
+	for (bp = config::SHORTCUTS; bp < config::SHORTCUTS + cosmos::num_elements(config::SHORTCUTS); bp++) {
 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
 			bp->func(&(bp->arg));
 			return;
@@ -1901,7 +1890,7 @@ static void run() {
 			}
 
 			const auto diff = draw_watch.elapsed();
-			timeout = (MAXLATENCY - diff) / MAXLATENCY * MINLATENCY;
+			timeout = (config::MAXLATENCY - diff) / config::MAXLATENCY * config::MINLATENCY;
 
 			if (timeout.count() > 0)
 				continue;  /* we have time, try to find idle */
@@ -1909,15 +1898,15 @@ static void run() {
 
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = std::chrono::milliseconds(-1);
-		if (BLINKTIMEOUT.count() > 0 && term.testAttrSet(Attr::BLINK)) {
-			timeout = BLINKTIMEOUT - blink_watch.elapsed();
+		if (config::BLINKTIMEOUT.count() > 0 && term.testAttrSet(Attr::BLINK)) {
+			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
-				if (-timeout.count() > BLINKTIMEOUT.count()) /* start visible */
+				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */
 					win.mode.set(WinMode::BLINK);
 				win.mode.flip(WinMode::BLINK);
 				term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
-				timeout = BLINKTIMEOUT;
+				timeout = config::BLINKTIMEOUT;
 			}
 		}
 
@@ -1928,8 +1917,8 @@ static void run() {
 }
 
 void fixup_colornames() {
-	for (size_t index = 0; index < sizeof(extended_colors)/sizeof(const char*); index++) {
-		colorname[256+index] = extended_colors[index];
+	for (size_t index = 0; index < cosmos::num_elements(config::EXTENDED_COLORS); index++) {
+		config::colorname[256+index] = config::EXTENDED_COLORS[index];
 	}
 }
 
@@ -1974,23 +1963,29 @@ void applyCmdline(const Cmdline &cmd) {
 	}
 }
 
+void main(int argc, const char **argv) {
+	cosmos::Init init;
+	fixup_colornames();
+	xsetcursor(config::CURSORSHAPE);
+
+	cmdline.parse(argc, argv);
+	cols = std::max(cols, 1U);
+	rows = std::max(rows, 1U);
+	term = Term(cols, rows);
+	applyCmdline(cmdline);
+
+	setlocale(LC_CTYPE, "");
+	XSetLocaleModifiers("");
+	xinit(cols, rows);
+	xsetenv();
+	run();
+}
+
+} // end ns nst
+
 int main(int argc, const char **argv) {
 	try {
-		cosmos::Init init;
-		fixup_colornames();
-		xsetcursor(cursorshape);
-
-		cmdline.parse(argc, argv);
-		cols = std::max(cols, 1U);
-		rows = std::max(rows, 1U);
-		term = Term(cols, rows);
-		applyCmdline(cmdline);
-
-		setlocale(LC_CTYPE, "");
-		XSetLocaleModifiers("");
-		xinit(cols, rows);
-		xsetenv();
-		run();
+		nst::main(argc, argv);
 	} catch (const std::exception &ex) {
 		std::cerr << ex.what() << std::endl;
 		return EXIT_FAILURE;

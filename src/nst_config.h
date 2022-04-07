@@ -14,6 +14,24 @@
 // nst
 #include "xtypes.hxx"
 #include "TTY.hxx"
+
+namespace nst {
+
+/* function definitions used from x.cxx */
+static void clipcopy(const Arg *);
+static void clippaste(const Arg *);
+static void numlock(const Arg *);
+static void selpaste(const Arg *);
+static void zoom(const Arg *);
+static void zoomabs(const Arg *);
+static void zoomreset(const Arg *);
+static void ttysend(const Arg *);
+static void printscreen(const Arg *);
+static void printsel(const Arg *);
+static void toggleprinter(const Arg *);
+
+}
+
 #endif
 
 namespace nst {
@@ -87,16 +105,13 @@ constexpr unsigned int DEFAULTRCS = 257;
 /* alt screens */
 constexpr bool ALLOWALTSCREEN = true;
 
-
-}} // end ns nst::config
-
 #ifdef FULL_NST_CONFIG
 
-const int borderpx = 2;
+constexpr int BORDERPX = 2;
 
 /* Kerning / character bounding-box multipliers */
-const float cwscale = 1.0;
-const float chscale = 1.0;
+const float CWSCALE = 1.0;
+const float CHSCALE = 1.0;
 
 /* selection timeouts (in milliseconds) */
 constexpr std::chrono::milliseconds DOUBLECLICKTIMEOUT(300);
@@ -120,15 +135,15 @@ constexpr std::chrono::milliseconds BLINKTIMEOUT(800);
 /*
  * thickness of underline and bar cursors
  */
-const unsigned int cursorthickness = 2;
+const unsigned int CURSORTHICKNESS = 2;
 
 /*
  * bell volume. It must be a value between -100 and 100. Use 0 for disabling
  * it
  */
-const int bellvolume = 0;
+const int BELLVOLUME = 0;
 
-const char *extended_colors[] = {
+const char *EXTENDED_COLORS[] = {
 	/* more colors can be added after 255 to use with DefaultXX */
 	"#cccccc",
 	"#555555",
@@ -137,7 +152,7 @@ const char *extended_colors[] = {
 };
 
 /* Terminal colors (16 first used in escape sequence) */
-const char *colorname[256 + sizeof(extended_colors) / sizeof(const char*)] = {
+const char *colorname[256 + sizeof(EXTENDED_COLORS) / sizeof(const char*)] = {
 	/* 8 normal colors */
 	"black",
 	"red3",
@@ -166,7 +181,7 @@ const char *colorname[256 + sizeof(extended_colors) / sizeof(const char*)] = {
  * 6: Bar ("|")
  * 7: Snowman ("☃")
  */
-static const unsigned int cursorshape = 2;
+static const unsigned int CURSORSHAPE = 2;
 
 /*
  * Default columns and rows numbers
@@ -178,28 +193,28 @@ static const unsigned int ROWS = 24;
 /*
  * Default colour and shape of the mouse cursor
  */
-const unsigned int mouseshape = XC_xterm;
-const unsigned int mousefg = 7;
-const unsigned int mousebg = 0;
+const unsigned int MOUSESHAPE = XC_xterm;
+const unsigned int MOUSEFG = 7;
+const unsigned int MOUSEBG = 0;
 
 /*
  * Color used to display font attributes when fontconfig selected a font which
  * doesn't match the ones requested.
  */
-const unsigned int defaultattr = 11;
+const unsigned int DEFAULTATTR = 11;
 
 /*
  * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to 0 to not use it.
  */
-const uint forcemousemod = ShiftMask;
+const uint FORCEMOUSEMOD = ShiftMask;
 
 /*
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
-const MouseShortcut mshortcuts[] = {
+const MouseShortcut MSHORTCUTS[] = {
 	/* mask                 button   function        argument       release */
 	{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
 	{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"}, 0 },
@@ -212,9 +227,9 @@ const MouseShortcut mshortcuts[] = {
 #define MODKEY Mod1Mask
 #define TERMMOD (ControlMask|ShiftMask)
 
-const Shortcut shortcuts[] = {
+const Shortcut SHORTCUTS[] = {
 	/* mask                 keysym          function        argument */
-	{ XK_ANY_MOD,           XK_Break,       nst::sendbreak, {.i =  0} },
+	{ XK_ANY_MOD,           XK_Break,       sendbreak, {.i =  0} },
 	{ ControlMask,          XK_Print,       toggleprinter,  {.i =  0} },
 	{ ShiftMask,            XK_Print,       printscreen,    {.i =  0} },
 	{ XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
@@ -253,19 +268,19 @@ const Shortcut shortcuts[] = {
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
  * to be mapped below, add them to this array.
  */
-const KeySym mappedkeys[] = { KeySym(-1) };
+const KeySym MAPPEDKEYS[] = { KeySym(-1) };
 
 /*
  * State bits to ignore when matching key or button events.  By default,
  * numlock (Mod2Mask) and keyboard layout (XK_SWITCH_MOD) are ignored.
  */
-const uint ignoremod = Mod2Mask|XK_SWITCH_MOD;
+const uint IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
 
 /*
  * This is the huge key array which defines all compatibility to the Linux
  * world. Please decide about changes wisely.
  */
-const Key key[] = {
+const Key KEY[] = {
 	/* keysym           mask            string      appkey appcursor */
 	{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
 	{ XK_KP_Home,       ShiftMask,      "\033[1;2H",     0,   +1},
@@ -485,7 +500,7 @@ const Key key[] = {
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
  */
-const uint selmasks[] = {
+const uint SELMASKS[] = {
 	0,
 	0,
 	Mod1Mask, // SEL_RECTANGULAR
@@ -501,6 +516,9 @@ constexpr char ASCII_PRINTABLE[] =
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
 
 constexpr size_t ASCII_PRINTABLE_LEN = sizeof(ASCII_PRINTABLE) - 1;
+
 #endif
+
+}} // end ns nst::config
 
 #endif // inc. guard

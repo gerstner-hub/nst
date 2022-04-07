@@ -64,9 +64,6 @@ using cosmos::RuntimeError;
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
 
-/* macros */
-#define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
-
 typedef XftDraw *Draw;
 typedef XftColor Color;
 typedef XftGlyphFontSpec GlyphFontSpec;
@@ -454,6 +451,14 @@ mousereport(XEvent *e)
 	g_tty.write(buf, len, 0);
 }
 
+template <typename T, typename V>
+inline void modifyBit(T &mask, const bool set, const V &bit) {
+	if (set)
+		mask |= bit;
+	else
+		mask &= ~bit;
+}
+
 uint
 buttonmask(uint button)
 {
@@ -570,7 +575,7 @@ selnotify(XEvent *e)
 			 * data has been transferred. We won't need to receive
 			 * PropertyNotify events anymore.
 			 */
-			MODBIT(xw.attrs.event_mask, 0, PropertyChangeMask);
+			modifyBit(xw.attrs.event_mask, 0, PropertyChangeMask);
 			XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask,
 					&xw.attrs);
 		}
@@ -581,7 +586,7 @@ selnotify(XEvent *e)
 			 * when the selection owner does send us the next
 			 * chunk of data.
 			 */
-			MODBIT(xw.attrs.event_mask, 1, PropertyChangeMask);
+			modifyBit(xw.attrs.event_mask, 1, PropertyChangeMask);
 			XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask,
 					&xw.attrs);
 
@@ -1758,7 +1763,7 @@ unmap(XEvent *)
 void
 xsetpointermotion(int set)
 {
-	MODBIT(xw.attrs.event_mask, set, PointerMotionMask);
+	modifyBit(xw.attrs.event_mask, set, PointerMotionMask);
 	XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask, &xw.attrs);
 }
 
@@ -1785,7 +1790,7 @@ xseturgency(int add)
 {
 	XWMHints *h = XGetWMHints(xw.dpy, xw.win);
 
-	MODBIT(h->flags, add, XUrgencyHint);
+	modifyBit(h->flags, add, XUrgencyHint);
 	XSetWMHints(xw.dpy, xw.win, h);
 	XFree(h);
 }

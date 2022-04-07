@@ -65,7 +65,6 @@ using cosmos::RuntimeError;
 #define XEMBED_FOCUS_OUT 5
 
 /* macros */
-#define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
 #define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
 
 typedef XftDraw *Draw;
@@ -992,8 +991,8 @@ xloadfont(Font *f, FcPattern *pattern)
 	}
 
 	XftTextExtentsUtf8(xw.dpy, f->match,
-		(const FcChar8 *) ascii_printable,
-		strlen(ascii_printable), &extents);
+		(const FcChar8 *) ASCII_PRINTABLE,
+		ASCII_PRINTABLE_LEN, &extents);
 
 	f->set = NULL;
 	f->pattern = configured;
@@ -1004,7 +1003,7 @@ xloadfont(Font *f, FcPattern *pattern)
 	f->rbearing = f->match->max_advance_width;
 
 	f->height = f->ascent + f->descent;
-	f->width = DIVCEIL(extents.xOff, strlen(ascii_printable));
+	f->width = (extents.xOff + ASCII_PRINTABLE_LEN - 1) / ASCII_PRINTABLE_LEN;
 
 	return 0;
 }

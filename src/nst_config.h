@@ -495,10 +495,12 @@ const uint selmasks[] = {
  * Printable characters in ASCII, used to estimate the advance width
  * of single wide characters.
  */
-const char ascii_printable[] =
+constexpr char ASCII_PRINTABLE[] =
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
+
+constexpr size_t ASCII_PRINTABLE_LEN = sizeof(ASCII_PRINTABLE) - 1;
 #endif
 
 #endif // inc. guard

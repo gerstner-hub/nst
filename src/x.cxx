@@ -227,7 +227,7 @@ enum {
 struct Fontcache {
 	XftFont *font;
 	int flags;
-	nst::Rune unicodep;
+	Rune unicodep;
 };
 
 /* Fontcache is an array now. A new font will be appended to the array. */
@@ -243,7 +243,7 @@ static std::string opt_name;
 static const char *opt_embed = NULL;
 static const char *opt_font  = NULL;
 static const char *opt_title = NULL;
-static nst::Cmdline cmdline;
+static Cmdline cmdline;
 
 static uint buttons; /* bit field of pressed buttons */
 
@@ -880,7 +880,7 @@ void
 xclear(int x1, int y1, int x2, int y2)
 {
 	XftDrawRect(xw.draw,
-			&dc.col[win.mode[WinMode::REVERSE]? nst::config::DEFAULTFG : nst::config::DEFAULTBG],
+			&dc.col[win.mode[WinMode::REVERSE]? config::DEFAULTFG : config::DEFAULTBG],
 			x1, y1, x2-x1, y2-y1);
 }
 
@@ -888,10 +888,10 @@ void
 xhints(void)
 {
 	if (opt_name.empty()) {
-		opt_name = nst::config::TERMNAME;
+		opt_name = config::TERMNAME;
 	}
 	if (opt_class.empty()) {
-		opt_class = nst::config::TERMNAME;
+		opt_class = config::TERMNAME;
 	}
 	XClassHint clazz = {&opt_name[0], &opt_class[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
@@ -1197,8 +1197,8 @@ xinit(int p_cols, int p_rows)
 		xw.t += DisplayHeight(xw.dpy, xw.scr) - win.h - 2;
 
 	/* Events */
-	xw.attrs.background_pixel = dc.col[nst::config::DEFAULTBG].pixel;
-	xw.attrs.border_pixel = dc.col[nst::config::DEFAULTBG].pixel;
+	xw.attrs.background_pixel = dc.col[config::DEFAULTBG].pixel;
+	xw.attrs.border_pixel = dc.col[config::DEFAULTBG].pixel;
 	xw.attrs.bit_gravity = NorthWestGravity;
 	xw.attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
@@ -1218,7 +1218,7 @@ xinit(int p_cols, int p_rows)
 			&gcvalues);
 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
 			DefaultDepth(xw.dpy, xw.scr));
-	XSetForeground(xw.dpy, dc.gc, dc.col[nst::config::DEFAULTBG].pixel);
+	XSetForeground(xw.dpy, dc.gc, dc.col[config::DEFAULTBG].pixel);
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
 	/* font spec buffer */
@@ -1284,7 +1284,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const nst::Glyph *glyphs, int len, 
 	Font *fnt = &dc.font;
 	int frcflags = FRC_NORMAL;
 	float runewidth = win.cw;
-	nst::Rune rune;
+	Rune rune;
 	FT_UInt glyphidx;
 	FcResult fcres;
 	FcPattern *fcpattern, *fontpattern;
@@ -1458,8 +1458,8 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 		fg = &dc.col[base.fg + 8];
 
 	if (win.mode[WinMode::REVERSE]) {
-		if (fg == &dc.col[nst::config::DEFAULTFG]) {
-			fg = &dc.col[nst::config::DEFAULTBG];
+		if (fg == &dc.col[config::DEFAULTFG]) {
+			fg = &dc.col[config::DEFAULTBG];
 		} else {
 			colfg.red = ~fg->color.red;
 			colfg.green = ~fg->color.green;
@@ -1470,8 +1470,8 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, nst::Glyph base, int len, int
 			fg = &revfg;
 		}
 
-		if (bg == &dc.col[nst::config::DEFAULTBG]) {
-			bg = &dc.col[nst::config::DEFAULTFG];
+		if (bg == &dc.col[config::DEFAULTBG]) {
+			bg = &dc.col[config::DEFAULTFG];
 		} else {
 			colbg.red = ~bg->color.red;
 			colbg.green = ~bg->color.green;
@@ -1577,21 +1577,21 @@ xdrawcursor(int cx, int cy, nst::Glyph g, int ox, int oy, nst::Glyph og)
 
 	if (win.mode[WinMode::REVERSE]) {
 		g.mode.set(Attr::REVERSE);
-		g.bg = nst::config::DEFAULTFG;
+		g.bg = config::DEFAULTFG;
 		if (g_sel.isSelected(cx, cy)) {
-			drawcol = dc.col[nst::config::DEFAULTCS];
-			g.fg = nst::config::DEFAULTRCS;
+			drawcol = dc.col[config::DEFAULTCS];
+			g.fg = config::DEFAULTRCS;
 		} else {
-			drawcol = dc.col[nst::config::DEFAULTRCS];
-			g.fg = nst::config::DEFAULTCS;
+			drawcol = dc.col[config::DEFAULTRCS];
+			g.fg = config::DEFAULTCS;
 		}
 	} else {
 		if (g_sel.isSelected(cx, cy)) {
-			g.fg = nst::config::DEFAULTFG;
-			g.bg = nst::config::DEFAULTRCS;
+			g.fg = config::DEFAULTFG;
+			g.bg = config::DEFAULTRCS;
 		} else {
-			g.fg = nst::config::DEFAULTBG;
-			g.bg = nst::config::DEFAULTCS;
+			g.fg = config::DEFAULTBG;
+			g.bg = config::DEFAULTCS;
 		}
 		drawcol = dc.col[g.bg];
 	}
@@ -1688,7 +1688,7 @@ bool attrsDiffer(const nst::Glyph &a, const nst::Glyph &b) {
 }
 
 void
-xdrawline(const nst::Line &line, int x1, int y1, int x2)
+xdrawline(const Line &line, int x1, int y1, int x2)
 {
 	int i, x, ox, numspecs;
 	nst::Glyph base, newone;
@@ -1725,7 +1725,7 @@ xfinishdraw(void)
 			win.h, 0, 0);
 	XSetForeground(xw.dpy, dc.gc,
 			dc.col[win.mode[WinMode::REVERSE]?
-				nst::config::DEFAULTFG : nst::config::DEFAULTBG].pixel);
+				config::DEFAULTFG : config::DEFAULTBG].pixel);
 }
 
 void
@@ -1879,7 +1879,7 @@ kpress(XEvent *ev)
 	char buf[64];
 	const char *customkey = nullptr;
 	int len;
-	nst::Rune c;
+	Rune c;
 	Status status;
 	const Shortcut *bp;
 
@@ -1911,7 +1911,7 @@ kpress(XEvent *ev)
 		if (win.mode[WinMode::EIGHT_BIT]) {
 			if (*buf < 0177) {
 				c = *buf | 0x80;
-				len = nst::utf8::encode(c, buf);
+				len = utf8::encode(c, buf);
 			}
 		} else {
 			buf[1] = buf[0];
@@ -2074,11 +2074,11 @@ void fixup_colornames() {
 	}
 }
 
-void applyCmdline(const nst::Cmdline &cmd) {
+void applyCmdline(const Cmdline &cmd) {
 	if (cmd.use_alt_screen.isSet()) {
 		term.setAllowAltScreen(cmd.use_alt_screen.getValue());
 	} else {
-		term.setAllowAltScreen(nst::config::ALLOWALTSCREEN);
+		term.setAllowAltScreen(config::ALLOWALTSCREEN);
 	}
 
 	if (cmd.window_class.isSet()) {

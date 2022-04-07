@@ -66,8 +66,6 @@ using cosmos::RuntimeError;
 
 /* macros */
 #define DIVCEIL(n, d)		(((n) + ((d) - 1)) / (d))
-#define ATTRCMP(a, b)		((a).mode != (b).mode || (a).fg != (b).fg || \
-				(a).bg != (b).bg)
 #define MODBIT(x, set, bit)	((set) ? ((x) |= (bit)) : ((x) &= ~(bit)))
 
 typedef XftDraw *Draw;
@@ -1681,6 +1679,10 @@ xstartdraw(void)
 	return win.mode[WinMode::VISIBLE];
 }
 
+bool attrsDiffer(const nst::Glyph &a, const nst::Glyph &b) {
+	return a.mode != b.mode || a.fg != b.fg || a.bg != b.bg;
+}
+
 void
 xdrawline(const nst::Line &line, int x1, int y1, int x2)
 {
@@ -1696,7 +1698,7 @@ xdrawline(const nst::Line &line, int x1, int y1, int x2)
 			continue;
 		if (g_sel.isSelected(x, y1))
 			newone.mode.flip(Attr::REVERSE);
-		if (i > 0 && ATTRCMP(base, newone)) {
+		if (i > 0 && attrsDiffer(base, newone)) {
 			xdrawglyphfontspecs(specs, base, i, ox, y1);
 			specs += i;
 			numspecs -= i;

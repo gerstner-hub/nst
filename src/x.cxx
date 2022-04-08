@@ -42,10 +42,6 @@
 #include "win.h"
 #include "xtypes.hxx"
 
-/* XEMBED messages */
-#define XEMBED_FOCUS_IN  4
-#define XEMBED_FOCUS_OUT 5
-
 namespace nst {
 
 typedef Glyph::Attr Attr;

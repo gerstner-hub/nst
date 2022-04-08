@@ -92,7 +92,8 @@ struct XWindow {
 
 struct XSelection {
 	Atom xtarget;
-	char *primary, *clipboard;
+	std::string clipboard;
+	std::string primary;
 	cosmos::MonotonicStopWatch tclick1;
 	cosmos::MonotonicStopWatch tclick2;
 };
@@ -235,17 +236,11 @@ unsigned int cols = config::COLS;
 unsigned int rows = config::ROWS;
 
 void clipcopy(const Arg *) {
-	Atom clipboard;
+	xsel.clipboard.clear();
 
-	free(xsel.clipboard);
-	xsel.clipboard = NULL;
-
-	if (xsel.primary != NULL) {
-		xsel.clipboard = strdup(xsel.primary);
-		if (!xsel.clipboard) {
-			cosmos_throw (ApiError("failed to strpdup() primary selection"));
-		}
-		clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
+	if (!xsel.primary.empty()) {
+		xsel.clipboard = xsel.primary;
+		Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
 		XSetSelectionOwner(xw.dpy, clipboard, xw.win, CurrentTime);
 	}
 }
@@ -576,8 +571,7 @@ void selclear_(XEvent *) {
 void selrequest(XEvent *e) {
 	XSelectionRequestEvent *xsre;
 	XSelectionEvent xev;
-	Atom xa_targets, string, clipboard;
-	char *seltext;
+	Atom xa_targets, string;
 
 	xsre = (XSelectionRequestEvent *) e;
 	xev.type = SelectionNotify;
@@ -604,22 +598,23 @@ void selrequest(XEvent *e) {
 		 * xith XA_STRING non ascii characters may be incorrect in the
 		 * requestor. It is not our problem, use utf8.
 		 */
-		clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
+		std::string *seltext = nullptr;
+		Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
 		if (xsre->selection == XA_PRIMARY) {
-			seltext = xsel.primary;
+			seltext = &xsel.primary;
 		} else if (xsre->selection == clipboard) {
-			seltext = xsel.clipboard;
+			seltext = &xsel.clipboard;
 		} else {
 			fprintf(stderr,
 				"Unhandled clipboard selection 0x%lx\n",
 				xsre->selection);
 			return;
 		}
-		if (seltext != NULL) {
+		if (!seltext->empty()) {
 			XChangeProperty(xsre->display, xsre->requestor,
 					xsre->property, xsre->target,
 					8, PropModeReplace,
-					(uchar *)seltext, strlen(seltext));
+					(uchar *)seltext->c_str(), seltext->size());
 			xev.property = xsre->property;
 		}
 	}
@@ -633,10 +628,10 @@ void setsel(char *str, Time t) {
 	if (!str)
 		return;
 
-	// this pointer originally comes from base64::decode()
+	// this pointer originally comes from Selection::getSelection()
 	// TODO: allocation/deallocation should be symmetric
-	delete[] xsel.primary;
 	xsel.primary = str;
+	delete[] str;
 
 	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
 	if (XGetSelectionOwner(xw.dpy, XA_PRIMARY) != xw.win)
@@ -1157,8 +1152,8 @@ void xinit(int p_cols, int p_rows) {
 
 	xsel.tclick1.mark();
 	xsel.tclick2.mark();
-	xsel.primary = NULL;
-	xsel.clipboard = NULL;
+	xsel.primary.clear();
+	xsel.clipboard.clear();
 	xsel.xtarget = XInternAtom(xw.dpy, "UTF8_STRING", 0);
 	if (xsel.xtarget == None)
 		xsel.xtarget = XA_STRING;

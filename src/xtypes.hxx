@@ -1,6 +1,9 @@
 #ifndef NST_XTYPES_HXX
 #define NST_XTYPES_HXX
 
+// stdlib
+#include <bitset>
+
 // libc
 #include <limits.h>
 
@@ -28,6 +31,35 @@ typedef struct {
 	signed char appkey;    /* application keypad */
 	signed char appcursor; /* application cursor */
 } Key;
+
+class PressedButtons : public std::bitset<11> {
+public: // data
+
+	static constexpr size_t NO_BUTTON = 12;
+public:
+
+	/// returns the position of the lowest button pressed
+	size_t getFirstButton() const {
+		for (size_t bit = 0; bit < size(); bit++) {
+			if (this->test(bit))
+				return bit + 1;
+		}
+
+		return NO_BUTTON;
+	}
+
+	bool valid(const size_t button) const {
+		return button >= 1 && button <= size();
+	}
+
+	void setPressed(const size_t button) {
+		this->set(button - 1, true);
+	}
+
+	void setReleased(const size_t button) {
+		this->set(button - 1, false);
+	}
+};
 
 /* X modifiers */
 #define XK_ANY_MOD    UINT_MAX

@@ -228,7 +228,7 @@ const char *opt_font  = nullptr;
 const char *opt_title = nullptr;
 Cmdline cmdline;
 
-uint buttons; /* bit field of pressed buttons */
+PressedButtons buttons; /* bit field of pressed buttons */
 
 unsigned int cols = config::COLS;
 unsigned int rows = config::ROWS;
@@ -339,17 +339,16 @@ void mousereport(XEvent *e) {
 		else if (!win.mode[WinMode::MOUSEMOTION] && !win.mode[WinMode::MOUSEMANY])
 			return;
 		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
-		else if (win.mode[WinMode::MOUSEMOTION] && buttons == 0)
+		else if (win.mode[WinMode::MOUSEMOTION] && buttons.none())
 			return;
-		/* Set btn to lowest-numbered pressed button, or 12 if no
+		/* Set btn to lowest-numbered pressed button, or NO_BUTTON if no
 		 * buttons are pressed. */
-		for (btn = 1; btn <= 11 && !(buttons & (1<<(btn-1))); btn++)
-			;
+		btn = buttons.getFirstButton();
 		code = 32;
 	} else {
 		btn = e->xbutton.button;
 		/* Only buttons 1 through 11 can be encoded */
-		if (!cosmos::in_range(btn, 1, 11))
+		if (!buttons.valid(btn))
 			return;
 		if (e->type == ButtonRelease) {
 			/* MODE_MOUSEX10: no button release reporting */
@@ -367,7 +366,7 @@ void mousereport(XEvent *e) {
 
 	/* Encode btn into code. If no button is pressed for a motion event in
 	 * MODE_MOUSEMANY, then encode it as a release. */
-	if ((!win.mode[WinMode::MOUSESGR] && e->type == ButtonRelease) || btn == 12)
+	if ((!win.mode[WinMode::MOUSESGR] && e->type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
 		code += 3;
 	else if (btn >= 8)
 		code += 128 + btn - 8;
@@ -429,8 +428,8 @@ bool mouseaction(XEvent *e, uint release) {
 void bpress(XEvent *e) {
 	const auto btn = e->xbutton.button;
 
-	if (cosmos::in_range(btn, 1, 11))
-		buttons |= 1 << (btn-1);
+	if (buttons.valid(btn))
+		buttons.setPressed(btn);
 
 	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
@@ -640,8 +639,8 @@ void xsetsel(char *str) {
 void brelease(XEvent *e) {
 	int btn = e->xbutton.button;
 
-	if (1 <= btn && btn <= 11)
-		buttons &= ~(1 << (btn-1));
+	if (buttons.valid(btn))
+		buttons.setReleased(btn);
 
 	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);

@@ -55,6 +55,7 @@ typedef Glyph::Attr Attr;
 typedef XftDraw *Draw;
 typedef XftColor Color;
 typedef XftGlyphFontSpec GlyphFontSpec;
+using XEventCallback = void (*)(XEvent*);
 
 /* Purely graphic info */
 struct TermWindow {
@@ -119,6 +120,20 @@ struct DrawingContext {
 	GC gc;
 };
 
+/* Font Ring Cache */
+enum class FRC {
+	NORMAL,
+	ITALIC,
+	BOLD,
+	ITALICBOLD
+};
+
+struct Fontcache {
+	XftFont *font;
+	FRC flags;
+	Rune unicodep;
+};
+
 static inline ushort sixd_to_16bit(size_t);
 static int xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, int, int, int);
 static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
@@ -167,8 +182,6 @@ static void mousereport(XEvent *);
 static const char *kmap(KeySym, uint);
 static int match(uint, uint);
 
-typedef void (*XEventCallback)(XEvent*);
-
 const static std::map<int, XEventCallback> handlers = {
 	{KeyPress, kpress},
 	{ClientMessage, cmessage},
@@ -203,24 +216,8 @@ static XWindow xw;
 static XSelection xsel;
 static TermWindow win;
 
-/* Font Ring Cache */
-enum {
-	FRC_NORMAL,
-	FRC_ITALIC,
-	FRC_BOLD,
-	FRC_ITALICBOLD
-};
-
-struct Fontcache {
-	XftFont *font;
-	int flags;
-	Rune unicodep;
-};
-
 /* Fontcache is an array now. A new font will be appended to the array. */
-static Fontcache *frc = nullptr;
-static int frclen = 0;
-static int frccap = 0;
+static std::vector<Fontcache> frc;
 static const char *usedfont = nullptr;
 static double usedfontsize = 0;
 static double defaultfontsize = 0;
@@ -406,14 +403,6 @@ void mousereport(XEvent *e) {
 	}
 
 	g_tty.write(buf, len, 0);
-}
-
-template <typename T, typename V>
-inline void modifyBit(T &mask, const bool set, const V &bit) {
-	if (set)
-		mask |= bit;
-	else
-		mask &= ~bit;
 }
 
 uint buttonmask(uint button) {
@@ -1006,8 +995,10 @@ void xunloadfont(Font *f) {
 
 void xunloadfonts(void) {
 	/* Free the loaded fonts in the font cache.  */
-	while (frclen > 0)
-		XftFontClose(xw.dpy, frc[--frclen].font);
+	for (auto &fc: frc)
+		XftFontClose(xw.dpy, fc.font);
+
+	frc.clear();
 
 	xunloadfont(&dc.font);
 	xunloadfont(&dc.bfont);
@@ -1178,7 +1169,7 @@ int xmakeglyphfontspecs(
 		int len, int x, int y) {
 	float winx = config::BORDERPX + x * win.cw, winy = config::BORDERPX + y * win.ch;
 	Font *fnt = &dc.font;
-	int frcflags = FRC_NORMAL;
+	FRC frcflags = FRC::NORMAL;
 	float runewidth = win.cw;
 	Rune rune;
 	FT_UInt glyphidx;
@@ -1202,17 +1193,17 @@ int xmakeglyphfontspecs(
 		if (prevmode != mode) {
 			prevmode = mode;
 			fnt = &dc.font;
-			frcflags = FRC_NORMAL;
+			frcflags = FRC::NORMAL;
 			runewidth = win.cw * (mode.test(Attr::WIDE) ? 2.0f : 1.0f);
 			if (mode.test(Attr::ITALIC) && mode.test(Attr::BOLD)) {
 				fnt = &dc.ibfont;
-				frcflags = FRC_ITALICBOLD;
+				frcflags = FRC::ITALICBOLD;
 			} else if (mode.test(Attr::ITALIC)) {
 				fnt = &dc.ifont;
-				frcflags = FRC_ITALIC;
+				frcflags = FRC::ITALIC;
 			} else if (mode.test(Attr::BOLD)) {
 				fnt = &dc.bfont;
-				frcflags = FRC_BOLD;
+				frcflags = FRC::BOLD;
 			}
 			yp = winy + fnt->ascent;
 		}
@@ -1229,22 +1220,25 @@ int xmakeglyphfontspecs(
 			continue;
 		}
 
-		int f;
+		Fontcache *font_entry = nullptr;
 		/* Fallback on font cache, search the font cache for match. */
-		for (f = 0; f < frclen; f++) {
-			glyphidx = XftCharIndex(xw.dpy, frc[f].font, rune);
+		for (auto &fc: frc) {
+			glyphidx = XftCharIndex(xw.dpy, fc.font, rune);
 			/* Everything correct. */
-			if (glyphidx && frc[f].flags == frcflags)
+			if (glyphidx && fc.flags == frcflags) {
+				font_entry = &fc;
 				break;
+			}
 			/* We got a default font for a not found glyph. */
-			if (!glyphidx && frc[f].flags == frcflags
-					&& frc[f].unicodep == rune) {
+			else if (!glyphidx && fc.flags == frcflags
+					&& fc.unicodep == rune) {
+				font_entry = &fc;
 				break;
 			}
 		}
 
 		/* Nothing was found. Use fontconfig to find matching font. */
-		if (f >= frclen) {
+		if (!font_entry) {
 			if (!fnt->set)
 				fnt->set = FcFontSort(0, fnt->pattern,
 				                       1, 0, &fcres);
@@ -1273,27 +1267,21 @@ int xmakeglyphfontspecs(
 					fcpattern, &fcres);
 
 			/* Allocate memory for the new cache entry. */
-			if (frclen >= frccap) {
-				frc = renew(frc, frccap, frccap + 16);
-				frccap += 16;
-			}
 
-			frc[frclen].font = XftFontOpenPattern(xw.dpy, fontpattern);
-			if (!frc[frclen].font)
+			auto font = XftFontOpenPattern(xw.dpy, fontpattern);
+			if (!font)
 				cosmos_throw (ApiError("XftFontOpenPattern failed seeking fallback font"));
-			frc[frclen].flags = frcflags;
-			frc[frclen].unicodep = rune;
+			frc.emplace_back(Fontcache{font, frcflags, rune});
 
-			glyphidx = XftCharIndex(xw.dpy, frc[frclen].font, rune);
+			glyphidx = XftCharIndex(xw.dpy, frc.back().font, rune);
 
-			f = frclen;
-			frclen++;
+			font_entry = &frc.back();
 
 			FcPatternDestroy(fcpattern);
 			FcCharSetDestroy(fccharset);
 		}
 
-		specs[numspecs].font = frc[f].font;
+		specs[numspecs].font = font_entry->font;
 		specs[numspecs].glyph = glyphidx;
 		specs[numspecs].x = (short)xp;
 		specs[numspecs].y = (short)yp;

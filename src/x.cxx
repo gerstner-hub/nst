@@ -183,6 +183,8 @@ static void mousereport(XEvent *);
 static const char *kmap(KeySym, uint);
 static int match(uint, uint);
 
+namespace {
+
 const static std::map<int, XEventCallback> handlers = {
 	{KeyPress, kpress},
 	{ClientMessage, cmessage},
@@ -212,28 +214,30 @@ const static std::map<int, XEventCallback> handlers = {
 };
 
 /* Globals */
-static DrawingContext dc;
-static XWindow xw;
-static XSelection xsel;
-static TermWindow win;
+DrawingContext dc;
+XWindow xw;
+XSelection xsel;
+TermWindow win;
 
 /* Fontcache is an array now. A new font will be appended to the array. */
-static std::vector<Fontcache> frc;
-static const char *usedfont = nullptr;
-static double usedfontsize = 0;
-static double defaultfontsize = 0;
+std::vector<Fontcache> frc;
+const char *usedfont = nullptr;
+double usedfontsize = 0;
+double defaultfontsize = 0;
 
-static std::string opt_class;
-static std::string opt_name;
-static const char *opt_embed = nullptr;
-static const char *opt_font  = nullptr;
-static const char *opt_title = nullptr;
-static Cmdline cmdline;
+std::string opt_class;
+std::string opt_name;
+const char *opt_embed = nullptr;
+const char *opt_font  = nullptr;
+const char *opt_title = nullptr;
+Cmdline cmdline;
 
-static uint buttons; /* bit field of pressed buttons */
+uint buttons; /* bit field of pressed buttons */
 
 unsigned int cols = config::COLS;
 unsigned int rows = config::ROWS;
+
+} // end anon ns
 
 void clipcopy(const Arg *) {
 	xsel.clipboard.clear();

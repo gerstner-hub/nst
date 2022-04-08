@@ -14,13 +14,17 @@ namespace nst::utf8 {
 
 typedef unsigned char utf8_t;
 
-static constexpr utf8_t UTF_BYTE[UTF_SIZE + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
-static constexpr utf8_t UTF_MASK[UTF_SIZE + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
+namespace {
 
-static constexpr Rune UTF_MIN[UTF_SIZE + 1] = {       0,    0,  0x80,  0x800,  0x10000};
-static constexpr Rune UTF_MAX[UTF_SIZE + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+constexpr utf8_t UTF_BYTE[UTF_SIZE + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
+constexpr utf8_t UTF_MASK[UTF_SIZE + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 
-static constexpr Rune UTF_INVALID = 0xFFFD;
+constexpr Rune UTF_MIN[UTF_SIZE + 1] = {       0,    0,  0x80,  0x800,  0x10000};
+constexpr Rune UTF_MAX[UTF_SIZE + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF};
+
+constexpr Rune UTF_INVALID = 0xFFFD;
+
+}
 
 static char encodebyte(Rune u, size_t which) {
 	return UTF_BYTE[which] | (u & ~UTF_MASK[which]);
@@ -90,7 +94,9 @@ size_t validate(Rune *u, size_t i) {
 
 namespace nst::base64 {
 
-static constexpr char BASE64_DIGITS[] = {
+namespace {
+
+constexpr char BASE64_DIGITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 0, 0, 0,
 	63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 0, 0, 0, -1, 0, 0, 0, 0, 1,
@@ -104,6 +110,8 @@ static constexpr char BASE64_DIGITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
+
+}
 
 static unsigned char b64_getc(const char **src) {
 	while (**src && !std::isprint(**src))

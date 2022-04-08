@@ -163,22 +163,17 @@ static void kpress(XEvent *);
 static void cmessage(XEvent *);
 static void resize(XEvent *);
 static void focus(XEvent *);
-static uint buttonmask(uint);
-static int mouseaction(XEvent *, uint);
 static void brelease(XEvent *);
 static void bpress(XEvent *);
 static void bmotion(XEvent *);
 static void propnotify(XEvent *);
 static void selnotify(XEvent *);
-#ifdef SELCLEAR
 static void selclear_(XEvent *);
-#endif
 static void selrequest(XEvent *);
 static void setsel(char *, Time);
-static void mousesel(XEvent *, int);
 static void mousereport(XEvent *);
 static const char *kmap(KeySym, uint);
-static int match(uint, uint);
+static bool match(uint, uint);
 
 namespace {
 
@@ -208,6 +203,14 @@ const static std::map<int, XEventCallback> handlers = {
 	{SelectionClear, selclear_},
 #endif
 	{SelectionRequest, selrequest}
+};
+
+const static std::map<int, unsigned> button_masks = {
+	{Button1, Button1Mask},
+	{Button2, Button2Mask},
+	{Button3, Button3Mask},
+	{Button4, Button4Mask},
+	{Button5, Button5Mask},
 };
 
 /* Globals */
@@ -247,9 +250,7 @@ void clipcopy(const Arg *) {
 }
 
 void clippaste(const Arg *) {
-	Atom clipboard;
-
-	clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
+	Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
 	XConvertSelection(xw.dpy, clipboard, xsel.xtarget, clipboard,
 			xw.win, CurrentTime);
 }
@@ -279,9 +280,9 @@ void zoomabs(const Arg *arg) {
 }
 
 void zoomreset(const Arg *) {
-	Arg larg;
 
 	if (defaultfontsize > 0) {
+		Arg larg;
 		larg.f = defaultfontsize;
 		zoomabs(&larg);
 	}
@@ -315,36 +316,34 @@ int evrow(XEvent *e) {
 	return y / win.ch;
 }
 
-void mousesel(XEvent *e, int done) {
+static void mousesel(XEvent *e, bool done) {
 	auto seltype = Selection::Type::REGULAR;
-	size_t type;
 	uint state = e->xbutton.state & ~(Button1Mask | config::FORCEMOUSEMOD);
 
-	for (type = 1; type < cosmos::num_elements(config::SELMASKS); ++type) {
+	for (unsigned type = 1; type < cosmos::num_elements(config::SELMASKS); ++type) {
 		if (match(config::SELMASKS[type], state)) {
 			seltype = static_cast<Selection::Type>(type);
 			break;
 		}
 	}
-	g_sel.extend(evcol(e), evrow(e), seltype, done ? true : false);
-	if (done)
+	g_sel.extend(evcol(e), evrow(e), seltype, done);
+	if (done) {
 		setsel(g_sel.getSelection(), e->xbutton.time);
+	}
 }
 
 void mousereport(XEvent *e) {
-	int len, btn, code;
+	int btn, code;
 	int x = evcol(e), y = evrow(e);
-	int state = e->xbutton.state;
-	char buf[40];
-	static int ox, oy;
+	static int old_x, old_y;
 
 	if (e->type == MotionNotify) {
-		if (x == ox && y == oy)
+		if (x == old_x && y == old_y)
 			return;
-		if (!win.mode[WinMode::MOUSEMOTION] && !win.mode[WinMode::MOUSEMANY])
+		else if (!win.mode[WinMode::MOUSEMOTION] && !win.mode[WinMode::MOUSEMANY])
 			return;
 		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
-		if (win.mode[WinMode::MOUSEMOTION] && buttons == 0)
+		else if (win.mode[WinMode::MOUSEMOTION] && buttons == 0)
 			return;
 		/* Set btn to lowest-numbered pressed button, or 12 if no
 		 * buttons are pressed. */
@@ -354,7 +353,7 @@ void mousereport(XEvent *e) {
 	} else {
 		btn = e->xbutton.button;
 		/* Only buttons 1 through 11 can be encoded */
-		if (btn < 1 || btn > 11)
+		if (!cosmos::in_range(btn, 1, 11))
 			return;
 		if (e->type == ButtonRelease) {
 			/* MODE_MOUSEX10: no button release reporting */
@@ -367,8 +366,8 @@ void mousereport(XEvent *e) {
 		code = 0;
 	}
 
-	ox = x;
-	oy = y;
+	old_x = x;
+	old_y = y;
 
 	/* Encode btn into code. If no button is pressed for a motion event in
 	 * MODE_MOUSEMANY, then encode it as a release. */
@@ -382,10 +381,14 @@ void mousereport(XEvent *e) {
 		code += btn - 1;
 
 	if (!win.mode[WinMode::MOUSEX10]) {
+		auto state = e->xbutton.state;
 		code += ((state & ShiftMask  ) ?  4 : 0)
 		      + ((state & Mod1Mask   ) ?  8 : 0) /* meta key: alt */
 		      + ((state & ControlMask) ? 16 : 0);
 	}
+
+	int len;
+	char buf[40];
 
 	if (win.mode[WinMode::MOUSESGR]) {
 		len = snprintf(buf, sizeof(buf), "\033[<%d;%d;%d%c",
@@ -398,41 +401,39 @@ void mousereport(XEvent *e) {
 		return;
 	}
 
-	g_tty.write(buf, len, 0);
+	g_tty.write(buf, len, false);
 }
 
 uint buttonmask(uint button) {
-	return button == Button1 ? Button1Mask
-	     : button == Button2 ? Button2Mask
-	     : button == Button3 ? Button3Mask
-	     : button == Button4 ? Button4Mask
-	     : button == Button5 ? Button5Mask
-	     : 0;
+	auto it = button_masks.find(button);
+	return it == button_masks.end() ? 0 : it->second;
 }
 
-int mouseaction(XEvent *e, uint release) {
-	const MouseShortcut *ms;
-
+bool mouseaction(XEvent *e, uint release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
 
-	for (ms = config::MSHORTCUTS; ms < config::MSHORTCUTS + cosmos::num_elements(config::MSHORTCUTS); ms++) {
+	for (
+		const MouseShortcut *ms = config::MSHORTCUTS;
+		ms < config::MSHORTCUTS + cosmos::num_elements(config::MSHORTCUTS);
+		ms++) {
+
 		if (ms->release == release &&
 		    ms->button == e->xbutton.button &&
 		    (match(ms->mod, state) ||  /* exact or forced */
 		     match(ms->mod, state & ~config::FORCEMOUSEMOD))) {
 			ms->func(&(ms->arg));
-			return 1;
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 void bpress(XEvent *e) {
 	const auto btn = e->xbutton.button;
 
-	if (1 <= btn && btn <= 11)
+	if (cosmos::in_range(btn, 1, 11))
 		buttons |= 1 << (btn-1);
 
 	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
@@ -443,13 +444,13 @@ void bpress(XEvent *e) {
 	if (mouseaction(e, 0))
 		return;
 
-	Selection::Snap snap = Selection::Snap::NONE;
-
 	if (btn == Button1) {
 		/*
 		 * If the user clicks below predefined timeouts specific
 		 * snapping behaviour is exposed.
 		 */
+		Selection::Snap snap = Selection::Snap::NONE;
+
 		if (xsel.tclick2.elapsed() <= config::TRIPLECLICKTIMEOUT) {
 			snap = Selection::Snap::LINE;
 		} else if (xsel.tclick1.elapsed() <= config::DOUBLECLICKTIMEOUT) {
@@ -463,10 +464,9 @@ void bpress(XEvent *e) {
 }
 
 void propnotify(XEvent *e) {
-	XPropertyEvent *xpev;
 	Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
+	XPropertyEvent *xpev = &e->xproperty;
 
-	xpev = &e->xproperty;
 	if (xpev->state == PropertyNewValue &&
 			(xpev->atom == XA_PRIMARY ||
 			 xpev->atom == clipboard)) {
@@ -475,21 +475,20 @@ void propnotify(XEvent *e) {
 }
 
 void selnotify(XEvent *e) {
-	ulong nitems, ofs, rem;
-	int format;
-	uchar *data, *last, *repl;
-	Atom type, incratom, property = None;
+	Atom property = None;
 
-	incratom = XInternAtom(xw.dpy, "INCR", 0);
-
-	ofs = 0;
 	if (e->type == SelectionNotify)
 		property = e->xselection.property;
 	else if (e->type == PropertyNotify)
 		property = e->xproperty.atom;
-
-	if (property == None)
+	else
 		return;
+
+	ulong nitems, rem, ofs = 0;
+	uchar *data, *last, *repl;
+	Atom type;
+	const Atom incratom = XInternAtom(xw.dpy, "INCR", 0);
+	int format;
 
 	do {
 		if (XGetWindowProperty(xw.dpy, xw.win, property, ofs,
@@ -563,11 +562,10 @@ void xclipcopy(void) {
 	clipcopy(NULL);
 }
 
-#ifdef SELCLEAR
+[[maybe_unused]]
 void selclear_(XEvent *) {
-	selclear();
+	g_sel.clear();
 }
-#endif
 
 void selrequest(XEvent *e) {
 	XSelectionRequestEvent *xsre;
@@ -657,7 +655,7 @@ void brelease(XEvent *e) {
 	if (mouseaction(e, 1))
 		return;
 	if (btn == Button1)
-		mousesel(e, 1);
+		mousesel(e, true);
 }
 
 void bmotion(XEvent *e) {
@@ -666,7 +664,7 @@ void bmotion(XEvent *e) {
 		return;
 	}
 
-	mousesel(e, 0);
+	mousesel(e, false);
 }
 
 void cresize(int width, int height) {
@@ -1670,7 +1668,7 @@ void focus(XEvent *ev) {
 	}
 }
 
-int match(uint mask, uint state) {
+bool match(uint mask, uint state) {
 	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
 

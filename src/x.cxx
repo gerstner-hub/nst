@@ -404,7 +404,7 @@ uint buttonmask(uint button) {
 	return it == button_masks.end() ? 0 : it->second;
 }
 
-bool mouseaction(XEvent *e, uint release) {
+bool mouseaction(XEvent *e, bool release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
 
@@ -432,7 +432,7 @@ void bpress(XEvent *e) {
 		return;
 	}
 
-	if (mouseaction(e, 0))
+	if (mouseaction(e, false))
 		return;
 
 	if (btn == Button1) {
@@ -559,33 +559,32 @@ void selclear_(XEvent *) {
 }
 
 void selrequest(XEvent *e) {
-	XSelectionRequestEvent *xsre;
-	XSelectionEvent xev;
-	Atom xa_targets, string;
 
-	xsre = (XSelectionRequestEvent *) e;
+	XSelectionRequestEvent *xsre = (XSelectionRequestEvent *) e;
+	XSelectionEvent xev;
 	xev.type = SelectionNotify;
 	xev.requestor = xsre->requestor;
 	xev.selection = xsre->selection;
 	xev.target = xsre->target;
 	xev.time = xsre->time;
+
 	if (xsre->property == None)
 		xsre->property = xsre->target;
 
 	/* reject */
 	xev.property = None;
+	Atom xa_targets = XInternAtom(xw.dpy, "TARGETS", 0);
 
-	xa_targets = XInternAtom(xw.dpy, "TARGETS", 0);
 	if (xsre->target == xa_targets) {
 		/* respond with the supported type */
-		string = xsel.xtarget;
+		Atom string = xsel.xtarget;
 		XChangeProperty(xsre->display, xsre->requestor, xsre->property,
 				XA_ATOM, 32, PropModeReplace,
 				(uchar *) &string, 1);
 		xev.property = xsre->property;
 	} else if (xsre->target == xsel.xtarget || xsre->target == XA_STRING) {
 		/*
-		 * xith XA_STRING non ascii characters may be incorrect in the
+		 * with XA_STRING non ascii characters may be incorrect in the
 		 * requestor. It is not our problem, use utf8.
 		 */
 		std::string *seltext = nullptr;
@@ -643,7 +642,7 @@ void brelease(XEvent *e) {
 		return;
 	}
 
-	if (mouseaction(e, 1))
+	if (mouseaction(e, true))
 		return;
 	if (btn == Button1)
 		mousesel(e, true);

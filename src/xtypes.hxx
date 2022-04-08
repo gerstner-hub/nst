@@ -20,7 +20,7 @@ struct MouseShortcut {
 	uint button;
 	void (*func)(const Arg *);
 	const Arg arg;
-	uint  release;
+	bool  release;
 };
 
 struct Key {

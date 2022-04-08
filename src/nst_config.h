@@ -216,11 +216,11 @@ const uint FORCEMOUSEMOD = ShiftMask;
  */
 constexpr std::array<MouseShortcut, 5> MSHORTCUTS({
 	             /* mask                 button   function        argument       release */
-	MouseShortcut{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
-	MouseShortcut{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"}, 0 },
-	MouseShortcut{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"}, 0 },
-	MouseShortcut{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"}, 0 },
-	MouseShortcut{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"}, 0 },
+	MouseShortcut{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      true },
+	MouseShortcut{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"}, false },
+	MouseShortcut{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"}, false },
+	MouseShortcut{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"}, false },
+	MouseShortcut{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"}, false },
 });
 
 /* Internal keyboard shortcuts. */

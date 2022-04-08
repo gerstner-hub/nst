@@ -8,29 +8,29 @@
 #include <limits.h>
 
 /* types used in nst_config.h */
-typedef struct {
+struct Shortcut {
 	uint mod;
 	KeySym keysym;
 	void (*func)(const Arg *);
 	const Arg arg;
-} Shortcut;
+};
 
-typedef struct {
+struct MouseShortcut {
 	uint mod;
 	uint button;
 	void (*func)(const Arg *);
 	const Arg arg;
 	uint  release;
-} MouseShortcut;
+};
 
-typedef struct {
+struct Key {
 	KeySym k;
 	uint mask;
 	const char *s;
 	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
 	signed char appkey;    /* application keypad */
 	signed char appcursor; /* application cursor */
-} Key;
+};
 
 class PressedButtons : public std::bitset<11> {
 public: // data

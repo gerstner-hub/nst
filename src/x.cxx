@@ -65,8 +65,7 @@ struct XWindow {
 	Colormap cmap;
 	Window win;
 	Drawable buf;
-	GlyphFontSpec *specbuf = nullptr; /* font spec buffer used for rendering */
-	size_t specbuf_len = 0;
+	std::vector<GlyphFontSpec> specbuf; /* font spec buffer used for rendering */
 	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
 	struct {
 		XIM xim;
@@ -686,8 +685,7 @@ void xresize(int col, int row) {
 	xclear(0, 0, win.w, win.h);
 
 	/* resize to new width */
-	xw.specbuf = renew(xw.specbuf, xw.specbuf_len, col);
-	xw.specbuf_len = col;
+	xw.specbuf.resize(col);
 }
 
 ushort sixd_to_16bit(size_t x) {
@@ -1093,8 +1091,7 @@ void xinit(int p_cols, int p_rows) {
 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
 
 	/* font spec buffer */
-	xw.specbuf = new GlyphFontSpec[p_cols];
-	xw.specbuf_len = p_cols;
+	xw.specbuf.resize(p_cols);
 
 	/* Xft rendering context */
 	xw.draw = XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
@@ -1544,7 +1541,7 @@ bool attrsDiffer(const Glyph &a, const Glyph &b) {
 void xdrawline(const Line &line, int x1, int y1, int x2) {
 	int i, x, ox, numspecs;
 	Glyph base, newone;
-	XftGlyphFontSpec *specs = xw.specbuf;
+	XftGlyphFontSpec *specs = xw.specbuf.data();
 
 	numspecs = xmakeglyphfontspecs(specs, &line[x1], x2 - x1, x1, y1);
 	i = ox = 0;

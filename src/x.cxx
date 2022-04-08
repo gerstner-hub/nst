@@ -42,9 +42,6 @@
 #include "win.h"
 #include "xtypes.hxx"
 
-using cosmos::ApiError;
-using cosmos::RuntimeError;
-
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
@@ -747,10 +744,10 @@ void xloadcols(void) {
 	for (i = 0; i < dc.collen; i++)
 		if (!xloadcolor(i, NULL, &dc.col[i])) {
 			if (config::colorname[i])
-				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color '%s'",
+				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'",
 								config::colorname[i])));
 			else
-				cosmos_throw (ApiError(cosmos::sprintf("could not allocate color %zd", i)));
+				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
 	loaded = 1;
 }
@@ -982,7 +979,7 @@ void xloadfonts(const char *fontstr, double fontsize) {
 
 	return;
 failed:
-	cosmos_throw (RuntimeError(cosmos::sprintf("failed to open font %s", fontstr)));
+	cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", fontstr)));
 }
 
 void xunloadfont(Font *f) {
@@ -1059,13 +1056,13 @@ void xinit(int p_cols, int p_rows) {
 	XColor xmousefg, xmousebg;
 
 	if (!(xw.dpy = XOpenDisplay(NULL)))
-		cosmos_throw (RuntimeError("cannot open display"));
+		cosmos_throw (cosmos::RuntimeError("cannot open display"));
 	xw.scr = XDefaultScreen(xw.dpy);
 	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
 
 	/* font */
 	if (!FcInit())
-		cosmos_throw (RuntimeError("could not init fontconfig"));
+		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
 	usedfont = opt_font;
 	xloadfonts(usedfont, 0);
@@ -1269,7 +1266,7 @@ int xmakeglyphfontspecs(
 
 			auto font = XftFontOpenPattern(xw.dpy, fontpattern);
 			if (!font)
-				cosmos_throw (ApiError("XftFontOpenPattern failed seeking fallback font"));
+				cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
 			frc.emplace_back(Fontcache{font, frcflags, rune});
 
 			glyphidx = XftCharIndex(xw.dpy, frc.back().font, rune);

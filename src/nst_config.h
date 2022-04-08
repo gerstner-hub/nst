@@ -214,14 +214,14 @@ const uint FORCEMOUSEMOD = ShiftMask;
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
-const MouseShortcut MSHORTCUTS[] = {
-	/* mask                 button   function        argument       release */
-	{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
-	{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"}, 0 },
-	{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"}, 0 },
-	{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"}, 0 },
-	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"}, 0 },
-};
+constexpr std::array<MouseShortcut, 5> MSHORTCUTS({
+	             /* mask                 button   function        argument       release */
+	MouseShortcut{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
+	MouseShortcut{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"}, 0 },
+	MouseShortcut{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"}, 0 },
+	MouseShortcut{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"}, 0 },
+	MouseShortcut{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"}, 0 },
+});
 
 /* Internal keyboard shortcuts. */
 #define MODKEY Mod1Mask

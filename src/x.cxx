@@ -408,16 +408,12 @@ bool mouseaction(XEvent *e, uint release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
 
-	for (
-		const MouseShortcut *ms = config::MSHORTCUTS;
-		ms < config::MSHORTCUTS + cosmos::num_elements(config::MSHORTCUTS);
-		ms++) {
-
-		if (ms->release == release &&
-		    ms->button == e->xbutton.button &&
-		    (match(ms->mod, state) ||  /* exact or forced */
-		     match(ms->mod, state & ~config::FORCEMOUSEMOD))) {
-			ms->func(&(ms->arg));
+	for (auto &ms: config::MSHORTCUTS) {
+		if (ms.release == release &&
+		    ms.button == e->xbutton.button &&
+		    (match(ms.mod, state) ||  /* exact or forced */
+		     match(ms.mod, state & ~config::FORCEMOUSEMOD))) {
+			ms.func(&(ms.arg));
 			return true;
 		}
 	}

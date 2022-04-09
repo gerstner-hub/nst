@@ -21,6 +21,7 @@
 // cosmos
 #include "cosmos/Init.hxx"
 #include "cosmos/algs.hxx"
+#include "cosmos/types.hxx"
 #include "cosmos/errors/ApiError.hxx"
 #include "cosmos/errors/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
@@ -126,7 +127,6 @@ struct Fontcache {
 	Rune unicodep;
 };
 
-static inline ushort sixd_to_16bit(size_t);
 static int xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, int, int, int);
 static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, int, int, int);
 static void xdrawglyph(Glyph, int, int);
@@ -205,6 +205,12 @@ const static std::map<int, unsigned> button_masks = {
 	{Button3, Button3Mask},
 	{Button4, Button4Mask},
 	{Button5, Button5Mask},
+};
+
+struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {
+	explicit FcPatternGuard(FcPattern *p) :
+		ResourceGuard(p, [](FcPattern *_p) { FcPatternDestroy(_p); })
+	{}
 };
 
 /* Globals */
@@ -548,7 +554,7 @@ void selnotify(XEvent *e) {
 }
 
 void xclipcopy(void) {
-	clipcopy(NULL);
+	clipcopy(nullptr);
 }
 
 [[maybe_unused]]
@@ -656,15 +662,14 @@ void bmotion(XEvent *e) {
 }
 
 void cresize(int width, int height) {
-	int col, row;
 
 	if (width != 0)
 		win.w = width;
 	if (height != 0)
 		win.h = height;
 
-	col = (win.w - 2 * config::BORDERPX) / win.cw;
-	row = (win.h - 2 * config::BORDERPX) / win.ch;
+	int col = (win.w - 2 * config::BORDERPX) / win.cw;
+	int row = (win.h - 2 * config::BORDERPX) / win.ch;
 	col = std::max(1, col);
 	row = std::max(1, row);
 
@@ -687,7 +692,7 @@ void xresize(int col, int row) {
 	xw.specbuf.resize(col);
 }
 
-ushort sixd_to_16bit(size_t x) {
+static inline uint16_t sixd_to_16bit(size_t x) {
 	return x == 0 ? 0 : 0x3737 + 0x2828 * x;
 }
 
@@ -780,9 +785,7 @@ void xhints(void) {
 	}
 	XClassHint clazz = {&opt_name[0], &opt_class[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
-	XSizeHints *sizeh;
-
-	sizeh = XAllocSizeHints();
+	XSizeHints *sizeh = XAllocSizeHints();
 
 	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
 	sizeh->height = win.h;
@@ -805,8 +808,7 @@ void xhints(void) {
 		sizeh->win_gravity = xgeommasktogravity(xw.gm);
 	}
 
-	XSetWMProperties(xw.dpy, xw.win, NULL, NULL, NULL, 0, sizeh, &wm,
-			&clazz);
+	XSetWMProperties(xw.dpy, xw.win, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
 	XFree(sizeh);
 }
 
@@ -818,44 +820,42 @@ int xgeommasktogravity(int mask) {
 		return NorthEastGravity;
 	case YNegative:
 		return SouthWestGravity;
+	default:
+		return SouthEastGravity;
 	}
-
-	return SouthEastGravity;
 }
 
 int xloadfont(Font *f, FcPattern *pattern) {
-	FcPattern *configured;
-	FcPattern *match;
-	FcResult result;
-	XGlyphInfo extents;
-	int wantattr, haveattr;
-
 	/*
 	 * Manually configure instead of calling XftMatchFont
 	 * so that we can use the configured pattern for
 	 * "missing glyph" lookups.
 	 */
-	configured = FcPatternDuplicate(pattern);
+	FcPattern *configured = FcPatternDuplicate(pattern);
 	if (!configured)
 		return 1;
 
-	FcConfigSubstitute(NULL, configured, FcMatchPattern);
+	FcPatternGuard configured_guard(configured);
+	FcConfigSubstitute(nullptr, configured, FcMatchPattern);
 	XftDefaultSubstitute(xw.dpy, xw.scr, configured);
 
-	match = FcFontMatch(NULL, configured, &result);
-	if (!match) {
-		FcPatternDestroy(configured);
+	FcResult result;
+	FcPattern *match = FcFontMatch(nullptr, configured, &result);
+	if (!match)
 		return 1;
-	}
 
-	if (!(f->match = XftFontOpenPattern(xw.dpy, match))) {
-		FcPatternDestroy(configured);
-		FcPatternDestroy(match);
+	FcPatternGuard match_guard(match);
+
+	if (!(f->match = XftFontOpenPattern(xw.dpy, match)))
 		return 1;
-	}
 
-	if ((XftPatternGetInteger(pattern, "slant", 0, &wantattr) ==
-	    XftResultMatch)) {
+	// ownership will be transferred now
+	configured_guard.disarm();
+	match_guard.disarm();
+
+	int wantattr, haveattr;
+
+	if ((XftPatternGetInteger(pattern, "slant", 0, &wantattr) == XftResultMatch)) {
 		/*
 		 * Check if xft was unable to find a font with the appropriate
 		 * slant but gave us one anyway. Try to mitigate.
@@ -876,11 +876,12 @@ int xloadfont(Font *f, FcPattern *pattern) {
 		}
 	}
 
+	XGlyphInfo extents;
 	XftTextExtentsUtf8(xw.dpy, f->match,
 		(const FcChar8 *) config::ASCII_PRINTABLE,
 		config::ASCII_PRINTABLE_LEN, &extents);
 
-	f->set = NULL;
+	f->set = nullptr;
 	f->pattern = configured;
 
 	f->ascent = f->match->ascent;

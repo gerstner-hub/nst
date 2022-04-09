@@ -46,7 +46,7 @@ int xsetcursor(int);
 void xsetmode(bool, const WinMode &);
 void xsetpointermotion(int);
 void xsetsel(char *);
-int xstartdraw(void);
+bool xstartdraw();
 void xximspot(int, int);
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 

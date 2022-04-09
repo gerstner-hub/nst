@@ -268,7 +268,9 @@ const Shortcut SHORTCUTS[] = {
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
  * to be mapped below, add them to this array.
  */
-const KeySym MAPPEDKEYS[] = { KeySym(-1) };
+constexpr std::array<KeySym, 1> MAPPEDKEYS({
+	KeySym(-1)
+});
 
 /*
  * State bits to ignore when matching key or button events.  By default,
@@ -280,9 +282,9 @@ const uint IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
  * This is the huge key array which defines all compatibility to the Linux
  * world. Please decide about changes wisely.
  */
-const Key KEY[] = {
+constexpr std::array<Key, 209> KEY({
 	/* keysym           mask            string      appkey appcursor */
-	{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
+	Key{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
 	{ XK_KP_Home,       ShiftMask,      "\033[1;2H",     0,   +1},
 	{ XK_KP_Home,       XK_ANY_MOD,     "\033[H",        0,   -1},
 	{ XK_KP_Home,       XK_ANY_MOD,     "\033[1~",       0,   +1},
@@ -491,7 +493,7 @@ const Key KEY[] = {
 	{ XK_F33,           XK_NO_MOD,      "\033[20;5~",    0,    0},
 	{ XK_F34,           XK_NO_MOD,      "\033[21;5~",    0,    0},
 	{ XK_F35,           XK_NO_MOD,      "\033[23;5~",    0,    0},
-};
+});
 
 /*
  * Selection types' masks.

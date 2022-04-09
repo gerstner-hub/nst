@@ -45,6 +45,9 @@ public: // functions
 	bool isBgTrueColor() const {
 		return 1 << 24 & bg;
 	}
+	bool attrsDiffer(const Glyph &other) const {
+		return mode != other.mode || fg != other.fg || bg != other.bg;
+	}
 };
 
 using Line = std::vector<Glyph>;

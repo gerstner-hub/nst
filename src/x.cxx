@@ -107,8 +107,7 @@ struct Font {
 
 /* Drawing Context */
 struct DrawingContext {
-	Color *col;
-	size_t collen;
+	std::vector<Color> col;
 	Font font, bfont, ifont, ibfont;
 	GC gc;
 };
@@ -715,31 +714,32 @@ int xloadcolor(size_t i, const char *name, Color *ncolor) {
 }
 
 void xloadcols(void) {
-	size_t i;
-	static int loaded;
-	Color *cp;
+	static bool loaded;
 
 	if (loaded) {
-		for (cp = dc.col; cp < &dc.col[dc.collen]; ++cp)
-			XftColorFree(xw.dpy, xw.vis, xw.cmap, cp);
+		for (auto &c: dc.col) {
+			XftColorFree(xw.dpy, xw.vis, xw.cmap, &c);
+		}
 	} else {
-		dc.collen = std::max(cosmos::num_elements(config::colorname), 256UL);
-		dc.col = new Color[dc.collen];
+		auto len = std::max(cosmos::num_elements(config::colorname), 256UL);
+		dc.col.resize(len);
 	}
 
-	for (i = 0; i < dc.collen; i++)
-		if (!xloadcolor(i, NULL, &dc.col[i])) {
+	for (size_t i = 0; i < dc.col.size(); i++) {
+		if (!xloadcolor(i, nullptr, &dc.col[i])) {
 			if (config::colorname[i])
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'",
 								config::colorname[i])));
 			else
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
-	loaded = 1;
+	}
+
+	loaded = true;
 }
 
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b) {
-	if (x > dc.collen)
+	if (x >= dc.col.size())
 		return 1;
 
 	*r = dc.col[x].color.red >> 8;
@@ -750,11 +750,10 @@ int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b) {
 }
 
 int xsetcolorname(size_t x, const char *name) {
-	Color ncolor;
-
-	if (x > dc.collen)
+	if (x >= dc.col.size())
 		return 1;
 
+	Color ncolor;
 	if (!xloadcolor(x, name, &ncolor))
 		return 1;
 
@@ -768,9 +767,8 @@ int xsetcolorname(size_t x, const char *name) {
  * Absolute coordinates.
  */
 void xclear(int x1, int y1, int x2, int y2) {
-	XftDrawRect(xw.draw,
-			&dc.col[win.mode[WinMode::REVERSE]? config::DEFAULTFG : config::DEFAULTBG],
-			x1, y1, x2-x1, y2-y1);
+	const auto colindex = win.mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
+	XftDrawRect(xw.draw, &dc.col[colindex], x1, y1, x2-x1, y2-y1);
 }
 
 void xhints(void) {

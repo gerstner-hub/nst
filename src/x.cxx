@@ -142,7 +142,6 @@ static void xresize(int, int);
 static void xhints(void);
 static int xloadcolor(size_t, const char *, Color *);
 static int xloadfont(Font *, FcPattern *);
-static void xloadfonts(const char *, double);
 static void xunloadfont(Font *);
 static void xunloadfonts(void);
 static void xsetenv(void);
@@ -168,6 +167,7 @@ static void setsel(char *, Time);
 static void mousereport(XEvent *);
 static const char *kmap(KeySym, uint);
 static bool match(uint, uint);
+static void xloadfontsOrThrow(const char*, double fontsize);
 
 namespace {
 
@@ -273,7 +273,7 @@ void zoom(const Arg *arg) {
 
 void zoomabs(const Arg *arg) {
 	xunloadfonts();
-	xloadfonts(usedfont, arg->f);
+	xloadfontsOrThrow(usedfont, arg->f);
 	cresize(0, 0);
 	term.redraw();
 	xhints();
@@ -895,9 +895,8 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	return 0;
 }
 
-void xloadfonts(const char *fontstr, double fontsize) {
+static bool xloadfonts(const char *fontstr, double fontsize) {
 	FcPattern *pattern;
-	double fontval;
 
 	if (fontstr[0] == '-')
 		pattern = XftXlfdParse(fontstr, False, False);
@@ -905,7 +904,9 @@ void xloadfonts(const char *fontstr, double fontsize) {
 		pattern = FcNameParse((const FcChar8 *)fontstr);
 
 	if (!pattern)
-		goto failed;
+		return false;
+
+	double fontval;
 
 	if (fontsize > 1) {
 		FcPatternDel(pattern, FC_PIXEL_SIZE);
@@ -931,7 +932,7 @@ void xloadfonts(const char *fontstr, double fontsize) {
 	}
 
 	if (xloadfont(&dc.font, pattern))
-		goto failed;
+		return false;
 
 	if (usedfontsize < 0) {
 		FcPatternGetDouble(dc.font.match->pattern,
@@ -948,23 +949,27 @@ void xloadfonts(const char *fontstr, double fontsize) {
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
 	if (xloadfont(&dc.ifont, pattern))
-		goto failed;
+		return false;
 
 	FcPatternDel(pattern, FC_WEIGHT);
 	FcPatternAddInteger(pattern, FC_WEIGHT, FC_WEIGHT_BOLD);
 	if (xloadfont(&dc.ibfont, pattern))
-		goto failed;
+		return false;
 
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ROMAN);
 	if (xloadfont(&dc.bfont, pattern))
-		goto failed;
+		return false;
 
 	FcPatternDestroy(pattern);
 
-	return;
-failed:
-	cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", fontstr)));
+	return true;
+}
+
+static void xloadfontsOrThrow(const char *fontstr, double fontsize) {
+	if (!xloadfonts(fontstr, fontsize)) {
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", usedfont)));
+	}
 }
 
 void xunloadfont(Font *f) {
@@ -1050,7 +1055,7 @@ void xinit(int p_cols, int p_rows) {
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
 	usedfont = opt_font;
-	xloadfonts(usedfont, 0);
+	xloadfontsOrThrow(usedfont, 0);
 
 	/* colors */
 	xw.cmap = XDefaultColormap(xw.dpy, xw.scr);

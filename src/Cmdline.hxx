@@ -15,6 +15,19 @@ class Cmdline :
 public: // functions
 
 	Cmdline();
+
+	const std::string& getTitle() const {
+		auto &rst = rest.getValue();
+
+		if (!window_title.isSet() && !tty_line.isSet() && !rst.empty()) {
+			// use command basename as title
+			return rst[0];
+		}
+
+		// use supplied or default value
+		return window_title.getValue();
+	}
+
 public: // data
 	TCLAP::SwitchArg use_alt_screen;
 	TCLAP::SwitchArg fixed_geometry;

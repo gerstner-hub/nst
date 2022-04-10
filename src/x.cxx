@@ -231,9 +231,6 @@ const char *usedfont = nullptr;
 double usedfontsize = 0;
 double defaultfontsize = 0;
 
-const char *opt_embed = nullptr;
-const char *opt_font  = nullptr;
-const char *opt_title = nullptr;
 Cmdline cmdline;
 
 PressedButtons buttons; /* bit field of pressed buttons */
@@ -1049,7 +1046,7 @@ void xinit() {
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
-	usedfont = opt_font;
+	usedfont = cmdline.font.getValue().c_str();
 	xloadfontsOrThrow(usedfont, 0);
 
 	/* colors */
@@ -1074,7 +1071,8 @@ void xinit() {
 	xw.attrs.colormap = xw.cmap;
 
 	Window parent;
-	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0))))
+	const auto &embed = cmdline.embed_window.getValue();
+	if (!(!embed.empty() && (parent = strtol(embed.c_str(), nullptr, 0))))
 		parent = XRootWindow(xw.dpy, xw.scr);
 	xw.win = XCreateWindow(xw.dpy, parent, xw.l, xw.t,
 			win.w, win.h, 0, XDefaultDepth(xw.dpy, xw.scr), InputOutput,
@@ -1506,7 +1504,7 @@ void xsetenv(void) {
 
 void xseticontitle(const char *p) {
 	XTextProperty prop;
-	p = p ? p : opt_title;
+	p = p ? p : cmdline.getTitle().c_str();
 
 	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
@@ -1518,7 +1516,7 @@ void xseticontitle(const char *p) {
 
 void xsettitle(const char *p) {
 	XTextProperty prop;
-	p = p ? p : opt_title;
+	p = p ? p : cmdline.getTitle().c_str();
 
 	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
@@ -1900,20 +1898,6 @@ void applyCmdline(const Cmdline &cmd) {
 			cmd.window_geometry.getValue().c_str(),
 			&xw.l, &xw.t, &cols, &rows
 		);
-	}
-
-	if (cmd.embed_window.isSet()) {
-		opt_embed = cmd.embed_window.getValue().c_str();
-	}
-
-	opt_title = cmd.window_title.getValue().c_str();
-	opt_font = cmd.font.getValue().c_str();
-
-	auto &rest = cmd.rest.getValue();
-
-	if (!cmd.window_title.isSet() && !cmd.tty_line.isSet() && !rest.empty()) {
-		// use command basename as title
-		opt_title = rest[0].c_str();
 	}
 }
 

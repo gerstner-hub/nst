@@ -30,6 +30,10 @@
 #include "cosmos/time/TimeSpec.hxx"
 #include "cosmos/time/Clock.hxx"
 
+// X++
+#include "X++/XDisplay.hxx"
+#include "X++/XAtom.hxx"
+
 // nst
 #include "types.hxx"
 #include "st.h"
@@ -61,7 +65,8 @@ struct TermWindow {
 };
 
 struct XWindow {
-	Display *dpy;
+	xpp::XDisplay *display = nullptr;
+	xpp::XAtomMapper *mapper = nullptr;
 	Colormap cmap;
 	Window win;
 	Drawable buf;
@@ -236,6 +241,14 @@ PressedButtons buttons; /* bit field of pressed buttons */
 unsigned int cols = config::COLS;
 unsigned int rows = config::ROWS;
 
+inline Display* getDisplay() {
+	return static_cast<Display*>(*xw.display);
+}
+
+inline Atom getAtom(const char *name) {
+	return (xw.mapper)->getAtom(name);
+}
+
 } // end anon ns
 
 void clipcopy(const Arg *) {
@@ -243,19 +256,19 @@ void clipcopy(const Arg *) {
 
 	if (!xsel.primary.empty()) {
 		xsel.clipboard = xsel.primary;
-		Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
-		XSetSelectionOwner(xw.dpy, clipboard, xw.win, CurrentTime);
+		Atom clipboard = getAtom("CLIPBOARD");
+		XSetSelectionOwner(getDisplay(), clipboard, xw.win, CurrentTime);
 	}
 }
 
 void clippaste(const Arg *) {
-	Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
-	XConvertSelection(xw.dpy, clipboard, xsel.xtarget, clipboard,
+	Atom clipboard = getAtom("CLIPBOARD");
+	XConvertSelection(getDisplay(), clipboard, xsel.xtarget, clipboard,
 			xw.win, CurrentTime);
 }
 
 void selpaste(const Arg *) {
-	XConvertSelection(xw.dpy, XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
+	XConvertSelection(getDisplay(), XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
 			xw.win, CurrentTime);
 }
 
@@ -458,7 +471,7 @@ void bpress(XEvent *e) {
 }
 
 void propnotify(XEvent *e) {
-	Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
+	Atom clipboard = getAtom("CLIPBOARD");
 	XPropertyEvent *xpev = &e->xproperty;
 
 	if (xpev->state == PropertyNewValue &&
@@ -481,11 +494,11 @@ void selnotify(XEvent *e) {
 	ulong nitems, rem, ofs = 0;
 	uchar *data, *last, *repl;
 	Atom type;
-	const Atom incratom = XInternAtom(xw.dpy, "INCR", 0);
+	const Atom incratom = getAtom("INCR");
 	int format;
 
 	do {
-		if (XGetWindowProperty(xw.dpy, xw.win, property, ofs,
+		if (XGetWindowProperty(getDisplay(), xw.win, property, ofs,
 					BUFSIZ/4, False, AnyPropertyType,
 					&type, &format, &nitems, &rem,
 					&data)) {
@@ -501,7 +514,7 @@ void selnotify(XEvent *e) {
 			 * PropertyNotify events anymore.
 			 */
 			modifyBit(xw.attrs.event_mask, 0, PropertyChangeMask);
-			XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask,
+			XChangeWindowAttributes(getDisplay(), xw.win, CWEventMask,
 					&xw.attrs);
 		}
 
@@ -512,13 +525,13 @@ void selnotify(XEvent *e) {
 			 * chunk of data.
 			 */
 			modifyBit(xw.attrs.event_mask, 1, PropertyChangeMask);
-			XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask,
+			XChangeWindowAttributes(getDisplay(), xw.win, CWEventMask,
 					&xw.attrs);
 
 			/*
 			 * Deleting the property is the transfer start signal.
 			 */
-			XDeleteProperty(xw.dpy, xw.win, (int)property);
+			XDeleteProperty(getDisplay(), xw.win, (int)property);
 			continue;
 		}
 
@@ -549,7 +562,7 @@ void selnotify(XEvent *e) {
 	 * Deleting the property again tells the selection owner to send the
 	 * next data chunk in the property.
 	 */
-	XDeleteProperty(xw.dpy, xw.win, (int)property);
+	XDeleteProperty(getDisplay(), xw.win, (int)property);
 }
 
 void xclipcopy(void) {
@@ -576,7 +589,7 @@ void selrequest(XEvent *e) {
 
 	/* reject */
 	xev.property = None;
-	Atom xa_targets = XInternAtom(xw.dpy, "TARGETS", 0);
+	const Atom xa_targets = getAtom("TARGETS");
 
 	if (xsre->target == xa_targets) {
 		/* respond with the supported type */
@@ -591,7 +604,7 @@ void selrequest(XEvent *e) {
 		 * requestor. It is not our problem, use utf8.
 		 */
 		std::string *seltext = nullptr;
-		Atom clipboard = XInternAtom(xw.dpy, "CLIPBOARD", 0);
+		const Atom clipboard = getAtom("CLIPBOARD");
 		if (xsre->selection == XA_PRIMARY) {
 			seltext = &xsel.primary;
 		} else if (xsre->selection == clipboard) {
@@ -625,8 +638,8 @@ void setsel(char *str, Time t) {
 	xsel.primary = str;
 	delete[] str;
 
-	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
-	if (XGetSelectionOwner(xw.dpy, XA_PRIMARY) != xw.win)
+	XSetSelectionOwner(getDisplay(), XA_PRIMARY, xw.win, t);
+	if (XGetSelectionOwner(getDisplay(), XA_PRIMARY) != xw.win)
 		g_sel.clear();
 }
 
@@ -681,9 +694,9 @@ void xresize(int col, int row) {
 	win.tw = col * win.cw;
 	win.th = row * win.ch;
 
-	XFreePixmap(xw.dpy, xw.buf);
-	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
-			DefaultDepth(xw.dpy, xw.scr));
+	XFreePixmap(getDisplay(), xw.buf);
+	xw.buf = XCreatePixmap(getDisplay(), xw.win, win.w, win.h,
+			DefaultDepth(getDisplay(), xw.scr));
 	XftDrawChange(xw.draw, xw.buf);
 	xclear(0, 0, win.w, win.h);
 
@@ -708,13 +721,13 @@ int xloadcolor(size_t i, const char *name, Color *ncolor) {
 				color.red = 0x0808 + 0x0a0a * (i - (6*6*6+16));
 				color.green = color.blue = color.red;
 			}
-			return XftColorAllocValue(xw.dpy, xw.vis,
+			return XftColorAllocValue(getDisplay(), xw.vis,
 			                          xw.cmap, &color, ncolor);
 		} else
 			name = config::colorname[i];
 	}
 
-	return XftColorAllocName(xw.dpy, xw.vis, xw.cmap, name, ncolor);
+	return XftColorAllocName(getDisplay(), xw.vis, xw.cmap, name, ncolor);
 }
 
 void xloadcols(void) {
@@ -722,7 +735,7 @@ void xloadcols(void) {
 
 	if (loaded) {
 		for (auto &c: dc.col) {
-			XftColorFree(xw.dpy, xw.vis, xw.cmap, &c);
+			XftColorFree(getDisplay(), xw.vis, xw.cmap, &c);
 		}
 	} else {
 		auto len = std::max(cosmos::num_elements(config::colorname), 256UL);
@@ -761,7 +774,7 @@ int xsetcolorname(size_t x, const char *name) {
 	if (!xloadcolor(x, name, &ncolor))
 		return 1;
 
-	XftColorFree(xw.dpy, xw.vis, xw.cmap, &dc.col[x]);
+	XftColorFree(getDisplay(), xw.vis, xw.cmap, &dc.col[x]);
 	dc.col[x] = ncolor;
 
 	return 0;
@@ -803,7 +816,7 @@ void xhints(void) {
 		sizeh->win_gravity = xgeommasktogravity(xw.gm);
 	}
 
-	XSetWMProperties(xw.dpy, xw.win, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
+	XSetWMProperties(getDisplay(), xw.win, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
 	XFree(sizeh);
 }
 
@@ -832,7 +845,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 
 	FcPatternGuard configured_guard(configured);
 	FcConfigSubstitute(nullptr, configured, FcMatchPattern);
-	XftDefaultSubstitute(xw.dpy, xw.scr, configured);
+	XftDefaultSubstitute(getDisplay(), xw.scr, configured);
 
 	FcResult result;
 	FcPattern *match = FcFontMatch(nullptr, configured, &result);
@@ -841,7 +854,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 
 	FcPatternGuard match_guard(match);
 
-	if (!(f->match = XftFontOpenPattern(xw.dpy, match)))
+	if (!(f->match = XftFontOpenPattern(getDisplay(), match)))
 		return 1;
 
 	// ownership will be transferred now
@@ -872,7 +885,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	}
 
 	XGlyphInfo extents;
-	XftTextExtentsUtf8(xw.dpy, f->match,
+	XftTextExtentsUtf8(getDisplay(), f->match,
 		(const FcChar8 *) config::ASCII_PRINTABLE,
 		config::ASCII_PRINTABLE_LEN, &extents);
 
@@ -968,7 +981,7 @@ static void xloadfontsOrThrow(const char *fontstr, double fontsize) {
 }
 
 void xunloadfont(Font *f) {
-	XftFontClose(xw.dpy, f->match);
+	XftFontClose(getDisplay(), f->match);
 	FcPatternDestroy(f->pattern);
 	if (f->set)
 		FcFontSetDestroy(f->set);
@@ -977,7 +990,7 @@ void xunloadfont(Font *f) {
 void xunloadfonts() {
 	/* Free the loaded fonts in the font cache.  */
 	for (auto &fc: frc)
-		XftFontClose(xw.dpy, fc.font);
+		XftFontClose(getDisplay(), fc.font);
 
 	frc.clear();
 
@@ -990,7 +1003,7 @@ int ximopen() {
 	XIMCallback imdestroy = { .client_data = nullptr, .callback = ximdestroy };
 	XICCallback icdestroy = { .client_data = nullptr, .callback = xicdestroy };
 
-	xw.ime.xim = XOpenIM(xw.dpy, nullptr, nullptr, nullptr);
+	xw.ime.xim = XOpenIM(getDisplay(), nullptr, nullptr, nullptr);
 	if (xw.ime.xim == nullptr)
 		return 0;
 
@@ -1016,13 +1029,13 @@ int ximopen() {
 
 void ximinstantiate(Display *, XPointer, XPointer) {
 	if (ximopen())
-		XUnregisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
+		XUnregisterIMInstantiateCallback(getDisplay(), NULL, NULL, NULL,
 		                                 ximinstantiate, NULL);
 }
 
 void ximdestroy(XIM, XPointer, XPointer) {
 	xw.ime.xim = nullptr;
-	XRegisterIMInstantiateCallback(xw.dpy, nullptr, nullptr, nullptr,
+	XRegisterIMInstantiateCallback(getDisplay(), nullptr, nullptr, nullptr,
 	                               ximinstantiate, nullptr);
 	XFree(xw.ime.spotlist);
 }
@@ -1035,10 +1048,10 @@ int xicdestroy(XIC, XPointer, XPointer) {
 void xinit() {
 	XColor xmousefg, xmousebg;
 
-	if (!(xw.dpy = XOpenDisplay(NULL)))
-		cosmos_throw (cosmos::RuntimeError("cannot open display"));
-	xw.scr = XDefaultScreen(xw.dpy);
-	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
+	xw.display = &xpp::XDisplay::getInstance();
+	xw.mapper = &xpp::XAtomMapper::getInstance();
+	xw.scr = XDefaultScreen(getDisplay());
+	xw.vis = XDefaultVisual(getDisplay(), xw.scr);
 
 	/* font */
 	if (!FcInit())
@@ -1048,16 +1061,16 @@ void xinit() {
 	xloadfontsOrThrow(usedfont, 0);
 
 	/* colors */
-	xw.cmap = XDefaultColormap(xw.dpy, xw.scr);
+	xw.cmap = XDefaultColormap(getDisplay(), xw.scr);
 	xloadcols();
 
 	/* adjust fixed window geometry */
 	win.w = 2 * config::BORDERPX + cols * win.cw;
 	win.h = 2 * config::BORDERPX + rows * win.ch;
 	if (xw.gm & XNegative)
-		xw.l += DisplayWidth(xw.dpy, xw.scr) - win.w - 2;
+		xw.l += DisplayWidth(getDisplay(), xw.scr) - win.w - 2;
 	if (xw.gm & YNegative)
-		xw.t += DisplayHeight(xw.dpy, xw.scr) - win.h - 2;
+		xw.t += DisplayHeight(getDisplay(), xw.scr) - win.h - 2;
 
 	/* Events */
 	xw.attrs.background_pixel = dc.col[config::DEFAULTBG].pixel;
@@ -1071,71 +1084,71 @@ void xinit() {
 	Window parent;
 	const auto &embed = cmdline.embed_window.getValue();
 	if (!(!embed.empty() && (parent = strtol(embed.c_str(), nullptr, 0))))
-		parent = XRootWindow(xw.dpy, xw.scr);
-	xw.win = XCreateWindow(xw.dpy, parent, xw.l, xw.t,
-			win.w, win.h, 0, XDefaultDepth(xw.dpy, xw.scr), InputOutput,
+		parent = XRootWindow(getDisplay(), xw.scr);
+	xw.win = XCreateWindow(getDisplay(), parent, xw.l, xw.t,
+			win.w, win.h, 0, XDefaultDepth(getDisplay(), xw.scr), InputOutput,
 			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
 			| CWEventMask | CWColormap, &xw.attrs);
 
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	dc.gc = XCreateGC(xw.dpy, parent, GCGraphicsExposures, &gcvalues);
-	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h, DefaultDepth(xw.dpy, xw.scr));
-	XSetForeground(xw.dpy, dc.gc, dc.col[config::DEFAULTBG].pixel);
-	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
+	dc.gc = XCreateGC(getDisplay(), parent, GCGraphicsExposures, &gcvalues);
+	xw.buf = XCreatePixmap(getDisplay(), xw.win, win.w, win.h, DefaultDepth(getDisplay(), xw.scr));
+	XSetForeground(getDisplay(), dc.gc, dc.col[config::DEFAULTBG].pixel);
+	XFillRectangle(getDisplay(), xw.buf, dc.gc, 0, 0, win.w, win.h);
 
 	/* font spec buffer */
 	xw.specbuf.resize(cols);
 
 	/* Xft rendering context */
-	xw.draw = XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
+	xw.draw = XftDrawCreate(getDisplay(), xw.buf, xw.vis, xw.cmap);
 
 	/* input methods */
 	if (!ximopen()) {
-		XRegisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
+		XRegisterIMInstantiateCallback(getDisplay(), NULL, NULL, NULL,
 	                                       ximinstantiate, NULL);
 	}
 
 	/* white cursor, black outline */
-	Cursor cursor = XCreateFontCursor(xw.dpy, config::MOUSESHAPE);
-	XDefineCursor(xw.dpy, xw.win, cursor);
+	Cursor cursor = XCreateFontCursor(getDisplay(), config::MOUSESHAPE);
+	XDefineCursor(getDisplay(), xw.win, cursor);
 
-	if (XParseColor(xw.dpy, xw.cmap, config::colorname[config::MOUSEFG], &xmousefg) == 0) {
+	if (XParseColor(getDisplay(), xw.cmap, config::colorname[config::MOUSEFG], &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
 		xmousefg.green = 0xffff;
 		xmousefg.blue  = 0xffff;
 	}
 
-	if (XParseColor(xw.dpy, xw.cmap, config::colorname[config::MOUSEBG], &xmousebg) == 0) {
+	if (XParseColor(getDisplay(), xw.cmap, config::colorname[config::MOUSEBG], &xmousebg) == 0) {
 		xmousebg.red   = 0x0000;
 		xmousebg.green = 0x0000;
 		xmousebg.blue  = 0x0000;
 	}
 
-	XRecolorCursor(xw.dpy, cursor, &xmousefg, &xmousebg);
+	XRecolorCursor(getDisplay(), cursor, &xmousefg, &xmousebg);
 
-	xw.xembed = XInternAtom(xw.dpy, "_XEMBED", False);
-	xw.wmdeletewin = XInternAtom(xw.dpy, "WM_DELETE_WINDOW", False);
-	xw.netwmname = XInternAtom(xw.dpy, "_NET_WM_NAME", False);
-	xw.netwmiconname = XInternAtom(xw.dpy, "_NET_WM_ICON_NAME", False);
-	XSetWMProtocols(xw.dpy, xw.win, &xw.wmdeletewin, 1);
+	xw.xembed = getAtom("_XEMBED");
+	xw.wmdeletewin = getAtom("WM_DELETE_WINDOW");
+	xw.netwmname = getAtom("_NET_WM_NAME");
+	xw.netwmiconname = getAtom("_NET_WM_ICON_NAME");
+	XSetWMProtocols(getDisplay(), xw.win, &xw.wmdeletewin, 1);
 
-	xw.netwmpid = XInternAtom(xw.dpy, "_NET_WM_PID", False);
+	xw.netwmpid = getAtom("_NET_WM_PID");
 	auto thispid = cosmos::g_process.getPid();
-	XChangeProperty(xw.dpy, xw.win, xw.netwmpid, XA_CARDINAL, 32,
+	XChangeProperty(getDisplay(), xw.win, xw.netwmpid, XA_CARDINAL, 32,
 			PropModeReplace, (uchar *)&thispid, 1);
 
 	win.mode = WinModeMask(WinMode::NUMLOCK);
 	xsettitle(nullptr);
 	xhints();
-	XMapWindow(xw.dpy, xw.win);
-	XSync(xw.dpy, False);
+	XMapWindow(getDisplay(), xw.win);
+	XSync(getDisplay(), False);
 
 	xsel.tclick1.mark();
 	xsel.tclick2.mark();
 	xsel.primary.clear();
 	xsel.clipboard.clear();
-	xsel.xtarget = XInternAtom(xw.dpy, "UTF8_STRING", 0);
+	xsel.xtarget = getAtom("UTF8_STRING");
 	if (xsel.xtarget == None)
 		xsel.xtarget = XA_STRING;
 }
@@ -1179,7 +1192,7 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs,
 		}
 
 		/* Lookup character index with default font. */
-		auto glyphidx = XftCharIndex(xw.dpy, fnt->match, rune);
+		auto glyphidx = XftCharIndex(getDisplay(), fnt->match, rune);
 		if (glyphidx) {
 			specs[numspecs].font = fnt->match;
 			specs[numspecs].glyph = glyphidx;
@@ -1193,7 +1206,7 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs,
 		Fontcache *font_entry = nullptr;
 		/* Fallback on font cache, search the font cache for match. */
 		for (auto &fc: frc) {
-			glyphidx = XftCharIndex(xw.dpy, fc.font, rune);
+			glyphidx = XftCharIndex(getDisplay(), fc.font, rune);
 			/* Everything correct. */
 			if (glyphidx && fc.flags == frcflags) {
 				font_entry = &fc;
@@ -1239,12 +1252,12 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs,
 
 			/* Allocate memory for the new cache entry. */
 
-			auto font = XftFontOpenPattern(xw.dpy, fontpattern);
+			auto font = XftFontOpenPattern(getDisplay(), fontpattern);
 			if (!font)
 				cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
 			frc.emplace_back(Fontcache{font, frcflags, rune});
 
-			glyphidx = XftCharIndex(xw.dpy, frc.back().font, rune);
+			glyphidx = XftCharIndex(getDisplay(), frc.back().font, rune);
 
 			font_entry = &frc.back();
 		}
@@ -1288,7 +1301,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 
 	if (base.isFgTrueColor()) {
 		setRenderColor(colfg, base.fg);
-		XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colfg, &truefg);
+		XftColorAllocValue(getDisplay(), xw.vis, xw.cmap, &colfg, &truefg);
 		fg = &truefg;
 	} else {
 		fg = &dc.col[base.fg];
@@ -1300,7 +1313,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 
 	if (base.isBgTrueColor()) {
 		setRenderColor(colbg, base.bg);
-		XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colbg, &truebg);
+		XftColorAllocValue(getDisplay(), xw.vis, xw.cmap, &colbg, &truebg);
 		bg = &truebg;
 	} else {
 		bg = &dc.col[base.bg];
@@ -1319,7 +1332,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 			colfg.green = ~fg->color.green;
 			colfg.blue = ~fg->color.blue;
 			colfg.alpha = fg->color.alpha;
-			XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colfg,
+			XftColorAllocValue(getDisplay(), xw.vis, xw.cmap, &colfg,
 					&revfg);
 			fg = &revfg;
 		}
@@ -1331,7 +1344,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 			colbg.green = ~bg->color.green;
 			colbg.blue = ~bg->color.blue;
 			colbg.alpha = bg->color.alpha;
-			XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colbg,
+			XftColorAllocValue(getDisplay(), xw.vis, xw.cmap, &colbg,
 					&revbg);
 			bg = &revbg;
 		}
@@ -1342,7 +1355,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 		colfg.green = fg->color.green / 2;
 		colfg.blue = fg->color.blue / 2;
 		colfg.alpha = fg->color.alpha;
-		XftColorAllocValue(xw.dpy, xw.vis, xw.cmap, &colfg, &revfg);
+		XftColorAllocValue(getDisplay(), xw.vis, xw.cmap, &colfg, &revfg);
 		fg = &revfg;
 	}
 
@@ -1504,11 +1517,11 @@ void xseticontitle(const char *p) {
 	XTextProperty prop;
 	p = p ? p : cmdline.getTitle().c_str();
 
-	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
+	if (Xutf8TextListToTextProperty(getDisplay(), (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
 		return;
-	XSetWMIconName(xw.dpy, xw.win, &prop);
-	XSetTextProperty(xw.dpy, xw.win, &prop, xw.netwmiconname);
+	XSetWMIconName(getDisplay(), xw.win, &prop);
+	XSetTextProperty(getDisplay(), xw.win, &prop, xw.netwmiconname);
 	XFree(prop.value);
 }
 
@@ -1516,11 +1529,11 @@ void xsettitle(const char *p) {
 	XTextProperty prop;
 	p = p ? p : cmdline.getTitle().c_str();
 
-	if (Xutf8TextListToTextProperty(xw.dpy, (char**)&p, 1, XUTF8StringStyle,
+	if (Xutf8TextListToTextProperty(getDisplay(), (char**)&p, 1, XUTF8StringStyle,
 	                                &prop) != Success)
 		return;
-	XSetWMName(xw.dpy, xw.win, &prop);
-	XSetTextProperty(xw.dpy, xw.win, &prop, xw.netwmname);
+	XSetWMName(getDisplay(), xw.win, &prop);
+	XSetTextProperty(getDisplay(), xw.win, &prop, xw.netwmname);
 	XFree(prop.value);
 }
 
@@ -1558,8 +1571,8 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 }
 
 void xfinishdraw() {
-	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w, win.h, 0, 0);
-	XSetForeground(xw.dpy, dc.gc,
+	XCopyArea(getDisplay(), xw.buf, xw.win, dc.gc, 0, 0, win.w, win.h, 0, 0);
+	XSetForeground(getDisplay(), dc.gc,
 			dc.col[win.mode[WinMode::REVERSE]?
 				config::DEFAULTFG : config::DEFAULTBG].pixel);
 }
@@ -1590,7 +1603,7 @@ void unmap(XEvent *) {
 
 void xsetpointermotion(int set) {
 	modifyBit(xw.attrs.event_mask, set, PointerMotionMask);
-	XChangeWindowAttributes(xw.dpy, xw.win, CWEventMask, &xw.attrs);
+	XChangeWindowAttributes(getDisplay(), xw.win, CWEventMask, &xw.attrs);
 }
 
 void xsetmode(bool set, const WinMode &flag) {
@@ -1608,10 +1621,10 @@ int xsetcursor(int cursor) {
 }
 
 void xseturgency(int add) {
-	XWMHints *h = XGetWMHints(xw.dpy, xw.win);
+	XWMHints *h = XGetWMHints(getDisplay(), xw.win);
 
 	modifyBit(h->flags, add, XUrgencyHint);
-	XSetWMHints(xw.dpy, xw.win, h);
+	XSetWMHints(getDisplay(), xw.win, h);
 	XFree(h);
 }
 
@@ -1619,7 +1632,7 @@ void xbell(void) {
 	if (!(win.mode[WinMode::FOCUSED]))
 		xseturgency(1);
 	if (config::BELLVOLUME)
-		XkbBell(xw.dpy, xw.win, config::BELLVOLUME, (Atom)NULL);
+		XkbBell(getDisplay(), xw.win, config::BELLVOLUME, (Atom)NULL);
 }
 
 void focus(XEvent *ev) {
@@ -1763,7 +1776,7 @@ void waitForWindowMapping() {
 
 	/* Waiting for window mapping */
 	do {
-		XNextEvent(xw.dpy, &ev);
+		XNextEvent(getDisplay(), &ev);
 		/*
 		 * This XFilterEvent call is required because of XOpenIM. It
 		 * does filter out the key event and some client message for
@@ -1786,7 +1799,7 @@ static void run() {
 	waitForWindowMapping();
 
 	auto childfd = g_tty.getChildFD();
-	auto xfd = cosmos::FileDescriptor(XConnectionNumber(xw.dpy));
+	auto xfd = cosmos::FileDescriptor(XConnectionNumber(getDisplay()));
 	cosmos::Poller poller;
 
 	poller.create();
@@ -1800,7 +1813,7 @@ static void run() {
 	std::chrono::milliseconds timeout(-1);
 
 	while (true) {
-		if (XPending(xw.dpy))
+		if (XPending(getDisplay()))
 			timeout = std::chrono::milliseconds(0);  /* existing events might not set xfd */
 
 		auto events = poller.wait(timeout.count() >= 0 ?
@@ -1819,9 +1832,9 @@ static void run() {
 			}
 		}
 
-		while (XPending(xw.dpy)) {
+		while (XPending(getDisplay())) {
 			x_ev = true;
-			XNextEvent(xw.dpy, &ev);
+			XNextEvent(getDisplay(), &ev);
 			if (XFilterEvent(&ev, None))
 				continue;
 			else if (auto it = handlers.find(ev.type); it != handlers.end()) {
@@ -1869,7 +1882,7 @@ static void run() {
 		}
 
 		term.draw();
-		XFlush(xw.dpy);
+		XFlush(getDisplay());
 		drawing = false;
 	}
 }

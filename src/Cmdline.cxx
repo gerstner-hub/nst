@@ -10,8 +10,8 @@ Cmdline::Cmdline() :
 	use_alt_screen("a", "no-alt-screen", "disable the alternative screen buffer", *this, true),
 	fixed_geometry("i", "fixed-geometry", "fixate the position specified via -g", *this, false),
 	execute("e", "", "execute remaining parameters as command. Only for backward compatibility.", *this, false),
-	window_class("c", "window-class", "defines the window class (default $TERM)", false, "", "string", *this),
-	window_name("n", "window-name", "defines the window instance name (default $TERM)", false, "", "string", *this),
+	window_class("c", "window-class", "defines the window class (default $TERM)", false, config::TERMNAME, "string", *this),
+	window_name("n", "window-name", "defines the window instance name (default $TERM)", false, config::TERMNAME, "string", *this),
 	// NOTE: original st also allowed -T title but TCLAP doesn't seem to
 	// support multiple short chars for the same switch
 	window_title("t", "window-title", "defines the window title (default 'nst')", false, "nst", "string", *this),

@@ -231,8 +231,6 @@ const char *usedfont = nullptr;
 double usedfontsize = 0;
 double defaultfontsize = 0;
 
-std::string opt_class;
-std::string opt_name;
 const char *opt_embed = nullptr;
 const char *opt_font  = nullptr;
 const char *opt_title = nullptr;
@@ -783,13 +781,9 @@ void xclear(int x1, int y1, int x2, int y2) {
 }
 
 void xhints(void) {
-	if (opt_name.empty()) {
-		opt_name = config::TERMNAME;
-	}
-	if (opt_class.empty()) {
-		opt_class = config::TERMNAME;
-	}
-	XClassHint clazz = {&opt_name[0], &opt_class[0]};
+	auto &wname = cmdline.window_name.getValue();
+	auto &wclass = cmdline.window_class.getValue();
+	XClassHint clazz = {&wname[0], &wclass[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
 	XSizeHints *sizeh = XAllocSizeHints();
 
@@ -1025,7 +1019,7 @@ int ximopen() {
 	return 1;
 }
 
-void ximinstantiate(Display *dpy, XPointer, XPointer) {
+void ximinstantiate(Display *, XPointer, XPointer) {
 	if (ximopen())
 		XUnregisterIMInstantiateCallback(xw.dpy, NULL, NULL, NULL,
 		                                 ximinstantiate, NULL);
@@ -1895,14 +1889,6 @@ void applyCmdline(const Cmdline &cmd) {
 		term.setAllowAltScreen(cmd.use_alt_screen.getValue());
 	} else {
 		term.setAllowAltScreen(config::ALLOWALTSCREEN);
-	}
-
-	if (cmd.window_class.isSet()) {
-		opt_class = cmd.window_class.getValue();
-	}
-
-	if (cmd.window_name.isSet()) {
-		opt_name = cmd.window_name.getValue();
 	}
 
 	if (cmd.fixed_geometry.isSet()) {

@@ -17,6 +17,9 @@ except Exception:
 cosmos_env = env.Clone()
 cosmos_env['buildroot'] = ""
 SConscript('libcosmos/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libcosmos/", exports={"env": cosmos_env})
+xpp_env = env.Clone()
+xpp_env['buildroot'] = ""
+SConscript('libX++/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libX++/", exports={"env": xpp_env})
 
 SConscript(env['buildroot'] + 'src/SConstruct')
 #SConscript(env['buildroot'] + 'test/SConstruct')

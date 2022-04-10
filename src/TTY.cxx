@@ -293,7 +293,7 @@ void TTY::executeShell(const Cmdline &cmdline, cosmos::FileDescriptor slave)
 			sh = nst::config::SHELL;
 	}
 
-	m_child_proc.setPostForkCB([this, &slave, pw, sh](const cosmos::SubProc &proc) {
+	m_child_proc.setPostForkCB([this, &slave, pw, sh](const cosmos::SubProc &) {
 		m_io_file.close();
 		m_cmd_file.close();
 

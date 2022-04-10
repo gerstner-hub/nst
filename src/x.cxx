@@ -47,9 +47,7 @@
 namespace nst {
 
 typedef Glyph::Attr Attr;
-typedef XftDraw *Draw;
 typedef XftColor Color;
-typedef XftGlyphFontSpec GlyphFontSpec;
 using XEventCallback = void (*)(XEvent*);
 
 /* Purely graphic info */
@@ -67,7 +65,7 @@ struct XWindow {
 	Colormap cmap;
 	Window win;
 	Drawable buf;
-	std::vector<GlyphFontSpec> specbuf; /* font spec buffer used for rendering */
+	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
 	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
 	struct {
 		XIM xim;
@@ -75,11 +73,11 @@ struct XWindow {
 		XPoint spot;
 		XVaNestedList spotlist;
 	} ime;
-	Draw draw;
+	XftDraw *draw;
 	Visual *vis;
 	XSetWindowAttributes attrs;
 	int scr;
-	int isfixed = False; /* is fixed geometry? */
+	bool isfixed = false; /* is fixed geometry? */
 	int l = 0, t = 0; /* left and top offset */
 	int gm; /* geometry mask */
 };
@@ -172,7 +170,7 @@ static void xloadfontsOrThrow(const char*, double fontsize);
 
 namespace {
 
-const static std::map<int, XEventCallback> handlers = {
+const std::map<int, XEventCallback> handlers = {
 	{KeyPress, kpress},
 	{ClientMessage, cmessage},
 	{ConfigureNotify, resize},
@@ -200,7 +198,7 @@ const static std::map<int, XEventCallback> handlers = {
 	{SelectionRequest, selrequest}
 };
 
-const static std::map<int, unsigned> button_masks = {
+const std::map<int, unsigned> button_masks = {
 	{Button1, Button1Mask},
 	{Button2, Button2Mask},
 	{Button3, Button3Mask},
@@ -1890,7 +1888,7 @@ void applyCmdline(const Cmdline &cmd) {
 	}
 
 	if (cmd.fixed_geometry.isSet()) {
-		xw.isfixed = True;
+		xw.isfixed = true;
 	}
 
 	if (cmd.window_geometry.isSet()) {

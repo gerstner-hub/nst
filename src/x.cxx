@@ -226,7 +226,7 @@ struct FcCharSetGuard : public cosmos::ResourceGuard<FcCharSet*> {
 DrawingContext dc;
 XWindow xw;
 XSelection xsel;
-TermWindow win;
+TermWindow twin;
 
 /* Fontcache is an array now. A new font will be appended to the array. */
 std::vector<Fontcache> frc;
@@ -273,7 +273,7 @@ void selpaste(const Arg *) {
 }
 
 void numlock(const Arg *) {
-	win.mode.flip(WinMode::NUMLOCK);
+	twin.mode.flip(WinMode::NUMLOCK);
 }
 
 void zoom(const Arg *arg) {
@@ -318,14 +318,14 @@ void printsel(const Arg *) {
 
 int evcol(XEvent *e) {
 	int x = e->xbutton.x - config::BORDERPX;
-	x = std::clamp(x, 0, win.tw - 1);
-	return x / win.cw;
+	x = std::clamp(x, 0, twin.tw - 1);
+	return x / twin.cw;
 }
 
 int evrow(XEvent *e) {
 	int y = e->xbutton.y - config::BORDERPX;
-	y = std::clamp(y, 0, win.th - 1);
-	return y / win.ch;
+	y = std::clamp(y, 0, twin.th - 1);
+	return y / twin.ch;
 }
 
 static void mousesel(XEvent *e, bool done) {
@@ -352,10 +352,10 @@ void mousereport(XEvent *e) {
 	if (e->type == MotionNotify) {
 		if (x == old_x && y == old_y)
 			return;
-		else if (!win.mode[WinMode::MOUSEMOTION] && !win.mode[WinMode::MOUSEMANY])
+		else if (!twin.mode[WinMode::MOUSEMOTION] && !twin.mode[WinMode::MOUSEMANY])
 			return;
 		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
-		else if (win.mode[WinMode::MOUSEMOTION] && buttons.none())
+		else if (twin.mode[WinMode::MOUSEMOTION] && buttons.none())
 			return;
 		/* Set btn to lowest-numbered pressed button, or NO_BUTTON if no
 		 * buttons are pressed. */
@@ -368,7 +368,7 @@ void mousereport(XEvent *e) {
 			return;
 		if (e->type == ButtonRelease) {
 			/* MODE_MOUSEX10: no button release reporting */
-			if (win.mode[WinMode::MOUSEX10])
+			if (twin.mode[WinMode::MOUSEX10])
 				return;
 			/* Don't send release events for the scroll wheel */
 			if (btn == 4 || btn == 5)
@@ -382,7 +382,7 @@ void mousereport(XEvent *e) {
 
 	/* Encode btn into code. If no button is pressed for a motion event in
 	 * MODE_MOUSEMANY, then encode it as a release. */
-	if ((!win.mode[WinMode::MOUSESGR] && e->type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
+	if ((!twin.mode[WinMode::MOUSESGR] && e->type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
 		code += 3;
 	else if (btn >= 8)
 		code += 128 + btn - 8;
@@ -391,7 +391,7 @@ void mousereport(XEvent *e) {
 	else
 		code += btn - 1;
 
-	if (!win.mode[WinMode::MOUSEX10]) {
+	if (!twin.mode[WinMode::MOUSEX10]) {
 		auto state = e->xbutton.state;
 		code += ((state & ShiftMask  ) ?  4 : 0)
 		      + ((state & Mod1Mask   ) ?  8 : 0) /* meta key: alt */
@@ -401,7 +401,7 @@ void mousereport(XEvent *e) {
 	int len;
 	char buf[40];
 
-	if (win.mode[WinMode::MOUSESGR]) {
+	if (twin.mode[WinMode::MOUSESGR]) {
 		len = snprintf(buf, sizeof(buf), "\033[<%d;%d;%d%c",
 				code, x+1, y+1,
 				e->type == ButtonRelease ? 'm' : 'M');
@@ -443,7 +443,7 @@ void bpress(XEvent *e) {
 	if (buttons.valid(btn))
 		buttons.setPressed(btn);
 
-	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
+	if (twin.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -548,10 +548,10 @@ void selnotify(XEvent *e) {
 			*repl++ = '\r';
 		}
 
-		if (win.mode[WinMode::BRCKTPASTE] && ofs == 0)
+		if (twin.mode[WinMode::BRCKTPASTE] && ofs == 0)
 			g_tty.write("\033[200~", 6, 0);
 		g_tty.write((char *)data, nitems * format / 8, 1);
-		if (win.mode[WinMode::BRCKTPASTE] && rem == 0)
+		if (twin.mode[WinMode::BRCKTPASTE] && rem == 0)
 			g_tty.write("\033[201~", 6, 0);
 		XFree(data);
 		/* number of 32-bit chunks returned */
@@ -653,7 +653,7 @@ void brelease(XEvent *e) {
 	if (buttons.valid(btn))
 		buttons.setReleased(btn);
 
-	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
+	if (twin.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -665,7 +665,7 @@ void brelease(XEvent *e) {
 }
 
 void bmotion(XEvent *e) {
-	if (win.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
+	if (twin.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -676,29 +676,29 @@ void bmotion(XEvent *e) {
 void cresize(int width, int height) {
 
 	if (width != 0)
-		win.w = width;
+		twin.w = width;
 	if (height != 0)
-		win.h = height;
+		twin.h = height;
 
-	int col = (win.w - 2 * config::BORDERPX) / win.cw;
-	int row = (win.h - 2 * config::BORDERPX) / win.ch;
+	int col = (twin.w - 2 * config::BORDERPX) / twin.cw;
+	int row = (twin.h - 2 * config::BORDERPX) / twin.ch;
 	col = std::max(1, col);
 	row = std::max(1, row);
 
 	term.resize(col, row);
 	xresize(col, row);
-	g_tty.resize(win.tw, win.th);
+	g_tty.resize(twin.tw, twin.th);
 }
 
 void xresize(int col, int row) {
-	win.tw = col * win.cw;
-	win.th = row * win.ch;
+	twin.tw = col * twin.cw;
+	twin.th = row * twin.ch;
 
 	XFreePixmap(getDisplay(), xw.buf);
-	xw.buf = XCreatePixmap(getDisplay(), xw.win, win.w, win.h,
+	xw.buf = XCreatePixmap(getDisplay(), xw.win, twin.w, twin.h,
 			DefaultDepth(getDisplay(), xw.scr));
 	XftDrawChange(xw.draw, xw.buf);
-	xclear(0, 0, win.w, win.h);
+	xclear(0, 0, twin.w, twin.h);
 
 	/* resize to new width */
 	xw.specbuf.resize(col);
@@ -784,7 +784,7 @@ int xsetcolorname(size_t x, const char *name) {
  * Absolute coordinates.
  */
 void xclear(int x1, int y1, int x2, int y2) {
-	const auto colindex = win.mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
+	const auto colindex = twin.mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
 	XftDrawRect(xw.draw, &dc.col[colindex], x1, y1, x2-x1, y2-y1);
 }
 
@@ -796,18 +796,18 @@ void xhints(void) {
 	XSizeHints *sizeh = XAllocSizeHints();
 
 	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
-	sizeh->height = win.h;
-	sizeh->width = win.w;
-	sizeh->height_inc = win.ch;
-	sizeh->width_inc = win.cw;
+	sizeh->height = twin.h;
+	sizeh->width = twin.w;
+	sizeh->height_inc = twin.ch;
+	sizeh->width_inc = twin.cw;
 	sizeh->base_height = 2 * config::BORDERPX;
 	sizeh->base_width = 2 * config::BORDERPX;
-	sizeh->min_height = win.ch + 2 * config::BORDERPX;
-	sizeh->min_width = win.cw + 2 * config::BORDERPX;
+	sizeh->min_height = twin.ch + 2 * config::BORDERPX;
+	sizeh->min_width = twin.cw + 2 * config::BORDERPX;
 	if (xw.isfixed) {
 		sizeh->flags |= PMaxSize;
-		sizeh->min_width = sizeh->max_width = win.w;
-		sizeh->min_height = sizeh->max_height = win.h;
+		sizeh->min_width = sizeh->max_width = twin.w;
+		sizeh->min_height = sizeh->max_height = twin.h;
 	}
 	if (xw.gm & (XValue|YValue)) {
 		sizeh->flags |= USPosition | PWinGravity;
@@ -951,8 +951,8 @@ static bool xloadfonts(const char *fontstr, double fontsize) {
 	}
 
 	/* Setting character width and height. */
-	win.cw = ceilf(dc.font.width * config::CWSCALE);
-	win.ch = ceilf(dc.font.height * config::CHSCALE);
+	twin.cw = ceilf(dc.font.width * config::CWSCALE);
+	twin.ch = ceilf(dc.font.height * config::CHSCALE);
 
 	FcPatternDel(pattern, FC_SLANT);
 	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
@@ -1065,12 +1065,12 @@ void xinit() {
 	xloadcols();
 
 	/* adjust fixed window geometry */
-	win.w = 2 * config::BORDERPX + cols * win.cw;
-	win.h = 2 * config::BORDERPX + rows * win.ch;
+	twin.w = 2 * config::BORDERPX + cols * twin.cw;
+	twin.h = 2 * config::BORDERPX + rows * twin.ch;
 	if (xw.gm & XNegative)
-		xw.l += DisplayWidth(getDisplay(), xw.scr) - win.w - 2;
+		xw.l += DisplayWidth(getDisplay(), xw.scr) - twin.w - 2;
 	if (xw.gm & YNegative)
-		xw.t += DisplayHeight(getDisplay(), xw.scr) - win.h - 2;
+		xw.t += DisplayHeight(getDisplay(), xw.scr) - twin.h - 2;
 
 	/* Events */
 	xw.attrs.background_pixel = dc.col[config::DEFAULTBG].pixel;
@@ -1086,16 +1086,16 @@ void xinit() {
 	if (!(!embed.empty() && (parent = strtol(embed.c_str(), nullptr, 0))))
 		parent = XRootWindow(getDisplay(), xw.scr);
 	xw.win = XCreateWindow(getDisplay(), parent, xw.l, xw.t,
-			win.w, win.h, 0, XDefaultDepth(getDisplay(), xw.scr), InputOutput,
+			twin.w, twin.h, 0, XDefaultDepth(getDisplay(), xw.scr), InputOutput,
 			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
 			| CWEventMask | CWColormap, &xw.attrs);
 
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
 	dc.gc = XCreateGC(getDisplay(), parent, GCGraphicsExposures, &gcvalues);
-	xw.buf = XCreatePixmap(getDisplay(), xw.win, win.w, win.h, DefaultDepth(getDisplay(), xw.scr));
+	xw.buf = XCreatePixmap(getDisplay(), xw.win, twin.w, twin.h, DefaultDepth(getDisplay(), xw.scr));
 	XSetForeground(getDisplay(), dc.gc, dc.col[config::DEFAULTBG].pixel);
-	XFillRectangle(getDisplay(), xw.buf, dc.gc, 0, 0, win.w, win.h);
+	XFillRectangle(getDisplay(), xw.buf, dc.gc, 0, 0, twin.w, twin.h);
 
 	/* font spec buffer */
 	xw.specbuf.resize(cols);
@@ -1138,7 +1138,7 @@ void xinit() {
 	XChangeProperty(getDisplay(), xw.win, xw.netwmpid, XA_CARDINAL, 32,
 			PropModeReplace, (uchar *)&thispid, 1);
 
-	win.mode = WinModeMask(WinMode::NUMLOCK);
+	twin.mode = WinModeMask(WinMode::NUMLOCK);
 	xsettitle(nullptr);
 	xhints();
 	XMapWindow(getDisplay(), xw.win);
@@ -1155,10 +1155,10 @@ void xinit() {
 
 size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs,
 		size_t len, int x, int y) {
-	const float winx = config::BORDERPX + x * win.cw, winy = config::BORDERPX + y * win.ch;
+	const float winx = config::BORDERPX + x * twin.cw, winy = config::BORDERPX + y * twin.ch;
 	Font *fnt = &dc.font;
 	FRC frcflags = FRC::NORMAL;
-	float runewidth = win.cw;
+	float runewidth = twin.cw;
 	size_t numspecs = 0;
 	Glyph::AttrBitMask prevmode(Glyph::AttrBitMask::all);
 
@@ -1174,7 +1174,7 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs,
 		/* Determine font for glyph if different from previous glyph. */
 		if (prevmode != mode) {
 			prevmode = mode;
-			runewidth = win.cw * (mode[Attr::WIDE] ? 2.0f : 1.0f);
+			runewidth = twin.cw * (mode[Attr::WIDE] ? 2.0f : 1.0f);
 			if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
 				fnt = &dc.ibfont;
 				frcflags = FRC::ITALICBOLD;
@@ -1324,7 +1324,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 		fg = &dc.col[base.fg + 8];
 
 	Color revfg, revbg;
-	if (win.mode[WinMode::REVERSE]) {
+	if (twin.mode[WinMode::REVERSE]) {
 		if (fg == &dc.col[config::DEFAULTFG]) {
 			fg = &dc.col[config::DEFAULTBG];
 		} else {
@@ -1363,40 +1363,40 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 		std::swap(fg, bg);
 	}
 
-	if (base.mode[Attr::BLINK] && win.mode[WinMode::BLINK])
+	if (base.mode[Attr::BLINK] && twin.mode[WinMode::BLINK])
 		fg = bg;
 
 	if (base.mode[Attr::INVISIBLE])
 		fg = bg;
 
 	/* Intelligent cleaning up of the borders. */
-	int winx = config::BORDERPX + x * win.cw,
-	    winy = config::BORDERPX + y * win.ch,
-	    width = charlen * win.cw;
+	int winx = config::BORDERPX + x * twin.cw,
+	    winy = config::BORDERPX + y * twin.ch,
+	    width = charlen * twin.cw;
 
 	if (x == 0) {
 		xclear(0, (y == 0)? 0 : winy, config::BORDERPX,
-			winy + win.ch +
-			((winy + win.ch >= config::BORDERPX + win.th)? win.h : 0));
+			winy + twin.ch +
+			((winy + twin.ch >= config::BORDERPX + twin.th)? twin.h : 0));
 	}
 
-	if (winx + width >= config::BORDERPX + win.tw) {
-		xclear(winx + width, (y == 0)? 0 : winy, win.w,
-			((winy + win.ch >= config::BORDERPX + win.th)? win.h : (winy + win.ch)));
+	if (winx + width >= config::BORDERPX + twin.tw) {
+		xclear(winx + width, (y == 0)? 0 : winy, twin.w,
+			((winy + twin.ch >= config::BORDERPX + twin.th)? twin.h : (winy + twin.ch)));
 	}
 	if (y == 0)
 		xclear(winx, 0, winx + width, config::BORDERPX);
-	if (winy + win.ch >= config::BORDERPX + win.th)
-		xclear(winx, winy + win.ch, winx + width, win.h);
+	if (winy + twin.ch >= config::BORDERPX + twin.th)
+		xclear(winx, winy + twin.ch, winx + width, twin.h);
 
 	/* Clean up the region we want to draw to. */
-	XftDrawRect(xw.draw, bg, winx, winy, width, win.ch);
+	XftDrawRect(xw.draw, bg, winx, winy, width, twin.ch);
 
 	/* Set the clip region because Xft is sometimes dirty. */
 	XRectangle r;
 	r.x = 0;
 	r.y = 0;
-	r.height = win.ch;
+	r.height = twin.ch;
 	r.width = width;
 	XftDrawSetClipRectangles(xw.draw, winx, winy, &r, 1);
 
@@ -1432,7 +1432,7 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		og.mode.flip(Attr::REVERSE);
 	xdrawglyph(og, ox, oy);
 
-	if (win.mode[WinMode::HIDE])
+	if (twin.mode[WinMode::HIDE])
 		return;
 
 	/*
@@ -1441,7 +1441,7 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 	Color drawcol;
 
-	if (win.mode[WinMode::REVERSE]) {
+	if (twin.mode[WinMode::REVERSE]) {
 		g.mode.set(Attr::REVERSE);
 		g.bg = config::DEFAULTFG;
 		if (g_sel.isSelected(cx, cy)) {
@@ -1463,8 +1463,8 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	}
 
 	/* draw the new one */
-	if (win.mode[WinMode::FOCUSED]) {
-		switch (win.cursor) {
+	if (twin.mode[WinMode::FOCUSED]) {
+		switch (twin.cursor) {
 		case 7: /* st extension */
 			g.u = 0x2603; /* snowman (U+2603) */
 			/* FALLTHROUGH */
@@ -1476,36 +1476,36 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		case 3: /* Blinking Underline */
 		case 4: /* Steady Underline */
 			XftDrawRect(xw.draw, &drawcol,
-					config::BORDERPX + cx * win.cw,
-					config::BORDERPX + (cy + 1) * win.ch - \
+					config::BORDERPX + cx * twin.cw,
+					config::BORDERPX + (cy + 1) * twin.ch - \
 						config::CURSORTHICKNESS,
-					win.cw, config::CURSORTHICKNESS);
+					twin.cw, config::CURSORTHICKNESS);
 			break;
 		case 5: /* Blinking bar */
 		case 6: /* Steady bar */
 			XftDrawRect(xw.draw, &drawcol,
-					config::BORDERPX + cx * win.cw,
-					config::BORDERPX + cy * win.ch,
-					config::CURSORTHICKNESS, win.ch);
+					config::BORDERPX + cx * twin.cw,
+					config::BORDERPX + cy * twin.ch,
+					config::CURSORTHICKNESS, twin.ch);
 			break;
 		}
 	} else {
 		XftDrawRect(xw.draw, &drawcol,
-				config::BORDERPX + cx * win.cw,
-				config::BORDERPX + cy * win.ch,
-				win.cw - 1, 1);
+				config::BORDERPX + cx * twin.cw,
+				config::BORDERPX + cy * twin.ch,
+				twin.cw - 1, 1);
 		XftDrawRect(xw.draw, &drawcol,
-				config::BORDERPX + cx * win.cw,
-				config::BORDERPX + cy * win.ch,
-				1, win.ch - 1);
+				config::BORDERPX + cx * twin.cw,
+				config::BORDERPX + cy * twin.ch,
+				1, twin.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				config::BORDERPX + (cx + 1) * win.cw - 1,
-				config::BORDERPX + cy * win.ch,
-				1, win.ch - 1);
+				config::BORDERPX + (cx + 1) * twin.cw - 1,
+				config::BORDERPX + cy * twin.ch,
+				1, twin.ch - 1);
 		XftDrawRect(xw.draw, &drawcol,
-				config::BORDERPX + cx * win.cw,
-				config::BORDERPX + (cy + 1) * win.ch - 1,
-				win.cw, 1);
+				config::BORDERPX + cx * twin.cw,
+				config::BORDERPX + (cy + 1) * twin.ch - 1,
+				twin.cw, 1);
 	}
 }
 
@@ -1538,7 +1538,7 @@ void xsettitle(const char *p) {
 }
 
 bool xstartdraw(void) {
-	return win.mode[WinMode::VISIBLE];
+	return twin.mode[WinMode::VISIBLE];
 }
 
 void xdrawline(const Line &line, int x1, int y1, int x2) {
@@ -1571,9 +1571,9 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 }
 
 void xfinishdraw() {
-	XCopyArea(getDisplay(), xw.buf, xw.win, dc.gc, 0, 0, win.w, win.h, 0, 0);
+	XCopyArea(getDisplay(), xw.buf, xw.win, dc.gc, 0, 0, twin.w, twin.h, 0, 0);
 	XSetForeground(getDisplay(), dc.gc,
-			dc.col[win.mode[WinMode::REVERSE]?
+			dc.col[twin.mode[WinMode::REVERSE]?
 				config::DEFAULTFG : config::DEFAULTBG].pixel);
 }
 
@@ -1581,8 +1581,8 @@ void xximspot(int x, int y) {
 	if (xw.ime.xic == nullptr)
 		return;
 
-	xw.ime.spot.x = config::BORDERPX + x * win.cw;
-	xw.ime.spot.y = config::BORDERPX + (y + 1) * win.ch;
+	xw.ime.spot.x = config::BORDERPX + x * twin.cw;
+	xw.ime.spot.y = config::BORDERPX + (y + 1) * twin.ch;
 
 	XSetICValues(xw.ime.xic, XNPreeditAttributes, xw.ime.spotlist, nullptr);
 }
@@ -1594,11 +1594,11 @@ void expose(XEvent *) {
 void visibility(XEvent *ev) {
 	XVisibilityEvent *e = &ev->xvisibility;
 
-	win.mode.set(WinMode::VISIBLE, e->state != VisibilityFullyObscured);
+	twin.mode.set(WinMode::VISIBLE, e->state != VisibilityFullyObscured);
 }
 
 void unmap(XEvent *) {
-	win.mode.reset(WinMode::VISIBLE);
+	twin.mode.reset(WinMode::VISIBLE);
 }
 
 void xsetpointermotion(int set) {
@@ -1607,16 +1607,16 @@ void xsetpointermotion(int set) {
 }
 
 void xsetmode(bool set, const WinMode &flag) {
-	auto mode = win.mode;
-	win.mode.set(flag, set);
-	if (win.mode[WinMode::REVERSE] != mode[WinMode::REVERSE])
+	auto mode = twin.mode;
+	twin.mode.set(flag, set);
+	if (twin.mode[WinMode::REVERSE] != mode[WinMode::REVERSE])
 		term.redraw();
 }
 
 int xsetcursor(int cursor) {
 	if (!cosmos::in_range(cursor, 0, 7)) /* 7: st extension */
 		return 1;
-	win.cursor = cursor;
+	twin.cursor = cursor;
 	return 0;
 }
 
@@ -1629,7 +1629,7 @@ void xseturgency(int add) {
 }
 
 void xbell(void) {
-	if (!(win.mode[WinMode::FOCUSED]))
+	if (!(twin.mode[WinMode::FOCUSED]))
 		xseturgency(1);
 	if (config::BELLVOLUME)
 		XkbBell(getDisplay(), xw.win, config::BELLVOLUME, (Atom)NULL);
@@ -1644,15 +1644,15 @@ void focus(XEvent *ev) {
 	if (ev->type == FocusIn) {
 		if (xw.ime.xic)
 			XSetICFocus(xw.ime.xic);
-		win.mode.set(WinMode::FOCUSED);
+		twin.mode.set(WinMode::FOCUSED);
 		xseturgency(0);
-		if (win.mode[WinMode::FOCUS])
+		if (twin.mode[WinMode::FOCUS])
 			g_tty.write("\033[I", 3, 0);
 	} else {
 		if (xw.ime.xic)
 			XUnsetICFocus(xw.ime.xic);
-		win.mode.reset(WinMode::FOCUSED);
-		if (win.mode[WinMode::FOCUS])
+		twin.mode.reset(WinMode::FOCUSED);
+		if (twin.mode[WinMode::FOCUS])
 			g_tty.write("\033[O", 3, 0);
 	}
 }
@@ -1683,12 +1683,12 @@ const char* kmap(KeySym k, uint state) {
 		if (!match(key.mask, state))
 			continue;
 
-		if (win.mode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
+		if (twin.mode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
 			continue;
-		if (win.mode[WinMode::NUMLOCK] && key.appkey == 2)
+		if (twin.mode[WinMode::NUMLOCK] && key.appkey == 2)
 			continue;
 
-		if (win.mode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
+		if (twin.mode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
 			continue;
 
 		return key.s;
@@ -1704,7 +1704,7 @@ void kpress(XEvent *ev) {
 	int len;
 	Status status;
 
-	if (win.mode[WinMode::KBDLOCK])
+	if (twin.mode[WinMode::KBDLOCK])
 		return;
 
 	if (xw.ime.xic)
@@ -1730,7 +1730,7 @@ void kpress(XEvent *ev) {
 	if (len == 0)
 		return;
 	else if (len == 1 && e->state & Mod1Mask) {
-		if (win.mode[WinMode::EIGHT_BIT]) {
+		if (twin.mode[WinMode::EIGHT_BIT]) {
 			if (*buf < 0177) {
 				Rune c = *buf | 0x80;
 				len = utf8::encode(c, buf);
@@ -1752,10 +1752,10 @@ void cmessage(XEvent *e) {
 	 */
 	if (e->xclient.message_type == xw.xembed && e->xclient.format == 32) {
 		if (e->xclient.data.l[1] == XEMBED_FOCUS_IN) {
-			win.mode.set(WinMode::FOCUSED);
+			twin.mode.set(WinMode::FOCUSED);
 			xseturgency(0);
 		} else if (e->xclient.data.l[1] == XEMBED_FOCUS_OUT) {
-			win.mode.reset(WinMode::FOCUSED);
+			twin.mode.reset(WinMode::FOCUSED);
 		}
 	} else if ((Atom)e->xclient.data.l[0] == xw.wmdeletewin) {
 		g_tty.hangup();
@@ -1764,7 +1764,7 @@ void cmessage(XEvent *e) {
 }
 
 void resize(XEvent *e) {
-	if (e->xconfigure.width == win.w && e->xconfigure.height == win.h)
+	if (e->xconfigure.width == twin.w && e->xconfigure.height == twin.h)
 		return;
 
 	cresize(e->xconfigure.width, e->xconfigure.height);
@@ -1772,7 +1772,7 @@ void resize(XEvent *e) {
 
 void waitForWindowMapping() {
 	XEvent ev;
-	int w = win.w, h = win.h;
+	int w = twin.w, h = twin.h;
 
 	/* Waiting for window mapping */
 	do {
@@ -1873,8 +1873,8 @@ static void run() {
 			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */
-					win.mode.set(WinMode::BLINK);
-				win.mode.flip(WinMode::BLINK);
+					twin.mode.set(WinMode::BLINK);
+				twin.mode.flip(WinMode::BLINK);
 				term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
 				timeout = config::BLINKTIMEOUT;

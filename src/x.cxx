@@ -484,12 +484,16 @@ void propnotify(XEvent *e) {
 void selnotify(XEvent *e) {
 	Atom property = None;
 
-	if (e->type == SelectionNotify)
+	switch (e->type) {
+	case SelectionNotify:
 		property = e->xselection.property;
-	else if (e->type == PropertyNotify)
+		break;
+	case PropertyNotify:
 		property = e->xproperty.atom;
-	else
+		break;
+	default:
 		return;
+	}
 
 	ulong nitems, rem, ofs = 0;
 	uchar *data, *last, *repl;

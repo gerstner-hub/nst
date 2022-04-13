@@ -10,7 +10,6 @@
 
 // nst
 #include "codecs.hxx"
-#include "st.h"
 
 namespace nst {
 

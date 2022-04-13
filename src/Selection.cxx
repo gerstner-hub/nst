@@ -13,7 +13,6 @@
 #include "TTY.hxx"
 #include "codecs.hxx"
 #include "nst_config.h"
-#include "st.h"
 
 using cosmos::in_range;
 

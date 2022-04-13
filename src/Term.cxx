@@ -3,6 +3,7 @@
 
 // stdlib
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 
 // cosmos
@@ -13,7 +14,6 @@
 #include "CSIEscape.hxx"
 #include "nst_config.h"
 #include "Selection.hxx"
-#include "st.h"
 #include "StringEscape.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"

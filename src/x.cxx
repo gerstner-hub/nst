@@ -37,7 +37,7 @@
 
 // nst
 #include "types.hxx"
-#include "st.h"
+#include "helper.hxx"
 #define FULL_NST_CONFIG
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"

@@ -10,7 +10,7 @@
 
 // nst
 #include "codecs.hxx"
-#include "st.h"
+#include "helper.hxx"
 
 namespace nst {
 

@@ -1,8 +1,5 @@
-#ifndef NST_ST_H
-#define NST_ST_H
-
-// stdlib
-#include <cstring>
+#ifndef NST_HELPER_HXX
+#define NST_HELPER_HXX
 
 namespace nst {
 

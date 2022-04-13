@@ -15,7 +15,6 @@
 #include "StringEscape.hxx"
 #include "TTY.hxx"
 #include "nst_config.h"
-#include "st.h"
 #include "win.h"
 
 nst::CSIEscape csiescseq;

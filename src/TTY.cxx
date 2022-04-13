@@ -10,6 +10,7 @@
 #include <string.h>
 
 // stdlib
+#include <cstring>
 #include <iostream>
 #include <sstream>
 
@@ -17,7 +18,6 @@
 #include "Cmdline.hxx"
 #include "TTY.hxx"
 #include "nst_config.h"
-#include "st.h"
 
 // libcosmos
 #include "cosmos/algs.hxx"

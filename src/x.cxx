@@ -31,8 +31,9 @@
 #include "cosmos/time/Clock.hxx"
 
 // X++
-#include "X++/XDisplay.hxx"
 #include "X++/XAtom.hxx"
+#include "X++/XDisplay.hxx"
+#include "X++/XWindow.hxx"
 
 // nst
 #include "types.hxx"
@@ -68,7 +69,7 @@ struct XWindow {
 	xpp::XDisplay *display = nullptr;
 	xpp::XAtomMapper *mapper = nullptr;
 	Colormap cmap;
-	Window win;
+	xpp::XWindow win;
 	Drawable buf;
 	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
 	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
@@ -1019,9 +1020,11 @@ int ximopen() {
 	                                      nullptr);
 
 	if (xw.ime.xic == nullptr) {
+		// NOTE: this function takes varargs, passing in C++ objects
+		// like xw.win even with conversion operator does not work
 		xw.ime.xic = XCreateIC(xw.ime.xim, XNInputStyle,
 		                       XIMPreeditNothing | XIMStatusNothing,
-		                       XNClientWindow, xw.win,
+		                       XNClientWindow, xw.win.id(),
 		                       XNDestroyCallback, &icdestroy,
 		                       nullptr);
 	}
@@ -1052,10 +1055,11 @@ int xicdestroy(XIC, XPointer, XPointer) {
 void xinit() {
 	XColor xmousefg, xmousebg;
 
-	xw.display = &xpp::XDisplay::getInstance();
+	auto &display = xpp::XDisplay::getInstance();
+	xw.display = &display;
 	xw.mapper = &xpp::XAtomMapper::getInstance();
-	xw.scr = XDefaultScreen(getDisplay());
-	xw.vis = XDefaultVisual(getDisplay(), xw.scr);
+	xw.scr = display.getDefaultScreen();
+	xw.vis = display.getDefaultVisual(xw.scr);
 
 	/* font */
 	if (!FcInit())
@@ -1089,10 +1093,13 @@ void xinit() {
 	const auto &embed = cmdline.embed_window.getValue();
 	if (!(!embed.empty() && (parent = strtol(embed.c_str(), nullptr, 0))))
 		parent = XRootWindow(getDisplay(), xw.scr);
-	xw.win = XCreateWindow(getDisplay(), parent, xw.l, xw.t,
-			twin.w, twin.h, 0, XDefaultDepth(getDisplay(), xw.scr), InputOutput,
-			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
-			| CWEventMask | CWColormap, &xw.attrs);
+	{
+		auto w = XCreateWindow(getDisplay(), parent, xw.l, xw.t,
+				twin.w, twin.h, 0, XDefaultDepth(getDisplay(), xw.scr), InputOutput,
+				xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
+				| CWEventMask | CWColormap, &xw.attrs);
+		xw.win = xpp::XWindow(w);
+	}
 
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
@@ -1155,6 +1162,10 @@ void xinit() {
 	xsel.xtarget = getAtom("UTF8_STRING");
 	if (xsel.xtarget == None)
 		xsel.xtarget = XA_STRING;
+
+	if (getenv("NST_XSYNC") != nullptr) {
+		::XSynchronize(display, true);
+	}
 }
 
 size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs,

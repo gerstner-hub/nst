@@ -279,9 +279,10 @@ void CSIEscape::handle() {
 	case ' ':
 		switch (m_mode[1]) {
 		case 'q': /* DECSCUSR -- Set Cursor Style */
-			if (xsetcursor(arg0) == 0)
-				return;
-			break;
+			if (arg0 < 0 || static_cast<unsigned>(arg0) >= static_cast<unsigned>(CursorStyle::END))
+				break;
+			xsetcursor(static_cast<CursorStyle>(arg0));
+			return;
 		default:
 			break;
 		}

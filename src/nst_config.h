@@ -13,7 +13,7 @@
 #ifdef FULL_NST_CONFIG
 // nst
 #include "xtypes.hxx"
-#include "TTY.hxx"
+#include "win.h"
 
 namespace nst {
 
@@ -29,6 +29,8 @@ static void ttysend(const Arg *);
 static void printscreen(const Arg *);
 static void printsel(const Arg *);
 static void toggleprinter(const Arg *);
+// from TTY
+void sendbreak(const Arg *);
 
 }
 
@@ -174,14 +176,8 @@ const char *colorname[256 + sizeof(EXTENDED_COLORS) / sizeof(const char*)] = {
 	"white",
 };
 
-/*
- * Default shape of cursor
- * 2: Block ("█")
- * 4: Underline ("_")
- * 6: Bar ("|")
- * 7: Snowman ("☃")
- */
-static const unsigned int CURSORSHAPE = 2;
+/// Default shape of cursor
+static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
 
 /*
  * Default columns and rows numbers

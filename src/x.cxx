@@ -62,7 +62,7 @@ struct TermWindow {
 	int ch; /* char height */
 	int cw; /* char width  */
 	WinModeMask mode; /* window state/mode flags */
-	int cursor; /* cursor style */
+	CursorStyle cursor;
 };
 
 struct XWindow {
@@ -1480,28 +1480,30 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	/* draw the new one */
 	if (twin.mode[WinMode::FOCUSED]) {
 		switch (twin.cursor) {
-		case 7: /* st extension */
+		case CursorStyle::SNOWMAN: /* st extension */
 			g.u = 0x2603; /* snowman (U+2603) */
 			/* FALLTHROUGH */
-		case 0: /* Blinking Block */
-		case 1: /* Blinking Block (Default) */
-		case 2: /* Steady Block */
+		case CursorStyle::BLINKING_BLOCK:
+		case CursorStyle::BLINKING_BLOCK_DEFAULT:
+		case CursorStyle::STEADY_BLOCK:
 			xdrawglyph(g, cx, cy);
 			break;
-		case 3: /* Blinking Underline */
-		case 4: /* Steady Underline */
+		case CursorStyle::BLINKING_UNDERLINE:
+		case CursorStyle::STEADY_UNDERLINE:
 			XftDrawRect(xw.draw, &drawcol,
 					config::BORDERPX + cx * twin.cw,
 					config::BORDERPX + (cy + 1) * twin.ch - \
 						config::CURSORTHICKNESS,
 					twin.cw, config::CURSORTHICKNESS);
 			break;
-		case 5: /* Blinking bar */
-		case 6: /* Steady bar */
+		case CursorStyle::BLINKING_BAR:
+		case CursorStyle::STEADY_BAR:
 			XftDrawRect(xw.draw, &drawcol,
 					config::BORDERPX + cx * twin.cw,
 					config::BORDERPX + cy * twin.ch,
 					config::CURSORTHICKNESS, twin.ch);
+			break;
+		default:
 			break;
 		}
 	} else {
@@ -1628,11 +1630,8 @@ void xsetmode(bool set, const WinMode &flag) {
 		term.redraw();
 }
 
-int xsetcursor(int cursor) {
-	if (!cosmos::in_range(cursor, 0, 7)) /* 7: st extension */
-		return 1;
+void xsetcursor(const CursorStyle &cursor) {
 	twin.cursor = cursor;
-	return 0;
 }
 
 void xseturgency(int add) {

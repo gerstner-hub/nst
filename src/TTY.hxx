@@ -15,7 +15,6 @@
 namespace nst {
 
 class Cmdline;
-void sendbreak(const Arg *);
 
 class TTY {
 	friend void sendbreak(const Arg*);

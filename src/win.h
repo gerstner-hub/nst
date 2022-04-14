@@ -33,6 +33,18 @@ enum class WinMode {
 
 typedef cosmos::BitMask<WinMode> WinModeMask;
 
+enum class CursorStyle : unsigned {
+	BLINKING_BLOCK = 0,
+	BLINKING_BLOCK_DEFAULT,
+	STEADY_BLOCK, // "█"
+	BLINKING_UNDERLINE, // "_"
+	STEADY_UNDERLINE,
+	BLINKING_BAR, // "|"
+	STEADY_BAR,
+	SNOWMAN, // "☃"
+	END
+};
+
 void xbell(void);
 void xclipcopy(void);
 void xdrawcursor(int, int, Glyph, int, int, Glyph);
@@ -42,7 +54,7 @@ void xloadcols(void);
 int xsetcolorname(size_t, const char *);
 void xseticontitle(const char *);
 void xsettitle(const char *);
-int xsetcursor(int);
+void xsetcursor(const CursorStyle &);
 void xsetmode(bool, const WinMode &);
 void xsetpointermotion(int);
 void xsetsel(char *);

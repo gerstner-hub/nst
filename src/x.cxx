@@ -36,6 +36,7 @@
 #include "X++/XWindow.hxx"
 
 // nst
+#include "nst.hxx"
 #include "types.hxx"
 #include "helper.hxx"
 #define FULL_NST_CONFIG
@@ -1807,7 +1808,51 @@ void waitForWindowMapping() {
 	cresize(w, h);
 }
 
-static void run() {
+void fixup_colornames() {
+	for (size_t index = 0; index < cosmos::num_elements(config::EXTENDED_COLORS); index++) {
+		config::colorname[256+index] = config::EXTENDED_COLORS[index];
+	}
+}
+
+void applyCmdline(const Cmdline &cmd) {
+	if (cmd.use_alt_screen.isSet()) {
+		term.setAllowAltScreen(cmd.use_alt_screen.getValue());
+	} else {
+		term.setAllowAltScreen(config::ALLOWALTSCREEN);
+	}
+
+	if (cmd.fixed_geometry.isSet()) {
+		xw.isfixed = true;
+	}
+
+	if (cmd.window_geometry.isSet()) {
+		xw.gm = XParseGeometry(
+			cmd.window_geometry.getValue().c_str(),
+			&xw.l, &xw.t, &cols, &rows
+		);
+	}
+}
+
+Nst::Nst() {
+	fixup_colornames();
+	xsetcursor(config::CURSORSHAPE);
+}
+
+void Nst::run(int argc, const char **argv) {
+	cmdline.parse(argc, argv);
+	cols = std::max(cols, 1U);
+	rows = std::max(rows, 1U);
+	term = Term(cols, rows);
+	applyCmdline(cmdline);
+
+	setlocale(LC_CTYPE, "");
+	XSetLocaleModifiers("");
+	xinit();
+	xsetenv();
+	mainLoop();
+}
+
+void Nst::mainLoop() {
 	auto ttyfd = g_tty.create(cmdline);
 
 	waitForWindowMapping();
@@ -1901,54 +1946,12 @@ static void run() {
 	}
 }
 
-void fixup_colornames() {
-	for (size_t index = 0; index < cosmos::num_elements(config::EXTENDED_COLORS); index++) {
-		config::colorname[256+index] = config::EXTENDED_COLORS[index];
-	}
-}
-
-void applyCmdline(const Cmdline &cmd) {
-	if (cmd.use_alt_screen.isSet()) {
-		term.setAllowAltScreen(cmd.use_alt_screen.getValue());
-	} else {
-		term.setAllowAltScreen(config::ALLOWALTSCREEN);
-	}
-
-	if (cmd.fixed_geometry.isSet()) {
-		xw.isfixed = true;
-	}
-
-	if (cmd.window_geometry.isSet()) {
-		xw.gm = XParseGeometry(
-			cmd.window_geometry.getValue().c_str(),
-			&xw.l, &xw.t, &cols, &rows
-		);
-	}
-}
-
-void main(int argc, const char **argv) {
-	cosmos::Init init;
-	fixup_colornames();
-	xsetcursor(config::CURSORSHAPE);
-
-	cmdline.parse(argc, argv);
-	cols = std::max(cols, 1U);
-	rows = std::max(rows, 1U);
-	term = Term(cols, rows);
-	applyCmdline(cmdline);
-
-	setlocale(LC_CTYPE, "");
-	XSetLocaleModifiers("");
-	xinit();
-	xsetenv();
-	run();
-}
-
 } // end ns nst
 
 int main(int argc, const char **argv) {
 	try {
-		nst::main(argc, argv);
+		nst::Nst nst;
+		nst.run(argc, argv);
 	} catch (const std::exception &ex) {
 		std::cerr << ex.what() << std::endl;
 		return EXIT_FAILURE;

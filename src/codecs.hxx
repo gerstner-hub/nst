@@ -4,6 +4,9 @@
 // libc
 #include <stddef.h>
 
+// C++
+#include <string>
+
 // nst
 #include "Glyph.hxx"
 
@@ -13,6 +16,7 @@ constexpr size_t UTF_SIZE = 4;
 
 size_t decode(const char *, Rune *, size_t);
 size_t encode(Rune u, char *c);
+void encode(Rune u, std::string &s);
 size_t validate(Rune *, size_t);
 
 }

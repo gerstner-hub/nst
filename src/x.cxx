@@ -77,7 +77,7 @@ static void xunloadfonts(void);
 static void xsetenv(void);
 static void xseturgency(int);
 
-static void setsel(char *, Time);
+static void setsel(const char*, Time);
 static bool match(uint, uint);
 static void xloadfontsOrThrow(const std::string&, double fontsize=0);
 
@@ -202,21 +202,19 @@ const char* getColorName(size_t nr) {
 void xclipcopy(void) {
 	clipcopy();
 }
-void setsel(char *str, Time t) {
+
+void setsel(const char *str, Time t) {
 	if (!str)
 		return;
 
-	// this pointer originally comes from Selection::getSelection()
-	// TODO: allocation/deallocation should be symmetric
 	xsel.primary = str;
-	delete[] str;
 
 	XSetSelectionOwner(getDisplay(), XA_PRIMARY, x11.win, t);
 	if (XGetSelectionOwner(getDisplay(), XA_PRIMARY) != x11.win)
 		Nst::getSelection().clear();
 }
 
-void xsetsel(char *str) {
+void xsetsel(const char *str) {
 	setsel(str, CurrentTime);
 }
 
@@ -1325,7 +1323,8 @@ void XEventHandler::handleMouseSelection(const XButtonEvent &ev, bool done) {
 	auto &sel = m_nst.getSelection();
 	sel.extend(getEventCol(ev), getEventRow(ev), seltype, done);
 	if (done) {
-		setsel(sel.getSelection(), ev.time);
+		auto selection = sel.getSelection();
+		setsel(selection.c_str(), ev.time);
 	}
 }
 

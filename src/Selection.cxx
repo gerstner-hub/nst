@@ -198,21 +198,22 @@ void Selection::scroll(int orig, int n) {
 	}
 }
 
-char* Selection::getSelection() const {
+std::string Selection::getSelection() const {
 	if (!m_orig.isValid())
-		return nullptr;
+		return "";
 
 	const auto &screen = m_term.getScreen();
 	const size_t bufsize = (m_term.getNumCols()+1) * (m_normal.end.y - m_normal.begin.y+1) * utf8::UTF_SIZE;
-	char *str = new char[bufsize];
-	char *ptr = str;
+	std::string ret;
 	const Glyph *gp, *last;
 	int lastx, linelen;
+
+	ret.reserve(bufsize);
 
 	/* append every set & selected glyph to the selection */
 	for (int y = m_normal.begin.y; y <= m_normal.end.y; y++) {
 		if ((linelen = m_term.getLineLen(y)) == 0) {
-			*ptr++ = '\n';
+			ret.push_back('\n');
 			continue;
 		}
 
@@ -231,7 +232,7 @@ char* Selection::getSelection() const {
 			if (gp->mode.test(Attr::WDUMMY))
 				continue;
 
-			ptr += utf8::encode(gp->u, ptr);
+			utf8::encode(gp->u, ret);
 		}
 
 		/*
@@ -244,20 +245,19 @@ char* Selection::getSelection() const {
 		 * FIXME: Fix the computer world.
 		 */
 		if ((y < m_normal.end.y || lastx >= linelen) && (!(last->mode[Attr::WRAP]) || isRectType()))
-			*ptr++ = '\n';
+			ret.push_back('\n');
 	}
-	*ptr = 0;
-	return str;
+
+	return ret;
 }
 
 void Selection::dump() const {
-	char *ptr = getSelection();
+	auto selection = getSelection();
 
-	if (!ptr)
+	if (selection.empty())
 		return;
 
-	m_tty->printToIoFile(ptr, strlen(ptr));
-	delete[] ptr;
+	m_tty->printToIoFile(selection.c_str(), selection.length());
 }
 
 } // end ns

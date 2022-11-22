@@ -81,6 +81,26 @@ size_t encode(Rune u, char *c) {
 	return len;
 }
 
+void encode(Rune u, std::string &s) {
+	const size_t len = validate(&u, 0);
+	if (len > UTF_SIZE)
+		return;
+
+	const auto oldlen = s.length();
+
+	s.resize(oldlen + len);
+	auto c = s.data() + oldlen;
+
+	for (size_t i = len - 1; i != 0; --i) {
+		c[i] = encodebyte(u, 0);
+		u >>= 6;
+	}
+
+	c[0] = encodebyte(u, len);
+
+	return;
+}
+
 size_t validate(Rune *u, size_t i) {
 	if (!in_range(*u, UTF_MIN[i], UTF_MAX[i]) || in_range(*u, 0xD800, 0xDFFF))
 		*u = UTF_INVALID;

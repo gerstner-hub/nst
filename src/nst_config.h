@@ -12,6 +12,7 @@
 
 #ifdef FULL_NST_CONFIG
 // nst
+#include "types.hxx"
 #include "xtypes.hxx"
 #include "win.h"
 

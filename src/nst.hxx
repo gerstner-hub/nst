@@ -4,7 +4,7 @@
 namespace nst {
 
 struct TermWindow;
-struct XWindow;
+struct X11;
 
 /// Nst main application class
 class Nst {
@@ -22,7 +22,7 @@ protected: // functions
 protected: // data
 	cosmos::Init m_init;
 	TermWindow &m_term_win;
-	XWindow &m_x11;
+	X11 &m_x11;
 };
 
 } // end ns

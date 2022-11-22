@@ -10,36 +10,13 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
-#ifdef FULL_NST_CONFIG
 // nst
 #include "types.hxx"
 #include "xtypes.hxx"
 #include "win.h"
 
 namespace nst {
-
-/* function definitions used from x.cxx */
-static void clipcopy(const Arg *);
-static void clippaste(const Arg *);
-static void numlock(const Arg *);
-static void selpaste(const Arg *);
-static void zoom(const Arg *);
-static void zoomabs(const Arg *);
-static void zoomreset(const Arg *);
-static void ttysend(const Arg *);
-static void printscreen(const Arg *);
-static void printsel(const Arg *);
-static void toggleprinter(const Arg *);
-// from TTY
-void sendbreak(const Arg *);
-
-}
-
-#endif
-
-namespace nst {
 namespace config {
-
 
 /*
  * appearance
@@ -109,8 +86,6 @@ constexpr unsigned int DEFAULTRCS = 257;
 /* alt screens */
 constexpr bool ALLOWALTSCREEN = true;
 
-#ifdef FULL_NST_CONFIG
-
 constexpr int BORDERPX = 2;
 
 /* Kerning / character bounding-box multipliers */
@@ -147,16 +122,16 @@ const unsigned int CURSORTHICKNESS = 2;
  */
 const int BELLVOLUME = 0;
 
-const char *EXTENDED_COLORS[] = {
+constexpr std::array<const char*, 4> EXTENDED_COLORS({
 	/* more colors can be added after 255 to use with DefaultXX */
 	"#cccccc",
 	"#555555",
 	"gray90", /* default foreground colour */
 	"black"   /* default background colour */
-};
+});
 
 /* Terminal colors (16 first used in escape sequence) */
-const char *colorname[256 + sizeof(EXTENDED_COLORS) / sizeof(const char*)] = {
+constexpr std::array<const char*, 16> COLORNAMES({
 	/* 8 normal colors */
 	"black",
 	"red3",
@@ -176,7 +151,7 @@ const char *colorname[256 + sizeof(EXTENDED_COLORS) / sizeof(const char*)] = {
 	"magenta",
 	"cyan",
 	"white",
-};
+});
 
 /// Default shape of cursor
 static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
@@ -207,39 +182,6 @@ const unsigned int DEFAULTATTR = 11;
  * modifier, set to 0 to not use it.
  */
 const uint FORCEMOUSEMOD = ShiftMask;
-
-/*
- * Internal mouse shortcuts.
- * Beware that overloading Button1 will disable the selection.
- */
-constexpr std::array<MouseShortcut, 5> MSHORTCUTS({
-	             /* mask                 button   function        argument       release */
-	MouseShortcut{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      true },
-	MouseShortcut{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"}, false },
-	MouseShortcut{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"}, false },
-	MouseShortcut{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"}, false },
-	MouseShortcut{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"}, false },
-});
-
-/* Internal keyboard shortcuts. */
-#define MODKEY Mod1Mask
-#define TERMMOD (ControlMask|ShiftMask)
-
-const Shortcut SHORTCUTS[] = {
-	/* mask                 keysym          function        argument */
-	{ XK_ANY_MOD,           XK_Break,       sendbreak, {.i =  0} },
-	{ ControlMask,          XK_Print,       toggleprinter,  {.i =  0} },
-	{ ShiftMask,            XK_Print,       printscreen,    {.i =  0} },
-	{ XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
-	{ TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
-	{ TERMMOD,              XK_Next,        zoom,           {.f = -1} },
-	{ TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
-	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
-	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
-	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
-	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
-	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
-};
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -516,8 +458,6 @@ constexpr char ASCII_PRINTABLE[] =
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
 
 constexpr size_t ASCII_PRINTABLE_LEN = sizeof(ASCII_PRINTABLE) - 1;
-
-#endif
 
 }} // end ns nst::config
 

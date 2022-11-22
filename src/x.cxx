@@ -38,7 +38,6 @@
 #include "X++/XWindow.hxx"
 
 // nst
-#define FULL_NST_CONFIG
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"
 #include "Cmdline.hxx"
@@ -52,89 +51,12 @@
 #include "TTY.hxx"
 #include "win.h"
 #include "xtypes.hxx"
+#include "x.hxx"
+
+// config parts specific to this compilation unit
+#include "nst_config.inl"
 
 namespace nst {
-
-typedef Glyph::Attr Attr;
-typedef XftColor Color;
-using XEventCallback = void (*)(XEvent*);
-
-/* Purely graphic info */
-struct TermWindow {
-	int tw, th; /* tty width and height */
-	int w, h; /* window width and height */
-	int ch; /* char height */
-	int cw; /* char width  */
-	WinModeMask mode; /* window state/mode flags */
-	CursorStyle cursor;
-};
-
-struct X11 {
-	xpp::XDisplay *display = nullptr;
-	xpp::XAtomMapper *mapper = nullptr;
-	Colormap cmap;
-	xpp::XWindow win;
-	Drawable buf;
-	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
-	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
-	struct {
-		XIM xim;
-		XIC xic;
-		XPoint spot;
-		XVaNestedList spotlist;
-	} ime;
-	XftDraw *draw;
-	Visual *vis;
-	XSetWindowAttributes attrs;
-	int scr;
-	bool isfixed = false; /* is fixed geometry? */
-	int l = 0, t = 0; /* left and top offset */
-	int gm; /* geometry mask */
-};
-
-struct XSelection {
-	Atom xtarget;
-	std::string clipboard;
-	std::string primary;
-	cosmos::MonotonicStopWatch tclick1;
-	cosmos::MonotonicStopWatch tclick2;
-};
-
-/* Font structure */
-struct Font {
-	int height;
-	int width;
-	int ascent;
-	int descent;
-	int badslant;
-	int badweight;
-	short lbearing;
-	short rbearing;
-	XftFont *match;
-	FcFontSet *set;
-	FcPattern *pattern;
-};
-
-/* Drawing Context */
-struct DrawingContext {
-	std::vector<Color> col;
-	Font font, bfont, ifont, ibfont;
-	GC gc;
-};
-
-/* Font Ring Cache */
-enum class FRC {
-	NORMAL,
-	ITALIC,
-	BOLD,
-	ITALICBOLD
-};
-
-struct Fontcache {
-	XftFont *font;
-	FRC flags;
-	Rune unicodep;
-};
 
 static size_t xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, size_t, int, int);
 static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, size_t, int, int);
@@ -254,7 +176,7 @@ inline Atom getAtom(const char *name) {
 }
 
 } // end anon ns
-  //
+
 Nst *Nst::the_instance = nullptr;
 
 void clipcopy(const Arg *) {
@@ -421,6 +343,22 @@ void mousereport(XEvent *e) {
 	}
 
 	Nst::getTTY().write(buf, len, false);
+}
+
+const char* getColorName(size_t nr) {
+	if (nr < config::COLORNAMES.size())
+		return config::COLORNAMES[nr];
+	else if (nr < 256)
+		// unassigned
+		return nullptr;
+	else {
+		// check for extended colors
+		nr -= 256;
+		if (nr < config::EXTENDED_COLORS.size())
+			return config::EXTENDED_COLORS[nr];
+	}
+
+	return nullptr;
 }
 
 uint buttonmask(uint button) {
@@ -737,7 +675,7 @@ int xloadcolor(size_t i, const char *name, Color *ncolor) {
 			return XftColorAllocValue(getDisplay(), x11.vis,
 			                          x11.cmap, &color, ncolor);
 		} else
-			name = config::colorname[i];
+			name = getColorName(i);
 	}
 
 	return XftColorAllocName(getDisplay(), x11.vis, x11.cmap, name, ncolor);
@@ -751,15 +689,16 @@ void xloadcols(void) {
 			XftColorFree(getDisplay(), x11.vis, x11.cmap, &c);
 		}
 	} else {
-		auto len = std::max(cosmos::num_elements(config::colorname), 256UL);
+
+		auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
 		dc.col.resize(len);
 	}
 
 	for (size_t i = 0; i < dc.col.size(); i++) {
 		if (!xloadcolor(i, nullptr, &dc.col[i])) {
-			if (config::colorname[i])
-				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'",
-								config::colorname[i])));
+			auto colorname = getColorName(i);
+			if (colorname)
+				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname)));
 			else
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
@@ -1126,13 +1065,13 @@ void xinit() {
 	Cursor cursor = XCreateFontCursor(getDisplay(), config::MOUSESHAPE);
 	XDefineCursor(getDisplay(), x11.win, cursor);
 
-	if (XParseColor(getDisplay(), x11.cmap, config::colorname[config::MOUSEFG], &xmousefg) == 0) {
+	if (XParseColor(getDisplay(), x11.cmap, getColorName(config::MOUSEFG), &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
 		xmousefg.green = 0xffff;
 		xmousefg.blue  = 0xffff;
 	}
 
-	if (XParseColor(getDisplay(), x11.cmap, config::colorname[config::MOUSEBG], &xmousebg) == 0) {
+	if (XParseColor(getDisplay(), x11.cmap, getColorName(config::MOUSEBG), &xmousebg) == 0) {
 		xmousebg.red   = 0x0000;
 		xmousebg.green = 0x0000;
 		xmousebg.blue  = 0x0000;
@@ -1813,12 +1752,6 @@ void Nst::waitForWindowMapping() {
 	cresize(w, h);
 }
 
-void fixup_colornames() {
-	for (size_t index = 0; index < cosmos::num_elements(config::EXTENDED_COLORS); index++) {
-		config::colorname[256+index] = config::EXTENDED_COLORS[index];
-	}
-}
-
 void Nst::applyCmdline(const Cmdline &cmd) {
 	if (cmd.use_alt_screen.isSet()) {
 		m_term.setAllowAltScreen(cmd.use_alt_screen.getValue());
@@ -1848,7 +1781,6 @@ Nst::Nst() :
 		cosmos_throw (cosmos::UsageError("more than once Nst instances alive"));
 	}
 	the_instance = this;
-	fixup_colornames();
 	xsetcursor(config::CURSORSHAPE);
 }
 

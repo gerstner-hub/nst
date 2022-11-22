@@ -13,7 +13,6 @@
 
 // nst
 #include "types.hxx"
-#include "xtypes.hxx"
 #include "win.h"
 
 namespace nst {

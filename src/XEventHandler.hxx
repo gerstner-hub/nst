@@ -3,7 +3,6 @@
 
 // X++
 #include "X++/Event.hxx"
-#include "xtypes.hxx"
 #include "types.hxx"
 
 namespace nst {

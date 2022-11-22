@@ -50,7 +50,6 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "win.h"
-#include "xtypes.hxx"
 #include "x.hxx"
 
 // config parts specific to this compilation unit

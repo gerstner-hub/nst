@@ -7,6 +7,8 @@
 // libc
 #include <limits.h>
 
+namespace nst {
+
 /* types used in nst_config.h */
 struct Shortcut {
 	uint mod;
@@ -70,4 +72,6 @@ public:
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
 
-#endif
+} // end ns
+
+#endif // inc. guard

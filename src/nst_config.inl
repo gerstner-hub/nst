@@ -71,5 +71,4 @@ constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SELMASKS = {
 	         {Selection::Type::RECTANGULAR, Mod1Mask},
 };
 
-} // ns config
-} // ns nst
+}} // ns nst::config

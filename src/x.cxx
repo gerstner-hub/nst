@@ -57,42 +57,7 @@
 
 namespace nst {
 
-static size_t xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, size_t, int, int);
-static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, size_t, int, int);
-static void xdrawglyph(Glyph, int, int);
-static void xclear(int, int, int, int);
-static int xgeommasktogravity(int);
-static int ximopen();
-static void ximinstantiate(Display *, XPointer, XPointer);
-static void ximdestroy(XIM, XPointer, XPointer);
-static int xicdestroy(XIC, XPointer, XPointer);
-static void xinit();
-static void cresize(int, int);
-static void xresize(int, int);
-static void xhints(void);
-static int xloadcolor(size_t, const char *, Color *);
-static int xloadfont(Font *, FcPattern *);
-static void xunloadfont(Font *);
-static void xunloadfonts(void);
-static void xsetenv(void);
-static void xseturgency(int);
-
-static void setsel(const char*, Time);
-static bool match(uint, uint);
-static void xloadfontsOrThrow(const std::string&, double fontsize=0);
-
 namespace {
-
-struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {
-	explicit FcPatternGuard(FcPattern *p) :
-		ResourceGuard(p, [](FcPattern *_p) { FcPatternDestroy(_p); })
-	{}
-};
-struct FcCharSetGuard : public cosmos::ResourceGuard<FcCharSet*> {
-	explicit FcCharSetGuard(FcCharSet *p) :
-		ResourceGuard(p, [](FcCharSet *_p) { FcCharSetDestroy(_p); })
-	{}
-};
 
 /* Globals */
 DrawingContext dc;

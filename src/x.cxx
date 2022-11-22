@@ -131,14 +131,6 @@ const std::map<int, XEventCallback> handlers = {
 	{SelectionRequest, xevent_selrequest}
 };
 
-const std::map<int, unsigned> button_masks = {
-	{Button1, Button1Mask},
-	{Button2, Button2Mask},
-	{Button3, Button3Mask},
-	{Button4, Button4Mask},
-	{Button5, Button5Mask},
-};
-
 struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {
 	explicit FcPatternGuard(FcPattern *p) :
 		ResourceGuard(p, [](FcPattern *_p) { FcPatternDestroy(_p); })
@@ -363,8 +355,16 @@ const char* getColorName(size_t nr) {
 }
 
 uint buttonmask(uint button) {
-	auto it = button_masks.find(button);
-	return it == button_masks.end() ? 0 : it->second;
+	const std::map<int, unsigned> BUTTON_MASKS = {
+		{Button1, Button1Mask},
+		{Button2, Button2Mask},
+		{Button3, Button3Mask},
+		{Button4, Button4Mask},
+		{Button5, Button5Mask},
+	};
+
+	auto it = BUTTON_MASKS.find(button);
+	return it == BUTTON_MASKS.end() ? 0 : it->second;
 }
 
 bool mouseaction(const XEvent &e, bool release) {

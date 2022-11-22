@@ -442,7 +442,7 @@ constexpr std::array<Key, 209> KEY({
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
  */
-const uint SELMASKS[] = {
+constexpr std::array<uint, 3> SELMASKS = {
 	0,
 	0,
 	Mod1Mask, // SEL_RECTANGULAR

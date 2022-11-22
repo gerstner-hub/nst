@@ -1,9 +1,6 @@
 #ifndef NST_X_HXX
 #define NST_X_HXX
 
-// C++
-#include <functional>
-
 /*
  * private data types for x.cxx
  */
@@ -12,7 +9,6 @@ namespace nst {
 
 typedef Glyph::Attr Attr;
 typedef XftColor Color;
-typedef std::function<void (XEvent&)> XEventCallback;
 
 /* Purely graphic info */
 struct TermWindow {

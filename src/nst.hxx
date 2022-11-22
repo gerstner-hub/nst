@@ -8,6 +8,7 @@
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
+#include "XEventHandler.hxx"
 
 namespace nst {
 
@@ -42,6 +43,7 @@ protected: // data
 	TTY m_tty;
 	Term m_term;
 	Selection m_selection;
+	XEventHandler m_event_handler;
 	static Nst *the_instance;
 };
 

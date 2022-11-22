@@ -77,25 +77,26 @@ static void xunloadfont(Font *);
 static void xunloadfonts(void);
 static void xsetenv(void);
 static void xseturgency(int);
-static int evcol(XEvent *);
-static int evrow(XEvent *);
+static int evcol(const XEvent &);
+static int evrow(const XEvent &);
 
-static void expose(XEvent *);
-static void visibility(XEvent *);
-static void unmap(XEvent *);
-static void kpress(XEvent *);
-static void cmessage(XEvent *);
-static void resize(XEvent *);
-static void focus(XEvent *);
-static void brelease(XEvent *);
-static void bpress(XEvent *);
-static void bmotion(XEvent *);
-static void propnotify(XEvent *);
-static void selnotify(XEvent *);
-static void selclear_(XEvent *);
-static void selrequest(XEvent *);
+static void xevent_expose(XEvent &);
+static void xevent_visibility(XEvent &);
+static void xevent_unmap(XEvent &);
+static void xevent_kpress(XEvent &);
+static void xevent_cmessage(XEvent &);
+static void xevent_resize(XEvent &);
+static void xevent_focus(XEvent &);
+static void xevent_brelease(XEvent &);
+static void xevent_bpress(XEvent &);
+static void xevent_bmotion(XEvent &);
+static void xevent_propnotify(XEvent &);
+static void xevent_selnotify(XEvent &);
+static void xevent_selclear_(XEvent &);
+static void xevent_selrequest(XEvent &);
+
 static void setsel(char *, Time);
-static void mousereport(XEvent *);
+static void mousereport(const XEvent &);
 static const char *kmap(KeySym, uint);
 static bool match(uint, uint);
 static void xloadfontsOrThrow(const std::string&, double fontsize=0);
@@ -103,31 +104,31 @@ static void xloadfontsOrThrow(const std::string&, double fontsize=0);
 namespace {
 
 const std::map<int, XEventCallback> handlers = {
-	{KeyPress, kpress},
-	{ClientMessage, cmessage},
-	{ConfigureNotify, resize},
-	{VisibilityNotify, visibility},
-	{UnmapNotify, unmap},
-	{Expose, expose},
-	{FocusIn, focus},
-	{FocusOut, focus},
-	{MotionNotify, bmotion},
-	{ButtonPress, bpress},
-	{ButtonRelease, brelease},
-	{SelectionNotify, selnotify},
+	{KeyPress, xevent_kpress},
+	{ClientMessage, xevent_cmessage},
+	{ConfigureNotify, xevent_resize},
+	{VisibilityNotify, xevent_visibility},
+	{UnmapNotify, xevent_unmap},
+	{Expose, xevent_expose},
+	{FocusIn, xevent_focus},
+	{FocusOut, xevent_focus},
+	{MotionNotify, xevent_bmotion},
+	{ButtonPress, xevent_bpress},
+	{ButtonRelease, xevent_brelease},
+	{SelectionNotify, xevent_selnotify},
 	/*
 	 * PropertyNotify is only turned on when there is some INCR transfer happening
 	 * for the selection retrieval.
 	 */
-	{PropertyNotify, propnotify},
+	{PropertyNotify, xevent_propnotify},
 	/*
 	 * Uncomment if you want the selection to disappear when you select something
 	 * different in another window.
 	 */
 #ifdef SELCLEAR
-	{SelectionClear, selclear_},
+	{SelectionClear, xevent_selclear_},
 #endif
-	{SelectionRequest, selrequest}
+	{SelectionRequest, xevent_selrequest}
 };
 
 const std::map<int, unsigned> button_masks = {
@@ -245,21 +246,21 @@ void printsel(const Arg *) {
 	Nst::getSelection().dump();
 }
 
-int evcol(XEvent *e) {
-	int x = e->xbutton.x - config::BORDERPX;
+int evcol(const XEvent &e) {
+	int x = e.xbutton.x - config::BORDERPX;
 	x = std::clamp(x, 0, twin.tw - 1);
 	return x / twin.cw;
 }
 
-int evrow(XEvent *e) {
-	int y = e->xbutton.y - config::BORDERPX;
+int evrow(const XEvent &e) {
+	int y = e.xbutton.y - config::BORDERPX;
 	y = std::clamp(y, 0, twin.th - 1);
 	return y / twin.ch;
 }
 
-static void mousesel(XEvent *e, bool done) {
+static void mousesel(XEvent &e, bool done) {
 	auto seltype = Selection::Type::REGULAR;
-	uint state = e->xbutton.state & ~(Button1Mask | config::FORCEMOUSEMOD);
+	uint state = e.xbutton.state & ~(Button1Mask | config::FORCEMOUSEMOD);
 
 	for (unsigned type = 1; type < cosmos::num_elements(config::SELMASKS); ++type) {
 		if (match(config::SELMASKS[type], state)) {
@@ -270,16 +271,16 @@ static void mousesel(XEvent *e, bool done) {
 	auto &sel = Nst::getSelection();
 	sel.extend(evcol(e), evrow(e), seltype, done);
 	if (done) {
-		setsel(sel.getSelection(), e->xbutton.time);
+		setsel(sel.getSelection(), e.xbutton.time);
 	}
 }
 
-void mousereport(XEvent *e) {
+void mousereport(const XEvent &e) {
 	int btn, code;
 	int x = evcol(e), y = evrow(e);
 	static int old_x, old_y;
 
-	if (e->type == MotionNotify) {
+	if (e.type == MotionNotify) {
 		if (x == old_x && y == old_y)
 			return;
 		else if (!twin.mode[WinMode::MOUSEMOTION] && !twin.mode[WinMode::MOUSEMANY])
@@ -292,11 +293,11 @@ void mousereport(XEvent *e) {
 		btn = buttons.getFirstButton();
 		code = 32;
 	} else {
-		btn = e->xbutton.button;
+		btn = e.xbutton.button;
 		/* Only buttons 1 through 11 can be encoded */
 		if (!buttons.valid(btn))
 			return;
-		if (e->type == ButtonRelease) {
+		if (e.type == ButtonRelease) {
 			/* MODE_MOUSEX10: no button release reporting */
 			if (twin.mode[WinMode::MOUSEX10])
 				return;
@@ -312,7 +313,7 @@ void mousereport(XEvent *e) {
 
 	/* Encode btn into code. If no button is pressed for a motion event in
 	 * MODE_MOUSEMANY, then encode it as a release. */
-	if ((!twin.mode[WinMode::MOUSESGR] && e->type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
+	if ((!twin.mode[WinMode::MOUSESGR] && e.type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
 		code += 3;
 	else if (btn >= 8)
 		code += 128 + btn - 8;
@@ -322,7 +323,7 @@ void mousereport(XEvent *e) {
 		code += btn - 1;
 
 	if (!twin.mode[WinMode::MOUSEX10]) {
-		auto state = e->xbutton.state;
+		auto state = e.xbutton.state;
 		code += ((state & ShiftMask  ) ?  4 : 0)
 		      + ((state & Mod1Mask   ) ?  8 : 0) /* meta key: alt */
 		      + ((state & ControlMask) ? 16 : 0);
@@ -334,7 +335,7 @@ void mousereport(XEvent *e) {
 	if (twin.mode[WinMode::MOUSESGR]) {
 		len = snprintf(buf, sizeof(buf), "\033[<%d;%d;%d%c",
 				code, x+1, y+1,
-				e->type == ButtonRelease ? 'm' : 'M');
+				e.type == ButtonRelease ? 'm' : 'M');
 	} else if (x < 223 && y < 223) {
 		len = snprintf(buf, sizeof(buf), "\033[M%c%c%c",
 				32+code, 32+x+1, 32+y+1);
@@ -366,13 +367,13 @@ uint buttonmask(uint button) {
 	return it == button_masks.end() ? 0 : it->second;
 }
 
-bool mouseaction(XEvent *e, bool release) {
+bool mouseaction(const XEvent &e, bool release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
-	uint state = e->xbutton.state & ~buttonmask(e->xbutton.button);
+	uint state = e.xbutton.state & ~buttonmask(e.xbutton.button);
 
 	for (auto &ms: config::MSHORTCUTS) {
 		if (ms.release == release &&
-		    ms.button == e->xbutton.button &&
+		    ms.button == e.xbutton.button &&
 		    (match(ms.mod, state) ||  /* exact or forced */
 		     match(ms.mod, state & ~config::FORCEMOUSEMOD))) {
 			ms.func(&(ms.arg));
@@ -383,13 +384,13 @@ bool mouseaction(XEvent *e, bool release) {
 	return false;
 }
 
-void bpress(XEvent *e) {
-	const auto btn = e->xbutton.button;
+void xevent_bpress(XEvent &e) {
+	const auto btn = e.xbutton.button;
 
 	if (buttons.valid(btn))
 		buttons.setPressed(btn);
 
-	if (twin.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
+	if (twin.mode[WinMode::MOUSE] && !(e.xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -416,26 +417,26 @@ void bpress(XEvent *e) {
 	}
 }
 
-void propnotify(XEvent *e) {
+void xevent_propnotify(XEvent &e) {
 	Atom clipboard = getAtom("CLIPBOARD");
-	XPropertyEvent *xpev = &e->xproperty;
+	XPropertyEvent *xpev = &e.xproperty;
 
 	if (xpev->state == PropertyNewValue &&
 			(xpev->atom == XA_PRIMARY ||
 			 xpev->atom == clipboard)) {
-		selnotify(e);
+		xevent_selnotify(e);
 	}
 }
 
-void selnotify(XEvent *e) {
+void xevent_selnotify(XEvent &e) {
 	Atom property = None;
 
-	switch (e->type) {
+	switch (e.type) {
 	case SelectionNotify:
-		property = e->xselection.property;
+		property = e.xselection.property;
 		break;
 	case PropertyNotify:
-		property = e->xproperty.atom;
+		property = e.xproperty.atom;
 		break;
 	default:
 		return;
@@ -457,7 +458,7 @@ void selnotify(XEvent *e) {
 			return;
 		}
 
-		if (e->type == PropertyNotify && nitems == 0 && rem == 0) {
+		if (e.type == PropertyNotify && nitems == 0 && rem == 0) {
 			/*
 			 * If there is some PropertyNotify with no data, then
 			 * this is the signal of the selection owner that all
@@ -521,13 +522,13 @@ void xclipcopy(void) {
 }
 
 [[maybe_unused]]
-void selclear_(XEvent *) {
+void xevent_selclear_(XEvent &) {
 	Nst::getSelection().clear();
 }
 
-void selrequest(XEvent *e) {
+void xevent_selrequest(XEvent &e) {
 
-	XSelectionRequestEvent *xsre = (XSelectionRequestEvent *) e;
+	XSelectionRequestEvent *xsre = (XSelectionRequestEvent *) &e;
 	XSelectionEvent xev;
 	xev.type = SelectionNotify;
 	xev.requestor = xsre->requestor;
@@ -598,13 +599,13 @@ void xsetsel(char *str) {
 	setsel(str, CurrentTime);
 }
 
-void brelease(XEvent *e) {
-	int btn = e->xbutton.button;
+void xevent_brelease(XEvent &e) {
+	int btn = e.xbutton.button;
 
 	if (buttons.valid(btn))
 		buttons.setReleased(btn);
 
-	if (twin.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
+	if (twin.mode[WinMode::MOUSE] && !(e.xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -615,8 +616,8 @@ void brelease(XEvent *e) {
 		mousesel(e, true);
 }
 
-void bmotion(XEvent *e) {
-	if (twin.mode[WinMode::MOUSE] && !(e->xbutton.state & config::FORCEMOUSEMOD)) {
+void xevent_bmotion(XEvent &e) {
+	if (twin.mode[WinMode::MOUSE] && !(e.xbutton.state & config::FORCEMOUSEMOD)) {
 		mousereport(e);
 		return;
 	}
@@ -1547,17 +1548,17 @@ void xximspot(int x, int y) {
 	XSetICValues(x11.ime.xic, XNPreeditAttributes, x11.ime.spotlist, nullptr);
 }
 
-void expose(XEvent *) {
+void xevent_expose(XEvent &) {
 	Nst::getTerm().redraw();
 }
 
-void visibility(XEvent *ev) {
-	XVisibilityEvent *e = &ev->xvisibility;
+void xevent_visibility(XEvent &ev) {
+	XVisibilityEvent *e = &ev.xvisibility;
 
 	twin.mode.set(WinMode::VISIBLE, e->state != VisibilityFullyObscured);
 }
 
-void unmap(XEvent *) {
+void xevent_unmap(XEvent &) {
 	twin.mode.reset(WinMode::VISIBLE);
 }
 
@@ -1592,13 +1593,13 @@ void xbell(void) {
 		XkbBell(getDisplay(), x11.win, config::BELLVOLUME, (Atom)NULL);
 }
 
-void focus(XEvent *ev) {
-	XFocusChangeEvent *e = &ev->xfocus;
+void xevent_focus(XEvent &ev) {
+	XFocusChangeEvent *e = &ev.xfocus;
 
 	if (e->mode == NotifyGrab)
 		return;
 
-	if (ev->type == FocusIn) {
+	if (ev.type == FocusIn) {
 		if (x11.ime.xic)
 			XSetICFocus(x11.ime.xic);
 		twin.mode.set(WinMode::FOCUSED);
@@ -1654,8 +1655,8 @@ const char* kmap(KeySym k, uint state) {
 	return nullptr;
 }
 
-void kpress(XEvent *ev) {
-	XKeyEvent *e = &ev->xkey;
+void xevent_kpress(XEvent &ev) {
+	XKeyEvent *e = &ev.xkey;
 	KeySym ksym;
 	char buf[64];
 	int len;
@@ -1702,29 +1703,29 @@ void kpress(XEvent *ev) {
 	Nst::getTTY().write(buf, len, 1);
 }
 
-void cmessage(XEvent *e) {
+void xevent_cmessage(XEvent &e) {
 	/*
 	 * See xembed specs
 	 *  http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
 	 */
-	if (e->xclient.message_type == x11.xembed && e->xclient.format == 32) {
-		if (e->xclient.data.l[1] == XEMBED_FOCUS_IN) {
+	if (e.xclient.message_type == x11.xembed && e.xclient.format == 32) {
+		if (e.xclient.data.l[1] == XEMBED_FOCUS_IN) {
 			twin.mode.set(WinMode::FOCUSED);
 			xseturgency(0);
-		} else if (e->xclient.data.l[1] == XEMBED_FOCUS_OUT) {
+		} else if (e.xclient.data.l[1] == XEMBED_FOCUS_OUT) {
 			twin.mode.reset(WinMode::FOCUSED);
 		}
-	} else if ((Atom)e->xclient.data.l[0] == x11.wmdeletewin) {
+	} else if ((Atom)e.xclient.data.l[0] == x11.wmdeletewin) {
 		Nst::getTTY().hangup();
 		exit(0);
 	}
 }
 
-void resize(XEvent *e) {
-	if (e->xconfigure.width == twin.w && e->xconfigure.height == twin.h)
+void xevent_resize(XEvent &e) {
+	if (e.xconfigure.width == twin.w && e.xconfigure.height == twin.h)
 		return;
 
-	cresize(e->xconfigure.width, e->xconfigure.height);
+	cresize(e.xconfigure.width, e.xconfigure.height);
 }
 
 void Nst::waitForWindowMapping() {
@@ -1844,7 +1845,7 @@ void Nst::mainLoop() {
 				continue;
 			else if (auto it = handlers.find(ev.getType()); it != handlers.end()) {
 				auto handler = it->second;
-				handler(ev.raw());
+				handler(*ev.raw());
 			}
 		}
 

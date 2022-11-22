@@ -44,6 +44,7 @@
 #include "nst_config.h"
 #include "Cmdline.hxx"
 #include "codecs.hxx"
+#include "font.hxx"
 #include "helper.hxx"
 #include "nst.hxx"
 #include "types.hxx"
@@ -176,7 +177,7 @@ static void setsel(char *, Time);
 static void mousereport(XEvent *);
 static const char *kmap(KeySym, uint);
 static bool match(uint, uint);
-static void xloadfontsOrThrow(const char*, double fontsize);
+static void xloadfontsOrThrow(const std::string&, double fontsize=0);
 
 namespace {
 
@@ -235,7 +236,6 @@ TermWindow twin;
 
 /* Fontcache is an array now. A new font will be appended to the array. */
 std::vector<Fontcache> frc;
-const char *usedfont = nullptr;
 double usedfontsize = 0;
 double defaultfontsize = 0;
 
@@ -290,7 +290,7 @@ void zoom(const Arg *arg) {
 
 void zoomabs(const Arg *arg) {
 	xunloadfonts();
-	xloadfontsOrThrow(usedfont, arg->f);
+	xloadfontsOrThrow(cmdline.font.getValue(), arg->f);
 	cresize(0, 0);
 	term.redraw();
 	xhints();
@@ -912,80 +912,65 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	return 0;
 }
 
-static bool xloadfonts(const char *fontstr, double fontsize) {
-	FcPattern *pattern;
+static bool xloadfonts(const std::string &fontstr, double fontsize) {
+	FontPattern pattern(fontstr);
 
-	if (fontstr[0] == '-')
-		pattern = XftXlfdParse(fontstr, False, False);
-	else
-		pattern = FcNameParse((const FcChar8 *)fontstr);
-
-	if (!pattern)
+	if (!pattern.isValid())
 		return false;
 
-	double fontval;
-
 	if (fontsize > 1) {
-		FcPatternDel(pattern, FC_PIXEL_SIZE);
-		FcPatternDel(pattern, FC_SIZE);
-		FcPatternAddDouble(pattern, FC_PIXEL_SIZE, (double)fontsize);
+		pattern.setPixelSize(fontsize);
 		usedfontsize = fontsize;
 	} else {
-		if (FcPatternGetDouble(pattern, FC_PIXEL_SIZE, 0, &fontval) ==
-				FcResultMatch) {
-			usedfontsize = fontval;
-		} else if (FcPatternGetDouble(pattern, FC_SIZE, 0, &fontval) ==
-				FcResultMatch) {
+		if (auto pxsize = pattern.getPixelSize(); pxsize.has_value())
+			usedfontsize = *pxsize;
+		else if(auto ptsize = pattern.getPointSize(); ptsize.has_value())
 			usedfontsize = -1;
-		} else {
+		else {
 			/*
-			 * Default font size is 12, if none given. This is to
+			 * Use default font size, if none given. This is to
 			 * have a known usedfontsize value.
 			 */
-			FcPatternAddDouble(pattern, FC_PIXEL_SIZE, 12);
-			usedfontsize = 12;
+			usedfontsize = config::FONT_DEFAULT_SIZE_PX;
+			pattern.setPixelSize(usedfontsize);
 		}
 		defaultfontsize = usedfontsize;
 	}
 
-	if (xloadfont(&dc.font, pattern))
+	if (xloadfont(&dc.font, pattern.raw()))
 		return false;
 
 	if (usedfontsize < 0) {
-		FcPatternGetDouble(dc.font.match->pattern,
-		                   FC_PIXEL_SIZE, 0, &fontval);
-		usedfontsize = fontval;
-		if (fontsize == 0)
-			defaultfontsize = fontval;
+		auto loaded = FontPattern(dc.font.match->pattern);
+		if (auto pxsize = loaded.getPixelSize(); pxsize.has_value()) {
+			usedfontsize = *pxsize;
+			if (fontsize == 0)
+				defaultfontsize = *pxsize;
+		}
 	}
 
 	/* Setting character width and height. */
 	twin.cw = ceilf(dc.font.width * config::CWSCALE);
 	twin.ch = ceilf(dc.font.height * config::CHSCALE);
 
-	FcPatternDel(pattern, FC_SLANT);
-	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ITALIC);
-	if (xloadfont(&dc.ifont, pattern))
+	pattern.setSlant(Slant::ITALIC);
+	if (xloadfont(&dc.ifont, pattern.raw()))
 		return false;
 
-	FcPatternDel(pattern, FC_WEIGHT);
-	FcPatternAddInteger(pattern, FC_WEIGHT, FC_WEIGHT_BOLD);
-	if (xloadfont(&dc.ibfont, pattern))
+	pattern.setWeight(Weight::BOLD);
+	if (xloadfont(&dc.ibfont, pattern.raw()))
 		return false;
 
-	FcPatternDel(pattern, FC_SLANT);
-	FcPatternAddInteger(pattern, FC_SLANT, FC_SLANT_ROMAN);
-	if (xloadfont(&dc.bfont, pattern))
+	pattern.setSlant(Slant::ROMAN);
+	if (xloadfont(&dc.bfont, pattern.raw()))
 		return false;
-
-	FcPatternDestroy(pattern);
 
 	return true;
 }
 
-static void xloadfontsOrThrow(const char *fontstr, double fontsize) {
+static void xloadfontsOrThrow(const std::string &fontstr, double fontsize) {
 	if (!xloadfonts(fontstr, fontsize)) {
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", usedfont)));
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", fontstr.c_str())));
 	}
 }
 
@@ -1069,8 +1054,7 @@ void xinit() {
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
-	usedfont = cmdline.font.getValue().c_str();
-	xloadfontsOrThrow(usedfont, 0);
+	xloadfontsOrThrow(cmdline.font.getValue());
 
 	/* colors */
 	x11.cmap = display.getDefaultColormap(x11.scr);

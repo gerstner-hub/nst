@@ -47,6 +47,7 @@ namespace config {
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
 constexpr const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+constexpr double FONT_DEFAULT_SIZE_PX = 12;
 
 /*
  * word delimiter string

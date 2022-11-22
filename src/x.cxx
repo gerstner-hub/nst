@@ -31,8 +31,11 @@
 #include "cosmos/time/Clock.hxx"
 
 // X++
+#include "X++/Event.hxx"
+#include "X++/RootWin.hxx"
 #include "X++/XAtom.hxx"
 #include "X++/XDisplay.hxx"
+#include "X++/Xpp.hxx"
 #include "X++/XWindow.hxx"
 
 // nst
@@ -1070,7 +1073,7 @@ void xinit() {
 	xloadfontsOrThrow(usedfont, 0);
 
 	/* colors */
-	xw.cmap = XDefaultColormap(getDisplay(), xw.scr);
+	xw.cmap = display.getDefaultColormap(xw.scr);
 	xloadcols();
 
 	/* adjust fixed window geometry */
@@ -1090,21 +1093,31 @@ void xinit() {
 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
 	xw.attrs.colormap = xw.cmap;
 
-	Window parent;
-	const auto &embed = cmdline.embed_window.getValue();
-	if (!(!embed.empty() && (parent = strtol(embed.c_str(), nullptr, 0))))
-		parent = XRootWindow(getDisplay(), xw.scr);
-	{
-		auto w = XCreateWindow(getDisplay(), parent, xw.l, xw.t,
-				twin.w, twin.h, 0, XDefaultDepth(getDisplay(), xw.scr), InputOutput,
-				xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
-				| CWEventMask | CWColormap, &xw.attrs);
-		xw.win = xpp::XWindow(w);
+	std::optional<xpp::XWindow> parent;
+	if (cmdline.embed_window.isSet()) {
+		// use window ID passed on command line as parent
+		parent.emplace(xpp::XWindow(cmdline.embed_window.getValue()));
 	}
+
+	if (!parent) {
+		// either not embedded or the command line parsing failed
+		parent.emplace(xpp::RootWin(display, xw.scr));
+	}
+
+	xw.win = display.createWindow(
+		xpp::WindowSpec{xw.l, xw.t, static_cast<unsigned int>(twin.w), static_cast<unsigned int>(twin.h)},
+		0,
+		/*clazz = */InputOutput,
+		&(*parent),
+		display.getDefaultDepth(xw.scr),
+		xw.vis,
+		CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
+		&xw.attrs
+	);
 
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	dc.gc = XCreateGC(getDisplay(), parent, GCGraphicsExposures, &gcvalues);
+	dc.gc = XCreateGC(getDisplay(), parent->id(), GCGraphicsExposures, &gcvalues);
 	xw.buf = XCreatePixmap(getDisplay(), xw.win, twin.w, twin.h, DefaultDepth(getDisplay(), xw.scr));
 	XSetForeground(getDisplay(), dc.gc, dc.col[config::DEFAULTBG].pixel);
 	XFillRectangle(getDisplay(), xw.buf, dc.gc, 0, 0, twin.w, twin.h);
@@ -1785,25 +1798,27 @@ void resize(XEvent *e) {
 	cresize(e->xconfigure.width, e->xconfigure.height);
 }
 
-void waitForWindowMapping() {
-	XEvent ev;
-	int w = twin.w, h = twin.h;
+void Nst::waitForWindowMapping() {
+	xpp::Event ev;
+	auto w = m_term_win.w, h = m_term_win.h;
 
 	/* Waiting for window mapping */
 	do {
-		XNextEvent(getDisplay(), &ev);
+		m_x11.display->getNextEvent(ev);
 		/*
 		 * This XFilterEvent call is required because of XOpenIM. It
 		 * does filter out the key event and some client message for
 		 * the input method too.
 		 */
-		if (XFilterEvent(&ev, None))
+		if (ev.filterEvent())
 			continue;
-		if (ev.type == ConfigureNotify) {
-			w = ev.xconfigure.width;
-			h = ev.xconfigure.height;
+
+		if (ev.isConfigureNotify()) {
+			const auto &configure = ev.toConfigureNotify();
+			w = configure.width;
+			h = configure.height;
 		}
-	} while (ev.type != MapNotify);
+	} while (!ev.isMapNotify());
 
 	cresize(w, h);
 }
@@ -1833,7 +1848,7 @@ void applyCmdline(const Cmdline &cmd) {
 	}
 }
 
-Nst::Nst() {
+Nst::Nst() : m_term_win(twin), m_x11(xw) {
 	fixup_colornames();
 	xsetcursor(config::CURSORSHAPE);
 }
@@ -1932,8 +1947,8 @@ void Nst::mainLoop() {
 			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */
-					twin.mode.set(WinMode::BLINK);
-				twin.mode.flip(WinMode::BLINK);
+					m_term_win.mode.set(WinMode::BLINK);
+				m_term_win.mode.flip(WinMode::BLINK);
 				term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
 				timeout = config::BLINKTIMEOUT;
@@ -1951,6 +1966,7 @@ void Nst::mainLoop() {
 int main(int argc, const char **argv) {
 	try {
 		nst::Nst nst;
+		xpp::Init xpp;
 		nst.run(argc, argv);
 	} catch (const std::exception &ex) {
 		std::cerr << ex.what() << std::endl;

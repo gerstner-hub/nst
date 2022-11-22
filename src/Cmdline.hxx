@@ -38,7 +38,7 @@ public: // data
 	TCLAP::ValueArg<std::string> window_geometry;
 	TCLAP::ValueArg<std::string> font;
 	TCLAP::ValueArg<std::string> iofile;
-	TCLAP::ValueArg<std::string> embed_window;
+	TCLAP::ValueArg<unsigned long> embed_window;
 	TCLAP::ValueArg<std::string> tty_line;
 	TCLAP::UnlabeledMultiArg<std::string> rest;
 };

@@ -3,6 +3,9 @@
 
 namespace nst {
 
+struct TermWindow;
+struct XWindow;
+
 /// Nst main application class
 class Nst {
 public: // functions
@@ -14,9 +17,12 @@ public: // functions
 protected: // functions
 
 	void mainLoop();
+	void waitForWindowMapping();
 
 protected: // data
 	cosmos::Init m_init;
+	TermWindow &m_term_win;
+	XWindow &m_x11;
 };
 
 } // end ns

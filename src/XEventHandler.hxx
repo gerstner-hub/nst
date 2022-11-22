@@ -4,6 +4,7 @@
 // X++
 #include "X++/Event.hxx"
 #include "xtypes.hxx"
+#include "types.hxx"
 
 namespace nst {
 
@@ -19,17 +20,17 @@ public: // functions
 
 	void process(xpp::Event &ev) {
 		switch(ev.getType()) {
-			case KeyPress: return kpress(ev);
-			case ClientMessage: return cmessage(ev);
-			case ConfigureNotify: return resize(ev);
-			case VisibilityNotify: return visibility(ev);
+			case KeyPress: return kpress(ev.toKeyEvent());
+			case ClientMessage: return cmessage(ev.toClientMessage());
+			case ConfigureNotify: return resize(ev.toConfigureNotify());
+			case VisibilityNotify: return visibility(ev.toVisibilityNotify());
 			case UnmapNotify: return unmap();
 			case Expose: return expose();
 			case FocusIn: return focus(ev);
 			case FocusOut: return focus(ev);
 			case MotionNotify: return bmotion(ev);
-			case ButtonPress: return bpress(ev);
-			case ButtonRelease: return brelease(ev);
+			case ButtonPress: return bpress(ev.toButtonEvent());
+			case ButtonRelease: return brelease(ev.toButtonEvent());
 			case SelectionNotify: return selnotify(ev);
 			/*
 			 * PropertyNotify is only turned on when there is some
@@ -43,37 +44,44 @@ public: // functions
 #ifdef SELCLEAR
 			case SelectionClear: return selclear();
 #endif
-			case SelectionRequest: return selrequest(ev);
+			case SelectionRequest: return selrequest(ev.toSelectionRequest());
 		}
 	}
 
 protected: // functions
 
 	void expose();
-	void visibility(const xpp::Event &);
+	void visibility(const XVisibilityEvent&);
 	void unmap();
-	void kpress(const xpp::Event &);
-	void cmessage(const xpp::Event &);
-	void resize(const xpp::Event &);
+	void kpress(const XKeyEvent &);
+	void cmessage(const XClientMessageEvent &);
+	void resize(const XConfigureEvent &);
 	void focus(const xpp::Event &);
-	void brelease(const xpp::Event&);
-	void bpress(const xpp::Event &);
+	void brelease(const XButtonEvent &);
+	void bpress(const XButtonEvent&);
 	void bmotion(const xpp::Event &);
 	void propnotify(const xpp::Event &);
 	void selnotify(const xpp::Event &);
 	void selclear();
-	void selrequest(const xpp::Event &);
+	void selrequest(const XSelectionRequestEvent &);
 
-	int getEventRow(const XButtonEvent &);
-	int getEventCol(const XButtonEvent &);
 	void handleMouseSelection(const XButtonEvent &, bool done = false);
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
+
+	int getEventRow(const XButtonEvent &);
+	int getEventCol(const XButtonEvent &);
+	Coord getEventCoord(const XButtonEvent &e) {
+		return Coord{getEventCol(e), getEventRow(e)};
+	}
+	static const char* getCustomKey(KeySym k, unsigned state);
+	static unsigned getButtonMask(unsigned button);
 
 protected: // data
 
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
+	Coord m_old_mouse_pos;
 };
 
 } // end ns

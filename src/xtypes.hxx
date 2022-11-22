@@ -25,11 +25,11 @@ struct MouseShortcut {
 
 struct Key {
 	KeySym k;
-	uint mask;
-	const char *s;
+	uint mask = 0;
+	const char *s = nullptr;
 	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
-	signed char appkey;    /* application keypad */
-	signed char appcursor; /* application cursor */
+	signed char appkey = 0;    /* application keypad */
+	signed char appcursor = 0; /* application cursor */
 };
 
 class PressedButtons : public std::bitset<11> {

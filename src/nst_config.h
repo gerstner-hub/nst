@@ -4,6 +4,7 @@
 // stdlib
 #include <array>
 #include <chrono>
+#include <set>
 
 // Xlib
 #include <X11/cursorfont.h>
@@ -208,7 +209,7 @@ const uint FORCEMOUSEMOD = ShiftMask;
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
  * to be mapped below, add them to this array.
  */
-constexpr std::array<KeySym, 1> MAPPEDKEYS({
+const std::set<KeySym> MAPPEDKEYS({
 	KeySym(-1)
 });
 
@@ -218,13 +219,23 @@ constexpr std::array<KeySym, 1> MAPPEDKEYS({
  */
 const uint IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
 
+// we use a multiset for the key definitions below
+// the keysym is the comparison key, so we don't have to iterate over the
+// complete list of keys linearly, buto nly over a small list of key
+// combinations that share the same keysym.
+struct KeyCmp {
+	bool operator()(const Key &a, const Key &b) const {
+		return a.k < b.k;
+	}
+};
+
 /*
- * This is the huge key array which defines all compatibility to the Linux
+ * This is the huge list of keys which defines all compatibility to the Linux
  * world. Please decide about changes wisely.
  */
-constexpr std::array<Key, 209> KEY({
+const std::multiset<Key, KeyCmp> KEYS({
 	/* keysym           mask            string      appkey appcursor */
-	Key{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
+	{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
 	{ XK_KP_Home,       ShiftMask,      "\033[1;2H",     0,   +1},
 	{ XK_KP_Home,       XK_ANY_MOD,     "\033[H",        0,   -1},
 	{ XK_KP_Home,       XK_ANY_MOD,     "\033[1~",       0,   +1},
@@ -434,19 +445,6 @@ constexpr std::array<Key, 209> KEY({
 	{ XK_F34,           XK_NO_MOD,      "\033[21;5~",    0,    0},
 	{ XK_F35,           XK_NO_MOD,      "\033[23;5~",    0,    0},
 });
-
-/*
- * Selection types' masks.
- * Use the same masks as usual.
- * Button1Mask is always unset, to make masks match between ButtonPress.
- * ButtonRelease and MotionNotify.
- * If no match is found, regular selection is used.
- */
-constexpr std::array<uint, 3> SELMASKS = {
-	0,
-	0,
-	Mod1Mask, // SEL_RECTANGULAR
-};
 
 /*
  * Printable characters in ASCII, used to estimate the advance width

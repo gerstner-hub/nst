@@ -14,6 +14,10 @@
 
 namespace nst {
 
+class Term;
+class Selection;
+struct STREscape;
+
 /* CSI (Control Sequence Introducer) Escape sequence structs */
 /* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
 struct CSIEscape {
@@ -24,6 +28,9 @@ protected: // data
 	std::vector<int> m_args;
 	std::string m_str;
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
+	Term &m_term;
+	Selection &m_selection;
+	STREscape &m_strescseq;
 
 protected: // functions
 
@@ -38,7 +45,7 @@ protected: // functions
 
 public: // functions
 
-	CSIEscape();
+	CSIEscape(Term &term, Selection &selection, STREscape &strescseq);
 
 	void handle(void);
 	void parse(void);
@@ -56,10 +63,15 @@ public: // functions
 		m_str.push_back(ch);
 		return m_str.length() >= MAX_STR_SIZE;
 	}
+
+	void reset() {
+		m_priv = false;
+		m_mode[0] = m_mode[1] = 0;
+		m_args.clear();
+		m_str.clear();
+	}
 };
 
 } // end ns
-
-extern nst::CSIEscape csiescseq;
 
 #endif // inc. guard

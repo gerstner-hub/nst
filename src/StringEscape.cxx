@@ -13,8 +13,6 @@
 // cosmos
 #include "cosmos/formatting.hxx"
 
-nst::STREscape strescseq;
-
 namespace nst {
 
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
@@ -48,7 +46,7 @@ static void osc_color_response(int index, int num) {
 }
 
 void STREscape::handle() {
-	term.resetStringEscape();
+	m_term.resetStringEscape();
 	parse();
 	const int par = m_args.empty() ? 0 : std::atoi(m_args[0]);
 	const char *p = nullptr;
@@ -92,7 +90,7 @@ void STREscape::handle() {
 			else if (xsetcolorname(config::DEFAULTFG, p))
 				std::cerr << "erresc: invalid foreground color: " << p << "\n";
 			else
-				term.redraw();
+				m_term.redraw();
 			return;
 		case 11:
 			if (m_args.size() < 2)
@@ -105,7 +103,7 @@ void STREscape::handle() {
 			else if (xsetcolorname(config::DEFAULTBG, p))
 				std::cerr << "erresc: invalid background color: " << p << "%s\n";
 			else
-				term.redraw();
+				m_term.redraw();
 			return;
 		case 12:
 			if (m_args.size() < 2)
@@ -118,7 +116,7 @@ void STREscape::handle() {
 			else if (xsetcolorname(config::DEFAULTCS, p))
 				std::cerr << "erresc: invalid cursor color: " << p << "\n";
 			else
-				term.redraw();
+				m_term.redraw();
 			return;
 		case 4: /* color set */
 			if (m_args.size() < 3)
@@ -139,7 +137,7 @@ void STREscape::handle() {
 				 * TODO if defaultbg color is changed, borders
 				 * are dirty
 				 */
-				term.redraw();
+				m_term.redraw();
 			}
 			return;
 		}
@@ -215,7 +213,7 @@ void STREscape::add(const char *ch, size_t len) {
 		 * In the case users ever get fixed, here is the code:
 		 */
 		/*
-		 * term.m_esc_state.reset();
+		 * m_term.m_esc_state.reset();
 		 * handle();
 		 */
 		if (m_str.size() > (SIZE_MAX - utf8::UTF_SIZE) / 2)

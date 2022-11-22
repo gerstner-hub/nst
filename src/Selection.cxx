@@ -17,15 +17,12 @@
 
 using cosmos::in_range;
 
-nst::Selection g_sel;
-
 namespace nst {
 
 typedef Glyph::Attr Attr;
 
-Selection::Selection() {
+Selection::Selection(Term &term) : m_term(term) {
 	m_orig.invalidate();
-	m_term = &term;
 	m_tty = &Nst::getTTY();
 }
 
@@ -35,11 +32,11 @@ void Selection::clear() {
 
 	m_mode = Mode::IDLE;
 	m_orig.invalidate();
-	m_term->setDirty(m_normal.begin.y, m_normal.end.y);
+	m_term.setDirty(m_normal.begin.y, m_normal.end.y);
 }
 
 bool Selection::isSelected(int x, int y) const {
-	if (inEmptyMode() || !m_orig.isValid() || m_alt_screen != m_term->getMode().test(Term::Mode::ALTSCREEN))
+	if (inEmptyMode() || !m_orig.isValid() || m_alt_screen != m_term.getMode().test(Term::Mode::ALTSCREEN))
 		return 0;
 	else if (isRectType())
 		return in_range(y, m_normal.begin.y, m_normal.end.y) && in_range(x, m_normal.begin.x, m_normal.end.x);
@@ -53,7 +50,7 @@ void Selection::start(int col, int row, Snap snap) {
 	clear();
 	m_mode = Mode::EMPTY;
 	m_type = Type::REGULAR;
-	m_alt_screen = m_term->getMode().test(Term::Mode::ALTSCREEN);
+	m_alt_screen = m_term.getMode().test(Term::Mode::ALTSCREEN);
 	m_snap = snap;
 	m_orig.begin.set(col, row);
 	m_orig.end.set(col, row);
@@ -62,7 +59,7 @@ void Selection::start(int col, int row, Snap snap) {
 	if (m_snap != Snap::NONE)
 		m_mode = Mode::READY;
 
-	m_term->setDirty(m_normal.begin.y, m_normal.end.y);
+	m_term.setDirty(m_normal.begin.y, m_normal.end.y);
 }
 
 void Selection::normalize(void) {
@@ -83,14 +80,14 @@ void Selection::normalize(void) {
 	/* expand selection over line breaks */
 	if (isRectType())
 		return;
-	const auto len = m_term->getLineLen(m_normal.begin.y);
+	const auto len = m_term.getLineLen(m_normal.begin.y);
 	m_normal.begin.x = std::min(m_normal.begin.x, len);
-	if (m_term->getLineLen(m_normal.end.y) <= m_normal.end.x)
-		m_normal.end.x = m_term->getNumCols() - 1;
+	if (m_term.getLineLen(m_normal.end.y) <= m_normal.end.x)
+		m_normal.end.x = m_term.getNumCols() - 1;
 }
 
 void Selection::checkSnap(Coord &c, const int direction) const {
-	const auto &screen = m_term->getScreen();
+	const auto &screen = m_term.getScreen();
 
 	switch (m_snap) {
 	default: break;
@@ -105,11 +102,11 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 		int delim;
 		while(true) {
 			newc.set(c.x + direction, c.y);
-			const auto tcols = m_term->getNumCols();
+			const auto tcols = m_term.getNumCols();
 			if (!in_range(newc.x, 0, tcols - 1)) {
 				newc.y += direction;
 				newc.x = (newc.x + tcols) % tcols;
-				if (!in_range(newc.y, 0, m_term->getNumRows() - 1))
+				if (!in_range(newc.y, 0, m_term.getNumRows() - 1))
 					break;
 
 				if (direction > 0)
@@ -120,7 +117,7 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 					break;
 			}
 
-			if (newc.x >= m_term->getLineLen(newc.y))
+			if (newc.x >= m_term.getLineLen(newc.y))
 				break;
 
 			const Glyph *gp = &screen[newc.y][newc.x];
@@ -135,7 +132,7 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 		}
 		break;
 	} case Snap::LINE: {
-		const auto tcols = m_term->getNumCols();
+		const auto tcols = m_term.getNumCols();
 		/*
 		 * Snap around if the the previous line or the current one
 		 * has set WRAP at its end. Then the whole next or previous
@@ -149,7 +146,7 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 				}
 			}
 		} else if (direction > 0) {
-			for (; c.y < m_term->getNumRows()-1; c.y += direction) {
+			for (; c.y < m_term.getNumRows()-1; c.y += direction) {
 				if (!(screen[c.y][tcols-1].mode[Attr::WRAP])) {
 					break;
 				}
@@ -178,7 +175,7 @@ void Selection::extend(int col, int row, const Type &type, const bool &done) {
 	m_type = type;
 
 	if (old_end.y != m_orig.end.y || old_end.x != m_orig.end.x || oldtype != m_type || inEmptyMode())
-		m_term->setDirty(std::min(m_normal.begin.y, oldsby), std::max(m_normal.end.y, oldsey));
+		m_term.setDirty(std::min(m_normal.begin.y, oldsby), std::max(m_normal.end.y, oldsey));
 
 	m_mode = done ? Mode::IDLE : Mode::READY;
 }
@@ -187,13 +184,13 @@ void Selection::scroll(int orig, int n) {
 	if (!m_orig.isValid())
 		return;
 
-	if (in_range(m_normal.begin.y, orig, m_term->bottomScrollLimit()) != in_range(m_normal.end.y, orig, m_term->bottomScrollLimit())) {
+	if (in_range(m_normal.begin.y, orig, m_term.bottomScrollLimit()) != in_range(m_normal.end.y, orig, m_term.bottomScrollLimit())) {
 		clear();
-	} else if (in_range(m_normal.begin.y, orig, m_term->bottomScrollLimit())) {
+	} else if (in_range(m_normal.begin.y, orig, m_term.bottomScrollLimit())) {
 		m_orig.begin.y += n;
 		m_orig.end.y += n;
-		if (m_orig.begin.y < m_term->topScrollLimit() || m_orig.begin.y > m_term->bottomScrollLimit() ||
-		    m_orig.end.y < m_term->topScrollLimit() || m_orig.end.y > m_term->bottomScrollLimit()) {
+		if (m_orig.begin.y < m_term.topScrollLimit() || m_orig.begin.y > m_term.bottomScrollLimit() ||
+		    m_orig.end.y < m_term.topScrollLimit() || m_orig.end.y > m_term.bottomScrollLimit()) {
 			clear();
 		} else {
 			normalize();
@@ -205,8 +202,8 @@ char* Selection::getSelection() const {
 	if (!m_orig.isValid())
 		return nullptr;
 
-	const auto &screen = m_term->getScreen();
-	const size_t bufsize = (m_term->getNumCols()+1) * (m_normal.end.y - m_normal.begin.y+1) * utf8::UTF_SIZE;
+	const auto &screen = m_term.getScreen();
+	const size_t bufsize = (m_term.getNumCols()+1) * (m_normal.end.y - m_normal.begin.y+1) * utf8::UTF_SIZE;
 	char *str = new char[bufsize];
 	char *ptr = str;
 	const Glyph *gp, *last;
@@ -214,7 +211,7 @@ char* Selection::getSelection() const {
 
 	/* append every set & selected glyph to the selection */
 	for (int y = m_normal.begin.y; y <= m_normal.end.y; y++) {
-		if ((linelen = m_term->getLineLen(y)) == 0) {
+		if ((linelen = m_term.getLineLen(y)) == 0) {
 			*ptr++ = '\n';
 			continue;
 		}
@@ -224,7 +221,7 @@ char* Selection::getSelection() const {
 			lastx = m_normal.end.x;
 		} else {
 			gp = &screen[y][m_normal.begin.y == y ? m_normal.begin.x : 0];
-			lastx = (m_normal.end.y == y) ? m_normal.end.x : m_term->getNumCols() - 1;
+			lastx = (m_normal.end.y == y) ? m_normal.end.x : m_term.getNumCols() - 1;
 		}
 		last = &screen[y][std::min(lastx, linelen-1)];
 		while (last >= gp && last->u == ' ')

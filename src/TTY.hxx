@@ -14,6 +14,7 @@
 
 namespace nst {
 
+class Term;
 class Cmdline;
 
 class TTY {
@@ -21,7 +22,7 @@ class TTY {
 
 protected: // data
 
-	Term *m_term = &term;
+	Term &m_term;
 	cosmos::SubProc m_child_proc;
 	cosmos::StreamFile m_io_file;
 	/// master end of pty
@@ -33,6 +34,7 @@ protected: // data
 
 public: // functions
 
+	TTY(Term *term) : m_term(*term) {}
 	~TTY();
 	cosmos::FileDescriptor create(const Cmdline &cmdline);
 	size_t read();

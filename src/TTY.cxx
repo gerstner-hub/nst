@@ -101,7 +101,7 @@ void TTY::setupIOFile(const std::string &path) {
 		return;
 	}
 
-	m_term->setPrintMode(true);
+	m_term.setPrintMode(true);
 
 	if (path == "-") {
 		m_io_file = cosmos::StreamFile(cosmos::stdout, false);
@@ -149,7 +149,7 @@ size_t TTY::read() {
 			exit(0);
 		default:
 			m_buf_bytes += ret;
-			auto written = m_term->write(m_buf, m_buf_bytes, 0);
+			auto written = m_term.write(m_buf, m_buf_bytes, 0);
 			m_buf_bytes -= written;
 			/* keep any incomplete UTF-8 byte sequence for the next call */
 			if (m_buf_bytes > 0)
@@ -164,10 +164,10 @@ size_t TTY::read() {
 
 void TTY::write(const char *s, size_t n, bool may_echo) {
 
-	auto &mode = m_term->getMode();
+	auto &mode = m_term.getMode();
 
 	if (may_echo && mode[Term::Mode::TECHO])
-		m_term->write(s, n, 1);
+		m_term.write(s, n, 1);
 
 	if (!mode[Term::Mode::CRLF]) {
 		writeRaw(s, n);
@@ -252,7 +252,7 @@ void TTY::writeRaw(const char *s, size_t n) {
 }
 
 void TTY::resize(size_t tw, size_t th) {
-	cosmos::TermDimension dim(m_term->getNumCols(), m_term->getNumRows());
+	cosmos::TermDimension dim(m_term.getNumCols(), m_term.getNumRows());
 	// according to the man page these fields are unused, but it seems nst
 	// wants to use them anyway
 	dim.ws_xpixel = tw;

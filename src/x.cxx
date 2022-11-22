@@ -293,7 +293,7 @@ void zoomabs(const Arg *arg) {
 	xunloadfonts();
 	xloadfontsOrThrow(cmdline.font.getValue(), arg->f);
 	cresize(0, 0);
-	term.redraw();
+	Nst::getTerm().redraw();
 	xhints();
 }
 
@@ -311,15 +311,16 @@ void ttysend(const Arg *arg) {
 }
 
 void toggleprinter(const Arg *) {
+	auto &term = Nst::getTerm();
 	term.setPrintMode(!term.isPrintMode());
 }
 
 void printscreen(const Arg *) {
-	term.dump();
+	Nst::getTerm().dump();
 }
 
 void printsel(const Arg *) {
-	g_sel.dump();
+	Nst::getSelection().dump();
 }
 
 int evcol(XEvent *e) {
@@ -344,9 +345,10 @@ static void mousesel(XEvent *e, bool done) {
 			break;
 		}
 	}
-	g_sel.extend(evcol(e), evrow(e), seltype, done);
+	auto &sel = Nst::getSelection();
+	sel.extend(evcol(e), evrow(e), seltype, done);
 	if (done) {
-		setsel(g_sel.getSelection(), e->xbutton.time);
+		setsel(sel.getSelection(), e->xbutton.time);
 	}
 }
 
@@ -472,7 +474,7 @@ void bpress(XEvent *e) {
 		xsel.tclick2 = xsel.tclick1;
 		xsel.tclick1.mark();
 
-		g_sel.start(evcol(e), evrow(e), snap);
+		Nst::getSelection().start(evcol(e), evrow(e), snap);
 	}
 }
 
@@ -582,7 +584,7 @@ void xclipcopy(void) {
 
 [[maybe_unused]]
 void selclear_(XEvent *) {
-	g_sel.clear();
+	Nst::getSelection().clear();
 }
 
 void selrequest(XEvent *e) {
@@ -651,7 +653,7 @@ void setsel(char *str, Time t) {
 
 	XSetSelectionOwner(getDisplay(), XA_PRIMARY, x11.win, t);
 	if (XGetSelectionOwner(getDisplay(), XA_PRIMARY) != x11.win)
-		g_sel.clear();
+		Nst::getSelection().clear();
 }
 
 void xsetsel(char *str) {
@@ -696,7 +698,7 @@ void cresize(int width, int height) {
 	col = std::max(1, col);
 	row = std::max(1, row);
 
-	term.resize(col, row);
+	Nst::getTerm().resize(col, row);
 	xresize(col, row);
 	Nst::getTTY().resize(twin.tw, twin.th);
 }
@@ -1442,8 +1444,10 @@ void xdrawglyph(Glyph g, int x, int y) {
 
 void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 
+	auto &sel = Nst::getSelection();
+
 	/* remove the old cursor */
-	if (g_sel.isSelected(ox, oy))
+	if (sel.isSelected(ox, oy))
 		og.mode.flip(Attr::REVERSE);
 	xdrawglyph(og, ox, oy);
 
@@ -1459,7 +1463,7 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	if (twin.mode[WinMode::REVERSE]) {
 		g.mode.set(Attr::REVERSE);
 		g.bg = config::DEFAULTFG;
-		if (g_sel.isSelected(cx, cy)) {
+		if (sel.isSelected(cx, cy)) {
 			drawcol = dc.col[config::DEFAULTCS];
 			g.fg = config::DEFAULTRCS;
 		} else {
@@ -1467,7 +1471,7 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 			g.fg = config::DEFAULTCS;
 		}
 	} else {
-		if (g_sel.isSelected(cx, cy)) {
+		if (sel.isSelected(cx, cy)) {
 			g.fg = config::DEFAULTFG;
 			g.bg = config::DEFAULTRCS;
 		} else {
@@ -1569,7 +1573,7 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 		newone = line[x];
 		if (newone.mode.only(Attr::WDUMMY))
 			continue;
-		if (g_sel.isSelected(x, y1))
+		if (Nst::getSelection().isSelected(x, y1))
 			newone.mode.flip(Attr::REVERSE);
 		if (i > 0 && base.attrsDiffer(newone)) {
 			xdrawglyphfontspecs(specs, base, i, ox, y1);
@@ -1605,7 +1609,7 @@ void xximspot(int x, int y) {
 }
 
 void expose(XEvent *) {
-	term.redraw();
+	Nst::getTerm().redraw();
 }
 
 void visibility(XEvent *ev) {
@@ -1627,7 +1631,7 @@ void xsetmode(bool set, const WinMode &flag) {
 	auto mode = twin.mode;
 	twin.mode.set(flag, set);
 	if (twin.mode[WinMode::REVERSE] != mode[WinMode::REVERSE])
-		term.redraw();
+		Nst::getTerm().redraw();
 }
 
 void xsetcursor(const CursorStyle &cursor) {
@@ -1815,26 +1819,31 @@ void fixup_colornames() {
 	}
 }
 
-void applyCmdline(const Cmdline &cmd) {
+void Nst::applyCmdline(const Cmdline &cmd) {
 	if (cmd.use_alt_screen.isSet()) {
-		term.setAllowAltScreen(cmd.use_alt_screen.getValue());
+		m_term.setAllowAltScreen(cmd.use_alt_screen.getValue());
 	} else {
-		term.setAllowAltScreen(config::ALLOWALTSCREEN);
+		m_term.setAllowAltScreen(config::ALLOWALTSCREEN);
 	}
 
 	if (cmd.fixed_geometry.isSet()) {
-		x11.isfixed = true;
+		m_x11.isfixed = true;
 	}
 
 	if (cmd.window_geometry.isSet()) {
-		x11.gm = XParseGeometry(
+		m_x11.gm = XParseGeometry(
 			cmd.window_geometry.getValue().c_str(),
 			&x11.l, &x11.t, &cols, &rows
 		);
 	}
 }
 
-Nst::Nst() : m_term_win(twin), m_x11(x11) {
+Nst::Nst() :
+		m_term_win(twin),
+		m_x11(x11),
+		m_tty(&m_term),
+		m_term(m_tty, m_selection),
+		m_selection(m_term) {
 	if (the_instance) {
 		cosmos_throw (cosmos::UsageError("more than once Nst instances alive"));
 	}
@@ -1847,7 +1856,7 @@ void Nst::run(int argc, const char **argv) {
 	cmdline.parse(argc, argv);
 	cols = std::max(cols, 1U);
 	rows = std::max(rows, 1U);
-	term = Term(cols, rows);
+	m_term.init(cols, rows);
 	applyCmdline(cmdline);
 
 	setlocale(LC_CTYPE, "");
@@ -1933,19 +1942,19 @@ void Nst::mainLoop() {
 
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = std::chrono::milliseconds(-1);
-		if (config::BLINKTIMEOUT.count() > 0 && term.testAttrSet(Attr::BLINK)) {
+		if (config::BLINKTIMEOUT.count() > 0 && m_term.testAttrSet(Attr::BLINK)) {
 			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */
 					m_term_win.mode.set(WinMode::BLINK);
 				m_term_win.mode.flip(WinMode::BLINK);
-				term.setDirtyByAttr(Attr::BLINK);
+				m_term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
 				timeout = config::BLINKTIMEOUT;
 			}
 		}
 
-		term.draw();
+		m_term.draw();
 		display.flush();
 		drawing = false;
 	}

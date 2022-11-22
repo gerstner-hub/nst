@@ -7,7 +7,9 @@
 
 // nst
 #include "types.hxx"
+#include "CSIEscape.hxx"
 #include "Glyph.hxx"
+#include "StringEscape.hxx"
 
 // libcosmos
 #include "cosmos/BitMask.hxx"
@@ -78,8 +80,8 @@ public: // types
 
 protected: // data
 
-	Selection *m_selection = nullptr;
-	TTY *m_tty = nullptr;
+	Selection &m_selection;
+	TTY &m_tty;
 	Coord m_old_cursor_pos;
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
@@ -100,12 +102,19 @@ protected: // data
 	int m_cols = 0;           /* nb col */
 	std::vector<Line> m_alt_screen;
 	std::vector<Line> m_screen;
+	STREscape m_strescseq;
+	CSIEscape m_csiescseq;
 
 public: // functions
 
-	Term() {}
+	Term(TTY &tty, Selection &sel) :
+		m_selection(sel),
+		m_tty(tty),
+		m_strescseq(*this),
+		m_csiescseq(*this,
+				sel, m_strescseq) {}
 
-	Term(int cols, int rows);
+	void init(int cols, int rows);
 
 	void resize(int cols, int rows);
 
@@ -254,7 +263,5 @@ protected: // functions
 };
 
 } // end ns
-
-extern nst::Term term;
 
 #endif // inc. guard

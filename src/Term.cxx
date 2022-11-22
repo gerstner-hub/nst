@@ -11,7 +11,6 @@
 
 // nst
 #include "codecs.hxx"
-#include "CSIEscape.hxx"
 #include "nst_config.h"
 #include "Selection.hxx"
 #include "StringEscape.hxx"
@@ -21,8 +20,6 @@
 #include "win.h"
 
 using cosmos::in_range;
-
-nst::Term term;
 
 namespace {
 
@@ -49,10 +46,8 @@ Term::TCursor::TCursor() {
 	attr.bg = config::DEFAULTBG;
 }
 
-Term::Term(int cols, int rows) :
-	m_selection(&g_sel),
-	m_tty(&Nst::getTTY()) {
 
+void Term::init(int cols, int rows) {
 	resize(cols, rows);
 	reset();
 }
@@ -169,8 +164,8 @@ void Term::clearRegion(Range range) {
 		m_dirty_lines[y] = true;
 		for (auto x = range.begin.x; x <= range.end.x; x++) {
 			auto &gp = m_screen[y][x];
-			if (m_selection->isSelected(x, y))
-				m_selection->clear();
+			if (m_selection.isSelected(x, y))
+				m_selection.clear();
 			gp.fg = m_cursor.attr.fg;
 			gp.bg = m_cursor.attr.bg;
 			gp.mode.reset();
@@ -327,7 +322,7 @@ void Term::scrollDown(int orig, int n)
 		std::swap(m_screen[i], m_screen[i-n]);
 	}
 
-	m_selection->scroll(orig, n);
+	m_selection.scroll(orig, n);
 }
 
 void Term::scrollUp(int orig, int n)
@@ -341,7 +336,7 @@ void Term::scrollUp(int orig, int n)
 		std::swap(m_screen[i], m_screen[i+n]);
 	}
 
-	m_selection->scroll(orig, -n);
+	m_selection.scroll(orig, -n);
 }
 
 void Term::setAttr(const std::vector<int> &attr) {
@@ -433,7 +428,7 @@ void Term::setAttr(const std::vector<int> &attr) {
 				m_cursor.attr.bg = attr[i] - 100 + 8;
 			} else {
 				std::cerr << "erresc(default): gfx attr " << attr[i] << " unknown\n",
-				csiescseq.dump("");
+				m_csiescseq.dump("");
 			}
 			break;
 		}
@@ -612,9 +607,9 @@ void Term::dumpLine(size_t n) const {
 	auto end = bp + std::min(getLineLen(n), m_cols) - 1;
 	if (bp != end || bp->u != ' ') {
 		for ( ; bp <= end; ++bp)
-			m_tty->printToIoFile(buf, utf8::encode(bp->u, buf));
+			m_tty.printToIoFile(buf, utf8::encode(bp->u, buf));
 	}
-	m_tty->printToIoFile("\n", 1);
+	m_tty.printToIoFile("\n", 1);
 }
 
 bool Term::testAttrSet(const Glyph::Attr &attr) const {
@@ -697,7 +692,7 @@ void Term::strSequence(unsigned char ch) {
 		break;
 	}
 
-	strescseq.reset(ch);
+	m_strescseq.reset(ch);
 	m_esc_state.set(Escape::STR);
 }
 
@@ -779,13 +774,13 @@ void Term::handleControlCode(unsigned char ascii) {
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {
 			/* backwards compatibility to xterm */
-			strescseq.handle();
+			m_strescseq.handle();
 		} else {
 			xbell();
 		}
 		break;
 	case '\033': /* ESC */
-		csiescseq = CSIEscape();
+		m_csiescseq.reset();
 		m_esc_state.reset({Escape::CSI, Escape::ALTCHARSET, Escape::TEST});
 		m_esc_state.set(Escape::START);
 		return;
@@ -797,7 +792,7 @@ void Term::handleControlCode(unsigned char ascii) {
 		setChar('?', m_cursor.attr, m_cursor.pos);
 		/* FALLTHROUGH */
 	case '\030': /* CAN */
-		csiescseq = CSIEscape();
+		m_csiescseq.reset();
 		break;
 	case '\005': /* ENQ (IGNORED) */
 	case '\000': /* NUL (IGNORED) */
@@ -838,7 +833,7 @@ void Term::handleControlCode(unsigned char ascii) {
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		m_tty->write(config::VTIDEN, strlen(config::VTIDEN), 0);
+		m_tty.write(config::VTIDEN, strlen(config::VTIDEN), 0);
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -870,7 +865,7 @@ void Term::putChar(Rune u) {
 	}
 
 	if (m_mode[Mode::PRINT])
-		m_tty->printToIoFile(ch, len);
+		m_tty.printToIoFile(ch, len);
 
 	/*
 	 * STR sequence must be checked before anything else because it uses
@@ -882,7 +877,7 @@ void Term::putChar(Rune u) {
 			m_esc_state.reset({Escape::START, Escape::STR});
 			m_esc_state.set(Escape::STR_END);
 		} else {
-			strescseq.add(ch, len);
+			m_strescseq.add(ch, len);
 			return;
 		}
 	}
@@ -902,11 +897,11 @@ void Term::putChar(Rune u) {
 		return;
 	} else if (m_esc_state[Escape::START]) {
 		if (m_esc_state[Escape::CSI]) {
-			const bool max_reached = csiescseq.add(u);
+			const bool max_reached = m_csiescseq.add(u);
 			if (max_reached || in_range(u, 0x40, 0x7E)) {
 				m_esc_state.reset();
-				csiescseq.parse();
-				csiescseq.handle();
+				m_csiescseq.parse();
+				m_csiescseq.handle();
 			}
 			return;
 		} else if (m_esc_state[Escape::UTF8]) {
@@ -922,7 +917,7 @@ void Term::putChar(Rune u) {
 			setDefTran(u);
 		} else if (m_esc_state[Escape::TEST]) {
 			decTest(u);
-		} else if (!csiescseq.eschandle(u)) {
+		} else if (!m_csiescseq.eschandle(u)) {
 			return;
 			/* sequence already finished */
 		}
@@ -936,8 +931,8 @@ void Term::putChar(Rune u) {
 		return;
 	}
 
-	if (m_selection->isSelected(m_cursor.pos.x, m_cursor.pos.y))
-		m_selection->clear();
+	if (m_selection.isSelected(m_cursor.pos.x, m_cursor.pos.y))
+		m_selection.clear();
 
 	Glyph *gp = &getGlyphAt(m_cursor.pos);
 	if (m_mode[Mode::WRAP] && m_cursor.state[TCursor::State::WRAPNEXT]) {

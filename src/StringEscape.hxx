@@ -13,6 +13,8 @@
 
 namespace nst {
 
+class Term;
+
 /* STR Escape sequence structs */
 /* ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\' */
 struct STREscape {
@@ -21,9 +23,11 @@ protected: // data
 	std::string m_str; /* raw string */
 	std::vector<const char*> m_args;
 	char m_esc_type = 0;
+	Term &m_term;
 
 public: // functions
 
+	STREscape(Term &term) : m_term(term) {}
 	void reset(const char type);
 	void add(const char *ch, size_t len);
 	void handle();
@@ -36,7 +40,5 @@ protected: // functions
 };
 
 } // end ns
-
-extern nst::STREscape strescseq;
 
 #endif // inc. guard

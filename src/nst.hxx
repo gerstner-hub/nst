@@ -5,12 +5,15 @@
 #include "cosmos/Init.hxx"
 
 // nst
+#include "Selection.hxx"
+#include "Term.hxx"
 #include "TTY.hxx"
 
 namespace nst {
 
 struct TermWindow;
 struct X11;
+class Cmdline;
 
 /// Nst main application class
 class Nst {
@@ -23,17 +26,22 @@ public: // functions
 	// accessors to global-like objects until refactoring reaches a state
 	// where this becomes unnecessary
 	static TTY& getTTY() { return the_instance->m_tty; }
+	static Term& getTerm() { return the_instance->m_term; }
+	static Selection& getSelection() { return the_instance->m_selection; }
 
 protected: // functions
 
 	void mainLoop();
 	void waitForWindowMapping();
+	void applyCmdline(const Cmdline &cmd);
 
 protected: // data
 	cosmos::Init m_init;
 	TermWindow &m_term_win;
 	X11 &m_x11;
 	TTY m_tty;
+	Term m_term;
+	Selection m_selection;
 	static Nst *the_instance;
 };
 

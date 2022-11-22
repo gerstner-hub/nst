@@ -35,7 +35,7 @@ protected: // types
 
 protected: // data
 
-	Term *m_term = nullptr;
+	Term &m_term;
 	TTY *m_tty = nullptr;
 	bool m_alt_screen = false;
 	Snap m_snap = Snap::WORD;
@@ -52,7 +52,7 @@ protected: // data
 
 public: // functions
 
-	Selection();
+	Selection(Term &term);
 
 	void clear();
 
@@ -80,7 +80,5 @@ protected: // functions
 };
 
 } // end ns
-
-extern nst::Selection g_sel;
 
 #endif // inc. guard

@@ -34,7 +34,7 @@ namespace nst {
 using cosmos::ApiError;
 
 // TODO: check if we can C++ify this callback
-void sendbreak(const Arg *) {
+void sendbreak() {
 	Nst::getTTY().sendBreak();
 }
 

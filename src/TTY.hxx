@@ -18,7 +18,7 @@ class Term;
 class Cmdline;
 
 class TTY {
-	friend void sendbreak(const Arg*);
+	friend void sendbreak();
 
 protected: // data
 

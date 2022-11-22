@@ -123,7 +123,7 @@ inline Atom getAtom(const char *name) {
 
 Nst *Nst::the_instance = nullptr;
 
-void clipcopy(const Arg *) {
+void clipcopy() {
 	xsel.clipboard.clear();
 
 	if (!xsel.primary.empty()) {
@@ -133,59 +133,54 @@ void clipcopy(const Arg *) {
 	}
 }
 
-void clippaste(const Arg *) {
+void clippaste() {
 	Atom clipboard = getAtom("CLIPBOARD");
 	XConvertSelection(getDisplay(), clipboard, xsel.xtarget, clipboard,
 			x11.win, CurrentTime);
 }
 
-void selpaste(const Arg *) {
+void selpaste() {
 	XConvertSelection(getDisplay(), XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
 			x11.win, CurrentTime);
 }
 
-void numlock(const Arg *) {
+void numlock() {
 	twin.mode.flip(WinMode::NUMLOCK);
 }
 
-void zoom(const Arg *arg) {
-	Arg larg;
-
-	larg.f = (float)usedfontsize + arg->f;
-	zoomabs(&larg);
+void zoom(float val) {
+	val += (float)usedfontsize;
+	zoomabs(val);
 }
 
-void zoomabs(const Arg *arg) {
+void zoomabs(float val) {
 	xunloadfonts();
-	xloadfontsOrThrow(cmdline.font.getValue(), arg->f);
+	xloadfontsOrThrow(cmdline.font.getValue(), val);
 	cresize(0, 0);
 	Nst::getTerm().redraw();
 	xhints();
 }
 
-void zoomreset(const Arg *) {
-
+void zoomreset() {
 	if (defaultfontsize > 0) {
-		Arg larg;
-		larg.f = defaultfontsize;
-		zoomabs(&larg);
+		zoomabs(defaultfontsize);
 	}
 }
 
-void ttysend(const Arg *arg) {
-	Nst::getTTY().write(arg->s, strlen(arg->s), 1);
+void ttysend(const char *s) {
+	Nst::getTTY().write(s, strlen(s), 1);
 }
 
-void toggleprinter(const Arg *) {
+void toggleprinter() {
 	auto &term = Nst::getTerm();
 	term.setPrintMode(!term.isPrintMode());
 }
 
-void printscreen(const Arg *) {
+void printscreen() {
 	Nst::getTerm().dump();
 }
 
-void printsel(const Arg *) {
+void printsel() {
 	Nst::getSelection().dump();
 }
 
@@ -206,7 +201,7 @@ const char* getColorName(size_t nr) {
 }
 
 void xclipcopy(void) {
-	clipcopy(nullptr);
+	clipcopy();
 }
 void setsel(char *str, Time t) {
 	if (!str)
@@ -1236,7 +1231,7 @@ bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 
 		if ( match(ms.mod, state) ||  /* exact or forced */
 		     match(ms.mod, state & ~config::FORCEMOUSEMOD)) {
-			ms.func(&(ms.arg));
+			ms.func();
 			return true;
 		}
 	}
@@ -1398,7 +1393,7 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 	/* 1. shortcuts */
 	for (auto &sc: config::SHORTCUTS) {
 		if (ksym == sc.keysym && match(sc.mod, ev.state)) {
-			sc.func(&(sc.arg));
+			sc.func();
 			return;
 		}
 	}

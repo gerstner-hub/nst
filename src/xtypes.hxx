@@ -3,25 +3,26 @@
 
 // stdlib
 #include <bitset>
+#include <functional>
 
 // libc
 #include <limits.h>
 
 namespace nst {
 
+typedef std::function<void ()> Callback;
+
 /* types used in nst_config.h */
 struct Shortcut {
 	uint mod;
 	KeySym keysym;
-	void (*func)(const Arg *);
-	const Arg arg;
+	Callback func;
 };
 
 struct MouseShortcut {
 	uint mod;
 	uint button;
-	void (*func)(const Arg *);
-	const Arg arg;
+	Callback func;
 	bool  release;
 };
 

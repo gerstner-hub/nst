@@ -1854,50 +1854,50 @@ void Nst::run(int argc, const char **argv) {
 void Nst::mainLoop() {
 	auto ttyfd = g_tty.create(cmdline);
 
-	waitForWindowMapping();
-
+	auto &display = *x11.display;
 	auto childfd = g_tty.getChildFD();
-	auto xfd = cosmos::FileDescriptor(XConnectionNumber(getDisplay()));
-	cosmos::Poller poller;
+	auto xfd = display.getConnectionNumber();
 
+	cosmos::Poller poller;
 	poller.create();
 	for (auto fd: {ttyfd, xfd, childfd}) {
 		poller.addFD(fd, cosmos::Poller::MonitorMask({cosmos::Poller::MonitorSetting::INPUT}));
 	}
 
-	XEvent ev;
+	xpp::Event ev;
 	bool drawing = false;
 	cosmos::MonotonicStopWatch draw_watch, blink_watch(cosmos::MonotonicStopWatch::InitialMark(true));
 	std::chrono::milliseconds timeout(-1);
 
+	waitForWindowMapping();
+
 	while (true) {
-		if (XPending(getDisplay()))
+		if (display.hasPendingEvents())
 			timeout = std::chrono::milliseconds(0);  /* existing events might not set xfd */
 
 		auto events = poller.wait(timeout.count() >= 0 ?
 				std::optional<std::chrono::milliseconds>(timeout) :
 				std::nullopt);
 
-		bool tty_ev = false;
-		bool x_ev = false;
+		bool draw_event = false;
 
 		for (const auto &event: events) {
 			if (event.fd() == childfd)
 				g_tty.sigChildEvent();
 			else if (event.fd() == ttyfd) {
 				g_tty.read();
-				tty_ev = true;
+				draw_event = true;
 			}
 		}
 
-		while (XPending(getDisplay())) {
-			x_ev = true;
-			XNextEvent(getDisplay(), &ev);
-			if (XFilterEvent(&ev, None))
+		while (display.hasPendingEvents()) {
+			draw_event = true;
+			display.getNextEvent(ev);
+			if (ev.filterEvent())
 				continue;
-			else if (auto it = handlers.find(ev.type); it != handlers.end()) {
+			else if (auto it = handlers.find(ev.getType()); it != handlers.end()) {
 				auto handler = it->second;
-				handler(&ev);
+				handler(ev.raw());
 			}
 		}
 
@@ -1912,7 +1912,7 @@ void Nst::mainLoop() {
 		 * maximum latency intervals during `cat huge.txt`, and perfect
 		 * sync with periodic updates from animations/key-repeats/etc.
 		 */
-		if (tty_ev || x_ev) {
+		if (draw_event) {
 			if (!drawing) {
 				draw_watch.mark();
 				drawing = true;
@@ -1940,7 +1940,7 @@ void Nst::mainLoop() {
 		}
 
 		term.draw();
-		XFlush(getDisplay());
+		display.flush();
 		drawing = false;
 	}
 }

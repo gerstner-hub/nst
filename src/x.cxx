@@ -19,7 +19,6 @@
 #include <string>
 
 // cosmos
-#include "cosmos/Init.hxx"
 #include "cosmos/algs.hxx"
 #include "cosmos/types.hxx"
 #include "cosmos/errors/ApiError.hxx"
@@ -255,6 +254,8 @@ inline Atom getAtom(const char *name) {
 }
 
 } // end anon ns
+  //
+Nst *Nst::the_instance = nullptr;
 
 void clipcopy(const Arg *) {
 	xsel.clipboard.clear();
@@ -306,7 +307,7 @@ void zoomreset(const Arg *) {
 }
 
 void ttysend(const Arg *arg) {
-	g_tty.write(arg->s, strlen(arg->s), 1);
+	Nst::getTTY().write(arg->s, strlen(arg->s), 1);
 }
 
 void toggleprinter(const Arg *) {
@@ -417,7 +418,7 @@ void mousereport(XEvent *e) {
 		return;
 	}
 
-	g_tty.write(buf, len, false);
+	Nst::getTTY().write(buf, len, false);
 }
 
 uint buttonmask(uint button) {
@@ -505,6 +506,7 @@ void selnotify(XEvent *e) {
 	Atom type;
 	const Atom incratom = getAtom("INCR");
 	int format;
+	auto &tty = Nst::getTTY();
 
 	do {
 		if (XGetWindowProperty(getDisplay(), x11.win, property, ofs,
@@ -558,10 +560,10 @@ void selnotify(XEvent *e) {
 		}
 
 		if (twin.mode[WinMode::BRCKTPASTE] && ofs == 0)
-			g_tty.write("\033[200~", 6, 0);
-		g_tty.write((char *)data, nitems * format / 8, 1);
+			tty.write("\033[200~", 6, 0);
+		tty.write((char *)data, nitems * format / 8, 1);
 		if (twin.mode[WinMode::BRCKTPASTE] && rem == 0)
-			g_tty.write("\033[201~", 6, 0);
+			tty.write("\033[201~", 6, 0);
 		XFree(data);
 		/* number of 32-bit chunks returned */
 		ofs += nitems * format / 32;
@@ -696,7 +698,7 @@ void cresize(int width, int height) {
 
 	term.resize(col, row);
 	xresize(col, row);
-	g_tty.resize(twin.tw, twin.th);
+	Nst::getTTY().resize(twin.tw, twin.th);
 }
 
 void xresize(int col, int row) {
@@ -1659,13 +1661,13 @@ void focus(XEvent *ev) {
 		twin.mode.set(WinMode::FOCUSED);
 		xseturgency(0);
 		if (twin.mode[WinMode::FOCUS])
-			g_tty.write("\033[I", 3, 0);
+			Nst::getTTY().write("\033[I", 3, 0);
 	} else {
 		if (x11.ime.xic)
 			XUnsetICFocus(x11.ime.xic);
 		twin.mode.reset(WinMode::FOCUSED);
 		if (twin.mode[WinMode::FOCUS])
-			g_tty.write("\033[O", 3, 0);
+			Nst::getTTY().write("\033[O", 3, 0);
 	}
 }
 
@@ -1734,7 +1736,7 @@ void kpress(XEvent *ev) {
 
 	/* 2. custom keys from nst_config.h */
 	if (const char *customkey = nullptr; (customkey = kmap(ksym, e->state))) {
-		g_tty.write(customkey, strlen(customkey), 1);
+		Nst::getTTY().write(customkey, strlen(customkey), 1);
 		return;
 	}
 
@@ -1754,7 +1756,7 @@ void kpress(XEvent *ev) {
 		}
 	}
 
-	g_tty.write(buf, len, 1);
+	Nst::getTTY().write(buf, len, 1);
 }
 
 void cmessage(XEvent *e) {
@@ -1770,7 +1772,7 @@ void cmessage(XEvent *e) {
 			twin.mode.reset(WinMode::FOCUSED);
 		}
 	} else if ((Atom)e->xclient.data.l[0] == x11.wmdeletewin) {
-		g_tty.hangup();
+		Nst::getTTY().hangup();
 		exit(0);
 	}
 }
@@ -1833,6 +1835,10 @@ void applyCmdline(const Cmdline &cmd) {
 }
 
 Nst::Nst() : m_term_win(twin), m_x11(x11) {
+	if (the_instance) {
+		cosmos_throw (cosmos::UsageError("more than once Nst instances alive"));
+	}
+	the_instance = this;
 	fixup_colornames();
 	xsetcursor(config::CURSORSHAPE);
 }
@@ -1852,10 +1858,10 @@ void Nst::run(int argc, const char **argv) {
 }
 
 void Nst::mainLoop() {
-	auto ttyfd = g_tty.create(cmdline);
+	auto ttyfd = m_tty.create(cmdline);
 
 	auto &display = *x11.display;
-	auto childfd = g_tty.getChildFD();
+	auto childfd = m_tty.getChildFD();
 	auto xfd = display.getConnectionNumber();
 
 	cosmos::Poller poller;
@@ -1883,9 +1889,9 @@ void Nst::mainLoop() {
 
 		for (const auto &event: events) {
 			if (event.fd() == childfd)
-				g_tty.sigChildEvent();
+				m_tty.sigChildEvent();
 			else if (event.fd() == ttyfd) {
-				g_tty.read();
+				m_tty.read();
 				draw_event = true;
 			}
 		}

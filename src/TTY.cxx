@@ -17,6 +17,7 @@
 // nst
 #include "Cmdline.hxx"
 #include "TTY.hxx"
+#include "nst.hxx"
 #include "nst_config.h"
 
 // libcosmos
@@ -28,15 +29,13 @@
 #include "cosmos/proc/Process.hxx"
 #include "cosmos/proc/SubProc.hxx"
 
-nst::TTY g_tty;
-
 namespace nst {
 
 using cosmos::ApiError;
 
 // TODO: check if we can C++ify this callback
 void sendbreak(const Arg *) {
-	g_tty.sendBreak();
+	Nst::getTTY().sendBreak();
 }
 
 namespace {

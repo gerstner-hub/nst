@@ -12,6 +12,7 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "codecs.hxx"
+#include "nst.hxx"
 #include "nst_config.h"
 
 using cosmos::in_range;
@@ -25,7 +26,7 @@ typedef Glyph::Attr Attr;
 Selection::Selection() {
 	m_orig.invalidate();
 	m_term = &term;
-	m_tty = &g_tty;
+	m_tty = &Nst::getTTY();
 }
 
 void Selection::clear() {

@@ -17,6 +17,7 @@
 #include "StringEscape.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
+#include "nst.hxx"
 #include "win.h"
 
 using cosmos::in_range;
@@ -50,7 +51,7 @@ Term::TCursor::TCursor() {
 
 Term::Term(int cols, int rows) :
 	m_selection(&g_sel),
-	m_tty(&g_tty) {
+	m_tty(&Nst::getTTY()) {
 
 	resize(cols, rows);
 	reset();

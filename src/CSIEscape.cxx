@@ -14,6 +14,7 @@
 #include "Selection.hxx"
 #include "StringEscape.hxx"
 #include "TTY.hxx"
+#include "nst.hxx"
 #include "nst_config.h"
 #include "win.h"
 
@@ -127,7 +128,7 @@ void CSIEscape::handle() {
 		return;
 	case 'c': /* DA -- Device Attributes */
 		if (arg0 == 0)
-			g_tty.write(config::VTIDEN, std::strlen(config::VTIDEN), 0);
+			Nst::getTTY().write(config::VTIDEN, std::strlen(config::VTIDEN), 0);
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		setDefault(arg0, 1);
@@ -257,7 +258,7 @@ void CSIEscape::handle() {
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
 			auto buf = cosmos::sprintf("\033[%i;%iR", cursor.pos.y + 1, cursor.pos.x + 1);
-			g_tty.write(buf.c_str(), buf.size(), 0);
+			Nst::getTTY().write(buf.c_str(), buf.size(), 0);
 		}
 		return;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
@@ -346,7 +347,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		}
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
-		g_tty.write(config::VTIDEN, strlen(config::VTIDEN), 0);
+		Nst::getTTY().write(config::VTIDEN, strlen(config::VTIDEN), 0);
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();

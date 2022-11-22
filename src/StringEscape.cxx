@@ -2,6 +2,7 @@
 #include "nst_config.h"
 #include "StringEscape.hxx"
 #include "TTY.hxx"
+#include "nst.hxx"
 #include "win.h"
 
 // stdlib
@@ -30,7 +31,7 @@ static void osc4_color_response(int num) {
 
 	const auto res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
 
-	g_tty.write(res.c_str(), res.size(), true);
+	Nst::getTTY().write(res.c_str(), res.size(), true);
 }
 
 static void osc_color_response(int index, int num) {
@@ -43,7 +44,7 @@ static void osc_color_response(int index, int num) {
 
 	const auto res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
 
-	g_tty.write(res.c_str(), res.size(), true);
+	Nst::getTTY().write(res.c_str(), res.size(), true);
 }
 
 void STREscape::handle() {

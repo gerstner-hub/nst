@@ -60,6 +60,4 @@ protected: // functions
 
 } // end ns
 
-extern nst::TTY g_tty;
-
 #endif // inc. guard

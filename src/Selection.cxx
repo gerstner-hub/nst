@@ -86,7 +86,7 @@ void Selection::normalize(void) {
 		m_normal.end.x = m_term.getNumCols() - 1;
 }
 
-void Selection::checkSnap(Coord &c, const int direction) const {
+void Selection::checkSnap(CharPos &c, const int direction) const {
 	const auto &screen = m_term.getScreen();
 
 	switch (m_snap) {
@@ -97,8 +97,8 @@ void Selection::checkSnap(Coord &c, const int direction) const {
 		 */
 		const Glyph *prevgp = &screen[c.y][c.x];
 		int prevdelim = isDelim(*prevgp);
-		Coord newc;
-		Coord t;
+		CharPos newc;
+		CharPos t;
 		int delim;
 		while(true) {
 			newc.set(c.x + direction, c.y);
@@ -165,7 +165,7 @@ void Selection::extend(int col, int row, const Type &type, const bool &done) {
 		return;
 	}
 
-	const Coord old_end = m_orig.end;
+	const CharPos old_end = m_orig.end;
 	const auto oldsby = m_normal.begin.y;
 	const auto oldsey = m_normal.end.y;
 	const auto oldtype = m_type;

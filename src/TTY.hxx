@@ -39,7 +39,7 @@ public: // functions
 	cosmos::FileDescriptor create(const Cmdline &cmdline);
 	size_t read();
 	void write(const char *s, size_t n, bool may_echo);
-	void resize(size_t tw, size_t th);
+	void resize(const Extent &size);
 	void hangup();
 	void printToIoFile(const char *s, size_t len) {
 		if (!m_io_file.isOpen())

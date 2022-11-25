@@ -19,7 +19,14 @@ typedef unsigned short ushort;
 
 namespace nst {
 
-struct Coord {
+/// baseclass for position or coordinate like types
+/**
+ * The template argument is solely for creating strongly typed variants of
+ * this type that cannot interact with each other, because they are
+ * semantically different.
+ **/
+template <typename T>
+struct PosT {
 	int x = 0;
 	int y = 0;
 
@@ -42,37 +49,50 @@ struct Coord {
 		return y;
 	}
 
-	Coord operator+(const Coord &other) const {
+	PosT operator+(const PosT &other) const {
 		auto ret = *this;
 		ret.x += other.x;
 		ret.y += other.y;
 		return ret;
 	}
 
-	Coord operator-(const Coord &other) const {
+	PosT operator-(const PosT &other) const {
 		auto ret = *this;
 		ret.x -= other.x;
 		ret.y -= other.y;
 		return ret;
 	}
 
-	bool operator==(const Coord &other) const {
+	bool operator==(const PosT &other) const {
 		return x == other.x && y == other.y;
 	}
 
-	bool operator!=(const Coord &other) const {
+	bool operator!=(const PosT &other) const {
 		return !(*this == other);
 	}
-
-	Coord nextCol(const int n=1)  const { return Coord{x + n, y    }; }
-	Coord prevCol(const int n=1)  const { return Coord{x - n, y    }; }
-	Coord nextLine(const int n=1) const { return Coord{x,     y + n}; }
-	Coord prevLine(const int n=1) const { return Coord{x,     y - n}; }
 };
 
+class char_pos_t;
+
+/// represents a character position on the terminal in col/row units
+struct CharPos : public PosT<char_pos_t> {
+	CharPos nextCol(const int n=1)  const { return CharPos{x + n, y    }; }
+	CharPos prevCol(const int n=1)  const { return CharPos{x - n, y    }; }
+	CharPos nextLine(const int n=1) const { return CharPos{x,     y + n}; }
+	CharPos prevLine(const int n=1) const { return CharPos{x,     y - n}; }
+};
+
+class draw_pos_t;
+
+/// represents a drawing position in a window in pixel units
+struct DrawPos : public PosT<draw_pos_t> {
+
+};
+
+/// a rectangular range of characters between a begin and and end CharPos
 struct Range {
-	Coord begin;
-	Coord end;
+	CharPos begin;
+	CharPos end;
 
 	void invalidate() { begin.x = -1; }
 	bool isValid() const { return begin.x != -1; }
@@ -83,6 +103,25 @@ struct Range {
 
 		end.clampX(max_x);
 		end.clampY(max_y);
+	}
+};
+
+struct TermSize {
+	int cols = 0;
+	int rows = 0;
+};
+
+//! a two-dimensional extent in pixels e.g. for characters, windows, ...
+struct Extent {
+	int width = 0;
+	int height = 0;
+
+	bool operator==(const Extent &o) const {
+		return width == o.width && height == o.height;
+	}
+
+	bool operator!=(const Extent &o) const {
+		return !(*this == o);
 	}
 };
 

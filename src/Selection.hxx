@@ -76,7 +76,7 @@ protected: // functions
 	bool inReadyMode() const { return m_mode == Mode::READY; }
 
 	void normalize();
-	void checkSnap(Coord &c, const int direction) const;
+	void checkSnap(CharPos &c, const int direction) const;
 	bool isDelim(const Glyph &g) const {
 		return g.u && wcschr(config::WORDDELIMITERS, g.u);
 	}

@@ -59,7 +59,7 @@ void xsetmode(bool, const WinMode &);
 void xsetpointermotion(int);
 void xsetsel(char *);
 bool xstartdraw();
-void xximspot(int, int);
+void xximspot(const CharPos&);
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
 
 }

@@ -62,7 +62,7 @@ public: // types
 		typedef cosmos::BitMask<State> StateBitMask;
 	public: // data
 		Glyph attr; /* current char attributes */
-		Coord pos;
+		CharPos pos;
 		StateBitMask state;
 	public: // functions
 		TCursor();
@@ -82,7 +82,7 @@ protected: // data
 
 	Selection &m_selection;
 	TTY &m_tty;
-	Coord m_old_cursor_pos;
+	CharPos m_old_cursor_pos;
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
 	std::array<Charset, 4> m_trantbl;  /* charset table translation */
@@ -153,9 +153,9 @@ public: // functions
 
 	void setScroll(int top, int bottom);
 
-	void moveCursorTo(Coord pos);
+	void moveCursorTo(CharPos pos);
 
-	void moveCursorAbsTo(Coord pos);
+	void moveCursorAbsTo(CharPos pos);
 
 	void swapScreen();
 
@@ -242,24 +242,24 @@ protected: // functions
 
 	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
 
-	void setChar(Rune u, const Glyph &attr, const Coord &pos);
+	void setChar(Rune u, const Glyph &attr, const CharPos &pos);
 	void setDefTran(char ascii);
 	void decTest(char c);
 	void handleControlCode(unsigned char ascii);
 
-	Coord topLeft() const { return {0, 0}; }
-	Coord bottomRight() const { return {m_cols-1, m_rows-1}; }
+	CharPos topLeft() const { return {0, 0}; }
+	CharPos bottomRight() const { return {m_cols-1, m_rows-1}; }
 
 	auto limitRow(int row) { return std::clamp(row, 0, m_rows-1); }
 	auto limitCol(int col) { return std::clamp(col, 0, m_cols-1); }
 	auto clampRow(int &row) { row = limitRow(row); return row; }
 	auto clampCol(int &col) { col = limitCol(col); return col; }
-	auto clampToScreen(Coord &c) {
+	auto clampToScreen(CharPos &c) {
 		clampRow(c.y);
 		clampCol(c.x);
 	}
 
-	Glyph& getGlyphAt(const Coord &c) { return m_screen[c.y][c.x]; }
+	Glyph& getGlyphAt(const CharPos &c) { return m_screen[c.y][c.x]; }
 };
 
 } // end ns

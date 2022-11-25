@@ -183,18 +183,18 @@ void CSIEscape::handle() {
 	case 'J': /* ED -- Clear screen */
 		switch (arg0) {
 		case 0: /* below */
-			m_term.clearRegion({cursor.pos, Coord{tcols - 1, cursor.pos.y}});
+			m_term.clearRegion({cursor.pos, CharPos{tcols - 1, cursor.pos.y}});
 			if (cursor.pos.y < trows - 1) {
-				m_term.clearRegion({Coord{0, cursor.pos.y + 1}, Coord{tcols - 1, trows - 1}});
+				m_term.clearRegion({CharPos{0, cursor.pos.y + 1}, CharPos{tcols - 1, trows - 1}});
 			}
 			return;
 		case 1: /* above */
 			if (cursor.pos.y > 1)
-				m_term.clearRegion({Coord{0, 0}, Coord{tcols - 1, cursor.pos.y - 1}});
-			m_term.clearRegion({Coord{0, cursor.pos.y}, cursor.pos});
+				m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, cursor.pos.y - 1}});
+			m_term.clearRegion({CharPos{0, cursor.pos.y}, cursor.pos});
 			return;
 		case 2: /* all */
-			m_term.clearRegion({Coord{0, 0}, Coord{tcols - 1, trows - 1}});
+			m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, trows - 1}});
 			return;
 		default:
 			break;
@@ -203,13 +203,13 @@ void CSIEscape::handle() {
 	case 'K': /* EL -- Clear line */
 		switch (arg0) {
 		case 0: /* right */
-			m_term.clearRegion({cursor.pos, Coord{tcols - 1, cursor.pos.y}});
+			m_term.clearRegion({cursor.pos, CharPos{tcols - 1, cursor.pos.y}});
 			return;
 		case 1: /* left */
-			m_term.clearRegion({Coord{0, cursor.pos.y}, cursor.pos});
+			m_term.clearRegion({CharPos{0, cursor.pos.y}, cursor.pos});
 			return;
 		case 2: /* all */
-			m_term.clearRegion({Coord{0, cursor.pos.y}, Coord{tcols - 1, cursor.pos.y}});
+			m_term.clearRegion({CharPos{0, cursor.pos.y}, CharPos{tcols - 1, cursor.pos.y}});
 			return;
 		}
 		return;

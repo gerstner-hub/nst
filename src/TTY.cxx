@@ -251,12 +251,12 @@ void TTY::writeRaw(const char *s, size_t n) {
 	}
 }
 
-void TTY::resize(size_t tw, size_t th) {
+void TTY::resize(const Extent &size) {
 	cosmos::TermDimension dim(m_term.getNumCols(), m_term.getNumRows());
 	// according to the man page these fields are unused, but it seems nst
 	// wants to use them anyway
-	dim.ws_xpixel = tw;
-	dim.ws_ypixel = th;
+	dim.ws_xpixel = size.width;
+	dim.ws_ypixel = size.height;
 
 	try {
 		m_pty.setSize(dim);

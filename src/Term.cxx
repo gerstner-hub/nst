@@ -141,10 +141,10 @@ void Term::resize(int new_cols, int new_rows) {
 	auto saved_cursor = m_cursor;
 	for (size_t i = 0; i < 2; i++) {
 		if (mincol < new_cols && 0 < minrow) {
-			clearRegion({Coord{mincol, 0}, Coord{new_cols - 1, minrow - 1}});
+			clearRegion({CharPos{mincol, 0}, CharPos{new_cols - 1, minrow - 1}});
 		}
 		if (0 < new_cols && minrow < new_rows) {
-			clearRegion({Coord{0, minrow}, Coord{new_cols - 1, new_rows - 1}});
+			clearRegion({CharPos{0, minrow}, CharPos{new_cols - 1, new_rows - 1}});
 		}
 		swapScreen();
 		cursorControl(TCursor::Control::LOAD);
@@ -186,7 +186,7 @@ void Term::setScroll(int top, int bottom) {
 	m_bottom_scroll = bottom;
 }
 
-void Term::moveCursorTo(Coord pos) {
+void Term::moveCursorTo(CharPos pos) {
 	int miny, maxy;
 
 	if (m_cursor.state[TCursor::State::ORIGIN]) {
@@ -205,7 +205,7 @@ void Term::moveCursorTo(Coord pos) {
 }
 
 /* for absolute user moves, when decom is set */
-void Term::moveCursorAbsTo(Coord pos) {
+void Term::moveCursorAbsTo(CharPos pos) {
 	if (m_cursor.state[TCursor::State::ORIGIN])
 		pos.y += m_top_scroll;
 	moveCursorTo(pos);
@@ -260,7 +260,7 @@ void Term::putTab(int n) {
 }
 
 void Term::putNewline(bool first_col) {
-	Coord new_pos = m_cursor.pos;
+	CharPos new_pos = m_cursor.pos;
 
 	if (first_col)
 		new_pos.x = 0;
@@ -285,7 +285,7 @@ void Term::deleteChar(int n) {
 	// slide remaining line content n characters to the left
 	std::memmove(&line[dst], &line[src], size * sizeof(Glyph));
 	// clear n characters at end of line
-	clearRegion({Coord{m_cols-n, m_cursor.pos.y}, Coord{m_cols-1, m_cursor.pos.y}});
+	clearRegion({CharPos{m_cols-n, m_cursor.pos.y}, CharPos{m_cols-1, m_cursor.pos.y}});
 }
 
 void Term::deleteLine(int n) {
@@ -302,7 +302,7 @@ void Term::insertBlank(int n) {
 	auto &line = m_screen[m_cursor.pos.y];
 
 	std::memmove(&line[dst], &line[src], size * sizeof(Glyph));
-	clearRegion({Coord{src, m_cursor.pos.y}, Coord{dst - 1, m_cursor.pos.y}});
+	clearRegion({CharPos{src, m_cursor.pos.y}, CharPos{dst - 1, m_cursor.pos.y}});
 }
 
 void Term::insertBlankLine(int n)
@@ -316,7 +316,7 @@ void Term::scrollDown(int orig, int n)
 	n = std::clamp(n, 0, m_bottom_scroll-orig+1);
 
 	setDirty(orig, m_bottom_scroll-n);
-	clearRegion({Coord{0, m_bottom_scroll-n+1}, Coord{m_cols-1, m_bottom_scroll}});
+	clearRegion({CharPos{0, m_bottom_scroll-n+1}, CharPos{m_cols-1, m_bottom_scroll}});
 
 	for (int i = m_bottom_scroll; i >= orig+n; i--) {
 		std::swap(m_screen[i], m_screen[i-n]);
@@ -330,7 +330,7 @@ void Term::scrollUp(int orig, int n)
 	n = std::clamp(n, 0, m_bottom_scroll-orig+1);
 
 	setDirty(orig+n, m_bottom_scroll);
-	clearRegion({Coord{0, orig}, Coord{m_cols-1, orig+n-1}});
+	clearRegion({CharPos{0, orig}, CharPos{m_cols-1, orig+n-1}});
 
 	for (int i = orig; i <= m_bottom_scroll-n; i++) {
 		std::swap(m_screen[i], m_screen[i+n]);
@@ -673,7 +673,7 @@ void Term::draw() {
 	m_old_cursor_pos.set(old_cx, m_cursor.pos.y);
 	xfinishdraw();
 	if (m_old_cursor_pos != old_cursor_pos)
-		xximspot(m_old_cursor_pos.x, m_old_cursor_pos.y);
+		xximspot(m_old_cursor_pos);
 }
 
 void Term::strSequence(unsigned char ch) {
@@ -696,7 +696,7 @@ void Term::strSequence(unsigned char ch) {
 	m_esc_state.set(Escape::STR);
 }
 
-void Term::setChar(Rune u, const Glyph &attr, const Coord &pos) {
+void Term::setChar(Rune u, const Glyph &attr, const CharPos &pos) {
 	constexpr const char *VT100_0[0x7e - 0x41 + 1] = { /* 0x41 - 0x7e */
 		"↑", "↓", "→", "←", "█", "▚", "☃", /* A - G */
 		0, 0, 0, 0, 0, 0, 0, 0, /* H - O */
@@ -749,7 +749,7 @@ void Term::decTest(char ch) {
 	if (ch == '8') { /* DEC screen alignment test. */
 		for (int x = 0; x < m_cols; ++x) {
 			for (int y = 0; y < m_rows; ++y)
-				setChar('E', m_cursor.attr, Coord{x, y});
+				setChar('E', m_cursor.attr, CharPos{x, y});
 		}
 	}
 }

@@ -68,11 +68,6 @@ protected: // functions
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
 
-	int getEventRow(const XButtonEvent &);
-	int getEventCol(const XButtonEvent &);
-	Coord getEventCoord(const XButtonEvent &e) {
-		return Coord{getEventCol(e), getEventRow(e)};
-	}
 	static const char* getCustomKey(KeySym k, unsigned state);
 	static unsigned getButtonMask(unsigned button);
 
@@ -80,7 +75,7 @@ protected: // data
 
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
-	Coord m_old_mouse_pos;
+	CharPos m_old_mouse_pos;
 };
 
 } // end ns

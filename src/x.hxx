@@ -41,51 +41,11 @@ struct XSelection {
 	cosmos::MonotonicStopWatch tclick2;
 };
 
-/* Font structure */
-struct Font {
-	int height;
-	int width;
-	int ascent;
-	int descent;
-	int badslant;
-	int badweight;
-	short lbearing;
-	short rbearing;
-	XftFont *match;
-	FcFontSet *set;
-	FcPattern *pattern;
-};
-
 /* Drawing Context */
 struct DrawingContext {
 	std::vector<Color> col;
 	Font font, bfont, ifont, ibfont;
 	GC gc;
-};
-
-/* Font Ring Cache */
-enum class FRC {
-	NORMAL,
-	ITALIC,
-	BOLD,
-	ITALICBOLD
-};
-
-struct Fontcache {
-	XftFont *font;
-	FRC flags;
-	Rune unicodep;
-};
-
-struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {
-	explicit FcPatternGuard(FcPattern *p) :
-		ResourceGuard(p, [](FcPattern *_p) { FcPatternDestroy(_p); })
-	{}
-};
-struct FcCharSetGuard : public cosmos::ResourceGuard<FcCharSet*> {
-	explicit FcCharSetGuard(FcCharSet *p) :
-		ResourceGuard(p, [](FcCharSet *_p) { FcCharSetDestroy(_p); })
-	{}
 };
 
 /* Purely graphic info */
@@ -156,7 +116,6 @@ struct TermWindow {
 		return ret;
 	}
 };
-
 
 static size_t xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, size_t, int, int);
 static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, size_t, int, int);

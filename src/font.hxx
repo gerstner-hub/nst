@@ -4,6 +4,12 @@
 // C++
 #include <optional>
 
+// cosmos
+#include "cosmos/types.hxx"
+
+// nst
+#include "Glyph.hxx"
+
 namespace nst {
 
 enum class Slant : int {
@@ -18,6 +24,20 @@ enum class Weight : int {
 	DEMIBOLD = FC_WEIGHT_DEMIBOLD,
 	BOLD = FC_WEIGHT_BOLD,
 	BLACK = FC_WEIGHT_BLACK
+};
+
+/* Font Ring Cache */
+enum class FRC {
+	NORMAL,
+	ITALIC,
+	BOLD,
+	ITALICBOLD
+};
+
+struct Fontcache {
+	XftFont *font;
+	FRC flags;
+	Rune unicodep;
 };
 
 /// Wrapper around a FontConfig FcPattern structure
@@ -62,6 +82,32 @@ protected: // data
 	/// whether m_pattern is only wrapped by us (i.e. no ownership)
 	bool m_ext_pattern = false;
 	FcPattern *m_pattern = nullptr;
+};
+
+/* Font structure */
+struct Font {
+	int height;
+	int width;
+	int ascent;
+	int descent;
+	int badslant;
+	int badweight;
+	short lbearing;
+	short rbearing;
+	XftFont *match;
+	FcFontSet *set;
+	FcPattern *pattern;
+};
+
+struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {
+	explicit FcPatternGuard(FcPattern *p) :
+		ResourceGuard(p, [](FcPattern *_p) { FcPatternDestroy(_p); })
+	{}
+};
+struct FcCharSetGuard : public cosmos::ResourceGuard<FcCharSet*> {
+	explicit FcCharSetGuard(FcCharSet *p) :
+		ResourceGuard(p, [](FcCharSet *_p) { FcCharSetDestroy(_p); })
+	{}
 };
 
 } // end ns

@@ -211,12 +211,12 @@ void xresize(const TermSize &dim) {
 	x11.specbuf.resize(dim.cols);
 }
 
-static inline uint16_t sixd_to_16bit(size_t x) {
-	return x == 0 ? 0 : 0x3737 + 0x2828 * x;
-}
-
 int xloadcolor(size_t i, const char *name, Color *ncolor) {
 	XRenderColor color = { 0, 0, 0, 0xfff };
+
+	auto sixd_to_16bit = [](size_t x) -> uint16_t {
+		return x == 0 ? 0 : 0x3737 + 0x2828 * x;
+	};
 
 	if (!name) {
 		if (cosmos::in_range(i, 16, 255)) { /* 256 color */

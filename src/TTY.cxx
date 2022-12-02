@@ -33,11 +33,6 @@ namespace nst {
 
 using cosmos::ApiError;
 
-// TODO: check if we can C++ify this callback
-void sendbreak() {
-	Nst::getTTY().sendBreak();
-}
-
 namespace {
 
 	std::pair<cosmos::FileDescriptor, cosmos::FileDescriptor> openPTY() {

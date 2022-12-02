@@ -1,6 +1,9 @@
 #ifndef NST_XEVENT_HANDLER_HXX
 #define NST_XEVENT_HANDLER_HXX
 
+// C++
+#include <vector>
+
 // X++
 #include "X++/Event.hxx"
 #include "types.hxx"
@@ -13,9 +16,7 @@ class Nst;
 class XEventHandler {
 public: // functions
 
-	XEventHandler(Nst &nst) :
-		m_nst(nst)
-	{}
+	explicit XEventHandler(Nst &nst);
 
 	void process(xpp::Event &ev) {
 		switch(ev.getType()) {
@@ -76,6 +77,8 @@ protected: // data
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
 	CharPos m_old_mouse_pos;
+	const std::vector<MouseShortcut> m_mouse_shortcuts;
+	const std::vector<KbdShortcut> m_kbd_shortcuts;
 };
 
 } // end ns

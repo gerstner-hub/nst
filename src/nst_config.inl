@@ -21,8 +21,6 @@ static void ttysend(const char *);
 static void printscreen();
 static void printsel();
 static void toggleprinter();
-// from TTY
-void sendbreak();
 
 namespace config {
 
@@ -30,34 +28,41 @@ namespace config {
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
-const std::array<MouseShortcut, 5> MSHORTCUTS({
-	             /* mask                 button   function                         release */
-	MouseShortcut{ XK_ANY_MOD,           Button2, selpaste,                        true },
-	MouseShortcut{ ShiftMask,            Button4, std::bind(ttysend, "\033[5;2~"), false },
-	MouseShortcut{ XK_ANY_MOD,           Button4, std::bind(ttysend, "\031"),      false },
-	MouseShortcut{ ShiftMask,            Button5, std::bind(ttysend, "\033[6;2~"), false },
-	MouseShortcut{ XK_ANY_MOD,           Button5, std::bind(ttysend, "\005"),      false },
-});
+inline std::vector<MouseShortcut> getMouseShortcuts(Nst &nst) {
+	(void)nst;
+	return {
+			     /* mask                 button   function                         release */
+		MouseShortcut{ XK_ANY_MOD,           Button2, selpaste,                        true },
+		MouseShortcut{ ShiftMask,            Button4, std::bind(ttysend, "\033[5;2~"), false },
+		MouseShortcut{ XK_ANY_MOD,           Button4, std::bind(ttysend, "\031"),      false },
+		MouseShortcut{ ShiftMask,            Button5, std::bind(ttysend, "\033[6;2~"), false },
+		MouseShortcut{ XK_ANY_MOD,           Button5, std::bind(ttysend, "\005"),      false },
+	};
+}
 
-/* Internal keyboard shortcuts. */
-#define MODKEY Mod1Mask
-#define TERMMOD (ControlMask|ShiftMask)
+inline std::vector<KbdShortcut> getKbdShortcuts(Nst &nst) {
+	/* Internal keyboard shortcuts. */
+	//constexpr auto MODKEY = Mod1Mask;
+	constexpr auto TERMMOD = ControlMask|ShiftMask;
 
-const Shortcut SHORTCUTS[] = {
-	/* mask                 keysym          function */
-	{ XK_ANY_MOD,           XK_Break,       sendbreak           },
-	{ ControlMask,          XK_Print,       toggleprinter       },
-	{ ShiftMask,            XK_Print,       printscreen         },
-	{ XK_ANY_MOD,           XK_Print,       printsel            },
-	{ TERMMOD,              XK_Prior,       std::bind(zoom, +1) },
-	{ TERMMOD,              XK_Next,        std::bind(zoom, -1) },
-	{ TERMMOD,              XK_Home,        zoomreset           },
-	{ TERMMOD,              XK_C,           clipcopy            },
-	{ TERMMOD,              XK_V,           clippaste           },
-	{ TERMMOD,              XK_Y,           selpaste            },
-	{ ShiftMask,            XK_Insert,      selpaste            },
-	{ TERMMOD,              XK_Num_Lock,    numlock             },
-};
+	auto &tty = nst.getTTY();
+
+	return {
+		/* mask                 keysym          function */
+		{ XK_ANY_MOD,           XK_Break,       std::bind(&TTY::sendBreak, &tty) },
+		{ ControlMask,          XK_Print,       toggleprinter       },
+		{ ShiftMask,            XK_Print,       printscreen         },
+		{ XK_ANY_MOD,           XK_Print,       printsel            },
+		{ TERMMOD,              XK_Prior,       std::bind(zoom, +1) },
+		{ TERMMOD,              XK_Next,        std::bind(zoom, -1) },
+		{ TERMMOD,              XK_Home,        zoomreset           },
+		{ TERMMOD,              XK_C,           clipcopy            },
+		{ TERMMOD,              XK_V,           clippaste           },
+		{ TERMMOD,              XK_Y,           selpaste            },
+		{ ShiftMask,            XK_Insert,      selpaste            },
+		{ TERMMOD,              XK_Num_Lock,    numlock             },
+	};
+}
 
 /*
  * Selection types' masks.

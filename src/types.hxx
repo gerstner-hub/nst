@@ -128,7 +128,7 @@ struct Extent {
 typedef std::function<void ()> Callback;
 
 /* types used in nst_config.h */
-struct Shortcut {
+struct KbdShortcut {
 	uint mod;
 	KeySym keysym;
 	Callback func;

@@ -1143,6 +1143,12 @@ bool match(uint mask, uint state) {
 	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
 
+XEventHandler::XEventHandler(Nst &nst) :
+	m_nst(nst),
+	m_mouse_shortcuts(config::getMouseShortcuts(nst)),
+	m_kbd_shortcuts(config::getKbdShortcuts(nst))
+{}
+
 const char* XEventHandler::getCustomKey(KeySym k, uint state) {
 	/* Check for mapped keys out of X11 function keys. */
 	const bool found = config::MAPPEDKEYS.count(k) != 0;
@@ -1188,7 +1194,7 @@ bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
 	const unsigned state = ev.state & ~getButtonMask(ev.button);
 
-	for (auto &ms: config::MSHORTCUTS) {
+	for (auto &ms: m_mouse_shortcuts) {
 		if (ms.release != is_release || ms.button != ev.button)
 			continue;
 
@@ -1345,7 +1351,7 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 		len = XLookupString(const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, NULL);
 
 	/* 1. shortcuts */
-	for (auto &sc: config::SHORTCUTS) {
+	for (auto &sc: m_kbd_shortcuts) {
 		if (ksym == sc.keysym && match(sc.mod, ev.state)) {
 			sc.func();
 			return;

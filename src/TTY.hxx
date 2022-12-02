@@ -18,7 +18,6 @@ class Term;
 class Cmdline;
 
 class TTY {
-	friend void sendbreak();
 
 protected: // data
 
@@ -49,6 +48,7 @@ public: // functions
 
 	auto getChildFD() { return m_child_proc.pidFD(); }
 	void sigChildEvent();
+	void sendBreak();
 
 protected: // functions
 
@@ -57,7 +57,6 @@ protected: // functions
 	void runStty(const Cmdline &cmdline);
 	void executeShell(const Cmdline &cmdline, cosmos::FileDescriptor slave);
 	void doPrintToIoFile(const char *s, size_t len);
-	void sendBreak();
 };
 
 } // end ns

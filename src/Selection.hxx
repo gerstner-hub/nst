@@ -5,7 +5,6 @@
 #include <string>
 
 // nst
-#include "nst_config.h"
 #include "Glyph.hxx"
 #include "types.hxx"
 
@@ -77,9 +76,7 @@ protected: // functions
 
 	void normalize();
 	void checkSnap(CharPos &c, const int direction) const;
-	bool isDelim(const Glyph &g) const {
-		return g.u && wcschr(config::WORDDELIMITERS, g.u);
-	}
+	bool isDelim(const Glyph &g) const;
 };
 
 } // end ns

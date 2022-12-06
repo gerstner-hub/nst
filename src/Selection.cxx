@@ -26,6 +26,10 @@ Selection::Selection(Term &term) : m_term(term) {
 	m_tty = &Nst::getTTY();
 }
 
+bool Selection::isDelim(const Glyph &g) const {
+	return g.u && wcschr(config::WORDDELIMITERS, g.u);
+}
+
 void Selection::clear() {
 	if (!m_orig.isValid())
 		return;

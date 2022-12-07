@@ -31,6 +31,13 @@ struct X11 {
 	bool isfixed = false; /* is fixed geometry? */
 	int l = 0, t = 0; /* left and top offset */
 	int gm; /* geometry mask */
+public: // functions
+	void pasteSelection();
+	void pasteClipboard();
+	void copyToClipboard();
+	void zoomFont(float val);
+	void resetFont();
+	void toggleNumlock();
 };
 
 struct XSelection {

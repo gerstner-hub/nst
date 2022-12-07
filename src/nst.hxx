@@ -29,6 +29,7 @@ public: // functions
 	static TTY& getTTY() { return the_instance->m_tty; }
 	static Term& getTerm() { return the_instance->m_term; }
 	static Selection& getSelection() { return the_instance->m_selection; }
+	X11& getX11() { return m_x11; }
 
 protected: // functions
 

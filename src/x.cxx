@@ -86,37 +86,38 @@ inline Atom getAtom(const char *name) {
 
 Nst *Nst::the_instance = nullptr;
 
-void clipcopy() {
+void X11::copyToClipboard() {
 	xsel.clipboard.clear();
 
 	if (!xsel.primary.empty()) {
 		xsel.clipboard = xsel.primary;
-		Atom clipboard = getAtom("CLIPBOARD");
-		XSetSelectionOwner(getDisplay(), clipboard, x11.win, CurrentTime);
+		Atom clipboard = mapper->getAtom("CLIPBOARD");
+		XSetSelectionOwner(*display, clipboard, win, CurrentTime);
 	}
 }
 
-void clippaste() {
+void xclipcopy(void) {
+	x11.copyToClipboard();
+}
+
+void X11::pasteClipboard() {
 	Atom clipboard = getAtom("CLIPBOARD");
-	XConvertSelection(getDisplay(), clipboard, xsel.xtarget, clipboard,
+	XConvertSelection(*display, clipboard, xsel.xtarget, clipboard,
 			x11.win, CurrentTime);
 }
 
-void selpaste() {
-	XConvertSelection(getDisplay(), XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
-			x11.win, CurrentTime);
+void X11::pasteSelection() {
+	XConvertSelection(
+		*display, XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
+		win, CurrentTime);
 }
 
-void numlock() {
+void X11::toggleNumlock() {
 	twin.mode.flip(WinMode::NUMLOCK);
 }
 
-void zoom(float val) {
+void X11::zoomFont(float val) {
 	val += (float)usedfontsize;
-	zoomabs(val);
-}
-
-void zoomabs(float val) {
 	xunloadfonts();
 	xloadfontsOrThrow(cmdline.font.getValue(), val);
 	cresize();
@@ -124,27 +125,11 @@ void zoomabs(float val) {
 	xhints();
 }
 
-void zoomreset() {
+void X11::resetFont() {
 	if (defaultfontsize > 0) {
-		zoomabs(defaultfontsize);
+		usedfontsize = defaultfontsize;
+		zoomFont(0);
 	}
-}
-
-void ttysend(const char *s) {
-	Nst::getTTY().write(s, strlen(s), 1);
-}
-
-void toggleprinter() {
-	auto &term = Nst::getTerm();
-	term.setPrintMode(!term.isPrintMode());
-}
-
-void printscreen() {
-	Nst::getTerm().dump();
-}
-
-void printsel() {
-	Nst::getSelection().dump();
 }
 
 const char* getColorName(size_t nr) {
@@ -161,10 +146,6 @@ const char* getColorName(size_t nr) {
 	}
 
 	return nullptr;
-}
-
-void xclipcopy(void) {
-	clipcopy();
 }
 
 void setsel(const char *str, Time t) {

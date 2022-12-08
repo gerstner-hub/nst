@@ -1,6 +1,20 @@
 #ifndef NST_X_HXX
 #define NST_X_HXX
 
+// libc
+#include <math.h>
+// libX11
+#include <X11/Xft/Xft.h>
+#include <X11/cursorfont.h>
+// X++
+#include "X++/XDisplay.hxx"
+#include "X++/XAtom.hxx"
+#include "X++/XWindow.hxx"
+// nst
+#include "font.hxx"
+#include "nst_config.h"
+#include "win.h"
+
 /*
  * private data types for x.cxx
  */
@@ -32,20 +46,18 @@ struct X11 {
 	int l = 0, t = 0; /* left and top offset */
 	int gm; /* geometry mask */
 public: // functions
+	Display* getDisplay() {
+		return static_cast<Display*>(*this->display);
+	}
+	Atom getAtom(const char *name) const {
+		return mapper->getAtom(name);
+	}
 	void pasteSelection();
 	void pasteClipboard();
 	void copyToClipboard();
 	void zoomFont(float val);
 	void resetFont();
 	void toggleNumlock();
-};
-
-struct XSelection {
-	Atom xtarget;
-	std::string clipboard;
-	std::string primary;
-	cosmos::MonotonicStopWatch tclick1;
-	cosmos::MonotonicStopWatch tclick2;
 };
 
 /* Drawing Context */
@@ -123,30 +135,6 @@ struct TermWindow {
 		return ret;
 	}
 };
-
-static size_t xmakeglyphfontspecs(XftGlyphFontSpec *, const Glyph *, size_t, int, int);
-static void xdrawglyphfontspecs(const XftGlyphFontSpec *, Glyph, size_t, int, int);
-static void xdrawglyph(Glyph, int, int);
-static void xclear(int, int, int, int);
-static int xgeommasktogravity(int);
-static int ximopen();
-static void ximinstantiate(Display *, XPointer, XPointer);
-static void ximdestroy(XIM, XPointer, XPointer);
-static int xicdestroy(XIC, XPointer, XPointer);
-static void xinit();
-static void cresize(const Extent & = {0,0});
-static void xresize(const TermSize &chars);
-static void xhints(void);
-static int xloadcolor(size_t, const char *, Color *);
-static int xloadfont(Font *, FcPattern *);
-static void xunloadfont(Font *);
-static void xunloadfonts(void);
-static void xsetenv(void);
-static void xseturgency(int);
-
-static void setsel(const char*, Time);
-static bool match(uint, uint);
-static void xloadfontsOrThrow(const std::string&, double fontsize=0);
 
 } // end ns
 

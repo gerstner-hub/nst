@@ -1,5 +1,4 @@
 // libc
-#include <math.h>
 #include <limits.h>
 #include <locale.h>
 #include <unistd.h>
@@ -7,9 +6,7 @@
 // libX11 et al
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
-#include <X11/cursorfont.h>
 #include <X11/keysym.h>
-#include <X11/Xft/Xft.h>
 #include <X11/XKBlib.h>
 
 // stdlib
@@ -27,22 +24,18 @@
 #include "cosmos/io/Poller.hxx"
 #include "cosmos/proc/Process.hxx"
 #include "cosmos/time/TimeSpec.hxx"
-#include "cosmos/time/Clock.hxx"
 
 // X++
 #include "X++/Event.hxx"
 #include "X++/RootWin.hxx"
-#include "X++/XAtom.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/Xpp.hxx"
-#include "X++/XWindow.hxx"
 
 // nst
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.h"
 #include "Cmdline.hxx"
 #include "codecs.hxx"
-#include "font.hxx"
 #include "helper.hxx"
 #include "nst.hxx"
 #include "types.hxx"
@@ -51,18 +44,30 @@
 #include "TTY.hxx"
 #include "win.h"
 #include "x.hxx"
+#include "XSelection.hxx"
 
 // config parts specific to this compilation unit
 #include "nst_config.inl"
 
 namespace nst {
 
+/* forward declarations */
+static void xclear(int, int, int, int);
+static int xgeommasktogravity(int);
+static void ximdestroy(XIM, XPointer, XPointer);
+static int xicdestroy(XIC, XPointer, XPointer);
+static void cresize(const Extent & = {0,0});
+static void xresize(const TermSize &chars);
+static void xhints(void);
+static void xunloadfonts(void);
+static void xloadfontsOrThrow(const std::string&, double fontsize=0);
+
 namespace {
 
 /* Globals */
 DrawingContext dc;
 X11 x11;
-XSelection xsel;
+XSelection xsel(x11);
 TermWindow twin;
 
 /* Fontcache is an array now. A new font will be appended to the array. */
@@ -74,23 +79,17 @@ Cmdline cmdline;
 
 TermSize tsize{config::COLS, config::ROWS};
 
-inline Display* getDisplay() {
-	return static_cast<Display*>(*x11.display);
-}
-
-inline Atom getAtom(const char *name) {
-	return (x11.mapper)->getAtom(name);
-}
+inline Display* getDisplay() { return x11.getDisplay(); }
+inline Atom getAtom(const char *name) { return x11.getAtom(name); }
 
 } // end anon ns
 
 Nst *Nst::the_instance = nullptr;
 
 void X11::copyToClipboard() {
-	xsel.clipboard.clear();
+	xsel.copyPrimaryToClipboard();
 
-	if (!xsel.primary.empty()) {
-		xsel.clipboard = xsel.primary;
+	if (xsel.havePrimarySelection()) {
 		Atom clipboard = mapper->getAtom("CLIPBOARD");
 		XSetSelectionOwner(*display, clipboard, win, CurrentTime);
 	}
@@ -102,13 +101,13 @@ void xclipcopy(void) {
 
 void X11::pasteClipboard() {
 	Atom clipboard = getAtom("CLIPBOARD");
-	XConvertSelection(*display, clipboard, xsel.xtarget, clipboard,
-			x11.win, CurrentTime);
+	XConvertSelection(*display, clipboard, xsel.getTargetFormat(), clipboard,
+			win, CurrentTime);
 }
 
 void X11::pasteSelection() {
 	XConvertSelection(
-		*display, XA_PRIMARY, xsel.xtarget, XA_PRIMARY,
+		*display, XA_PRIMARY, xsel.getTargetFormat(), XA_PRIMARY,
 		win, CurrentTime);
 }
 
@@ -148,19 +147,8 @@ const char* getColorName(size_t nr) {
 	return nullptr;
 }
 
-void setsel(const char *str, Time t) {
-	if (!str)
-		return;
-
-	xsel.primary = str;
-
-	XSetSelectionOwner(getDisplay(), XA_PRIMARY, x11.win, t);
-	if (XGetSelectionOwner(getDisplay(), XA_PRIMARY) != x11.win)
-		Nst::getSelection().clear();
-}
-
 void xsetsel(const char *str) {
-	setsel(str, CurrentTime);
+	xsel.setSelection(str);
 }
 
 void cresize(const Extent &win) {
@@ -633,13 +621,7 @@ void xinit() {
 	XMapWindow(getDisplay(), x11.win);
 	XSync(getDisplay(), False);
 
-	xsel.tclick1.mark();
-	xsel.tclick2.mark();
-	xsel.primary.clear();
-	xsel.clipboard.clear();
-	xsel.xtarget = getAtom("UTF8_STRING");
-	if (xsel.xtarget == None)
-		xsel.xtarget = XA_STRING;
+	xsel.init();
 
 	if (getenv("NST_XSYNC") != nullptr) {
 		::XSynchronize(display, true);
@@ -1279,7 +1261,7 @@ void XEventHandler::handleMouseSelection(const XButtonEvent &ev, bool done) {
 
 	if (done) {
 		auto selection = sel.getSelection();
-		setsel(selection.c_str(), ev.time);
+		xsel.setSelection(selection, ev.time);
 	}
 }
 
@@ -1414,20 +1396,7 @@ void XEventHandler::bpress(const XButtonEvent &ev) {
 	if (btn != Button1)
 		return;
 
-	/*
-	 * If the user left-clicks below predefined timeouts specific snapping
-	 * behaviour is exposed.
-	 */
-	auto snap = Selection::Snap::NONE;
-
-	if (xsel.tclick2.elapsed() <= config::TRIPLECLICKTIMEOUT) {
-		snap = Selection::Snap::LINE;
-	} else if (xsel.tclick1.elapsed() <= config::DOUBLECLICKTIMEOUT) {
-		snap = Selection::Snap::WORD;
-	}
-	xsel.tclick2 = xsel.tclick1;
-	xsel.tclick1.mark();
-
+	const auto snap = xsel.handleClick();
 	auto &selection = m_nst.getSelection();
 	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
 	selection.start(pos.x, pos.y, snap);
@@ -1548,28 +1517,25 @@ void XEventHandler::selrequest(const XSelectionRequestEvent &req) {
 
 	if (req.target == getAtom("TARGETS")) {
 		/* respond with the supported type */
-		Atom string = xsel.xtarget;
+		Atom string = xsel.getTargetFormat();
 		XChangeProperty(req.display, req.requestor, reqprop,
 				XA_ATOM, 32, PropModeReplace,
 				(uchar *) &string, 1);
 		xev.property = reqprop;
-	} else if (req.target == xsel.xtarget || req.target == XA_STRING) {
+	} else if (req.target == xsel.getTargetFormat() || req.target == XA_STRING) {
 		/*
 		 * with XA_STRING non ascii characters may be incorrect in the
 		 * requestor. It is not our problem, use utf8.
 		 */
-		std::string *seltext = nullptr;
-		const Atom clipboard = getAtom("CLIPBOARD");
-		if (req.selection == XA_PRIMARY) {
-			seltext = &xsel.primary;
-		} else if (req.selection == clipboard) {
-			seltext = &xsel.clipboard;
-		} else {
+		auto seltext = xsel.getSelection(req.selection);
+
+		if (!seltext) {
 			fprintf(stderr,
 				"Unhandled clipboard selection 0x%lx\n",
 				req.selection);
 			return;
 		}
+
 		if (!seltext->empty()) {
 			XChangeProperty(req.display, req.requestor,
 					reqprop, req.target,

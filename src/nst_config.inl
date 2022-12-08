@@ -65,16 +65,4 @@ inline std::vector<KbdShortcut> getKbdShortcuts(Nst &nst) {
 	};
 }
 
-/*
- * Selection types' masks.
- * Use the same masks as usual.
- * Button1Mask is always unset, to make masks match between ButtonPress.
- * ButtonRelease and MotionNotify.
- * If no match is found, regular selection is used.
- */
-constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SELMASKS = {
-	std::pair{Selection::Type::REGULAR,     0},
-	         {Selection::Type::RECTANGULAR, Mod1Mask},
-};
-
 }} // ns nst::config

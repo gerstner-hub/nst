@@ -58,6 +58,7 @@ public: // functions
 	void zoomFont(float val);
 	void resetFont();
 	void toggleNumlock();
+	void setUrgency(int add);
 };
 
 /* Drawing Context */

@@ -6,17 +6,22 @@
 
 // X++
 #include "X++/Event.hxx"
+
+// nst
 #include "types.hxx"
 
 namespace nst {
 
 class Nst;
+struct TermWindow;
+class XSelection;
+class X11;
 
 /// Implementation of XEvent callback handlers
 class XEventHandler {
 public: // functions
 
-	explicit XEventHandler(Nst &nst);
+	explicit XEventHandler(Nst &nst, TermWindow &twin, XSelection &xsel);
 
 	void process(xpp::Event &ev) {
 		switch(ev.getType()) {
@@ -69,13 +74,17 @@ protected: // functions
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
 
-	static const char* getCustomKey(KeySym k, unsigned state);
+	const char* getCustomKey(KeySym k, unsigned state) const;
 	static unsigned getButtonMask(unsigned button);
+	static bool match(uint mask, uint state);
 
 protected: // data
 
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
+	TermWindow &m_twin;
+	XSelection &m_xsel;
+	X11 &m_x11;
 	CharPos m_old_mouse_pos;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;

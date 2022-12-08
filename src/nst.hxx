@@ -29,7 +29,9 @@ public: // functions
 	static TTY& getTTY() { return the_instance->m_tty; }
 	static Term& getTerm() { return the_instance->m_term; }
 	static Selection& getSelection() { return the_instance->m_selection; }
+	static Nst& getInstance() { return *the_instance; }
 	X11& getX11() { return m_x11; }
+	void resizeConsole(const Extent &win = {0,0});
 
 protected: // functions
 

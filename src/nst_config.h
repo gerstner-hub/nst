@@ -12,6 +12,7 @@
 #include <X11/keysym.h>
 
 // nst
+#include "Selection.hxx"
 #include "types.hxx"
 #include "win.h"
 
@@ -455,6 +456,18 @@ constexpr char ASCII_PRINTABLE[] =
 	"`abcdefghijklmnopqrstuvwxyz{|}~";
 
 constexpr size_t ASCII_PRINTABLE_LEN = sizeof(ASCII_PRINTABLE) - 1;
+
+/*
+ * Selection types' masks.
+ * Use the same masks as usual.
+ * Button1Mask is always unset, to make masks match between ButtonPress.
+ * ButtonRelease and MotionNotify.
+ * If no match is found, regular selection is used.
+ */
+constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SELMASKS = {
+	std::pair{Selection::Type::REGULAR,     0},
+	         {Selection::Type::RECTANGULAR, Mod1Mask},
+};
 
 }} // end ns nst::config
 

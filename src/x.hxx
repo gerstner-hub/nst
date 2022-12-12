@@ -59,6 +59,17 @@ public: // functions
 	void resetFont();
 	void toggleNumlock();
 	void setUrgency(int add);
+	void resize(const TermSize &dim);
+	int loadColor(size_t i, const char *name, Color *ncolor);
+	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
+	void setHints();
+	bool loadFonts(const std::string &fontstr, double fontsize);
+	void loadFontsOrThrow(const std::string&, double fontsize=0);
+	void unloadFonts();
+protected:
+	static int geomMaskToGravity(int mask);
+	int loadFont(Font *f, FcPattern *pattern);
+	void unloadFont(Font *f);
 };
 
 /* Drawing Context */

@@ -52,14 +52,8 @@
 namespace nst {
 
 /* forward declarations */
-static void xclear(int, int, int, int);
-static int xgeommasktogravity(int);
 static void ximdestroy(XIM, XPointer, XPointer);
 static int xicdestroy(XIC, XPointer, XPointer);
-static void xresize(const TermSize &chars);
-static void xhints(void);
-static void xunloadfonts(void);
-static void xloadfontsOrThrow(const std::string&, double fontsize=0);
 
 namespace {
 
@@ -113,12 +107,12 @@ void X11::toggleNumlock() {
 
 void X11::zoomFont(float val) {
 	val += (float)usedfontsize;
-	xunloadfonts();
-	xloadfontsOrThrow(cmdline.font.getValue(), val);
+	unloadFonts();
+	loadFontsOrThrow(cmdline.font.getValue(), val);
 	auto &nst = Nst::getInstance();
 	nst.resizeConsole();
 	nst.getTerm().redraw();
-	xhints();
+	setHints();
 }
 
 void X11::resetFont() {
@@ -155,29 +149,29 @@ void Nst::resizeConsole(const Extent &win) {
 	auto tdim = twin.getTermDim();
 
 	m_term.resize(tdim.cols, tdim.rows);
-	xresize(tdim);
+	x11.resize(tdim);
 	m_tty.resize(twin.tty);
 }
 
-void xresize(const TermSize &dim) {
+void X11::resize(const TermSize &dim) {
 
 	twin.setTermDim(dim);
 
-	XFreePixmap(x11.getDisplay(), x11.buf);
-	x11.buf = XCreatePixmap(
-		x11.getDisplay(),
-		x11.win,
+	XFreePixmap(*display, buf);
+	buf = XCreatePixmap(
+		*display,
+		win,
 		twin.win.width, twin.win.height,
-		DefaultDepth(x11.getDisplay(), x11.scr)
+		DefaultDepth(getDisplay(), scr)
 	);
-	XftDrawChange(x11.draw, x11.buf);
-	xclear(0, 0, twin.win.width, twin.win.height);
+	XftDrawChange(draw, buf);
+	clearRect(DrawPos{0,0}, DrawPos{twin.win.width, twin.win.height});
 
 	/* resize to new width */
-	x11.specbuf.resize(dim.cols);
+	specbuf.resize(dim.cols);
 }
 
-int xloadcolor(size_t i, const char *name, Color *ncolor) {
+int X11::loadColor(size_t i, const char *name, Color *ncolor) {
 	XRenderColor color = { 0, 0, 0, 0xfff };
 
 	auto sixd_to_16bit = [](size_t x) -> uint16_t {
@@ -194,13 +188,13 @@ int xloadcolor(size_t i, const char *name, Color *ncolor) {
 				color.red = 0x0808 + 0x0a0a * (i - (6*6*6+16));
 				color.green = color.blue = color.red;
 			}
-			return XftColorAllocValue(x11.getDisplay(), x11.vis,
-			                          x11.cmap, &color, ncolor);
+			return XftColorAllocValue(*display, x11.vis,
+			                          cmap, &color, ncolor);
 		} else
 			name = getColorName(i);
 	}
 
-	return XftColorAllocName(x11.getDisplay(), x11.vis, x11.cmap, name, ncolor);
+	return XftColorAllocName(*display, vis, cmap, name, ncolor);
 }
 
 void xloadcols(void) {
@@ -217,7 +211,7 @@ void xloadcols(void) {
 	}
 
 	for (size_t i = 0; i < dc.col.size(); i++) {
-		if (!xloadcolor(i, nullptr, &dc.col[i])) {
+		if (!x11.loadColor(i, nullptr, &dc.col[i])) {
 			auto colorname = getColorName(i);
 			if (colorname)
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname)));
@@ -245,7 +239,7 @@ int xsetcolorname(size_t x, const char *name) {
 		return 1;
 
 	Color ncolor;
-	if (!xloadcolor(x, name, &ncolor))
+	if (!x11.loadColor(x, name, &ncolor))
 		return 1;
 
 	XftColorFree(x11.getDisplay(), x11.vis, x11.cmap, &dc.col[x]);
@@ -257,12 +251,12 @@ int xsetcolorname(size_t x, const char *name) {
 /*
  * Absolute coordinates.
  */
-void xclear(int x1, int y1, int x2, int y2) {
+void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 	const auto colindex = twin.mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
-	XftDrawRect(x11.draw, &dc.col[colindex], x1, y1, x2-x1, y2-y1);
+	XftDrawRect(draw, &dc.col[colindex], pos1.x, pos1.y, pos2.x - pos1.x, pos2.y - pos1.y);
 }
 
-void xhints(void) {
+void X11::setHints() {
 	auto &wname = cmdline.window_name.getValue();
 	auto &wclass = cmdline.window_class.getValue();
 	XClassHint clazz = {&wname[0], &wclass[0]};
@@ -278,23 +272,23 @@ void xhints(void) {
 	sizeh->base_width = 2 * config::BORDERPX;
 	sizeh->min_height = twin.chr.height + 2 * config::BORDERPX;
 	sizeh->min_width = twin.chr.width + 2 * config::BORDERPX;
-	if (x11.isfixed) {
+	if (isfixed) {
 		sizeh->flags |= PMaxSize;
 		sizeh->min_width = sizeh->max_width = twin.win.width;
 		sizeh->min_height = sizeh->max_height = twin.win.height;
 	}
-	if (x11.gm & (XValue|YValue)) {
+	if (gm & (XValue|YValue)) {
 		sizeh->flags |= USPosition | PWinGravity;
-		sizeh->x = x11.l;
-		sizeh->y = x11.t;
-		sizeh->win_gravity = xgeommasktogravity(x11.gm);
+		sizeh->x = l;
+		sizeh->y = t;
+		sizeh->win_gravity = geomMaskToGravity(gm);
 	}
 
-	XSetWMProperties(x11.getDisplay(), x11.win, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
+	XSetWMProperties(*display, win, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
 	XFree(sizeh);
 }
 
-int xgeommasktogravity(int mask) {
+int X11::geomMaskToGravity(int mask) {
 	switch (mask & (XNegative|YNegative)) {
 	case 0:
 		return NorthWestGravity;
@@ -307,7 +301,7 @@ int xgeommasktogravity(int mask) {
 	}
 }
 
-int xloadfont(Font *f, FcPattern *pattern) {
+int X11::loadFont(Font *f, FcPattern *pattern) {
 	/*
 	 * Manually configure instead of calling XftMatchFont
 	 * so that we can use the configured pattern for
@@ -319,7 +313,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 
 	FcPatternGuard configured_guard(configured);
 	FcConfigSubstitute(nullptr, configured, FcMatchPattern);
-	XftDefaultSubstitute(x11.getDisplay(), x11.scr, configured);
+	XftDefaultSubstitute(*display, x11.scr, configured);
 
 	FcResult result;
 	FcPattern *match = FcFontMatch(nullptr, configured, &result);
@@ -328,30 +322,27 @@ int xloadfont(Font *f, FcPattern *pattern) {
 
 	FcPatternGuard match_guard(match);
 
-	if (!(f->match = XftFontOpenPattern(x11.getDisplay(), match)))
+	if (!(f->match = XftFontOpenPattern(*display, match)))
 		return 1;
 
 	// ownership will be transferred now
 	configured_guard.disarm();
 	match_guard.disarm();
 
-	int wantattr, haveattr;
-
-	if ((XftPatternGetInteger(pattern, "slant", 0, &wantattr) == XftResultMatch)) {
+	if (int wantattr; (XftPatternGetInteger(pattern, "slant", 0, &wantattr) == XftResultMatch)) {
 		/*
 		 * Check if xft was unable to find a font with the appropriate
 		 * slant but gave us one anyway. Try to mitigate.
 		 */
-		if ((XftPatternGetInteger(f->match->pattern, "slant", 0,
+		if (int haveattr; (XftPatternGetInteger(f->match->pattern, "slant", 0,
 		    &haveattr) != XftResultMatch) || haveattr < wantattr) {
 			f->badslant = 1;
 			fputs("font slant does not match\n", stderr);
 		}
 	}
 
-	if ((XftPatternGetInteger(pattern, "weight", 0, &wantattr) ==
-	    XftResultMatch)) {
-		if ((XftPatternGetInteger(f->match->pattern, "weight", 0,
+	if (int wantattr; (XftPatternGetInteger(pattern, "weight", 0, &wantattr) == XftResultMatch)) {
+		if (int haveattr; (XftPatternGetInteger(f->match->pattern, "weight", 0,
 		    &haveattr) != XftResultMatch) || haveattr != wantattr) {
 			f->badweight = 1;
 			fputs("font weight does not match\n", stderr);
@@ -359,8 +350,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	}
 
 	XGlyphInfo extents;
-	XftTextExtentsUtf8(x11.getDisplay(), f->match,
-		(const FcChar8 *) config::ASCII_PRINTABLE,
+	XftTextExtentsUtf8(*display, f->match, (const FcChar8 *) config::ASCII_PRINTABLE,
 		config::ASCII_PRINTABLE_LEN, &extents);
 
 	f->set = nullptr;
@@ -377,7 +367,7 @@ int xloadfont(Font *f, FcPattern *pattern) {
 	return 0;
 }
 
-static bool xloadfonts(const std::string &fontstr, double fontsize) {
+bool X11::loadFonts(const std::string &fontstr, double fontsize) {
 	FontPattern pattern(fontstr);
 
 	if (!pattern.isValid())
@@ -402,7 +392,7 @@ static bool xloadfonts(const std::string &fontstr, double fontsize) {
 		defaultfontsize = usedfontsize;
 	}
 
-	if (xloadfont(&dc.font, pattern.raw()))
+	if (loadFont(&dc.font, pattern.raw()))
 		return false;
 
 	if (usedfontsize < 0) {
@@ -418,42 +408,42 @@ static bool xloadfonts(const std::string &fontstr, double fontsize) {
 	twin.setCharSize(dc);
 
 	pattern.setSlant(Slant::ITALIC);
-	if (xloadfont(&dc.ifont, pattern.raw()))
+	if (loadFont(&dc.ifont, pattern.raw()))
 		return false;
 
 	pattern.setWeight(Weight::BOLD);
-	if (xloadfont(&dc.ibfont, pattern.raw()))
+	if (loadFont(&dc.ibfont, pattern.raw()))
 		return false;
 
 	pattern.setSlant(Slant::ROMAN);
-	if (xloadfont(&dc.bfont, pattern.raw()))
+	if (loadFont(&dc.bfont, pattern.raw()))
 		return false;
 
 	return true;
 }
 
-static void xloadfontsOrThrow(const std::string &fontstr, double fontsize) {
-	if (!xloadfonts(fontstr, fontsize)) {
+void X11::loadFontsOrThrow(const std::string &fontstr, double fontsize) {
+	if (!loadFonts(fontstr, fontsize)) {
 		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", fontstr.c_str())));
 	}
 }
 
-void xunloadfont(Font *f) {
-	XftFontClose(x11.getDisplay(), f->match);
+void X11::unloadFont(Font *f) {
+	XftFontClose(*display, f->match);
 	FcPatternDestroy(f->pattern);
 	if (f->set)
 		FcFontSetDestroy(f->set);
 }
 
-void xunloadfonts() {
+void X11::unloadFonts() {
 	/* Free the loaded fonts in the font cache.  */
 	for (auto &fc: frc)
-		XftFontClose(x11.getDisplay(), fc.font);
+		XftFontClose(*display, fc.font);
 
 	frc.clear();
 
 	for (auto font: {&dc.font, &dc.bfont, &dc.ifont, &dc.ibfont}) {
-		xunloadfont(font);
+		unloadFont(font);
 	}
 }
 
@@ -518,7 +508,7 @@ void xinit() {
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
-	xloadfontsOrThrow(cmdline.font.getValue());
+	x11.loadFontsOrThrow(cmdline.font.getValue());
 
 	/* colors */
 	x11.cmap = display.getDefaultColormap(x11.scr);
@@ -614,7 +604,7 @@ void xinit() {
 
 	twin.mode = WinModeMask(WinMode::NUMLOCK);
 	xsettitle(nullptr);
-	xhints();
+	x11.setHints();
 	XMapWindow(x11.getDisplay(), x11.win);
 	XSync(x11.getDisplay(), False);
 
@@ -845,19 +835,22 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 	int width = charlen * twin.chr.width;
 
 	if (x == 0) {
-		xclear(0, (y == 0)? 0 : pos.y, config::BORDERPX,
-			pos.y + twin.chr.height +
-			((pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height)? twin.win.height : 0));
+		const auto pos1 = DrawPos{0, y ? pos.y : 0};
+		const auto pos2 = DrawPos{config::BORDERPX, pos.y + twin.chr.height + 
+			((pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height) ? twin.win.height : 0)};
+		x11.clearRect(pos1, pos2);
 	}
 
 	if (pos.x + width >= config::BORDERPX + twin.tty.width) {
-		xclear(pos.x + width, (y == 0)? 0 : pos.y, twin.win.width,
-			((pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height)? twin.win.height : (pos.y + twin.chr.height)));
+		const auto pos1 = DrawPos{pos.x + width, y ? pos.y : 0};
+		const auto pos2 = DrawPos{twin.win.width,
+			(pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height) ? twin.win.height : (pos.y + twin.chr.height)};
+		x11.clearRect(pos1, pos2);
 	}
 	if (y == 0)
-		xclear(pos.x, 0, pos.x + width, config::BORDERPX);
+		x11.clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + width, config::BORDERPX});
 	if (pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height)
-		xclear(pos.x, pos.y + twin.chr.height, pos.x + width, twin.win.height);
+		x11.clearRect(DrawPos{pos.x, pos.y + twin.chr.height}, DrawPos{pos.x + width, twin.win.height});
 
 	/* Clean up the region we want to draw to. */
 	XftDrawRect(x11.draw, bg, pos.x, pos.y, width, twin.chr.height);

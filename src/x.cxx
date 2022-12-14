@@ -51,10 +51,6 @@
 
 namespace nst {
 
-/* forward declarations */
-static void ximdestroy(XIM, XPointer, XPointer);
-static int xicdestroy(XIC, XPointer, XPointer);
-
 namespace {
 
 /* Globals */
@@ -447,52 +443,110 @@ void X11::unloadFonts() {
 	}
 }
 
-int ximopen() {
-	XIMCallback imdestroy = { .client_data = nullptr, .callback = ximdestroy };
-	XICCallback icdestroy = { .client_data = nullptr, .callback = xicdestroy };
+bool X11::ximOpen() {
+	if (m_input.open())
+		return true;
 
-	x11.ime.xim = XOpenIM(x11.getDisplay(), nullptr, nullptr, nullptr);
-	if (x11.ime.xim == nullptr)
-		return 0;
+	m_input.installCallback();
+	return false;
+}
 
-	if (XSetIMValues(x11.ime.xim, XNDestroyCallback, &imdestroy, nullptr))
+void X11::Input::installCallback() {
+	XRegisterIMInstantiateCallback(m_x11.getDisplay(), nullptr, nullptr, nullptr,
+				       &Input::instMethodCB, (XPointer)this);
+}
+
+bool X11::Input::open() {
+	XIMCallback imdestroy = { .client_data = (XPointer)this, .callback = destroyMethodCB };
+	XICCallback icdestroy = { .client_data = (XPointer)this, .callback = destroyContextCB };
+
+	m_method = XOpenIM(m_x11.getDisplay(), nullptr, nullptr, nullptr);
+	if (!m_method)
+		return false;
+
+	if (XSetIMValues(m_method, XNDestroyCallback, &imdestroy, nullptr))
 		fprintf(stderr, "XSetIMValues: "
 		                "Could not set XNDestroyCallback.\n");
 
-	x11.ime.spotlist = XVaCreateNestedList(0, XNSpotLocation, &x11.ime.spot,
-	                                      nullptr);
+	m_spotlist = XVaCreateNestedList(0, XNSpotLocation, &m_spot, nullptr);
 
-	if (x11.ime.xic == nullptr) {
+	if (!m_ctx) {
 		// NOTE: this function takes varargs, passing in C++ objects
 		// like x11.win even with conversion operator does not work
-		x11.ime.xic = XCreateIC(x11.ime.xim, XNInputStyle,
+		m_ctx = XCreateIC(m_method,
+		                       XNInputStyle,
 		                       XIMPreeditNothing | XIMStatusNothing,
-		                       XNClientWindow, x11.win.id(),
+		                       XNClientWindow, m_x11.win.id(),
 		                       XNDestroyCallback, &icdestroy,
 		                       nullptr);
 	}
-	if (x11.ime.xic == nullptr)
+
+	if (!m_ctx) {
 		fprintf(stderr, "XCreateIC: Could not create input context.\n");
+	}
 
+	return true;
+}
+
+void X11::Input::instMethod() {
+	if (!open())
+		return;
+
+	XUnregisterIMInstantiateCallback(m_x11.getDisplay(), nullptr, nullptr, nullptr,
+					 &instMethodCB, (XPointer)this);
+}
+
+void X11::Input::instMethodCB(Display *, XPointer inputp, XPointer) {
+	auto &input = *reinterpret_cast<Input*>(inputp);
+	input.instMethod();
+}
+
+void X11::Input::destroyMethod() {
+	m_method = nullptr;
+	installCallback();
+	XFree(m_spotlist);
+	m_spotlist = nullptr;
+}
+
+void X11::Input::destroyMethodCB(XIM, XPointer inputp, XPointer) {
+	auto &input = *reinterpret_cast<Input*>(inputp);
+	input.destroyMethod();
+}
+
+int X11::Input::destroyContext() {
+	m_ctx = nullptr;
 	return 1;
 }
 
-void ximinstantiate(Display *, XPointer, XPointer) {
-	if (ximopen())
-		XUnregisterIMInstantiateCallback(x11.getDisplay(), NULL, NULL, NULL,
-		                                 ximinstantiate, NULL);
+int X11::Input::destroyContextCB(XIC, XPointer inputp, XPointer) {
+	auto &input = *reinterpret_cast<Input*>(inputp);
+	return input.destroyContext();
 }
 
-void ximdestroy(XIM, XPointer, XPointer) {
-	x11.ime.xim = nullptr;
-	XRegisterIMInstantiateCallback(x11.getDisplay(), nullptr, nullptr, nullptr,
-	                               ximinstantiate, nullptr);
-	XFree(x11.ime.spotlist);
+void X11::Input::setSpot(const CharPos &chp) {
+	if (!m_ctx)
+		return;
+
+	const auto dp = twin.getDrawPos(chp.nextLine());
+
+	m_spot.x = dp.x;
+	m_spot.y = dp.y;
+
+	XSetICValues(m_ctx, XNPreeditAttributes, m_spotlist, nullptr);
 }
 
-int xicdestroy(XIC, XPointer, XPointer) {
-	x11.ime.xic = nullptr;
-	return 1;
+void X11::Input::setFocus() {
+	if (!haveContext())
+		return;
+
+	XSetICFocus(m_ctx);
+}
+
+void X11::Input::unsetFocus() {
+	if (!haveContext())
+		return;
+
+	XUnsetICFocus(m_ctx);
 }
 
 void xinit() {
@@ -568,10 +622,7 @@ void xinit() {
 	x11.draw = XftDrawCreate(x11.getDisplay(), x11.buf, x11.vis, x11.cmap);
 
 	/* input methods */
-	if (!ximopen()) {
-		XRegisterIMInstantiateCallback(x11.getDisplay(), NULL, NULL, NULL,
-	                                       ximinstantiate, NULL);
-	}
+	x11.ximOpen();
 
 	/* white cursor, black outline */
 	Cursor cursor = XCreateFontCursor(x11.getDisplay(), config::MOUSESHAPE);
@@ -1050,15 +1101,7 @@ void xfinishdraw() {
 }
 
 void xximspot(const CharPos &chp) {
-	if (x11.ime.xic == nullptr)
-		return;
-
-	const auto dp = twin.getDrawPos(chp.nextLine());
-
-	x11.ime.spot.x = dp.x;
-	x11.ime.spot.y = dp.y;
-
-	XSetICValues(x11.ime.xic, XNPreeditAttributes, x11.ime.spotlist, nullptr);
+	x11.getInput().setSpot(chp);
 }
 
 void xsetpointermotion(int set) {

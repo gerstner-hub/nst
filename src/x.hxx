@@ -25,6 +25,34 @@ typedef Glyph::Attr Attr;
 typedef XftColor Color;
 
 struct X11 {
+public: // types
+
+	struct Input {
+	protected: // data
+		XIM m_method = nullptr;
+		XIC m_ctx = nullptr;
+		XPoint m_spot = {0, 0};
+		XVaNestedList m_spotlist = nullptr;
+		X11 &m_x11;
+	protected: // functions
+		static void destroyMethodCB(XIM, XPointer, XPointer);
+		static int destroyContextCB(XIC, XPointer, XPointer);
+		static void instMethodCB(Display*, XPointer, XPointer);
+		void destroyMethod();
+		int destroyContext();
+		void instMethod();
+	public:
+		Input(X11 &x) : m_x11(x) {}
+		bool open();
+		void setSpot(const CharPos &chp);
+		void installCallback();
+		bool haveContext() const { return m_ctx != nullptr; }
+		XIC getContext() { return m_ctx; }
+		void setFocus();
+		void unsetFocus();
+	};
+
+public: // data
 	xpp::XDisplay *display = nullptr;
 	xpp::XAtomMapper *mapper = nullptr;
 	Colormap cmap;
@@ -32,12 +60,6 @@ struct X11 {
 	Drawable buf;
 	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
 	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
-	struct {
-		XIM xim;
-		XIC xic;
-		XPoint spot;
-		XVaNestedList spotlist;
-	} ime;
 	XftDraw *draw;
 	Visual *vis;
 	XSetWindowAttributes attrs;
@@ -45,7 +67,13 @@ struct X11 {
 	bool isfixed = false; /* is fixed geometry? */
 	int l = 0, t = 0; /* left and top offset */
 	int gm; /* geometry mask */
+
+protected: // data
+	
+	Input m_input;
+
 public: // functions
+	X11() : m_input(*this) {}
 	Display* getDisplay() {
 		return static_cast<Display*>(*this->display);
 	}
@@ -66,6 +94,9 @@ public: // functions
 	bool loadFonts(const std::string &fontstr, double fontsize);
 	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();
+	/// xim (X input method) setup
+	bool ximOpen();
+	Input& getInput() { return m_input; }
 protected:
 	static int geomMaskToGravity(int mask);
 	int loadFont(Font *f, FcPattern *pattern);

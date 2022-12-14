@@ -184,16 +184,16 @@ void XEventHandler::focus(const xpp::Event &ev) {
 	if (ev.toFocusChangeEvent().mode == NotifyGrab)
 		return;
 
+	auto &input = m_x11.getInput();
+
 	if (ev.getType() == FocusIn) {
-		if (m_x11.ime.xic)
-			XSetICFocus(m_x11.ime.xic);
+		input.setFocus();
 		m_twin.mode.set(WinMode::FOCUSED);
 		m_x11.setUrgency(0);
 		if (m_twin.mode[WinMode::FOCUS])
 			Nst::getTTY().write("\033[I", 3, 0);
 	} else {
-		if (m_x11.ime.xic)
-			XUnsetICFocus(m_x11.ime.xic);
+		input.unsetFocus();
 		m_twin.mode.reset(WinMode::FOCUSED);
 		if (m_twin.mode[WinMode::FOCUS])
 			Nst::getTTY().write("\033[O", 3, 0);
@@ -208,9 +208,11 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 	if (m_twin.mode[WinMode::KBDLOCK])
 		return;
 
-	if (m_x11.ime.xic) {
+	auto &input = m_x11.getInput();
+
+	if (input.haveContext()) {
 		Status status;
-		len = XmbLookupString(m_x11.ime.xic, const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, &status);
+		len = XmbLookupString(input.getContext(), const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, &status);
 	}
 	else
 		len = XLookupString(const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, NULL);

@@ -54,23 +54,24 @@ public: // types
 
 public: // data
 	xpp::XDisplay *display = nullptr;
-	xpp::XAtomMapper *mapper = nullptr;
 	Colormap cmap;
 	xpp::XWindow win;
-	Drawable buf;
 	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
-	Atom xembed, wmdeletewin, netwmname, netwmiconname, netwmpid;
+	Atom xembed, wmdeletewin, netwmname, netwmiconname;
 	XftDraw *draw;
-	Visual *vis;
-	XSetWindowAttributes attrs;
-	int scr;
+	Visual *m_visual = nullptr;
 	bool isfixed = false; /* is fixed geometry? */
-	int l = 0, t = 0; /* left and top offset */
-	int gm; /* geometry mask */
 
 protected: // data
 	
 	Input m_input;
+	int m_screen = -1;
+	xpp::XAtomMapper *m_mapper = nullptr;
+	int m_geometry = 0; /* geometry mask */
+	int m_left_offset = 0;
+	int m_top_offset = 0;
+	XSetWindowAttributes m_win_attrs;
+	Drawable m_draw_buf;
 
 public: // functions
 	X11() : m_input(*this) {}
@@ -78,7 +79,7 @@ public: // functions
 		return static_cast<Display*>(*this->display);
 	}
 	Atom getAtom(const char *name) const {
-		return mapper->getAtom(name);
+		return m_mapper->getAtom(name);
 	}
 	void pasteSelection();
 	void pasteClipboard();
@@ -97,8 +98,13 @@ public: // functions
 	/// xim (X input method) setup
 	bool ximOpen();
 	Input& getInput() { return m_input; }
+	void init();
+	void setGeometry(const std::string &g);
+	void setPointerMotion(bool on_off);
+	void finishDraw();
+	void changeEventMask(long event, bool on_off);
 protected:
-	static int geomMaskToGravity(int mask);
+	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
 };

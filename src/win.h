@@ -56,7 +56,7 @@ void xseticontitle(const char *);
 void xsettitle(const char *);
 void xsetcursor(const CursorStyle &);
 void xsetmode(bool, const WinMode &);
-void xsetpointermotion(int);
+void xsetpointermotion(bool);
 void xsetsel(char *);
 bool xstartdraw();
 void xximspot(const CharPos&);

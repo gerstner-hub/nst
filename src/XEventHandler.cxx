@@ -350,9 +350,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			 * data has been transferred. We won't need to receive
 			 * PropertyNotify events anymore.
 			 */
-			modifyBit(m_x11.attrs.event_mask, 0, PropertyChangeMask);
-			XChangeWindowAttributes(m_x11.getDisplay(), m_x11.win, CWEventMask,
-					&m_x11.attrs);
+			m_x11.changeEventMask(PropertyChangeMask, false);
 		}
 
 		if (type == incratom) {
@@ -361,9 +359,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			 * when the selection owner does send us the next
 			 * chunk of data.
 			 */
-			modifyBit(m_x11.attrs.event_mask, 1, PropertyChangeMask);
-			XChangeWindowAttributes(m_x11.getDisplay(), m_x11.win, CWEventMask,
-					&m_x11.attrs);
+			m_x11.changeEventMask(PropertyChangeMask, true);
 
 			/*
 			 * Deleting the property is the transfer start signal.

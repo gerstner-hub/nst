@@ -76,7 +76,7 @@ void X11::copyToClipboard() {
 	xsel.copyPrimaryToClipboard();
 
 	if (xsel.havePrimarySelection()) {
-		Atom clipboard = mapper->getAtom("CLIPBOARD");
+		Atom clipboard = m_mapper->getAtom("CLIPBOARD");
 		XSetSelectionOwner(*display, clipboard, win, CurrentTime);
 	}
 }
@@ -153,14 +153,14 @@ void X11::resize(const TermSize &dim) {
 
 	twin.setTermDim(dim);
 
-	XFreePixmap(*display, buf);
-	buf = XCreatePixmap(
+	XFreePixmap(*display, m_draw_buf);
+	m_draw_buf = XCreatePixmap(
 		*display,
 		win,
 		twin.win.width, twin.win.height,
-		DefaultDepth(getDisplay(), scr)
+		DefaultDepth(getDisplay(), m_screen)
 	);
-	XftDrawChange(draw, buf);
+	XftDrawChange(draw, m_draw_buf);
 	clearRect(DrawPos{0,0}, DrawPos{twin.win.width, twin.win.height});
 
 	/* resize to new width */
@@ -184,13 +184,13 @@ int X11::loadColor(size_t i, const char *name, Color *ncolor) {
 				color.red = 0x0808 + 0x0a0a * (i - (6*6*6+16));
 				color.green = color.blue = color.red;
 			}
-			return XftColorAllocValue(*display, x11.vis,
+			return XftColorAllocValue(*display, m_visual,
 			                          cmap, &color, ncolor);
 		} else
 			name = getColorName(i);
 	}
 
-	return XftColorAllocName(*display, vis, cmap, name, ncolor);
+	return XftColorAllocName(*display, m_visual, cmap, name, ncolor);
 }
 
 void xloadcols(void) {
@@ -198,7 +198,7 @@ void xloadcols(void) {
 
 	if (loaded) {
 		for (auto &c: dc.col) {
-			XftColorFree(x11.getDisplay(), x11.vis, x11.cmap, &c);
+			XftColorFree(x11.getDisplay(), x11.m_visual, x11.cmap, &c);
 		}
 	} else {
 
@@ -238,7 +238,7 @@ int xsetcolorname(size_t x, const char *name) {
 	if (!x11.loadColor(x, name, &ncolor))
 		return 1;
 
-	XftColorFree(x11.getDisplay(), x11.vis, x11.cmap, &dc.col[x]);
+	XftColorFree(x11.getDisplay(), x11.m_visual, x11.cmap, &dc.col[x]);
 	dc.col[x] = ncolor;
 
 	return 0;
@@ -273,19 +273,19 @@ void X11::setHints() {
 		sizeh->min_width = sizeh->max_width = twin.win.width;
 		sizeh->min_height = sizeh->max_height = twin.win.height;
 	}
-	if (gm & (XValue|YValue)) {
+	if (m_geometry & (XValue|YValue)) {
 		sizeh->flags |= USPosition | PWinGravity;
-		sizeh->x = l;
-		sizeh->y = t;
-		sizeh->win_gravity = geomMaskToGravity(gm);
+		sizeh->x = m_left_offset;
+		sizeh->y = m_top_offset;
+		sizeh->win_gravity = getGravity();
 	}
 
 	XSetWMProperties(*display, win, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
 	XFree(sizeh);
 }
 
-int X11::geomMaskToGravity(int mask) {
-	switch (mask & (XNegative|YNegative)) {
+int X11::getGravity() {
+	switch (m_geometry & (XNegative|YNegative)) {
 	case 0:
 		return NorthWestGravity;
 	case XNegative:
@@ -309,7 +309,7 @@ int X11::loadFont(Font *f, FcPattern *pattern) {
 
 	FcPatternGuard configured_guard(configured);
 	FcConfigSubstitute(nullptr, configured, FcMatchPattern);
-	XftDefaultSubstitute(*display, x11.scr, configured);
+	XftDefaultSubstitute(*display, m_screen, configured);
 
 	FcResult result;
 	FcPattern *match = FcFontMatch(nullptr, configured, &result);
@@ -549,40 +549,47 @@ void X11::Input::unsetFocus() {
 	XUnsetICFocus(m_ctx);
 }
 
-void xinit() {
-	XColor xmousefg, xmousebg;
+void X11::setGeometry(const std::string &g) {
+	unsigned int cols, rows;
 
-	auto &display = xpp::XDisplay::getInstance();
-	x11.display = &display;
-	x11.mapper = &xpp::XAtomMapper::getInstance();
-	x11.scr = display.getDefaultScreen();
-	x11.vis = display.getDefaultVisual(x11.scr);
+	m_geometry = XParseGeometry(
+			g.c_str(), &m_left_offset, &m_top_offset, &cols, &rows);
+
+	tsize.rows = rows;
+	tsize.cols = cols;
+}
+
+void X11::init() {
+	display = &xpp::XDisplay::getInstance();
+	m_mapper = &xpp::XAtomMapper::getInstance();
+	m_screen = display->getDefaultScreen();
+	m_visual = display->getDefaultVisual(m_screen);
 
 	/* font */
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
-	x11.loadFontsOrThrow(cmdline.font.getValue());
+	loadFontsOrThrow(cmdline.font.getValue());
 
 	/* colors */
-	x11.cmap = display.getDefaultColormap(x11.scr);
+	cmap = display->getDefaultColormap(m_screen);
 	xloadcols();
 
 	/* adjust fixed window geometry */
 	twin.setWinExtent(tsize);
-	if (x11.gm & XNegative)
-		x11.l += DisplayWidth(x11.getDisplay(), x11.scr) - twin.win.width - 2;
-	if (x11.gm & YNegative)
-		x11.t += DisplayHeight(x11.getDisplay(), x11.scr) - twin.win.height - 2;
+	if (m_geometry & XNegative)
+		m_left_offset += DisplayWidth(getDisplay(), m_screen) - twin.win.width - 2;
+	if (m_geometry & YNegative)
+		m_top_offset += DisplayHeight(getDisplay(), m_screen) - twin.win.height - 2;
 
 	/* Events */
-	x11.attrs.background_pixel = dc.col[config::DEFAULTBG].pixel;
-	x11.attrs.border_pixel = dc.col[config::DEFAULTBG].pixel;
-	x11.attrs.bit_gravity = NorthWestGravity;
-	x11.attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
+	m_win_attrs.background_pixel = dc.col[config::DEFAULTBG].pixel;
+	m_win_attrs.border_pixel = dc.col[config::DEFAULTBG].pixel;
+	m_win_attrs.bit_gravity = NorthWestGravity;
+	m_win_attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
-	x11.attrs.colormap = x11.cmap;
+	m_win_attrs.colormap = cmap;
 
 	std::optional<xpp::XWindow> parent;
 	if (cmdline.embed_window.isSet()) {
@@ -592,77 +599,79 @@ void xinit() {
 
 	if (!parent) {
 		// either not embedded or the command line parsing failed
-		parent.emplace(xpp::RootWin(display, x11.scr));
+		parent.emplace(xpp::RootWin(*display, m_screen));
 	}
 
-	x11.win = display.createWindow(
-		xpp::WindowSpec{x11.l, x11.t,
+	win = display->createWindow(
+		xpp::WindowSpec{m_left_offset, m_top_offset,
 			static_cast<unsigned int>(twin.win.width),
 			static_cast<unsigned int>(twin.win.height)},
 		0,
 		/*clazz = */InputOutput,
 		&(*parent),
-		display.getDefaultDepth(x11.scr),
-		x11.vis,
+		display->getDefaultDepth(m_screen),
+		m_visual,
 		CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
-		&x11.attrs
+		&m_win_attrs
 	);
 
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	dc.gc = XCreateGC(x11.getDisplay(), parent->id(), GCGraphicsExposures, &gcvalues);
-	x11.buf = XCreatePixmap(x11.getDisplay(), x11.win, twin.win.width, twin.win.height, DefaultDepth(x11.getDisplay(), x11.scr));
-	XSetForeground(x11.getDisplay(), dc.gc, dc.col[config::DEFAULTBG].pixel);
-	XFillRectangle(x11.getDisplay(), x11.buf, dc.gc, 0, 0, twin.win.width, twin.win.height);
+	dc.gc = XCreateGC(*display, parent->id(), GCGraphicsExposures, &gcvalues);
+	m_draw_buf = XCreatePixmap(*display, win, twin.win.width, twin.win.height, display->getDefaultDepth(m_screen));
+	XSetForeground(*display, dc.gc, dc.col[config::DEFAULTBG].pixel);
+	XFillRectangle(*display, m_draw_buf, dc.gc, 0, 0, twin.win.width, twin.win.height);
 
 	/* font spec buffer */
-	x11.specbuf.resize(tsize.cols);
+	specbuf.resize(tsize.cols);
 
 	/* Xft rendering context */
-	x11.draw = XftDrawCreate(x11.getDisplay(), x11.buf, x11.vis, x11.cmap);
+	draw = XftDrawCreate(*display, m_draw_buf, m_visual, cmap);
 
 	/* input methods */
-	x11.ximOpen();
+	ximOpen();
 
 	/* white cursor, black outline */
-	Cursor cursor = XCreateFontCursor(x11.getDisplay(), config::MOUSESHAPE);
-	XDefineCursor(x11.getDisplay(), x11.win, cursor);
+	Cursor cursor = XCreateFontCursor(*display, config::MOUSESHAPE);
+	XDefineCursor(*display, win, cursor);
 
-	if (XParseColor(x11.getDisplay(), x11.cmap, getColorName(config::MOUSEFG), &xmousefg) == 0) {
+	XColor xmousefg, xmousebg;
+
+	if (XParseColor(*display, cmap, getColorName(config::MOUSEFG), &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
 		xmousefg.green = 0xffff;
 		xmousefg.blue  = 0xffff;
 	}
 
-	if (XParseColor(x11.getDisplay(), x11.cmap, getColorName(config::MOUSEBG), &xmousebg) == 0) {
+	if (XParseColor(*display, cmap, getColorName(config::MOUSEBG), &xmousebg) == 0) {
 		xmousebg.red   = 0x0000;
 		xmousebg.green = 0x0000;
 		xmousebg.blue  = 0x0000;
 	}
 
-	XRecolorCursor(x11.getDisplay(), cursor, &xmousefg, &xmousebg);
+	XRecolorCursor(*display, cursor, &xmousefg, &xmousebg);
 
-	x11.xembed = x11.getAtom("_XEMBED");
-	x11.wmdeletewin = x11.getAtom("WM_DELETE_WINDOW");
-	x11.netwmname = x11.getAtom("_NET_WM_NAME");
-	x11.netwmiconname = x11.getAtom("_NET_WM_ICON_NAME");
-	XSetWMProtocols(x11.getDisplay(), x11.win, &x11.wmdeletewin, 1);
+	xembed = getAtom("_XEMBED");
+	wmdeletewin = getAtom("WM_DELETE_WINDOW");
+	netwmname = getAtom("_NET_WM_NAME");
+	netwmiconname = getAtom("_NET_WM_ICON_NAME");
+	XSetWMProtocols(*display, win, &wmdeletewin, 1);
 
-	x11.netwmpid = x11.getAtom("_NET_WM_PID");
+	auto netwmpid = x11.getAtom("_NET_WM_PID");
 	auto thispid = cosmos::g_process.getPid();
-	XChangeProperty(x11.getDisplay(), x11.win, x11.netwmpid, XA_CARDINAL, 32,
+	XChangeProperty(*display, win, netwmpid, XA_CARDINAL, 32,
 			PropModeReplace, (uchar *)&thispid, 1);
 
 	twin.mode = WinModeMask(WinMode::NUMLOCK);
 	xsettitle(nullptr);
-	x11.setHints();
-	XMapWindow(x11.getDisplay(), x11.win);
-	XSync(x11.getDisplay(), False);
+	setHints();
+	XMapWindow(*display, win);
+	XSync(*display, False);
 
 	xsel.init();
 
 	if (getenv("NST_XSYNC") != nullptr) {
-		::XSynchronize(display, true);
+		::XSynchronize(*display, true);
 	}
 }
 
@@ -810,10 +819,11 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 	Color *fg;
 	XRenderColor colfg;
 	Color truefg;
+	auto visual = x11.m_visual;
 
 	if (base.isFgTrueColor()) {
 		setRenderColor(colfg, base.fg);
-		XftColorAllocValue(x11.getDisplay(), x11.vis, x11.cmap, &colfg, &truefg);
+		XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colfg, &truefg);
 		fg = &truefg;
 	} else {
 		fg = &dc.col[base.fg];
@@ -825,7 +835,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 
 	if (base.isBgTrueColor()) {
 		setRenderColor(colbg, base.bg);
-		XftColorAllocValue(x11.getDisplay(), x11.vis, x11.cmap, &colbg, &truebg);
+		XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colbg, &truebg);
 		bg = &truebg;
 	} else {
 		bg = &dc.col[base.bg];
@@ -844,7 +854,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 			colfg.green = ~fg->color.green;
 			colfg.blue = ~fg->color.blue;
 			colfg.alpha = fg->color.alpha;
-			XftColorAllocValue(x11.getDisplay(), x11.vis, x11.cmap, &colfg,
+			XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colfg,
 					&revfg);
 			fg = &revfg;
 		}
@@ -856,7 +866,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 			colbg.green = ~bg->color.green;
 			colbg.blue = ~bg->color.blue;
 			colbg.alpha = bg->color.alpha;
-			XftColorAllocValue(x11.getDisplay(), x11.vis, x11.cmap, &colbg,
+			XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colbg,
 					&revbg);
 			bg = &revbg;
 		}
@@ -867,7 +877,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 		colfg.green = fg->color.green / 2;
 		colfg.blue = fg->color.blue / 2;
 		colfg.alpha = fg->color.alpha;
-		XftColorAllocValue(x11.getDisplay(), x11.vis, x11.cmap, &colfg, &revfg);
+		XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colfg, &revfg);
 		fg = &revfg;
 	}
 
@@ -1094,19 +1104,32 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 }
 
 void xfinishdraw() {
-	XCopyArea(x11.getDisplay(), x11.buf, x11.win, dc.gc, 0, 0, twin.win.width, twin.win.height, 0, 0);
-	XSetForeground(x11.getDisplay(), dc.gc,
+	x11.finishDraw();
+}
+
+void X11::finishDraw() {
+	XCopyArea(*display, m_draw_buf, win, dc.gc, 0, 0, twin.win.width, twin.win.height, 0, 0);
+	XSetForeground(*display, dc.gc,
 			dc.col[twin.mode[WinMode::REVERSE]?
 				config::DEFAULTFG : config::DEFAULTBG].pixel);
+}
+
+void X11::changeEventMask(long event, bool on_off) {
+	modifyBit(m_win_attrs.event_mask, on_off ? 1 : 0, event);
+	XChangeWindowAttributes(*display, win, CWEventMask, &m_win_attrs);
 }
 
 void xximspot(const CharPos &chp) {
 	x11.getInput().setSpot(chp);
 }
 
-void xsetpointermotion(int set) {
-	modifyBit(x11.attrs.event_mask, set, PointerMotionMask);
-	XChangeWindowAttributes(x11.getDisplay(), x11.win, CWEventMask, &x11.attrs);
+void xsetpointermotion(bool set) {
+	x11.setPointerMotion(set);
+}
+
+void X11::setPointerMotion(bool on_off) {
+	modifyBit(m_win_attrs.event_mask, on_off, PointerMotionMask);
+	XChangeWindowAttributes(*display, win, CWEventMask, &m_win_attrs);
 }
 
 void xsetmode(bool set, const WinMode &flag) {
@@ -1183,15 +1206,7 @@ void Nst::applyCmdline(const Cmdline &cmd) {
 	}
 
 	if (cmd.window_geometry.isSet()) {
-		unsigned int cols, rows;
-
-		m_x11.gm = XParseGeometry(
-			cmd.window_geometry.getValue().c_str(),
-			&x11.l, &x11.t, &cols, &rows
-		);
-
-		tsize.rows = rows;
-		tsize.cols = cols;
+		x11.setGeometry(cmd.window_geometry.getValue());
 	}
 }
 
@@ -1218,7 +1233,7 @@ void Nst::run(int argc, const char **argv) {
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
-	xinit();
+	x11.init();
 	xsetenv();
 	mainLoop();
 }

@@ -24,6 +24,13 @@ namespace nst {
 typedef Glyph::Attr Attr;
 typedef XftColor Color;
 
+/* Drawing Context */
+struct DrawingContext {
+	std::vector<Color> col;
+	Font font, bfont, ifont, ibfont;
+	GC gc;
+};
+
 struct X11 {
 public: // types
 
@@ -73,6 +80,8 @@ protected: // data
 	XSetWindowAttributes m_win_attrs;
 	Drawable m_draw_buf;
 	Atom m_netwmname, m_netwmiconname;
+	DrawingContext m_draw_ctx;
+	bool m_colors_loaded = false;
 
 public: // functions
 	X11() : m_input(*this) {}
@@ -106,17 +115,14 @@ public: // functions
 	void changeEventMask(long event, bool on_off);
 	void setIconTitle(const std::string &title);
 	void setTitle(const std::string &title);
+	void loadColors();
+	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
+	bool setColorName(size_t idx, const char *name);
+	DrawingContext& getDrawCtx() { return m_draw_ctx; }
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
-};
-
-/* Drawing Context */
-struct DrawingContext {
-	std::vector<Color> col;
-	Font font, bfont, ifont, ibfont;
-	GC gc;
 };
 
 /* Purely graphic info */

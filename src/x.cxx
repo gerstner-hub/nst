@@ -54,7 +54,6 @@ namespace nst {
 namespace {
 
 /* Globals */
-DrawingContext dc;
 X11 x11;
 XSelection xsel(x11);
 TermWindow twin;
@@ -193,21 +192,22 @@ int X11::loadColor(size_t i, const char *name, Color *ncolor) {
 	return XftColorAllocName(*display, m_visual, cmap, name, ncolor);
 }
 
-void xloadcols(void) {
-	static bool loaded;
+void xloadcols() {
+	x11.loadColors();
+}
 
-	if (loaded) {
-		for (auto &c: dc.col) {
-			XftColorFree(x11.getDisplay(), x11.m_visual, x11.cmap, &c);
+void X11::loadColors() {
+	if (m_colors_loaded) {
+		for (auto &c: m_draw_ctx.col) {
+			XftColorFree(*display, m_visual, cmap, &c);
 		}
 	} else {
-
 		auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
-		dc.col.resize(len);
+		m_draw_ctx.col.resize(len);
 	}
 
-	for (size_t i = 0; i < dc.col.size(); i++) {
-		if (!x11.loadColor(i, nullptr, &dc.col[i])) {
+	for (size_t i = 0; i < m_draw_ctx.col.size(); i++) {
+		if (!loadColor(i, nullptr, &m_draw_ctx.col[i])) {
 			auto colorname = getColorName(i);
 			if (colorname)
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname)));
@@ -216,32 +216,40 @@ void xloadcols(void) {
 		}
 	}
 
-	loaded = true;
+	m_colors_loaded = true;
 }
 
 int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b) {
-	if (x >= dc.col.size())
-		return 1;
+	return x11.getColor(x, r, g, b) ? 0 : 1;
+}
 
-	*r = dc.col[x].color.red >> 8;
-	*g = dc.col[x].color.green >> 8;
-	*b = dc.col[x].color.blue >> 8;
+bool X11::getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const {
+	if (idx >= m_draw_ctx.col.size())
+		return false;
 
-	return 0;
+	*r = m_draw_ctx.col[idx].color.red >> 8;
+	*g = m_draw_ctx.col[idx].color.green >> 8;
+	*b = m_draw_ctx.col[idx].color.blue >> 8;
+
+	return true;
 }
 
 int xsetcolorname(size_t x, const char *name) {
-	if (x >= dc.col.size())
-		return 1;
+	return x11.setColorName(x, name) ? 0 : 1;
+}
+
+bool X11::setColorName(size_t idx, const char *name) {
+	if (idx >= m_draw_ctx.col.size())
+		return false;
 
 	Color ncolor;
-	if (!x11.loadColor(x, name, &ncolor))
-		return 1;
+	if (!loadColor(idx, name, &ncolor))
+		return false;
 
-	XftColorFree(x11.getDisplay(), x11.m_visual, x11.cmap, &dc.col[x]);
-	dc.col[x] = ncolor;
+	XftColorFree(*display, m_visual, cmap, &m_draw_ctx.col[idx]);
+	m_draw_ctx.col[idx] = ncolor;
 
-	return 0;
+	return true;
 }
 
 /*
@@ -249,7 +257,7 @@ int xsetcolorname(size_t x, const char *name) {
  */
 void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 	const auto colindex = twin.mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
-	XftDrawRect(draw, &dc.col[colindex], pos1.x, pos1.y, pos2.x - pos1.x, pos2.y - pos1.y);
+	XftDrawRect(draw, &m_draw_ctx.col[colindex], pos1.x, pos1.y, pos2.x - pos1.x, pos2.y - pos1.y);
 }
 
 void X11::setHints() {
@@ -388,11 +396,11 @@ bool X11::loadFonts(const std::string &fontstr, double fontsize) {
 		defaultfontsize = usedfontsize;
 	}
 
-	if (loadFont(&dc.font, pattern.raw()))
+	if (loadFont(&m_draw_ctx.font, pattern.raw()))
 		return false;
 
 	if (usedfontsize < 0) {
-		auto loaded = FontPattern(dc.font.match->pattern);
+		auto loaded = FontPattern(m_draw_ctx.font.match->pattern);
 		if (auto pxsize = loaded.getPixelSize(); pxsize.has_value()) {
 			usedfontsize = *pxsize;
 			if (fontsize == 0)
@@ -401,18 +409,18 @@ bool X11::loadFonts(const std::string &fontstr, double fontsize) {
 	}
 
 	/* Setting character width and height. */
-	twin.setCharSize(dc);
+	twin.setCharSize(m_draw_ctx);
 
 	pattern.setSlant(Slant::ITALIC);
-	if (loadFont(&dc.ifont, pattern.raw()))
+	if (loadFont(&m_draw_ctx.ifont, pattern.raw()))
 		return false;
 
 	pattern.setWeight(Weight::BOLD);
-	if (loadFont(&dc.ibfont, pattern.raw()))
+	if (loadFont(&m_draw_ctx.ibfont, pattern.raw()))
 		return false;
 
 	pattern.setSlant(Slant::ROMAN);
-	if (loadFont(&dc.bfont, pattern.raw()))
+	if (loadFont(&m_draw_ctx.bfont, pattern.raw()))
 		return false;
 
 	return true;
@@ -438,7 +446,7 @@ void X11::unloadFonts() {
 
 	frc.clear();
 
-	for (auto font: {&dc.font, &dc.bfont, &dc.ifont, &dc.ibfont}) {
+	for (auto font: {&m_draw_ctx.font, &m_draw_ctx.bfont, &m_draw_ctx.ifont, &m_draw_ctx.ibfont}) {
 		unloadFont(font);
 	}
 }
@@ -583,8 +591,8 @@ void X11::init() {
 		m_top_offset += DisplayHeight(getDisplay(), m_screen) - twin.win.height - 2;
 
 	/* Events */
-	m_win_attrs.background_pixel = dc.col[config::DEFAULTBG].pixel;
-	m_win_attrs.border_pixel = dc.col[config::DEFAULTBG].pixel;
+	m_win_attrs.background_pixel = m_draw_ctx.col[config::DEFAULTBG].pixel;
+	m_win_attrs.border_pixel = m_draw_ctx.col[config::DEFAULTBG].pixel;
 	m_win_attrs.bit_gravity = NorthWestGravity;
 	m_win_attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
@@ -617,10 +625,10 @@ void X11::init() {
 
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	dc.gc = XCreateGC(*display, parent->id(), GCGraphicsExposures, &gcvalues);
+	m_draw_ctx.gc = XCreateGC(*display, parent->id(), GCGraphicsExposures, &gcvalues);
 	m_draw_buf = XCreatePixmap(*display, win, twin.win.width, twin.win.height, display->getDefaultDepth(m_screen));
-	XSetForeground(*display, dc.gc, dc.col[config::DEFAULTBG].pixel);
-	XFillRectangle(*display, m_draw_buf, dc.gc, 0, 0, twin.win.width, twin.win.height);
+	XSetForeground(*display, m_draw_ctx.gc, m_draw_ctx.col[config::DEFAULTBG].pixel);
+	XFillRectangle(*display, m_draw_buf, m_draw_ctx.gc, 0, 0, twin.win.width, twin.win.height);
 
 	/* font spec buffer */
 	specbuf.resize(tsize.cols);
@@ -677,6 +685,7 @@ void X11::init() {
 
 size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y) {
 	auto pos = twin.getDrawPos(CharPos{x,y});
+	auto &dc = x11.getDrawCtx();
 	Font *fnt = &dc.font;
 	FRC frcflags = FRC::NORMAL;
 	int runewidth = twin.chr.width;
@@ -806,6 +815,7 @@ static void setRenderColor(XRenderColor &out, const uint32_t in) {
 
 void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y) {
 	const size_t charlen = len * (base.mode[Attr::WIDE] ? 2 : 1);
+	auto &dc = x11.getDrawCtx();
 
 	/* Fallback on color display for attributes not supported by the font */
 	if (base.mode[Attr::ITALIC] && base.mode[Attr::BOLD]) {
@@ -952,6 +962,7 @@ void xdrawglyph(Glyph g, int x, int y) {
 void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 
 	auto &sel = Nst::getSelection();
+	auto &dc = x11.getDrawCtx();
 
 	/* remove the old cursor */
 	if (sel.isSelected(ox, oy))
@@ -1114,9 +1125,9 @@ void xfinishdraw() {
 }
 
 void X11::finishDraw() {
-	XCopyArea(*display, m_draw_buf, win, dc.gc, 0, 0, twin.win.width, twin.win.height, 0, 0);
-	XSetForeground(*display, dc.gc,
-			dc.col[twin.mode[WinMode::REVERSE]?
+	XCopyArea(*display, m_draw_buf, win, m_draw_ctx.gc, 0, 0, twin.win.width, twin.win.height, 0, 0);
+	XSetForeground(*display, m_draw_ctx.gc,
+			m_draw_ctx.col[twin.mode[WinMode::REVERSE] ?
 				config::DEFAULTFG : config::DEFAULTBG].pixel);
 }
 

@@ -82,6 +82,7 @@ protected: // data
 	Atom m_netwmname, m_netwmiconname;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
+	std::vector<Fontcache> m_font_cache;
 
 public: // functions
 	X11() : m_input(*this) {}
@@ -119,10 +120,12 @@ public: // functions
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
 	bool setColorName(size_t idx, const char *name);
 	DrawingContext& getDrawCtx() { return m_draw_ctx; }
+	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
+	std::tuple<Font*, FRC> getFontForMode(const Glyph::AttrBitMask &mode);
 };
 
 /* Purely graphic info */

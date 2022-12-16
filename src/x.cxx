@@ -59,7 +59,6 @@ XSelection xsel(x11);
 TermWindow twin;
 
 /* Fontcache is an array now. A new font will be appended to the array. */
-std::vector<Fontcache> frc;
 double usedfontsize = 0;
 double defaultfontsize = 0;
 
@@ -441,10 +440,10 @@ void X11::unloadFont(Font *f) {
 
 void X11::unloadFonts() {
 	/* Free the loaded fonts in the font cache.  */
-	for (auto &fc: frc)
+	for (auto &fc: m_font_cache)
 		XftFontClose(*display, fc.font);
 
-	frc.clear();
+	m_font_cache.clear();
 
 	for (auto font: {&m_draw_ctx.font, &m_draw_ctx.bfont, &m_draw_ctx.ifont, &m_draw_ctx.ibfont}) {
 		unloadFont(font);
@@ -683,10 +682,21 @@ void X11::init() {
 	}
 }
 
-size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y) {
-	auto pos = twin.getDrawPos(CharPos{x,y});
-	auto &dc = x11.getDrawCtx();
-	Font *fnt = &dc.font;
+std::tuple<Font*, FRC> X11::getFontForMode(const Glyph::AttrBitMask &mode) {
+	if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
+		return std::make_tuple(&m_draw_ctx.ibfont, FRC::ITALICBOLD);
+	} else if (mode[Attr::ITALIC]) {
+		return std::make_tuple(&m_draw_ctx.ifont, FRC::ITALIC);
+	} else if (mode[Attr::BOLD]) {
+		return std::make_tuple(&m_draw_ctx.bfont, FRC::BOLD);
+	} else {
+		return std::make_tuple(&m_draw_ctx.font, FRC::NORMAL);
+	}
+}
+
+size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y) {
+	const auto pos = twin.getDrawPos(CharPos{x,y});
+	Font *fnt = &m_draw_ctx.font;
 	FRC frcflags = FRC::NORMAL;
 	int runewidth = twin.chr.width;
 	size_t numspecs = 0;
@@ -704,30 +714,19 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t 
 		/* Determine font for glyph if different from previous glyph. */
 		if (prevmode != mode) {
 			prevmode = mode;
+			std::tie(fnt, frcflags) = getFontForMode(mode);
 			runewidth = twin.chr.width * (mode[Attr::WIDE] ? 2 : 1);
-			if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
-				fnt = &dc.ibfont;
-				frcflags = FRC::ITALICBOLD;
-			} else if (mode[Attr::ITALIC]) {
-				fnt = &dc.ifont;
-				frcflags = FRC::ITALIC;
-			} else if (mode[Attr::BOLD]) {
-				fnt = &dc.bfont;
-				frcflags = FRC::BOLD;
-			} else {
-				fnt = &dc.font;
-				frcflags = FRC::NORMAL;
-			}
 			yp = pos.y + fnt->ascent;
 		}
 
 		/* Lookup character index with default font. */
-		auto glyphidx = XftCharIndex(x11.getDisplay(), fnt->match, rune);
+		auto glyphidx = XftCharIndex(*display, fnt->match, rune);
 		if (glyphidx) {
-			specs[numspecs].font = fnt->match;
-			specs[numspecs].glyph = glyphidx;
-			specs[numspecs].x = (short)xp;
-			specs[numspecs].y = (short)yp;
+			auto &spec = specs[numspecs];
+			spec.font = fnt->match;
+			spec.glyph = glyphidx;
+			spec.x = (short)xp;
+			spec.y = (short)yp;
 			xp += runewidth;
 			numspecs++;
 			continue;
@@ -735,7 +734,7 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t 
 
 		Fontcache *font_entry = nullptr;
 		/* Fallback on font cache, search the font cache for match. */
-		for (auto &fc: frc) {
+		for (auto &fc: m_font_cache) {
 			glyphidx = XftCharIndex(x11.getDisplay(), fc.font, rune);
 			/* Everything correct. */
 			if (glyphidx && fc.flags == frcflags) {
@@ -743,8 +742,7 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t 
 				break;
 			}
 			/* We got a default font for a not found glyph. */
-			else if (!glyphidx && fc.flags == frcflags
-					&& fc.unicodep == rune) {
+			else if (!glyphidx && fc.flags == frcflags && fc.unicodep == rune) {
 				font_entry = &fc;
 				break;
 			}
@@ -754,8 +752,7 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t 
 		if (!font_entry) {
 			FcResult fcres;
 			if (!fnt->set)
-				fnt->set = FcFontSort(0, fnt->pattern,
-				                       1, 0, &fcres);
+				fnt->set = FcFontSort(0, fnt->pattern, 1, 0, &fcres);
 			FcFontSet *fcsets[] = { NULL };
 			fcsets[0] = fnt->set;
 
@@ -782,20 +779,21 @@ size_t xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t 
 
 			/* Allocate memory for the new cache entry. */
 
-			auto font = XftFontOpenPattern(x11.getDisplay(), fontpattern);
+			auto font = XftFontOpenPattern(*display, fontpattern);
 			if (!font)
 				cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
-			frc.emplace_back(Fontcache{font, frcflags, rune});
+			m_font_cache.emplace_back(Fontcache{font, frcflags, rune});
 
-			glyphidx = XftCharIndex(x11.getDisplay(), frc.back().font, rune);
+			glyphidx = XftCharIndex(*display, m_font_cache.back().font, rune);
 
-			font_entry = &frc.back();
+			font_entry = &m_font_cache.back();
 		}
 
-		specs[numspecs].font = font_entry->font;
-		specs[numspecs].glyph = glyphidx;
-		specs[numspecs].x = (short)xp;
-		specs[numspecs].y = (short)yp;
+		auto &spec = specs[numspecs];
+		spec.font = font_entry->font;
+		spec.glyph = glyphidx;
+		spec.x = (short)xp;
+		spec.y = (short)yp;
 		xp += runewidth;
 		numspecs++;
 	}
@@ -955,7 +953,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 void xdrawglyph(Glyph g, int x, int y) {
 	XftGlyphFontSpec spec;
 
-	auto numspecs = xmakeglyphfontspecs(&spec, &g, 1, x, y);
+	auto numspecs = x11.makeGlyphFontSpecs(&spec, &g, 1, x, y);
 	xdrawglyphfontspecs(&spec, g, numspecs, x, y);
 }
 
@@ -1097,7 +1095,7 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 	size_t i = 0;
 	int ox = 0;
 
-	auto numspecs = xmakeglyphfontspecs(specs, &line[x1], x2 - x1, x1, y1);
+	auto numspecs = x11.makeGlyphFontSpecs(specs, &line[x1], x2 - x1, x1, y1);
 	for (int x = x1; x < x2 && i < numspecs; x++) {
 		newone = line[x];
 		if (newone.mode.only(Attr::WDUMMY))

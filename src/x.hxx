@@ -57,7 +57,7 @@ public: // data
 	Colormap cmap;
 	xpp::XWindow win;
 	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
-	Atom xembed, wmdeletewin, netwmname, netwmiconname;
+	Atom xembed, wmdeletewin;
 	XftDraw *draw;
 	Visual *m_visual = nullptr;
 	bool isfixed = false; /* is fixed geometry? */
@@ -72,6 +72,7 @@ protected: // data
 	int m_top_offset = 0;
 	XSetWindowAttributes m_win_attrs;
 	Drawable m_draw_buf;
+	Atom m_netwmname, m_netwmiconname;
 
 public: // functions
 	X11() : m_input(*this) {}
@@ -103,6 +104,8 @@ public: // functions
 	void setPointerMotion(bool on_off);
 	void finishDraw();
 	void changeEventMask(long event, bool on_off);
+	void setIconTitle(const std::string &title);
+	void setTitle(const std::string &title);
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);

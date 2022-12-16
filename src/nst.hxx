@@ -38,6 +38,8 @@ protected: // functions
 	void mainLoop();
 	void waitForWindowMapping();
 	void applyCmdline(const Cmdline &cmd);
+	/// sets up environment variables for the terminal process
+	void setEnv();
 
 protected: // data
 	cosmos::Init m_init;

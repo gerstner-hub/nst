@@ -653,8 +653,8 @@ void X11::init() {
 
 	xembed = getAtom("_XEMBED");
 	wmdeletewin = getAtom("WM_DELETE_WINDOW");
-	netwmname = getAtom("_NET_WM_NAME");
-	netwmiconname = getAtom("_NET_WM_ICON_NAME");
+	m_netwmname = getAtom("_NET_WM_NAME");
+	m_netwmiconname = getAtom("_NET_WM_ICON_NAME");
 	XSetWMProtocols(*display, win, &wmdeletewin, 1);
 
 	auto netwmpid = x11.getAtom("_NET_WM_PID");
@@ -1042,31 +1042,37 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	}
 }
 
-void xsetenv(void) {
-	setenv("WINDOWID", std::to_string(x11.win).c_str(), 1);
+void xseticontitle(const char *p) {
+	x11.setIconTitle(p ? std::string(p) : cmdline.getTitle());
 }
 
-void xseticontitle(const char *p) {
+void X11::setIconTitle(const std::string &title) {
 	XTextProperty prop;
-	p = p ? p : cmdline.getTitle().c_str();
+	// the API forces us to unconst this, the parameter should not be
+	// modified though
+	char *titlep = const_cast<char*>(title.c_str());
 
-	if (Xutf8TextListToTextProperty(x11.getDisplay(), (char**)&p, 1, XUTF8StringStyle,
+	if (Xutf8TextListToTextProperty(*display, &titlep, 1, XUTF8StringStyle,
 	                                &prop) != Success)
 		return;
-	XSetWMIconName(x11.getDisplay(), x11.win, &prop);
-	XSetTextProperty(x11.getDisplay(), x11.win, &prop, x11.netwmiconname);
+	XSetWMIconName(*display, win, &prop);
+	XSetTextProperty(*display, win, &prop, m_netwmiconname);
 	XFree(prop.value);
 }
 
 void xsettitle(const char *p) {
-	XTextProperty prop;
-	p = p ? p : cmdline.getTitle().c_str();
+	x11.setTitle(p ? std::string(p) : cmdline.getTitle().c_str());
+}
 
-	if (Xutf8TextListToTextProperty(x11.getDisplay(), (char**)&p, 1, XUTF8StringStyle,
+void X11::setTitle(const std::string &title) {
+	XTextProperty prop;
+	char *titlep = const_cast<char*>(title.c_str());
+
+	if (Xutf8TextListToTextProperty(*display, &titlep, 1, XUTF8StringStyle,
 	                                &prop) != Success)
 		return;
-	XSetWMName(x11.getDisplay(), x11.win, &prop);
-	XSetTextProperty(x11.getDisplay(), x11.win, &prop, x11.netwmname);
+	XSetWMName(*display, win, &prop);
+	XSetTextProperty(*display, win, &prop, m_netwmname);
 	XFree(prop.value);
 }
 
@@ -1234,9 +1240,14 @@ void Nst::run(int argc, const char **argv) {
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
 	x11.init();
-	xsetenv();
+	setEnv();
 	mainLoop();
 }
+
+void Nst::setEnv() {
+	::setenv("WINDOWID", std::to_string(x11.win).c_str(), 1);
+}
+
 
 void Nst::mainLoop() {
 	auto ttyfd = m_tty.create(cmdline);

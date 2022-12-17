@@ -28,18 +28,20 @@ const char* XEventHandler::getCustomKey(KeySym k, uint state) const {
 		return nullptr;
 	}
 
+	const auto &tmode = m_x11.getTermWin().mode;
+
 	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
 		auto &key = *it;
 
 		if (!match(key.mask, state))
 			continue;
 
-		if (m_twin.mode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
+		if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
 			continue;
-		if (m_twin.mode[WinMode::NUMLOCK] && key.appkey == 2)
+		if (tmode[WinMode::NUMLOCK] && key.appkey == 2)
 			continue;
 
-		if (m_twin.mode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
+		if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
 			continue;
 
 		return key.s;
@@ -80,16 +82,17 @@ bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	size_t btn;
 	int code;
-	auto &twin = m_twin;
+	const auto &twin = m_x11.getTermWin();
+	const auto &tmode = twin.mode;
 	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
 
 	if (ev.type == MotionNotify) {
 		if (pos == m_old_mouse_pos)
 			return;
-		else if (!twin.mode[WinMode::MOUSEMOTION] && !twin.mode[WinMode::MOUSEMANY])
+		else if (!tmode[WinMode::MOUSEMOTION] && !tmode[WinMode::MOUSEMANY])
 			return;
 		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
-		else if (twin.mode[WinMode::MOUSEMOTION] && m_buttons.none())
+		else if (tmode[WinMode::MOUSEMOTION] && m_buttons.none())
 			return;
 		/* Set btn to lowest-numbered pressed button, or NO_BUTTON if no
 		 * buttons are pressed. */
@@ -102,7 +105,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 			return;
 		if (ev.type == ButtonRelease) {
 			/* MODE_MOUSEX10: no button release reporting */
-			if (twin.mode[WinMode::MOUSEX10])
+			if (tmode[WinMode::MOUSEX10])
 				return;
 			/* Don't send release events for the scroll wheel */
 			if (btn == 4 || btn == 5)
@@ -115,7 +118,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 
 	/* Encode btn into code. If no button is pressed for a motion event in
 	 * MODE_MOUSEMANY, then encode it as a release. */
-	if ((!twin.mode[WinMode::MOUSESGR] && ev.type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
+	if ((!tmode[WinMode::MOUSESGR] && ev.type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
 		code += 3;
 	else if (btn >= 8)
 		code += 128 + btn - 8;
@@ -124,7 +127,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	else
 		code += btn - 1;
 
-	if (!twin.mode[WinMode::MOUSEX10]) {
+	if (!tmode[WinMode::MOUSEX10]) {
 		auto state = ev.state;
 		code += ((state & ShiftMask  ) ?  4 : 0)
 		      + ((state & Mod1Mask   ) ?  8 : 0) /* meta key: alt */
@@ -134,7 +137,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	int len;
 	char buf[40];
 
-	if (twin.mode[WinMode::MOUSESGR]) {
+	if (tmode[WinMode::MOUSESGR]) {
 		len = snprintf(buf, sizeof(buf), "\033[<%d;%d;%d%c",
 				code, pos.x+1, pos.y+1,
 				ev.type == ButtonRelease ? 'm' : 'M');
@@ -162,7 +165,7 @@ void XEventHandler::handleMouseSelection(const XButtonEvent &ev, bool done) {
 	}
 
 	auto &sel = m_nst.getSelection();
-	const auto pos = m_twin.getCharPos(DrawPos{ev.x, ev.y});
+	const auto pos = m_x11.getTermWin().getCharPos(DrawPos{ev.x, ev.y});
 	sel.extend(pos.x, pos.y, seltype, done);
 
 	if (done) {
@@ -176,11 +179,11 @@ void XEventHandler::expose() {
 }
 
 void XEventHandler::visibility(const XVisibilityEvent &ev) {
-	m_twin.mode.set(WinMode::VISIBLE, ev.state != VisibilityFullyObscured);
+	m_x11.setVisible(ev.state != VisibilityFullyObscured);
 }
 
 void XEventHandler::unmap() {
-	m_twin.mode.reset(WinMode::VISIBLE);
+	m_x11.setVisible(false);
 }
 
 void XEventHandler::focus(const xpp::Event &ev) {
@@ -188,19 +191,10 @@ void XEventHandler::focus(const xpp::Event &ev) {
 	if (ev.toFocusChangeEvent().mode == NotifyGrab)
 		return;
 
-	auto &input = m_x11.getInput();
-
 	if (ev.getType() == FocusIn) {
-		input.setFocus();
-		m_twin.mode.set(WinMode::FOCUSED);
-		m_x11.setUrgency(0);
-		if (m_twin.mode[WinMode::FOCUS])
-			Nst::getTTY().write("\033[I", 3, 0);
+		m_x11.focusChange(true);
 	} else {
-		input.unsetFocus();
-		m_twin.mode.reset(WinMode::FOCUSED);
-		if (m_twin.mode[WinMode::FOCUS])
-			Nst::getTTY().write("\033[O", 3, 0);
+		m_x11.focusChange(false);
 	}
 }
 
@@ -209,7 +203,9 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 	char buf[64];
 	int len;
 
-	if (m_twin.mode[WinMode::KBDLOCK])
+	const auto &tmode = m_x11.getTermWin().mode;
+
+	if (tmode[WinMode::KBDLOCK])
 		return;
 
 	auto &input = m_x11.getInput();
@@ -240,7 +236,7 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 		return;
 
 	if (len == 1 && (ev.state & Mod1Mask)) {
-		if (m_twin.mode[WinMode::EIGHT_BIT]) {
+		if (tmode[WinMode::EIGHT_BIT]) {
 			if (*buf < 0177) {
 				Rune c = *buf | 0x80;
 				len = utf8::encode(c, buf);
@@ -263,12 +259,11 @@ void XEventHandler::cmessage(const XClientMessageEvent &msg) {
 	if (msg.message_type == m_xembed_atom && msg.format == 32) {
 		switch (msg.data.l[1]) {
 			case XEMBED_FOCUS_IN: {
-				m_twin.mode.set(WinMode::FOCUSED);
-				m_x11.setUrgency(0);
+				m_x11.embeddedFocusChange(true);
 				break;
 			}
 			case XEMBED_FOCUS_OUT: {
-				m_twin.mode.reset(WinMode::FOCUSED);
+				m_x11.embeddedFocusChange(false);
 				break;
 			}
 		}
@@ -281,7 +276,7 @@ void XEventHandler::cmessage(const XClientMessageEvent &msg) {
 void XEventHandler::resize(const XConfigureEvent &config) {
 	auto new_size = Extent{config.width, config.height};
 
-	if (new_size == m_twin.win)
+	if (new_size == m_x11.getTermWin().win)
 		return;
 
 	m_nst.resizeConsole(new_size);
@@ -289,11 +284,13 @@ void XEventHandler::resize(const XConfigureEvent &config) {
 
 void XEventHandler::bpress(const XButtonEvent &ev) {
 	const auto btn = ev.button;
+	const auto &twin = m_x11.getTermWin();
 
 	if (m_buttons.valid(btn))
 		m_buttons.setPressed(btn);
 
-	if (m_twin.mode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
+
+	if (twin.mode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(ev);
 		return;
 	}
@@ -306,7 +303,7 @@ void XEventHandler::bpress(const XButtonEvent &ev) {
 
 	const auto snap = m_xsel.handleClick();
 	auto &selection = m_nst.getSelection();
-	const auto pos = m_twin.getCharPos(DrawPos{ev.x, ev.y});
+	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
 	selection.start(pos.x, pos.y, snap);
 }
 
@@ -385,10 +382,12 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			*repl++ = '\r';
 		}
 
-		if (m_twin.mode[WinMode::BRCKTPASTE] && ofs == 0)
+		const auto &tmode = m_x11.getTermWin().mode;
+
+		if (tmode[WinMode::BRCKTPASTE] && ofs == 0)
 			tty.write("\033[200~", 6, 0);
 		tty.write((char *)data, nitems * format / 8, 1);
-		if (m_twin.mode[WinMode::BRCKTPASTE] && rem == 0)
+		if (tmode[WinMode::BRCKTPASTE] && rem == 0)
 			tty.write("\033[201~", 6, 0);
 		XFree(data);
 		/* number of 32-bit chunks returned */
@@ -460,7 +459,9 @@ void XEventHandler::brelease(const XButtonEvent &ev) {
 	if (m_buttons.valid(btn))
 		m_buttons.setReleased(btn);
 
-	if (m_twin.mode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
+	const auto &tmode = m_x11.getTermWin().mode;
+
+	if (tmode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(ev);
 		return;
 	}
@@ -480,7 +481,9 @@ void XEventHandler::bmotion(const xpp::Event &ev) {
 	// raw structure
 	const auto &bev = ev.raw()->xbutton;
 
-	if (m_twin.mode[WinMode::MOUSE] && !(bev.state & config::FORCEMOUSEMOD)) {
+	const auto &tmode = m_x11.getTermWin().mode;
+
+	if (tmode[WinMode::MOUSE] && !(bev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(bev);
 	}
 	else {

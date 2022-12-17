@@ -65,6 +65,8 @@ struct DrawingContext {
 struct X11 {
 public: // types
 
+	friend class XEventHandler;
+
 	struct Input {
 	protected: // data
 		XIM m_method = nullptr;
@@ -121,6 +123,8 @@ protected: // data
 	XftDraw *m_font_draw = nullptr;
 	XSelection m_xsel;
 
+	TermWindow m_twin;
+
 public: // functions
 
 	X11() : m_input(*this), m_xsel(*this) {}
@@ -153,9 +157,25 @@ public: // functions
 	void setFixedGeometry(bool fixed) {
 		m_fixed_geometry = fixed;
 	}
+	void setMode(const WinMode &flag, const bool set);
+	void setCursorStyle(const CursorStyle &cursor);
+	void ringBell();
+	void setWinSize(const Extent &ext) {
+		m_twin.setWinExtent(ext);
+	}
+	void setBlinking(const bool blinking) {
+		if (blinking)
+			m_twin.mode.set(WinMode::BLINK);
+		else
+			m_twin.mode.reset(WinMode::BLINK);
+	}
+	void switchBlinking() {
+		m_twin.mode.flip(WinMode::BLINK);
+	}
 	const xpp::XWindow& getWindow() const { return m_window; }
 	const Atom& getWmDeleteWin() const { return m_wmdeletewin; }
 	auto& getXSelection() { return m_xsel; }
+	auto& getTermWin() const { return m_twin; }
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);
@@ -170,6 +190,11 @@ protected:
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y);
 	void drawGlyph(Glyph g, int x, int y);
+	void embeddedFocusChange(const bool in_focus);
+	void focusChange(const bool in_focus);
+	void setVisible(const bool visible) {
+		m_twin.mode.set(WinMode::VISIBLE, visible);
+	}
 };
 
 } // end ns

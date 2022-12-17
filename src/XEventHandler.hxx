@@ -21,7 +21,7 @@ class X11;
 class XEventHandler {
 public: // functions
 
-	explicit XEventHandler(Nst &nst, TermWindow &twin);
+	explicit XEventHandler(Nst &nst);
 
 	void process(xpp::Event &ev) {
 		switch(ev.getType()) {
@@ -84,7 +84,6 @@ protected: // data
 
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
-	TermWindow &m_twin;
 	X11 &m_x11;
 	XSelection &m_xsel;
 	Atom m_xembed_atom;

@@ -45,7 +45,6 @@ protected: // functions
 protected: // data
 	cosmos::Init m_init;
 	Cmdline m_cmdline;
-	TermWindow &m_term_win;
 	X11 &m_x11;
 	TTY m_tty;
 	Term m_term;

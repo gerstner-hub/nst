@@ -10,6 +10,10 @@
 
 namespace nst {
 
+void XEventHandler::init() {
+	m_xembed_atom = m_x11.getAtom("_XEMBED");
+}
+
 bool XEventHandler::match(uint mask, uint state) {
 	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
@@ -256,7 +260,7 @@ void XEventHandler::cmessage(const XClientMessageEvent &msg) {
 	 * See xembed specs
 	 *  http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
 	 */
-	if (msg.message_type == m_x11.xembed && msg.format == 32) {
+	if (msg.message_type == m_xembed_atom && msg.format == 32) {
 		switch (msg.data.l[1]) {
 			case XEMBED_FOCUS_IN: {
 				m_twin.mode.set(WinMode::FOCUSED);
@@ -268,7 +272,7 @@ void XEventHandler::cmessage(const XClientMessageEvent &msg) {
 				break;
 			}
 		}
-	} else if ((Atom)msg.data.l[0] == m_x11.wmdeletewin) {
+	} else if ((Atom)msg.data.l[0] == m_x11.getWmDeleteWin()) {
 		m_nst.getTTY().hangup();
 		exit(0);
 	}
@@ -335,7 +339,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 		return;
 
 	do {
-		if (XGetWindowProperty(m_x11.getDisplay(), m_x11.win, property, ofs,
+		if (XGetWindowProperty(m_x11.getDisplay(), m_x11.getWindow(), property, ofs,
 					BUFSIZ/4, False, AnyPropertyType,
 					&type, &format, &nitems, &rem,
 					&data)) {
@@ -364,7 +368,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			/*
 			 * Deleting the property is the transfer start signal.
 			 */
-			XDeleteProperty(m_x11.getDisplay(), m_x11.win, (int)property);
+			XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), (int)property);
 			continue;
 		}
 
@@ -395,7 +399,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 	 * Deleting the property again tells the selection owner to send the
 	 * next data chunk in the property.
 	 */
-	XDeleteProperty(m_x11.getDisplay(), m_x11.win, (int)property);
+	XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), (int)property);
 }
 
 [[maybe_unused]]

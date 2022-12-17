@@ -14,10 +14,10 @@ void XSelection::setSelection(const std::string_view &str, Time t) {
 		return;
 
 	m_primary = str;
-	auto display = m_x11.getDisplay();
+	auto& display = m_x11.getDisplay();
 
-	XSetSelectionOwner(display, XA_PRIMARY, m_x11.win, t);
-	if (XGetSelectionOwner(display, XA_PRIMARY) != m_x11.win)
+	XSetSelectionOwner(display, XA_PRIMARY, m_x11.getWindow(), t);
+	if (XGetSelectionOwner(display, XA_PRIMARY) != m_x11.getWindow())
 		Nst::getSelection().clear();
 }
 

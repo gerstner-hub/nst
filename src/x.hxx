@@ -92,43 +92,40 @@ public: // types
 		void unsetFocus();
 	};
 
-public: // data
-	xpp::XDisplay *display = nullptr;
-	Colormap cmap;
-	xpp::XWindow win;
-	std::vector<XftGlyphFontSpec> specbuf; /* font spec buffer used for rendering */
-	Atom xembed, wmdeletewin;
-	XftDraw *draw;
-	Visual *m_visual = nullptr;
-	bool isfixed = false; /* is fixed geometry? */
-
 protected: // data
 	
 	Input m_input;
+	xpp::XDisplay *m_display = nullptr;
 	int m_screen = -1;
+	Visual *m_visual = nullptr;
+	xpp::XWindow m_window; // the main (and only) terminal window
 	xpp::XAtomMapper *m_mapper = nullptr;
 	int m_geometry = 0; /* geometry mask */
+	bool m_fixed_geometry = false;
 	int m_left_offset = 0;
 	int m_top_offset = 0;
 	XSetWindowAttributes m_win_attrs;
 	Drawable m_draw_buf;
-	Atom m_netwmname, m_netwmiconname;
+	Atom m_netwmname;
+	Atom m_netwmiconname;
+	Atom m_wmdeletewin;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
+	Colormap m_color_map;
 
 	std::vector<Fontcache> m_font_cache;
 	/* Fontcache is an array now. A new font will be appended to the array. */
 	double m_used_font_size = 0;
 	double m_default_font_size = 0;
+	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
+	XftDraw *m_font_draw = nullptr;
 
 public: // functions
+
 	X11() : m_input(*this) {}
-	Display* getDisplay() {
-		return static_cast<Display*>(*this->display);
-	}
-	Atom getAtom(const char *name) const {
-		return m_mapper->getAtom(name);
-	}
+	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
+	auto& getDisplay() { return *(m_display); }
+	Atom getAtom(const char *name) const { return m_mapper->getAtom(name); }
 	void pasteSelection();
 	void pasteClipboard();
 	void copyToClipboard();
@@ -137,14 +134,8 @@ public: // functions
 	void toggleNumlock();
 	void setUrgency(int add);
 	void resize(const TermSize &dim);
-	int loadColor(size_t i, const char *name, Color *ncolor);
-	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
 	void setHints();
-	bool loadFonts(const std::string &fontstr, double fontsize);
-	void loadFontsOrThrow(const std::string&, double fontsize=0);
-	void unloadFonts();
 	/// xim (X input method) setup
-	bool ximOpen();
 	Input& getInput() { return m_input; }
 	void init();
 	void setGeometry(const std::string &g);
@@ -156,17 +147,27 @@ public: // functions
 	void loadColors();
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
 	bool setColorName(size_t idx, const char *name);
-	DrawingContext& getDrawCtx() { return m_draw_ctx; }
-	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
-	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y);
 	void drawLine(const Line &line, int x1, int y1, int x2);
 	void drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og);
-	void drawGlyph(Glyph g, int x, int y);
+	void setFixedGeometry(bool fixed) {
+		m_fixed_geometry = fixed;
+	}
+	const xpp::XWindow& getWindow() const { return m_window; }
+	const Atom& getWmDeleteWin() const { return m_wmdeletewin; }
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
 	std::tuple<Font*, FRC> getFontForMode(const Glyph::AttrBitMask &mode);
+	int loadColor(size_t i, const char *name, Color *ncolor);
+	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
+	bool loadFonts(const std::string &fontstr, double fontsize);
+	void loadFontsOrThrow(const std::string&, double fontsize=0);
+	void unloadFonts();
+	bool ximOpen();
+	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
+	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y);
+	void drawGlyph(Glyph g, int x, int y);
 };
 
 /* Purely graphic info */

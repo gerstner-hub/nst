@@ -53,6 +53,8 @@ public: // functions
 		}
 	}
 
+	void init();
+
 protected: // functions
 
 	void expose();
@@ -85,6 +87,7 @@ protected: // data
 	TermWindow &m_twin;
 	XSelection &m_xsel;
 	X11 &m_x11;
+	Atom m_xembed_atom;
 	CharPos m_old_mouse_pos;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;

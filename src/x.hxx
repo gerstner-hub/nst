@@ -22,7 +22,40 @@
 namespace nst {
 
 typedef Glyph::Attr Attr;
-typedef XftColor Color;
+
+class Color : public XftColor {
+public:
+	void invert() {
+		color.red = ~color.red;
+		color.green = ~color.green;
+		color.blue = ~color.blue;
+	}
+
+	Color inverted() const {
+		auto ret = Color(*this);
+		ret.invert();
+		return ret;
+	}
+
+	void makeFaint() {
+		color.red /= 2;
+		color.green /= 2;
+		color.blue /= 2;
+	}
+
+	Color faint() const {
+		auto ret = Color(*this);
+		ret.makeFaint();
+		return ret;
+	}
+
+	void assignTo(XRenderColor &xc) const {
+		xc.red = color.red;
+		xc.green = color.green;
+		xc.blue = color.blue;
+		xc.alpha = color.alpha;
+	}
+};
 
 /* Drawing Context */
 struct DrawingContext {
@@ -125,6 +158,7 @@ public: // functions
 	bool setColorName(size_t idx, const char *name);
 	DrawingContext& getDrawCtx() { return m_draw_ctx; }
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
+	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y);
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);

@@ -807,81 +807,71 @@ static void setRenderColor(XRenderColor &out, const uint32_t in) {
 	out.blue = (in & 0xff) << 8;
 }
 
-void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y) {
+void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y) {
 	const size_t charlen = len * (base.mode[Attr::WIDE] ? 2 : 1);
-	auto &dc = x11.getDrawCtx();
 
 	/* Fallback on color display for attributes not supported by the font */
 	if (base.mode[Attr::ITALIC] && base.mode[Attr::BOLD]) {
-		if (dc.ibfont.badslant || dc.ibfont.badweight)
+		if (m_draw_ctx.ibfont.badslant || m_draw_ctx.ibfont.badweight)
 			base.fg = config::DEFAULTATTR;
-	} else if ((base.mode[Attr::ITALIC] && dc.ifont.badslant) ||
-	    (base.mode[Attr::BOLD] && dc.bfont.badweight)) {
+	} else if ((base.mode[Attr::ITALIC] && m_draw_ctx.ifont.badslant) ||
+	    (base.mode[Attr::BOLD] && m_draw_ctx.bfont.badweight)) {
 		base.fg = config::DEFAULTATTR;
 	}
 
-	Color *fg;
+	Color *fg = nullptr;
 	XRenderColor colfg;
 	Color truefg;
-	auto visual = x11.m_visual;
 
 	if (base.isFgTrueColor()) {
 		setRenderColor(colfg, base.fg);
-		XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colfg, &truefg);
+		XftColorAllocValue(*display, m_visual, cmap, &colfg, &truefg);
 		fg = &truefg;
 	} else {
-		fg = &dc.col[base.fg];
+		fg = &m_draw_ctx.col[base.fg];
 	}
 
-	Color *bg;
+	Color *bg = nullptr;
 	XRenderColor colbg;
 	Color truebg;
 
 	if (base.isBgTrueColor()) {
 		setRenderColor(colbg, base.bg);
-		XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colbg, &truebg);
+		XftColorAllocValue(*display, m_visual, cmap, &colbg, &truebg);
 		bg = &truebg;
 	} else {
-		bg = &dc.col[base.bg];
+		bg = &m_draw_ctx.col[base.bg];
 	}
 
 	/* Change basic system colors [0-7] to bright system colors [8-15] */
 	if (base.mode[Attr::BOLD] && !base.mode[Attr::FAINT] && base.fg <= 7)
-		fg = &dc.col[base.fg + 8];
+		fg = &m_draw_ctx.col[base.fg + 8];
 
 	Color revfg, revbg;
 	if (twin.mode[WinMode::REVERSE]) {
-		if (fg == &dc.col[config::DEFAULTFG]) {
-			fg = &dc.col[config::DEFAULTBG];
+		if (fg == &m_draw_ctx.col[config::DEFAULTFG]) {
+			fg = &m_draw_ctx.col[config::DEFAULTBG];
 		} else {
-			colfg.red = ~fg->color.red;
-			colfg.green = ~fg->color.green;
-			colfg.blue = ~fg->color.blue;
-			colfg.alpha = fg->color.alpha;
-			XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colfg,
-					&revfg);
+			auto inverted = fg->inverted();
+			inverted.assignTo(colfg);
+			XftColorAllocValue(*display, m_visual, cmap, &colfg, &revfg);
 			fg = &revfg;
 		}
 
-		if (bg == &dc.col[config::DEFAULTBG]) {
-			bg = &dc.col[config::DEFAULTFG];
+		if (bg == &m_draw_ctx.col[config::DEFAULTBG]) {
+			bg = &m_draw_ctx.col[config::DEFAULTFG];
 		} else {
-			colbg.red = ~bg->color.red;
-			colbg.green = ~bg->color.green;
-			colbg.blue = ~bg->color.blue;
-			colbg.alpha = bg->color.alpha;
-			XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colbg,
-					&revbg);
+			auto inverted = bg->inverted();
+			inverted.assignTo(colbg);
+			XftColorAllocValue(*display, m_visual, cmap, &colbg, &revbg);
 			bg = &revbg;
 		}
 	}
 
 	if (base.mode[Attr::FAINT] && !base.mode[Attr::BOLD]) {
-		colfg.red = fg->color.red / 2;
-		colfg.green = fg->color.green / 2;
-		colfg.blue = fg->color.blue / 2;
-		colfg.alpha = fg->color.alpha;
-		XftColorAllocValue(x11.getDisplay(), visual, x11.cmap, &colfg, &revfg);
+		auto faint = fg->faint();
+		faint.assignTo(colfg);
+		XftColorAllocValue(*display, m_visual, cmap, &colfg, &revfg);
 		fg = &revfg;
 	}
 
@@ -891,8 +881,7 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 
 	if (base.mode[Attr::BLINK] && twin.mode[WinMode::BLINK])
 		fg = bg;
-
-	if (base.mode[Attr::INVISIBLE])
+	else if (base.mode[Attr::INVISIBLE])
 		fg = bg;
 
 	/* Intelligent cleaning up of the borders. */
@@ -903,22 +892,24 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 		const auto pos1 = DrawPos{0, y ? pos.y : 0};
 		const auto pos2 = DrawPos{config::BORDERPX, pos.y + twin.chr.height + 
 			((pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height) ? twin.win.height : 0)};
-		x11.clearRect(pos1, pos2);
+		clearRect(pos1, pos2);
 	}
 
 	if (pos.x + width >= config::BORDERPX + twin.tty.width) {
 		const auto pos1 = DrawPos{pos.x + width, y ? pos.y : 0};
 		const auto pos2 = DrawPos{twin.win.width,
 			(pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height) ? twin.win.height : (pos.y + twin.chr.height)};
-		x11.clearRect(pos1, pos2);
+		clearRect(pos1, pos2);
 	}
+
 	if (y == 0)
-		x11.clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + width, config::BORDERPX});
+		clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + width, config::BORDERPX});
+
 	if (pos.y + twin.chr.height >= config::BORDERPX + twin.tty.height)
-		x11.clearRect(DrawPos{pos.x, pos.y + twin.chr.height}, DrawPos{pos.x + width, twin.win.height});
+		clearRect(DrawPos{pos.x, pos.y + twin.chr.height}, DrawPos{pos.x + width, twin.win.height});
 
 	/* Clean up the region we want to draw to. */
-	XftDrawRect(x11.draw, bg, pos.x, pos.y, width, twin.chr.height);
+	XftDrawRect(draw, bg, pos.x, pos.y, width, twin.chr.height);
 
 	/* Set the clip region because Xft is sometimes dirty. */
 	XRectangle r;
@@ -926,31 +917,29 @@ void xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, 
 	r.y = 0;
 	r.height = twin.chr.height;
 	r.width = width;
-	XftDrawSetClipRectangles(x11.draw, pos.x, pos.y, &r, 1);
+	XftDrawSetClipRectangles(draw, pos.x, pos.y, &r, 1);
 
 	/* Render the glyphs. */
-	XftDrawGlyphFontSpec(x11.draw, fg, specs, len);
+	XftDrawGlyphFontSpec(draw, fg, specs, len);
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
-		XftDrawRect(x11.draw, fg, pos.x, pos.y + dc.font.ascent + 1,
-				width, 1);
+		XftDrawRect(draw, fg, pos.x, pos.y + m_draw_ctx.font.ascent + 1, width, 1);
 	}
 
 	if (base.mode[Attr::STRUCK]) {
-		XftDrawRect(x11.draw, fg, pos.x, pos.y + 2 * dc.font.ascent / 3,
-				width, 1);
+		XftDrawRect(draw, fg, pos.x, pos.y + 2 * m_draw_ctx.font.ascent / 3, width, 1);
 	}
 
 	/* Reset clip to none. */
-	XftDrawSetClip(x11.draw, 0);
+	XftDrawSetClip(draw, 0);
 }
 
 void xdrawglyph(Glyph g, int x, int y) {
 	XftGlyphFontSpec spec;
 
 	auto numspecs = x11.makeGlyphFontSpecs(&spec, &g, 1, x, y);
-	xdrawglyphfontspecs(&spec, g, numspecs, x, y);
+	x11.drawGlyphFontSpecs(&spec, g, numspecs, x, y);
 }
 
 void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
@@ -1099,7 +1088,7 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 		if (Nst::getSelection().isSelected(x, y1))
 			newone.mode.flip(Attr::REVERSE);
 		if (i > 0 && base.attrsDiffer(newone)) {
-			xdrawglyphfontspecs(specs, base, i, ox, y1);
+			x11.drawGlyphFontSpecs(specs, base, i, ox, y1);
 			specs += i;
 			numspecs -= i;
 			i = 0;
@@ -1111,7 +1100,7 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 		i++;
 	}
 	if (i > 0)
-		xdrawglyphfontspecs(specs, base, i, ox, y1);
+		x11.drawGlyphFontSpecs(specs, base, i, ox, y1);
 }
 
 void xfinishdraw() {

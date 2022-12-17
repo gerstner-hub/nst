@@ -82,7 +82,11 @@ protected: // data
 	Atom m_netwmname, m_netwmiconname;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
+
 	std::vector<Fontcache> m_font_cache;
+	/* Fontcache is an array now. A new font will be appended to the array. */
+	double m_used_font_size = 0;
+	double m_default_font_size = 0;
 
 public: // functions
 	X11() : m_input(*this) {}

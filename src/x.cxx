@@ -58,10 +58,6 @@ X11 x11;
 XSelection xsel(x11);
 TermWindow twin;
 
-/* Fontcache is an array now. A new font will be appended to the array. */
-double usedfontsize = 0;
-double defaultfontsize = 0;
-
 Cmdline cmdline;
 
 TermSize tsize{config::COLS, config::ROWS};
@@ -100,7 +96,7 @@ void X11::toggleNumlock() {
 }
 
 void X11::zoomFont(float val) {
-	val += (float)usedfontsize;
+	val += (float)m_used_font_size;
 	unloadFonts();
 	loadFontsOrThrow(cmdline.font.getValue(), val);
 	auto &nst = Nst::getInstance();
@@ -110,8 +106,8 @@ void X11::zoomFont(float val) {
 }
 
 void X11::resetFont() {
-	if (defaultfontsize > 0) {
-		usedfontsize = defaultfontsize;
+	if (m_default_font_size > 0) {
+		m_used_font_size = m_default_font_size;
 		zoomFont(0);
 	}
 }
@@ -378,32 +374,32 @@ bool X11::loadFonts(const std::string &fontstr, double fontsize) {
 
 	if (fontsize > 1) {
 		pattern.setPixelSize(fontsize);
-		usedfontsize = fontsize;
+		m_used_font_size = fontsize;
 	} else {
 		if (auto pxsize = pattern.getPixelSize(); pxsize.has_value())
-			usedfontsize = *pxsize;
+			m_used_font_size = *pxsize;
 		else if(auto ptsize = pattern.getPointSize(); ptsize.has_value())
-			usedfontsize = -1;
+			m_used_font_size = -1;
 		else {
 			/*
 			 * Use default font size, if none given. This is to
-			 * have a known usedfontsize value.
+			 * have a known m_used_font_size value.
 			 */
-			usedfontsize = config::FONT_DEFAULT_SIZE_PX;
-			pattern.setPixelSize(usedfontsize);
+			m_used_font_size = config::FONT_DEFAULT_SIZE_PX;
+			pattern.setPixelSize(m_used_font_size);
 		}
-		defaultfontsize = usedfontsize;
+		m_default_font_size = m_used_font_size;
 	}
 
 	if (loadFont(&m_draw_ctx.font, pattern.raw()))
 		return false;
 
-	if (usedfontsize < 0) {
+	if (m_used_font_size < 0) {
 		auto loaded = FontPattern(m_draw_ctx.font.match->pattern);
 		if (auto pxsize = loaded.getPixelSize(); pxsize.has_value()) {
-			usedfontsize = *pxsize;
+			m_used_font_size = *pxsize;
 			if (fontsize == 0)
-				defaultfontsize = *pxsize;
+				m_default_font_size = *pxsize;
 		}
 	}
 

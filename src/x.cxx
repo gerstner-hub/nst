@@ -402,7 +402,7 @@ bool X11::loadFonts(const std::string &fontstr, double fontsize) {
 	}
 
 	/* Setting character width and height. */
-	twin.setCharSize(m_draw_ctx);
+	twin.setCharSize(m_draw_ctx.font);
 
 	pattern.setSlant(Slant::ITALIC);
 	if (loadFont(&m_draw_ctx.ifont, pattern.raw()))

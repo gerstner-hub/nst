@@ -660,7 +660,7 @@ void X11::init() {
 	m_netwmiconname = getAtom("_NET_WM_ICON_NAME");
 	XSetWMProtocols(*display, win, &wmdeletewin, 1);
 
-	auto netwmpid = x11.getAtom("_NET_WM_PID");
+	auto netwmpid = getAtom("_NET_WM_PID");
 	auto thispid = cosmos::g_process.getPid();
 	XChangeProperty(*display, win, netwmpid, XA_CARDINAL, 32,
 			PropModeReplace, (uchar *)&thispid, 1);
@@ -731,7 +731,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 		Fontcache *font_entry = nullptr;
 		/* Fallback on font cache, search the font cache for match. */
 		for (auto &fc: m_font_cache) {
-			glyphidx = XftCharIndex(x11.getDisplay(), fc.font, rune);
+			glyphidx = XftCharIndex(*display, fc.font, rune);
 			/* Everything correct. */
 			if (glyphidx && fc.flags == frcflags) {
 				font_entry = &fc;
@@ -1144,10 +1144,10 @@ void xsetcursor(const CursorStyle &cursor) {
 }
 
 void X11::setUrgency(int add) {
-	XWMHints *h = XGetWMHints(x11.getDisplay(), x11.win);
+	XWMHints *h = XGetWMHints(*display, win);
 
 	modifyBit(h->flags, add, XUrgencyHint);
-	XSetWMHints(x11.getDisplay(), x11.win, h);
+	XSetWMHints(*display, win, h);
 	XFree(h);
 }
 

@@ -107,8 +107,14 @@ struct Range {
 };
 
 struct TermSize {
+public: // data
 	int cols = 0;
 	int rows = 0;
+public: // functions
+	void normalize() {
+		cols = std::max(cols, 1);
+		rows = std::max(rows, 1);
+	}
 };
 
 //! a two-dimensional extent in pixels e.g. for characters, windows, ...

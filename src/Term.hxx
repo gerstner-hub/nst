@@ -114,9 +114,9 @@ public: // functions
 		m_csiescseq(*this,
 				sel, m_strescseq) {}
 
-	void init(int cols, int rows);
+	void init(const TermSize &tsize);
 
-	void resize(int cols, int rows);
+	void resize(const TermSize &new_size);
 
 	void reset();
 

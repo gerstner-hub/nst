@@ -123,11 +123,14 @@ protected: // data
 	XftDraw *m_font_draw = nullptr;
 	XSelection m_xsel;
 
+	TermSize m_tsize;
 	TermWindow m_twin;
 
 public: // functions
 
-	X11() : m_input(*this), m_xsel(*this) {}
+	X11() : m_input(*this), m_xsel(*this), m_tsize{config::COLS, config::ROWS} {
+		m_tsize.normalize();
+	}
 	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
 	auto& getDisplay() { return *(m_display); }
 	Atom getAtom(const char *name) const { return m_mapper->getAtom(name); }
@@ -176,6 +179,7 @@ public: // functions
 	const Atom& getWmDeleteWin() const { return m_wmdeletewin; }
 	auto& getXSelection() { return m_xsel; }
 	auto& getTermWin() const { return m_twin; }
+	auto& getTermSize() const { return m_tsize; }
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);

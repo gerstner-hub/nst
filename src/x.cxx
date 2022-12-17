@@ -55,7 +55,6 @@ namespace {
 
 /* Globals */
 X11 x11;
-TermSize tsize{config::COLS, config::ROWS};
 
 } // end anon ns
 
@@ -135,7 +134,7 @@ void Nst::resizeConsole(const Extent &win) {
 
 	auto tdim = twin.getTermDim();
 
-	m_term.resize(tdim.cols, tdim.rows);
+	m_term.resize(tdim);
 	x11.resize(tdim);
 	m_tty.resize(twin.tty);
 }
@@ -557,8 +556,8 @@ void X11::setGeometry(const std::string &g) {
 	m_geometry = XParseGeometry(
 			g.c_str(), &m_left_offset, &m_top_offset, &cols, &rows);
 
-	tsize.rows = rows;
-	tsize.cols = cols;
+	m_tsize.rows = rows;
+	m_tsize.cols = cols;
 }
 
 void X11::init() {
@@ -579,7 +578,7 @@ void X11::init() {
 	xloadcols();
 
 	/* adjust fixed window geometry */
-	m_twin.setWinExtent(tsize);
+	m_twin.setWinExtent(m_tsize);
 	if (m_geometry & XNegative)
 		m_left_offset += DisplayWidth(getRawDisplay(), m_screen) - m_twin.win.width - 2;
 	if (m_geometry & YNegative)
@@ -626,7 +625,7 @@ void X11::init() {
 	XFillRectangle(*m_display, m_draw_buf, m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height);
 
 	/* font spec buffer */
-	m_font_specs.resize(tsize.cols);
+	m_font_specs.resize(m_tsize.cols);
 
 	/* Xft rendering context */
 	m_font_draw = XftDrawCreate(*m_display, m_draw_buf, m_visual, m_color_map);
@@ -1268,9 +1267,7 @@ Nst::Nst() :
 
 void Nst::run(int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
-	tsize.cols = std::max(tsize.cols, 1);
-	tsize.rows = std::max(tsize.rows, 1);
-	m_term.init(tsize.cols, tsize.rows);
+	m_term.init(x11.getTermSize());
 	applyCmdline();
 
 	setlocale(LC_CTYPE, "");

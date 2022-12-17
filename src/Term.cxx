@@ -47,8 +47,8 @@ Term::TCursor::TCursor() {
 }
 
 
-void Term::init(int cols, int rows) {
-	resize(cols, rows);
+void Term::init(const TermSize &tsize) {
+	resize(tsize);
 	reset();
 }
 
@@ -84,14 +84,14 @@ void Term::setDirty(int top, int bot) {
 		m_dirty_lines[i] = true;
 }
 
-void Term::resize(int new_cols, int new_rows) {
-	if (new_cols < 1 || new_rows < 1) {
-		fprintf(stderr, "%s: error resizing to %dx%d\n", __FUNCTION__, new_cols, new_rows);
+void Term::resize(const TermSize &new_size) {
+	if (new_size.cols < 1 || new_size.rows < 1) {
+		fprintf(stderr, "%s: error resizing to %dx%d\n", __FUNCTION__, new_size.cols, new_size.rows);
 		return;
 	}
 
-	const int minrow = std::min(new_rows, m_rows);
-	const int mincol = std::min(new_cols, m_cols);
+	const int minrow = std::min(new_size.rows, m_rows);
+	const int mincol = std::min(new_size.cols, m_cols);
 
 	/*
 	 * slide screen to keep cursor where we expect it - scrollUp would
@@ -101,26 +101,26 @@ void Term::resize(int new_cols, int new_rows) {
 	 * only do this if the new rows are smaller than the current cursow
 	 * row
 	 */
-	const auto shift = m_cursor.pos.y - new_rows;
+	const auto shift = m_cursor.pos.y - new_size.rows;
 	if (shift > 0) {
-		std::move(m_screen.begin() + shift, m_screen.begin() + shift + new_rows, m_screen.begin());
-		std::move(m_alt_screen.begin() + shift, m_alt_screen.begin() + shift + new_rows, m_alt_screen.begin());
+		std::move(m_screen.begin() + shift, m_screen.begin() + shift + new_size.rows, m_screen.begin());
+		std::move(m_alt_screen.begin() + shift, m_alt_screen.begin() + shift + new_size.rows, m_alt_screen.begin());
 	}
 
 	/* allocate new memory with new height */
-	m_screen.resize(new_rows);
-	m_alt_screen.resize(new_rows);
-	m_dirty_lines.resize(new_rows);
-	m_tabs.resize(new_cols);
+	m_screen.resize(new_size.rows);
+	m_alt_screen.resize(new_size.rows);
+	m_dirty_lines.resize(new_size.rows);
+	m_tabs.resize(new_size.cols);
 
 	/* resize each row to new width */
-	for (int i = 0; i < new_rows; i++) {
-		m_screen[i].resize(new_cols);
-		m_alt_screen[i].resize(new_cols);
+	for (int i = 0; i < new_size.rows; i++) {
+		m_screen[i].resize(new_size.cols);
+		m_alt_screen[i].resize(new_size.cols);
 	}
 
 	// extend tab markers if we have more columns now
-	if (new_cols > m_cols) {
+	if (new_size.cols > m_cols) {
 		auto it = m_tabs.begin() + m_cols;
 
 		// find last tab marker
@@ -130,8 +130,8 @@ void Term::resize(int new_cols, int new_rows) {
 			*it = true;
 	}
 	/* update terminal size */
-	m_cols = new_cols;
-	m_rows = new_rows;
+	m_cols = new_size.cols;
+	m_rows = new_size.rows;
 	/* reset scrolling region */
 	setScroll(0, m_rows-1);
 	/* make use of the clamping in moveCursorTo() to get a valid cursor position
@@ -140,11 +140,11 @@ void Term::resize(int new_cols, int new_rows) {
 	/* Clear both screens (it makes dirty all lines) */
 	auto saved_cursor = m_cursor;
 	for (size_t i = 0; i < 2; i++) {
-		if (mincol < new_cols && 0 < minrow) {
-			clearRegion({CharPos{mincol, 0}, CharPos{new_cols - 1, minrow - 1}});
+		if (mincol < new_size.cols && 0 < minrow) {
+			clearRegion({CharPos{mincol, 0}, CharPos{new_size.cols - 1, minrow - 1}});
 		}
-		if (0 < new_cols && minrow < new_rows) {
-			clearRegion({CharPos{0, minrow}, CharPos{new_cols - 1, new_rows - 1}});
+		if (0 < new_size.cols && minrow < new_size.rows) {
+			clearRegion({CharPos{0, minrow}, CharPos{new_size.cols - 1, new_size.rows - 1}});
 		}
 		swapScreen();
 		cursorControl(TCursor::Control::LOAD);

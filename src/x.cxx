@@ -56,7 +56,6 @@ namespace {
 /* Globals */
 X11 x11;
 TermWindow twin;
-Cmdline cmdline;
 TermSize tsize{config::COLS, config::ROWS};
 
 } // end anon ns
@@ -95,7 +94,7 @@ void X11::toggleNumlock() {
 void X11::zoomFont(float val) {
 	val += (float)m_used_font_size;
 	unloadFonts();
-	loadFontsOrThrow(cmdline.font.getValue(), val);
+	loadFontsOrThrow(m_cmdline->font.getValue(), val);
 	auto &nst = Nst::getInstance();
 	nst.resizeConsole();
 	nst.getTerm().redraw();
@@ -253,8 +252,10 @@ void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 }
 
 void X11::setHints() {
-	auto &wname = cmdline.window_name.getValue();
-	auto &wclass = cmdline.window_class.getValue();
+	// note: the X API breaks constness here, thus use a by-value-copy of
+	// the command line arguments
+	auto wname = m_cmdline->window_name.getValue();
+	auto wclass = m_cmdline->window_class.getValue();
 	XClassHint clazz = {&wname[0], &wclass[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
 	XSizeHints *sizeh = XAllocSizeHints();
@@ -560,6 +561,7 @@ void X11::setGeometry(const std::string &g) {
 }
 
 void X11::init() {
+	m_cmdline = &Nst::getInstance().getCmdline();
 	m_display = &xpp::XDisplay::getInstance();
 	m_mapper = &xpp::XAtomMapper::getInstance();
 	m_screen = m_display->getDefaultScreen();
@@ -569,7 +571,7 @@ void X11::init() {
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 
-	loadFontsOrThrow(cmdline.font.getValue());
+	loadFontsOrThrow(m_cmdline->font.getValue());
 
 	/* colors */
 	m_color_map = m_display->getDefaultColormap(m_screen);
@@ -592,9 +594,9 @@ void X11::init() {
 	m_win_attrs.colormap = m_color_map;
 
 	std::optional<xpp::XWindow> parent;
-	if (cmdline.embed_window.isSet()) {
+	if (m_cmdline->embed_window.isSet()) {
 		// use window ID passed on command line as parent
-		parent.emplace(xpp::XWindow(cmdline.embed_window.getValue()));
+		parent.emplace(xpp::XWindow(m_cmdline->embed_window.getValue()));
 	}
 
 	if (!parent) {
@@ -1035,7 +1037,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 }
 
 void xseticontitle(const char *p) {
-	x11.setIconTitle(p ? std::string(p) : cmdline.getTitle());
+	x11.setIconTitle(p ? std::string(p) : Nst::getInstance().getCmdline().getTitle());
 }
 
 void X11::setIconTitle(const std::string &title) {
@@ -1053,7 +1055,7 @@ void X11::setIconTitle(const std::string &title) {
 }
 
 void xsettitle(const char *p) {
-	x11.setTitle(p ? std::string(p) : cmdline.getTitle().c_str());
+	x11.setTitle(p ? std::string(p) : Nst::getInstance().getCmdline().getTitle().c_str());
 }
 
 void X11::setTitle(const std::string &title) {
@@ -1197,19 +1199,19 @@ void Nst::waitForWindowMapping() {
 	Nst::getInstance().resizeConsole(win);
 }
 
-void Nst::applyCmdline(const Cmdline &cmd) {
-	if (cmd.use_alt_screen.isSet()) {
-		m_term.setAllowAltScreen(cmd.use_alt_screen.getValue());
+void Nst::applyCmdline() {
+	if (m_cmdline.use_alt_screen.isSet()) {
+		m_term.setAllowAltScreen(m_cmdline.use_alt_screen.getValue());
 	} else {
 		m_term.setAllowAltScreen(config::ALLOWALTSCREEN);
 	}
 
-	if (cmd.fixed_geometry.isSet()) {
+	if (m_cmdline.fixed_geometry.isSet()) {
 		m_x11.setFixedGeometry(true);
 	}
 
-	if (cmd.window_geometry.isSet()) {
-		x11.setGeometry(cmd.window_geometry.getValue());
+	if (m_cmdline.window_geometry.isSet()) {
+		x11.setGeometry(m_cmdline.window_geometry.getValue());
 	}
 }
 
@@ -1228,11 +1230,11 @@ Nst::Nst() :
 }
 
 void Nst::run(int argc, const char **argv) {
-	cmdline.parse(argc, argv);
+	m_cmdline.parse(argc, argv);
 	tsize.cols = std::max(tsize.cols, 1);
 	tsize.rows = std::max(tsize.rows, 1);
 	m_term.init(tsize.cols, tsize.rows);
-	applyCmdline(cmdline);
+	applyCmdline();
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
@@ -1248,7 +1250,7 @@ void Nst::setEnv() {
 
 
 void Nst::mainLoop() {
-	auto ttyfd = m_tty.create(cmdline);
+	auto ttyfd = m_tty.create(m_cmdline);
 
 	auto &display = x11.getDisplay();
 	auto childfd = m_tty.getChildFD();

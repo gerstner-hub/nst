@@ -5,6 +5,7 @@
 #include "cosmos/Init.hxx"
 
 // nst
+#include "Cmdline.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
@@ -14,7 +15,6 @@ namespace nst {
 
 struct TermWindow;
 struct X11;
-class Cmdline;
 
 /// Nst main application class
 class Nst {
@@ -31,18 +31,20 @@ public: // functions
 	static Selection& getSelection() { return the_instance->m_selection; }
 	static Nst& getInstance() { return *the_instance; }
 	X11& getX11() { return m_x11; }
+	auto& getCmdline() const { return m_cmdline; }
 	void resizeConsole(const Extent &win = {0,0});
 
 protected: // functions
 
 	void mainLoop();
 	void waitForWindowMapping();
-	void applyCmdline(const Cmdline &cmd);
+	void applyCmdline();
 	/// sets up environment variables for the terminal process
 	void setEnv();
 
 protected: // data
 	cosmos::Init m_init;
+	Cmdline m_cmdline;
 	TermWindow &m_term_win;
 	X11 &m_x11;
 	TTY m_tty;

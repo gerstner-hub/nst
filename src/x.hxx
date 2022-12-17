@@ -96,7 +96,9 @@ public: // types
 protected: // data
 	
 	Input m_input;
+
 	xpp::XDisplay *m_display = nullptr;
+	const Cmdline *m_cmdline = nullptr;
 	int m_screen = -1;
 	Visual *m_visual = nullptr;
 	xpp::XWindow m_window; // the main (and only) terminal window

@@ -159,6 +159,9 @@ public: // functions
 	DrawingContext& getDrawCtx() { return m_draw_ctx; }
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y);
+	void drawLine(const Line &line, int x1, int y1, int x2);
+	void drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og);
+	void drawGlyph(Glyph g, int x, int y);
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);

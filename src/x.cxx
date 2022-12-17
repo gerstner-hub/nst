@@ -935,22 +935,24 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	XftDrawSetClip(draw, 0);
 }
 
-void xdrawglyph(Glyph g, int x, int y) {
+void X11::drawGlyph(Glyph g, int x, int y) {
 	XftGlyphFontSpec spec;
 
-	auto numspecs = x11.makeGlyphFontSpecs(&spec, &g, 1, x, y);
-	x11.drawGlyphFontSpecs(&spec, g, numspecs, x, y);
+	auto numspecs = makeGlyphFontSpecs(&spec, &g, 1, x, y);
+	drawGlyphFontSpecs(&spec, g, numspecs, x, y);
 }
 
 void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
+	return x11.drawCursor(cx, cy, g, ox, oy, og);
+}
 
+void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	auto &sel = Nst::getSelection();
-	auto &dc = x11.getDrawCtx();
 
 	/* remove the old cursor */
 	if (sel.isSelected(ox, oy))
 		og.mode.flip(Attr::REVERSE);
-	xdrawglyph(og, ox, oy);
+	drawGlyph(og, ox, oy);
 
 	if (twin.mode[WinMode::HIDE])
 		return;
@@ -965,10 +967,10 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		g.mode.set(Attr::REVERSE);
 		g.bg = config::DEFAULTFG;
 		if (sel.isSelected(cx, cy)) {
-			drawcol = dc.col[config::DEFAULTCS];
+			drawcol = m_draw_ctx.col[config::DEFAULTCS];
 			g.fg = config::DEFAULTRCS;
 		} else {
-			drawcol = dc.col[config::DEFAULTRCS];
+			drawcol = m_draw_ctx.col[config::DEFAULTRCS];
 			g.fg = config::DEFAULTCS;
 		}
 	} else {
@@ -979,7 +981,7 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 			g.fg = config::DEFAULTBG;
 			g.bg = config::DEFAULTCS;
 		}
-		drawcol = dc.col[g.bg];
+		drawcol = m_draw_ctx.col[g.bg];
 	}
 
 	/* draw the new one */
@@ -987,17 +989,17 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		switch (twin.cursor) {
 		case CursorStyle::SNOWMAN: /* st extension */
 			g.u = 0x2603; /* snowman (U+2603) */
-			/* FALLTHROUGH */
+		/* FALLTHROUGH */
 		case CursorStyle::BLINKING_BLOCK:
 		case CursorStyle::BLINKING_BLOCK_DEFAULT:
 		case CursorStyle::STEADY_BLOCK:
-			xdrawglyph(g, cx, cy);
+			drawGlyph(g, cx, cy);
 			break;
 		case CursorStyle::BLINKING_UNDERLINE:
 		case CursorStyle::STEADY_UNDERLINE: {
 			auto pos = twin.getDrawPos(CharPos{cx,cy+1});
 			XftDrawRect(
-					x11.draw, &drawcol,
+					draw, &drawcol,
 					pos.x, pos.y - config::CURSORTHICKNESS,
 					twin.chr.width, config::CURSORTHICKNESS);
 			break;
@@ -1006,7 +1008,7 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		case CursorStyle::STEADY_BAR: {
 			auto pos = twin.getDrawPos(CharPos{cx, cy});
 			XftDrawRect(
-					x11.draw, &drawcol,
+					draw, &drawcol,
 					pos.x, pos.y,
 					config::CURSORTHICKNESS, twin.chr.height);
 			break;
@@ -1017,19 +1019,19 @@ void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	} else {
 		auto pos = twin.getDrawPos(CharPos{cx, cy});
 
-		XftDrawRect(x11.draw, &drawcol,
+		XftDrawRect(draw, &drawcol,
 				pos.x,
 				pos.y,
 				twin.chr.width - 1, 1);
-		XftDrawRect(x11.draw, &drawcol,
+		XftDrawRect(draw, &drawcol,
 				pos.x,
 				pos.y,
 				1, twin.chr.height - 1);
-		XftDrawRect(x11.draw, &drawcol,
+		XftDrawRect(draw, &drawcol,
 				twin.getNextCol(pos).x - 1,
 				pos.y,
 				1, twin.chr.height - 1);
-		XftDrawRect(x11.draw, &drawcol,
+		XftDrawRect(draw, &drawcol,
 				pos.x,
 				twin.getNextLine(pos).y - 1,
 				twin.chr.width, 1);
@@ -1070,25 +1072,26 @@ void X11::setTitle(const std::string &title) {
 	XFree(prop.value);
 }
 
-bool xstartdraw(void) {
-	return twin.mode[WinMode::VISIBLE];
+void xdrawline(const Line &line, int x1, int y1, int x2) {
+	return x11.drawLine(line, x1, y1, x2);
 }
 
-void xdrawline(const Line &line, int x1, int y1, int x2) {
+void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 	Glyph base, newone;
-	XftGlyphFontSpec *specs = x11.specbuf.data();
+	auto *specs = specbuf.data();
 	size_t i = 0;
 	int ox = 0;
+	auto &selection = Nst::getSelection();
 
-	auto numspecs = x11.makeGlyphFontSpecs(specs, &line[x1], x2 - x1, x1, y1);
+	auto numspecs = makeGlyphFontSpecs(specs, &line[x1], x2 - x1, x1, y1);
 	for (int x = x1; x < x2 && i < numspecs; x++) {
 		newone = line[x];
 		if (newone.mode.only(Attr::WDUMMY))
 			continue;
-		if (Nst::getSelection().isSelected(x, y1))
+		if (selection.isSelected(x, y1))
 			newone.mode.flip(Attr::REVERSE);
 		if (i > 0 && base.attrsDiffer(newone)) {
-			x11.drawGlyphFontSpecs(specs, base, i, ox, y1);
+			drawGlyphFontSpecs(specs, base, i, ox, y1);
 			specs += i;
 			numspecs -= i;
 			i = 0;
@@ -1100,7 +1103,11 @@ void xdrawline(const Line &line, int x1, int y1, int x2) {
 		i++;
 	}
 	if (i > 0)
-		x11.drawGlyphFontSpecs(specs, base, i, ox, y1);
+		drawGlyphFontSpecs(specs, base, i, ox, y1);
+}
+
+bool xstartdraw(void) {
+	return twin.mode[WinMode::VISIBLE];
 }
 
 void xfinishdraw() {

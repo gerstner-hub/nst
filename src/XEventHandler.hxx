@@ -21,7 +21,7 @@ class X11;
 class XEventHandler {
 public: // functions
 
-	explicit XEventHandler(Nst &nst, TermWindow &twin, XSelection &xsel);
+	explicit XEventHandler(Nst &nst, TermWindow &twin);
 
 	void process(xpp::Event &ev) {
 		switch(ev.getType()) {
@@ -85,8 +85,8 @@ protected: // data
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
 	TermWindow &m_twin;
-	XSelection &m_xsel;
 	X11 &m_x11;
+	XSelection &m_xsel;
 	Atom m_xembed_atom;
 	CharPos m_old_mouse_pos;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;

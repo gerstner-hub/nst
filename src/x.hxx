@@ -14,6 +14,7 @@
 #include "font.hxx"
 #include "nst_config.h"
 #include "win.h"
+#include "XSelection.hxx"
 
 /*
  * private data types for x.cxx
@@ -119,10 +120,11 @@ protected: // data
 	double m_default_font_size = 0;
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;
+	XSelection m_xsel;
 
 public: // functions
 
-	X11() : m_input(*this) {}
+	X11() : m_input(*this), m_xsel(*this) {}
 	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
 	auto& getDisplay() { return *(m_display); }
 	Atom getAtom(const char *name) const { return m_mapper->getAtom(name); }
@@ -154,6 +156,7 @@ public: // functions
 	}
 	const xpp::XWindow& getWindow() const { return m_window; }
 	const Atom& getWmDeleteWin() const { return m_wmdeletewin; }
+	auto& getXSelection() { return m_xsel; }
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);

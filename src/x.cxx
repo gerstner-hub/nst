@@ -55,11 +55,8 @@ namespace {
 
 /* Globals */
 X11 x11;
-XSelection xsel(x11);
 TermWindow twin;
-
 Cmdline cmdline;
-
 TermSize tsize{config::COLS, config::ROWS};
 
 } // end anon ns
@@ -67,9 +64,9 @@ TermSize tsize{config::COLS, config::ROWS};
 Nst *Nst::the_instance = nullptr;
 
 void X11::copyToClipboard() {
-	xsel.copyPrimaryToClipboard();
+	m_xsel.copyPrimaryToClipboard();
 
-	if (xsel.havePrimarySelection()) {
+	if (m_xsel.havePrimarySelection()) {
 		Atom clipboard = m_mapper->getAtom("CLIPBOARD");
 		XSetSelectionOwner(*m_display, clipboard, m_window, CurrentTime);
 	}
@@ -81,13 +78,13 @@ void xclipcopy(void) {
 
 void X11::pasteClipboard() {
 	Atom clipboard = getAtom("CLIPBOARD");
-	XConvertSelection(*m_display, clipboard, xsel.getTargetFormat(), clipboard,
+	XConvertSelection(*m_display, clipboard, m_xsel.getTargetFormat(), clipboard,
 			m_window, CurrentTime);
 }
 
 void X11::pasteSelection() {
 	XConvertSelection(
-		*m_display, XA_PRIMARY, xsel.getTargetFormat(), XA_PRIMARY,
+		*m_display, XA_PRIMARY, m_xsel.getTargetFormat(), XA_PRIMARY,
 		m_window, CurrentTime);
 }
 
@@ -129,7 +126,7 @@ const char* getColorName(size_t nr) {
 }
 
 void xsetsel(const char *str) {
-	xsel.setSelection(str);
+	x11.getXSelection().setSelection(str);
 }
 
 void Nst::resizeConsole(const Extent &win) {
@@ -670,7 +667,7 @@ void X11::init() {
 	XMapWindow(*m_display, m_window);
 	XSync(*m_display, False);
 
-	xsel.init();
+	m_xsel.init();
 
 	if (getenv("NST_XSYNC") != nullptr) {
 		::XSynchronize(*m_display, true);
@@ -1166,11 +1163,11 @@ void xbell(void) {
 
 // TODO: move into XEventHandler.cxx once get*Shortcuts() becomes available
 // outside of this unit
-XEventHandler::XEventHandler(Nst &nst, TermWindow &twin, XSelection &xsel) :
+XEventHandler::XEventHandler(Nst &nst, TermWindow &twin) :
 	m_nst(nst),
 	m_twin(twin),
-	m_xsel(xsel),
 	m_x11(nst.getX11()),
+	m_xsel(m_x11.getXSelection()),
 	m_mouse_shortcuts(config::getMouseShortcuts(nst)),
 	m_kbd_shortcuts(config::getKbdShortcuts(nst))
 {}
@@ -1222,7 +1219,7 @@ Nst::Nst() :
 		m_tty(&m_term),
 		m_term(m_tty, m_selection),
 		m_selection(m_term),
-		m_event_handler(*this, twin, xsel) {
+		m_event_handler(*this, twin) {
 	if (the_instance) {
 		cosmos_throw (cosmos::UsageError("more than once Nst instances alive"));
 	}

@@ -2,7 +2,7 @@
 
 #include "nst.hxx"
 #include "Selection.hxx"
-#include "x.hxx"
+#include "x11.hxx"
 
 namespace nst {
 

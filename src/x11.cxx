@@ -43,7 +43,7 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "win.h"
-#include "x.hxx"
+#include "x11.hxx"
 #include "XSelection.hxx"
 
 namespace nst {

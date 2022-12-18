@@ -1,7 +1,7 @@
 // nst
 #include "nst.hxx"
 #include "XSelection.hxx"
-#include "x.hxx"
+#include "x11.hxx"
 
 namespace nst {
 

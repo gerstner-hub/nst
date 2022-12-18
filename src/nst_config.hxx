@@ -100,6 +100,12 @@ constexpr std::chrono::milliseconds DOUBLECLICKTIMEOUT(300);
 constexpr std::chrono::milliseconds TRIPLECLICKTIMEOUT(600);
 
 /*
+ * Set this to true if you want the selection to disappear when you select
+ * something different in another window.
+ */
+constexpr bool SELCLEAR = false;
+
+/*
  * draw latency range - from new content/keypress/etc until drawing.
  * within this range, nst draws when content stops arriving (idle). mostly it's
  * near MINLATENCY, but it waits longer for slow updates to avoid partial draw.

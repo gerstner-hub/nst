@@ -19,21 +19,47 @@ XEventHandler::XEventHandler(Nst &nst) :
 {}
 
 void XEventHandler::init() {
-	m_xembed_atom = m_x11.getAtom("_XEMBED");
+	m_xembed_atom = m_x11.getXAtom("_XEMBED");
+	m_incr_atom = m_x11.getXAtom("INCR");
 }
 
-bool XEventHandler::match(uint mask, uint state) {
+void XEventHandler::process(xpp::Event &ev) {
+	switch(ev.getType()) {
+		case KeyPress:         return keyPress(ev.toKeyEvent());
+		case ClientMessage:    return clientMessage(ev.toClientMessage());
+		case ConfigureNotify:  return resize(ev.toConfigureNotify());
+		case VisibilityNotify: return visibilityChange(ev.toVisibilityNotify());
+		case UnmapNotify:      return unmap();
+		case Expose:           return expose();
+		case FocusIn:          /* fallthrough */
+		case FocusOut:         return focus(ev);
+		case MotionNotify:     return motionEvent(ev);
+		case ButtonPress:      return buttonPress(ev.toButtonEvent());
+		case ButtonRelease:    return buttonRelease(ev.toButtonEvent());
+		case SelectionNotify:  return selectionNotify(ev);
+		/*
+		 * PropertyNotify is only turned on when there is some
+		 * INCR transfer happening for the selection retrieval.
+		 */
+		case PropertyNotify:   return propertyNotify(ev);
+		case SelectionClear:   return selectionClear();
+		case SelectionRequest: return selectionRequest(ev.toSelectionRequest());
+	}
+}
+
+bool XEventHandler::match(unsigned mask, unsigned state) {
 	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
 
-const char* XEventHandler::getCustomKey(KeySym k, uint state) const {
+std::optional<std::string_view>
+XEventHandler::getCustomKeyMapping(KeySym k, unsigned state) const {
 	/* Check for mapped keys out of X11 function keys. */
 	const bool found = config::MAPPEDKEYS.count(k) != 0;
 
 	// if the key is not explicitly mapped and it is outside the range of
 	// X11 function keys, don't continue
 	if (!found && ((k & 0xFFFF) < 0xFD00)) {
-		return nullptr;
+		return {};
 	}
 
 	const auto &tmode = m_x11.getTermWin().mode;
@@ -43,19 +69,17 @@ const char* XEventHandler::getCustomKey(KeySym k, uint state) const {
 
 		if (!match(key.mask, state))
 			continue;
-
 		if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
 			continue;
 		if (tmode[WinMode::NUMLOCK] && key.appkey == 2)
 			continue;
-
 		if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
 			continue;
 
 		return key.s;
 	}
 
-	return nullptr;
+	return {};
 }
 
 unsigned XEventHandler::getButtonMask(unsigned button) {
@@ -89,6 +113,7 @@ bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 
 void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	size_t btn;
+	// the escape code to report for the mouse motion
 	int code;
 	const auto &twin = m_x11.getTermWin();
 	const auto &tmode = twin.mode;
@@ -163,7 +188,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 
 void XEventHandler::handleMouseSelection(const XButtonEvent &ev, bool done) {
 	auto seltype = Selection::Type::REGULAR;
-	const uint state = ev.state & ~(Button1Mask | config::FORCEMOUSEMOD);
+	const unsigned state = ev.state & ~(Button1Mask | config::FORCEMOUSEMOD);
 
 	for (auto [type, mask]: config::SELMASKS) {
 		if (match(mask, state)) {
@@ -186,7 +211,7 @@ void XEventHandler::expose() {
 	m_nst.getTerm().redraw();
 }
 
-void XEventHandler::visibility(const XVisibilityEvent &ev) {
+void XEventHandler::visibilityChange(const XVisibilityEvent &ev) {
 	m_x11.setVisible(ev.state != VisibilityFullyObscured);
 }
 
@@ -195,35 +220,29 @@ void XEventHandler::unmap() {
 }
 
 void XEventHandler::focus(const xpp::Event &ev) {
-
 	if (ev.toFocusChangeEvent().mode == NotifyGrab)
 		return;
 
-	if (ev.getType() == FocusIn) {
-		m_x11.focusChange(true);
-	} else {
-		m_x11.focusChange(false);
-	}
+	m_x11.focusChange(/*in_focus=*/ev.getType() == FocusIn);
 }
 
-void XEventHandler::kpress(const XKeyEvent &ev) {
-	KeySym ksym;
-	char buf[64];
-	int len;
-
+void XEventHandler::keyPress(const XKeyEvent &ev) {
 	const auto &tmode = m_x11.getTermWin().mode;
 
 	if (tmode[WinMode::KBDLOCK])
 		return;
 
-	auto &input = m_x11.getInput();
+	KeySym ksym;
+	char buf[64];
+	int len;
 
-	if (input.haveContext()) {
+	if (auto &input = m_x11.getInput(); input.haveContext()) {
 		Status status;
 		len = XmbLookupString(input.getContext(), const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, &status);
 	}
-	else
+	else {
 		len = XLookupString(const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, NULL);
+	}
 
 	/* 1. shortcuts */
 	for (auto &sc: m_kbd_shortcuts) {
@@ -233,9 +252,9 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 		}
 	}
 
-	/* 2. custom keys from nst_config.h */
-	if (const char *customkey = getCustomKey(ksym, ev.state); customkey != nullptr) {
-		m_nst.getTTY().write(customkey, strlen(customkey), 1);
+	/* 2. custom keys from nst_config.hxx */
+	if (auto seq = getCustomKeyMapping(ksym, ev.state); seq) {
+		m_nst.getTTY().write(seq->data(), seq->size(), /*may_echo=*/true);
 		return;
 	}
 
@@ -256,10 +275,10 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 		}
 	}
 
-	m_nst.getTTY().write(buf, len, 1);
+	m_nst.getTTY().write(buf, len, /*may_echo=*/true);
 }
 
-void XEventHandler::cmessage(const XClientMessageEvent &msg) {
+void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 	/*
 	 * See xembed specs
 	 *  http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
@@ -290,42 +309,38 @@ void XEventHandler::resize(const XConfigureEvent &config) {
 	m_nst.resizeConsole(new_size);
 }
 
-void XEventHandler::bpress(const XButtonEvent &ev) {
+void XEventHandler::buttonPress(const XButtonEvent &ev) {
 	const auto btn = ev.button;
 	const auto &twin = m_x11.getTermWin();
 
 	if (m_buttons.valid(btn))
 		m_buttons.setPressed(btn);
 
-
 	if (twin.mode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(ev);
 		return;
 	}
 
-	if (handleMouseAction(ev, false))
+	if (handleMouseAction(ev, /*is_release=*/false))
 		return;
-
-	if (btn != Button1)
+	else if (btn != Button1)
 		return;
 
 	const auto snap = m_xsel.handleClick();
-	auto &selection = m_nst.getSelection();
 	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
-	selection.start(pos.x, pos.y, snap);
+	m_nst.getSelection().start(pos.x, pos.y, snap);
 }
 
-void XEventHandler::propnotify(const xpp::Event &ev) {
+void XEventHandler::propertyNotify(const xpp::Event &ev) {
 	const auto &prop = ev.toProperty();
 	Atom clipboard = m_x11.getAtom("CLIPBOARD");
 
-	if (prop.state == PropertyNewValue &&
-			cosmos::in_list(prop.atom, {XA_PRIMARY, clipboard})) {
-		selnotify(ev);
+	if (prop.state == PropertyNewValue && cosmos::in_list(prop.atom, {XA_PRIMARY, clipboard})) {
+		selectionNotify(ev);
 	}
 }
 
-void XEventHandler::selnotify(const xpp::Event &ev) {
+void XEventHandler::selectionNotify(const xpp::Event &ev) {
 	const Atom property = [&ev]() {
 		switch (ev.getType()) {
 			case SelectionNotify: return ev.toSelectionNotify().property;
@@ -333,9 +348,8 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			default: return (Atom)None;
 		}
 	}();
-	const Atom incratom = m_x11.getAtom("INCR");
-	ulong nitems, rem, ofs = 0;
-	uchar *data, *last;
+	unsigned long nitems, rem, ofs = 0;
+	unsigned char *data;
 	Atom type;
 	int format;
 	auto &tty = m_nst.getTTY();
@@ -346,8 +360,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 	do {
 		if (XGetWindowProperty(m_x11.getDisplay(), m_x11.getWindow(), property, ofs,
 					BUFSIZ/4, False, AnyPropertyType,
-					&type, &format, &nitems, &rem,
-					&data)) {
+					&type, &format, &nitems, &rem, &data)) {
 			fprintf(stderr, "Clipboard allocation failed\n");
 			return;
 		}
@@ -362,7 +375,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			m_x11.changeEventMask(PropertyChangeMask, false);
 		}
 
-		if (type == incratom) {
+		if (type == m_incr_atom) {
 			/*
 			 * Activate the PropertyNotify events so we receive
 			 * when the selection owner does send us the next
@@ -373,7 +386,7 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 			/*
 			 * Deleting the property is the transfer start signal.
 			 */
-			XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), (int)property);
+			XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), property);
 			continue;
 		}
 
@@ -384,19 +397,19 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 		 * replace all '\n' with '\r'.
 		 * FIXME: Fix the computer world.
 		 */
-		uchar *repl = data;
-		last = data + nitems * format / 8;
-		while ((repl = (uchar*)memchr(repl, '\n', last - repl))) {
-			*repl++ = '\r';
+		unsigned char *needle = data;
+		unsigned char *last = data + nitems * format / 8;
+		while ((needle = (unsigned char*)memchr(needle, '\n', last - needle))) {
+			*needle++ = '\r';
 		}
 
 		const auto &tmode = m_x11.getTermWin().mode;
 
 		if (tmode[WinMode::BRCKTPASTE] && ofs == 0)
-			tty.write("\033[200~", 6, 0);
-		tty.write((char *)data, nitems * format / 8, 1);
+			tty.write("\033[200~", 6, false);
+		tty.write((char *)data, nitems * format / 8, true);
 		if (tmode[WinMode::BRCKTPASTE] && rem == 0)
-			tty.write("\033[201~", 6, 0);
+			tty.write("\033[201~", 6, false);
 		XFree(data);
 		/* number of 32-bit chunks returned */
 		ofs += nitems * format / 32;
@@ -406,15 +419,16 @@ void XEventHandler::selnotify(const xpp::Event &ev) {
 	 * Deleting the property again tells the selection owner to send the
 	 * next data chunk in the property.
 	 */
-	XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), (int)property);
+	XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), property);
 }
 
-[[maybe_unused]]
-void XEventHandler::selclear() {
-	m_nst.getSelection().clear();
+void XEventHandler::selectionClear() {
+	if (config::SELCLEAR) {
+		m_nst.getSelection().clear();
+	}
 }
 
-void XEventHandler::selrequest(const XSelectionRequestEvent &req) {
+void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 	XSelectionEvent xev;
 	xev.type = SelectionNotify;
 	xev.requestor = req.requestor;
@@ -428,10 +442,10 @@ void XEventHandler::selrequest(const XSelectionRequestEvent &req) {
 
 	if (req.target == m_x11.getAtom("TARGETS")) {
 		/* respond with the supported type */
-		Atom string = m_xsel.getTargetFormat();
+		Atom fmt = m_xsel.getTargetFormat();
 		XChangeProperty(req.display, req.requestor, reqprop,
 				XA_ATOM, 32, PropModeReplace,
-				(uchar *) &string, 1);
+				(unsigned char *) &fmt, 1);
 		xev.property = reqprop;
 	} else if (req.target == m_xsel.getTargetFormat() || req.target == XA_STRING) {
 		/*
@@ -441,17 +455,13 @@ void XEventHandler::selrequest(const XSelectionRequestEvent &req) {
 		auto seltext = m_xsel.getSelection(req.selection);
 
 		if (!seltext) {
-			fprintf(stderr,
-				"Unhandled clipboard selection 0x%lx\n",
-				req.selection);
+			fprintf(stderr, "Unhandled clipboard selection 0x%lx\n", req.selection);
 			return;
-		}
-
-		if (!seltext->empty()) {
+		} else if (!seltext->empty()) {
 			XChangeProperty(req.display, req.requestor,
 					reqprop, req.target,
 					8, PropModeReplace,
-					(uchar *)seltext->c_str(), seltext->size());
+					(unsigned char *)seltext->c_str(), seltext->size());
 			xev.property = reqprop;
 		}
 	}
@@ -461,7 +471,7 @@ void XEventHandler::selrequest(const XSelectionRequestEvent &req) {
 		fprintf(stderr, "Error sending SelectionNotify event\n");
 }
 
-void XEventHandler::brelease(const XButtonEvent &ev) {
+void XEventHandler::buttonRelease(const XButtonEvent &ev) {
 	int btn = ev.button;
 
 	if (m_buttons.valid(btn))
@@ -472,23 +482,20 @@ void XEventHandler::brelease(const XButtonEvent &ev) {
 	if (tmode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(ev);
 		return;
-	}
-
-	if (handleMouseAction(ev, true))
+	} else if (handleMouseAction(ev, true))
 		return;
-
-	if (btn == Button1)
+	else if (btn == Button1)
 		handleMouseSelection(ev, /*done =*/ true);
 }
 
-void XEventHandler::bmotion(const xpp::Event &ev) {
+void XEventHandler::motionEvent(const xpp::Event &ev) {
 	// NOTE: the code currently exploits the fact that XMotionEvent and
 	// XButtonEvent share most of the fields, but the type notion behind
 	// this is flawed.
-	// avoid the xpp::Event type check to bite us here by accessing the
+	// avoid the xpp::Event type check from biting us here by accessing the
 	// raw structure
+	// TODO: maybe fix this using a template function
 	const auto &bev = ev.raw()->xbutton;
-
 	const auto &tmode = m_x11.getTermWin().mode;
 
 	if (tmode[WinMode::MOUSE] && !(bev.state & config::FORCEMOUSEMOD)) {

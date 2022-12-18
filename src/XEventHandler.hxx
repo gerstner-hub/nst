@@ -2,10 +2,12 @@
 #define NST_XEVENT_HANDLER_HXX
 
 // C++
+#include <optional>
 #include <vector>
 
 // X++
 #include "X++/Event.hxx"
+#include "X++/XAtom.hxx"
 
 // nst
 #include "types.hxx"
@@ -13,83 +15,68 @@
 namespace nst {
 
 class Nst;
-struct TermWindow;
 class XSelection;
 class X11;
 
 /// Implementation of XEvent callback handlers
+/**
+ * This class reacts to X11 events related to the input system, the windowing
+ * system etc. As a result of the events a close interaction with the X11 type
+ * and other components of Nst is necessary.
+ **/
 class XEventHandler {
 public: // functions
 
 	explicit XEventHandler(Nst &nst);
 
-	void process(xpp::Event &ev) {
-		switch(ev.getType()) {
-			case KeyPress: return kpress(ev.toKeyEvent());
-			case ClientMessage: return cmessage(ev.toClientMessage());
-			case ConfigureNotify: return resize(ev.toConfigureNotify());
-			case VisibilityNotify: return visibility(ev.toVisibilityNotify());
-			case UnmapNotify: return unmap();
-			case Expose: return expose();
-			case FocusIn: return focus(ev);
-			case FocusOut: return focus(ev);
-			case MotionNotify: return bmotion(ev);
-			case ButtonPress: return bpress(ev.toButtonEvent());
-			case ButtonRelease: return brelease(ev.toButtonEvent());
-			case SelectionNotify: return selnotify(ev);
-			/*
-			 * PropertyNotify is only turned on when there is some
-			 * INCR transfer happening for the selection retrieval.
-			 */
-			case PropertyNotify: return propnotify(ev);
-			/*
-			 * Uncomment if you want the selection to disappear
-			 * when you select something different in another window.
-			 */
-#ifdef SELCLEAR
-			case SelectionClear: return selclear();
-#endif
-			case SelectionRequest: return selrequest(ev.toSelectionRequest());
-		}
-	}
-
+	/// basic runtime initialization of the event handler
 	void init();
+
+	/// processes the given single X11 event
+	void process(xpp::Event &ev);
 
 protected: // functions
 
 	void expose();
-	void visibility(const XVisibilityEvent&);
+	void visibilityChange(const XVisibilityEvent&);
 	void unmap();
-	void kpress(const XKeyEvent &);
-	void cmessage(const XClientMessageEvent &);
+	void keyPress(const XKeyEvent &);
+	void clientMessage(const XClientMessageEvent &);
 	void resize(const XConfigureEvent &);
 	void focus(const xpp::Event &);
-	void brelease(const XButtonEvent &);
-	void bpress(const XButtonEvent&);
-	void bmotion(const xpp::Event &);
-	void propnotify(const xpp::Event &);
-	void selnotify(const xpp::Event &);
-	void selclear();
-	void selrequest(const XSelectionRequestEvent &);
+	void buttonRelease(const XButtonEvent &);
+	void buttonPress(const XButtonEvent&);
+	void motionEvent(const xpp::Event &);
+	void propertyNotify(const xpp::Event &);
+	void selectionNotify(const xpp::Event &);
+	void selectionClear();
+	void selectionRequest(const XSelectionRequestEvent &);
 
 	void handleMouseSelection(const XButtonEvent &, bool done = false);
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
 
-	const char* getCustomKey(KeySym k, unsigned state) const;
+	///! returns an output sequence mapped to the given input event
+	/**
+	 * \return
+	 * 	The string sequence associated with the key input event or
+	 * 	nullopt_t if nothing is mapped.
+	 **/
+	std::optional<std::string_view> getCustomKeyMapping(KeySym k, unsigned state) const;
 	static unsigned getButtonMask(unsigned button);
-	static bool match(uint mask, uint state);
+	static bool match(unsigned mask, unsigned state);
 
 protected: // data
 
-	PressedButtons m_buttons; /* bit field of pressed buttons */
 	Nst &m_nst;
 	X11 &m_x11;
 	XSelection &m_xsel;
-	Atom m_xembed_atom;
-	CharPos m_old_mouse_pos;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
+	xpp::XAtom m_xembed_atom;
+	xpp::XAtom m_incr_atom;
+	PressedButtons m_buttons; /* bit field of pressed buttons */
+	CharPos m_old_mouse_pos;
 };
 
 } // end ns

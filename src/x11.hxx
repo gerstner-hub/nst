@@ -132,6 +132,7 @@ public: // functions
 	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
 	auto& getDisplay() { return *(m_display); }
 	Atom getAtom(const char *name) const { return m_mapper->getAtom(name); }
+	xpp::XAtom getXAtom(const char *name) const { return m_mapper->getAtom(name); }
 	void pasteSelection();
 	void pasteClipboard();
 	void copyToClipboard();

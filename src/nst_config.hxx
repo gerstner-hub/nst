@@ -14,7 +14,6 @@
 // nst
 #include "Selection.hxx"
 #include "types.hxx"
-#include "win.h"
 
 namespace nst {
 

@@ -3,7 +3,6 @@
 
 // nst
 #include "types.hxx"
-#include "win.h"
 
 namespace nst {
 

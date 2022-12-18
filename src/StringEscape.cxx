@@ -3,7 +3,6 @@
 #include "StringEscape.hxx"
 #include "TTY.hxx"
 #include "nst.hxx"
-#include "win.h"
 
 // stdlib
 #include <cstdlib>

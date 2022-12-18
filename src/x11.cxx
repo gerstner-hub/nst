@@ -42,7 +42,6 @@
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
-#include "win.h"
 #include "x11.hxx"
 #include "XSelection.hxx"
 

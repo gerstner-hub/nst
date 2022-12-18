@@ -12,6 +12,7 @@ namespace nst {
 
 class Term;
 class TTY;
+class Nst;
 
 class Selection {
 public: // types
@@ -54,7 +55,7 @@ protected: // data
 
 public: // functions
 
-	Selection(Term &term);
+	explicit Selection(Nst &nst);
 
 	void clear();
 

@@ -13,11 +13,12 @@
 namespace nst {
 
 struct X11;
+class Nst;
 
 struct XSelection {
 public: // functions
 
-	XSelection(X11 &x11) : m_x11(x11) {}
+	explicit XSelection(Nst &nst);
 	void setSelection(const std::string_view &str, Time t = CurrentTime);
 	void init();
 	void copyPrimaryToClipboard();
@@ -28,7 +29,8 @@ public: // functions
 
 protected: // data
 
-	struct X11 &m_x11;
+	Nst &m_nst;
+	X11 &m_x11;
 	Atom m_target_fmt; //! the X11 format used for the selection text
 	cosmos::MonotonicStopWatch m_tclick1;
 	cosmos::MonotonicStopWatch m_tclick2;

@@ -5,6 +5,8 @@
 
 namespace nst {
 
+XSelection::XSelection(Nst &nst) : m_nst(nst), m_x11(nst.getX11()) {}
+
 void XSelection::copyPrimaryToClipboard() {
 	m_clipboard = m_primary;
 }
@@ -18,7 +20,7 @@ void XSelection::setSelection(const std::string_view &str, Time t) {
 
 	XSetSelectionOwner(display, XA_PRIMARY, m_x11.getWindow(), t);
 	if (XGetSelectionOwner(display, XA_PRIMARY) != m_x11.getWindow())
-		Nst::getSelection().clear();
+		m_nst.getSelection().clear();
 }
 
 void XSelection::init() {

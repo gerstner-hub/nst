@@ -18,39 +18,35 @@ namespace nst {
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
 constexpr size_t MAX_STR_ARGS = 16;
 
-namespace {
+STREscape::STREscape(Nst &nst) :
+	m_nst(nst)
+{}
 
-void osc4_color_response(X11 &x11, int num) {
+void STREscape::osc4ColorResponse(int num) {
 	unsigned char r, g, b;
 
-	if (!x11.getColor(num, &r, &g, &b)) {
+	if (!m_nst.getX11().getColor(num, &r, &g, &b)) {
 		std::cerr << "erresc: failed to fetch osc4 color " << num << "\n";
 		return;
 	}
 
 	const auto res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
 
-	Nst::getTTY().write(res.c_str(), res.size(), true);
+	m_nst.getTTY().write(res.c_str(), res.size(), true);
 }
 
-void osc_color_response(X11 &x11, int index, int num) {
+void STREscape::oscColorResponse(int index, int num) {
 	unsigned char r, g, b;
 
-	if (!x11.getColor(index, &r, &g, &b)) {
+	if (!m_nst.getX11().getColor(index, &r, &g, &b)) {
 		std::cerr << "erresc: failed to fetch osc color " << index << "\n";
 		return;
 	}
 
 	const auto res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
 
-	Nst::getTTY().write(res.c_str(), res.size(), true);
+	m_nst.getTTY().write(res.c_str(), res.size(), true);
 }
-
-} // end anon ns
-
-STREscape::STREscape(Nst &nst) :
-	m_nst(nst)
-{}
 
 void STREscape::setTitle(const char *s) {
 	auto &x11 = m_nst.getX11();
@@ -112,7 +108,7 @@ void STREscape::handle() {
 			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
-				osc_color_response(x11, config::DEFAULTFG, 10);
+				oscColorResponse(config::DEFAULTFG, 10);
 			else if (!x11.setColorName(config::DEFAULTFG, p))
 				std::cerr << "erresc: invalid foreground color: " << p << "\n";
 			else
@@ -125,7 +121,7 @@ void STREscape::handle() {
 			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
-				osc_color_response(x11, config::DEFAULTBG, 11);
+				oscColorResponse(config::DEFAULTBG, 11);
 			else if (!x11.setColorName(config::DEFAULTBG, p))
 				std::cerr << "erresc: invalid background color: " << p << "%s\n";
 			else
@@ -138,7 +134,7 @@ void STREscape::handle() {
 			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
-				osc_color_response(x11, config::DEFAULTCS, 12);
+				oscColorResponse(config::DEFAULTCS, 12);
 			else if (!x11.setColorName(config::DEFAULTCS, p))
 				std::cerr << "erresc: invalid cursor color: " << p << "\n";
 			else
@@ -153,7 +149,7 @@ void STREscape::handle() {
 			int j = (m_args.size() > 1) ? atoi(m_args[1]) : -1;
 
 			if (p && !std::strcmp(p, "?"))
-				osc4_color_response(x11, j);
+				osc4ColorResponse(j);
 			else if (!x11.setColorName(j, p)) {
 				if (par == 104 && m_args.size() <= 1)
 					return; /* color reset without parameter */

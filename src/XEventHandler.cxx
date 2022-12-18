@@ -235,7 +235,7 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 
 	/* 2. custom keys from nst_config.h */
 	if (const char *customkey = getCustomKey(ksym, ev.state); customkey != nullptr) {
-		Nst::getTTY().write(customkey, strlen(customkey), 1);
+		m_nst.getTTY().write(customkey, strlen(customkey), 1);
 		return;
 	}
 
@@ -256,7 +256,7 @@ void XEventHandler::kpress(const XKeyEvent &ev) {
 		}
 	}
 
-	Nst::getTTY().write(buf, len, 1);
+	m_nst.getTTY().write(buf, len, 1);
 }
 
 void XEventHandler::cmessage(const XClientMessageEvent &msg) {

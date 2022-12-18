@@ -94,6 +94,7 @@ public: // types
 
 protected: // data
 	
+	nst::Nst &m_nst;
 	Input m_input;
 
 	xpp::XDisplay *m_display = nullptr;
@@ -128,9 +129,7 @@ protected: // data
 
 public: // functions
 
-	X11() : m_input(*this), m_xsel(*this), m_tsize{config::COLS, config::ROWS} {
-		m_tsize.normalize();
-	}
+	explicit X11(Nst &nst);
 	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
 	auto& getDisplay() { return *(m_display); }
 	Atom getAtom(const char *name) const { return m_mapper->getAtom(name); }
@@ -143,7 +142,6 @@ public: // functions
 	void setUrgency(int add);
 	void resize(const TermSize &dim);
 	void setHints();
-	/// xim (X input method) setup
 	Input& getInput() { return m_input; }
 	void init();
 	void setGeometry(const std::string &g);
@@ -183,7 +181,9 @@ public: // functions
 	auto& getTermWin() const { return m_twin; }
 	auto& getTermSize() const { return m_tsize; }
 	bool canDraw() const { return m_twin.mode[WinMode::VISIBLE]; }
-protected:
+
+protected: // functions
+
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);

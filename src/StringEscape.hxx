@@ -27,7 +27,7 @@ protected: // data
 
 public: // functions
 
-	STREscape(Nst &nst);
+	explicit STREscape(Nst &nst);
 	void reset(const char type);
 	void add(const char *ch, size_t len);
 	void handle();
@@ -39,6 +39,8 @@ protected: // functions
 	void parse();
 	void setIconTitle(const char *s);
 	void setTitle(const char *s);
+	void osc4ColorResponse(int num);
+	void oscColorResponse(int index, int num);
 };
 
 } // end ns

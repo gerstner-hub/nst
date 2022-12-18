@@ -48,7 +48,9 @@
 
 namespace nst {
 
-Nst *Nst::the_instance = nullptr;
+X11::X11(Nst &nst) : m_nst(nst), m_input(*this), m_xsel(nst), m_tsize{config::COLS, config::ROWS} {
+	m_tsize.normalize();
+}
 
 void X11::copyToClipboard() {
 	m_xsel.copyPrimaryToClipboard();
@@ -79,9 +81,8 @@ void X11::zoomFont(float val) {
 	val += (float)m_used_font_size;
 	unloadFonts();
 	loadFontsOrThrow(m_cmdline->font.getValue(), val);
-	auto &nst = Nst::getInstance();
-	nst.resizeConsole();
-	nst.getTerm().redraw();
+	m_nst.resizeConsole();
+	m_nst.getTerm().redraw();
 	setHints();
 }
 
@@ -531,7 +532,7 @@ void X11::setGeometry(const std::string &g) {
 }
 
 void X11::init() {
-	m_cmdline = &Nst::getInstance().getCmdline();
+	m_cmdline = &m_nst.getCmdline();
 	m_display = &xpp::XDisplay::getInstance();
 	m_mapper = &xpp::XAtomMapper::getInstance();
 	m_screen = m_display->getDefaultScreen();
@@ -911,7 +912,7 @@ void X11::drawGlyph(Glyph g, int x, int y) {
 }
 
 void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
-	auto &sel = Nst::getSelection();
+	auto &sel = m_nst.getSelection();
 
 	/* remove the old cursor */
 	if (sel.isSelected(ox, oy))
@@ -1041,7 +1042,7 @@ void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 	auto *specs = m_font_specs.data();
 	size_t i = 0;
 	int ox = 0;
-	auto &selection = Nst::getSelection();
+	auto &selection = m_nst.getSelection();
 
 	auto numspecs = makeGlyphFontSpecs(specs, &line[x1], x2 - x1, x1, y1);
 	for (int x = x1; x < x2 && i < numspecs; x++) {
@@ -1087,7 +1088,7 @@ void X11::setMode(const WinMode &flag, const bool set) {
 	auto prevmode = m_twin.mode;
 	m_twin.mode.set(flag, set);
 	if (m_twin.mode[WinMode::REVERSE] != prevmode[WinMode::REVERSE])
-		Nst::getTerm().redraw();
+		m_nst.getTerm().redraw();
 }
 
 void X11::setCursorStyle(const CursorStyle &cursor) {
@@ -1127,13 +1128,13 @@ void X11::focusChange(const bool in_focus) {
 		m_twin.mode.set(WinMode::FOCUSED);
 		setUrgency(0);
 		if (m_twin.mode[WinMode::FOCUS]) {
-			Nst::getTTY().write("\033[I", 3, 0);
+			m_nst.getTTY().write("\033[I", 3, 0);
 		}
 	} else {
 		m_input.unsetFocus();
 		m_twin.mode.reset(WinMode::FOCUSED);
 		if (m_twin.mode[WinMode::FOCUS])
-			Nst::getTTY().write("\033[O", 3, 0);
+			m_nst.getTTY().write("\033[O", 3, 0);
 	}
 }
 
@@ -1177,14 +1178,11 @@ void Nst::applyCmdline() {
 }
 
 Nst::Nst() :
+		m_x11(*this),
 		m_term(*this),
 		m_tty(m_term),
-		m_selection(m_term),
+		m_selection(*this),
 		m_event_handler(*this) {
-	if (the_instance) {
-		cosmos_throw (cosmos::UsageError("more than once Nst instances alive"));
-	}
-	the_instance = this;
 	m_x11.setCursorStyle(config::CURSORSHAPE);
 }
 

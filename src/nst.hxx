@@ -24,10 +24,9 @@ public: // functions
 
 	// accessors to global-like objects until refactoring reaches a state
 	// where this becomes unnecessary
-	static TTY& getTTY() { return the_instance->m_tty; }
-	static Term& getTerm() { return the_instance->m_term; }
-	static Selection& getSelection() { return the_instance->m_selection; }
-	static Nst& getInstance() { return *the_instance; }
+	TTY& getTTY() { return m_tty; }
+	Term& getTerm() { return m_term; }
+	Selection& getSelection() { return m_selection; }
 	X11& getX11() { return m_x11; }
 	auto& getCmdline() const { return m_cmdline; }
 	void resizeConsole(const Extent &win = {0,0});
@@ -41,6 +40,7 @@ protected: // functions
 	void setEnv();
 
 protected: // data
+
 	cosmos::Init m_init;
 	Cmdline m_cmdline;
 	X11 m_x11;
@@ -48,7 +48,6 @@ protected: // data
 	TTY m_tty;
 	Selection m_selection;
 	XEventHandler m_event_handler;
-	static Nst *the_instance;
 };
 
 } // end ns

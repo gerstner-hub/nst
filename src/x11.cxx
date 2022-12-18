@@ -49,6 +49,7 @@ namespace nst {
 
 X11::X11(Nst &nst) : m_nst(nst), m_input(*this), m_xsel(nst), m_tsize{config::COLS, config::ROWS} {
 	m_tsize.normalize();
+	setCursorStyle(config::CURSORSHAPE);
 }
 
 void X11::copyToClipboard() {

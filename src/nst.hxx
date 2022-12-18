@@ -4,6 +4,9 @@
 // cosmos
 #include "cosmos/Init.hxx"
 
+// X++
+#include "X++/Xpp.hxx"
+
 // nst
 #include "Cmdline.hxx"
 #include "Selection.hxx"
@@ -15,20 +18,25 @@
 namespace nst {
 
 /// Nst main application class
+/**
+ * This type holds instances of all the other types that make up nst. It also
+ * holds the main loop and is invoked from the main function of the program.
+ **/
 class Nst {
 public: // functions
 
 	Nst();
 
+	/// this is the main entry point of the Nst application that is also
+	/// passed the command line parameters for the program
 	void run(int argc, const char **argv);
 
-	// accessors to global-like objects until refactoring reaches a state
-	// where this becomes unnecessary
 	TTY& getTTY() { return m_tty; }
 	Term& getTerm() { return m_term; }
 	Selection& getSelection() { return m_selection; }
 	X11& getX11() { return m_x11; }
-	auto& getCmdline() const { return m_cmdline; }
+	const Cmdline& getCmdline() const { return m_cmdline; }
+
 	void resizeConsole(const Extent &win = {0,0});
 
 protected: // functions
@@ -42,6 +50,7 @@ protected: // functions
 protected: // data
 
 	cosmos::Init m_init;
+	xpp::Init m_xpp;
 	Cmdline m_cmdline;
 	X11 m_x11;
 	Term m_term;

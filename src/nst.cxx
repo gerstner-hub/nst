@@ -1,16 +1,23 @@
-// X++
-#include "X++/Xpp.hxx"
 // nst
 #include "nst.hxx"
 
 namespace nst {
 
+Nst::Nst() :
+		m_x11(*this),
+		m_term(*this),
+		m_tty(m_term),
+		m_selection(*this),
+		m_event_handler(*this)
+{}
+
 void Nst::waitForWindowMapping() {
 	xpp::Event ev;
+	auto &display = m_x11.getDisplay();
 
 	/* Waiting for window mapping */
 	do {
-		m_x11.getDisplay().getNextEvent(ev);
+		display.getNextEvent(ev);
 		/*
 		 * This XFilterEvent call is required because of XOpenIM. It
 		 * does filter out the key event and some client message for
@@ -18,8 +25,7 @@ void Nst::waitForWindowMapping() {
 		 */
 		if (ev.filterEvent())
 			continue;
-
-		if (ev.isConfigureNotify()) {
+		else if (ev.isConfigureNotify()) {
 			const auto &configure = ev.toConfigureNotify();
 			m_x11.setWinSize(Extent{configure.width, configure.height});
 		}
@@ -44,15 +50,6 @@ void Nst::applyCmdline() {
 	}
 }
 
-Nst::Nst() :
-		m_x11(*this),
-		m_term(*this),
-		m_tty(m_term),
-		m_selection(*this),
-		m_event_handler(*this) {
-	m_x11.setCursorStyle(config::CURSORSHAPE);
-}
-
 void Nst::run(int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
 	m_term.init(m_x11.getTermSize());
@@ -73,9 +70,8 @@ void Nst::setEnv() {
 
 void Nst::mainLoop() {
 	auto ttyfd = m_tty.create(m_cmdline);
-
-	auto &display = m_x11.getDisplay();
 	auto childfd = m_tty.getChildFD();
+	auto &display = m_x11.getDisplay();
 	auto xfd = display.getConnectionNumber();
 
 	cosmos::Poller poller;
@@ -86,7 +82,8 @@ void Nst::mainLoop() {
 
 	xpp::Event ev;
 	bool drawing = false;
-	cosmos::MonotonicStopWatch draw_watch, blink_watch(cosmos::MonotonicStopWatch::InitialMark(true));
+	cosmos::MonotonicStopWatch draw_watch;
+	cosmos::MonotonicStopWatch blink_watch(cosmos::MonotonicStopWatch::InitialMark(true));
 	std::chrono::milliseconds timeout(-1);
 
 	waitForWindowMapping();
@@ -144,6 +141,7 @@ void Nst::mainLoop() {
 
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = std::chrono::milliseconds(-1);
+
 		if (config::BLINKTIMEOUT.count() > 0 && m_term.testAttrSet(Attr::BLINK)) {
 			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
@@ -163,11 +161,8 @@ void Nst::mainLoop() {
 }
 
 void Nst::resizeConsole(const Extent &win) {
-
 	m_x11.setWinSize(win);
-
 	const auto &twin = m_x11.getTermWin();
-
 	auto tdim = twin.getTermDim();
 
 	m_term.resize(tdim);
@@ -180,7 +175,6 @@ void Nst::resizeConsole(const Extent &win) {
 int main(int argc, const char **argv) {
 	try {
 		nst::Nst nst;
-		xpp::Init xpp;
 		nst.run(argc, argv);
 	} catch (const std::exception &ex) {
 		std::cerr << ex.what() << std::endl;

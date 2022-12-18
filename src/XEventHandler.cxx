@@ -10,6 +10,14 @@
 
 namespace nst {
 
+XEventHandler::XEventHandler(Nst &nst) :
+	m_nst(nst),
+	m_x11(nst.getX11()),
+	m_xsel(m_x11.getXSelection()),
+	m_mouse_shortcuts(config::getMouseShortcuts(nst)),
+	m_kbd_shortcuts(config::getKbdShortcuts(nst))
+{}
+
 void XEventHandler::init() {
 	m_xembed_atom = m_x11.getAtom("_XEMBED");
 }

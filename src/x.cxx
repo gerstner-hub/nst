@@ -1200,16 +1200,6 @@ void X11::focusChange(const bool in_focus) {
 	}
 }
 
-// TODO: move into XEventHandler.cxx once get*Shortcuts() becomes available
-// outside of this unit
-XEventHandler::XEventHandler(Nst &nst) :
-	m_nst(nst),
-	m_x11(nst.getX11()),
-	m_xsel(m_x11.getXSelection()),
-	m_mouse_shortcuts(config::getMouseShortcuts(nst)),
-	m_kbd_shortcuts(config::getKbdShortcuts(nst))
-{}
-
 void Nst::waitForWindowMapping() {
 	xpp::Event ev;
 

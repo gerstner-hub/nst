@@ -17,6 +17,9 @@
 #include "win.h"
 
 namespace nst {
+
+class Nst; // fwd. decl
+
 namespace config {
 
 /*
@@ -468,6 +471,12 @@ constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SELMASKS = {
 	std::pair{Selection::Type::REGULAR,     0},
 	         {Selection::Type::RECTANGULAR, Mod1Mask},
 };
+
+// see implementation file
+std::vector<MouseShortcut> getMouseShortcuts(Nst &nst);
+
+// see implementation file
+std::vector<KbdShortcut> getKbdShortcuts(Nst &nst);
 
 }} // end ns nst::config
 

@@ -18,7 +18,7 @@
 #include "Cmdline.hxx"
 #include "TTY.hxx"
 #include "nst.hxx"
-#include "nst_config.h"
+#include "nst_config.hxx"
 
 // libcosmos
 #include "cosmos/algs.hxx"

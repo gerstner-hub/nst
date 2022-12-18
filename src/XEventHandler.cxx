@@ -3,7 +3,7 @@
 
 // nst
 #include "nst.hxx"
-#include "nst_config.h"
+#include "nst_config.hxx"
 #include "XEventHandler.hxx"
 #include "XSelection.hxx"
 #include "x.hxx"

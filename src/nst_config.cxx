@@ -1,12 +1,15 @@
 #include <functional>
 
+#include "nst.hxx"
 #include "Selection.hxx"
+#include "x.hxx"
 
 namespace nst {
 
-/* these are placed in this separate file since they are included from the
- * x.cxx compilation unit exclusively as they require function definitions
- * from there.
+/*
+ * the implementation of these are placed in this separate file since they are
+ * need data structures that would cause circular dependencies when included
+ * in the config header
  */
 
 namespace config {
@@ -15,7 +18,7 @@ namespace config {
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
-inline std::vector<MouseShortcut> getMouseShortcuts(Nst &nst) {
+std::vector<MouseShortcut> getMouseShortcuts(Nst &nst) {
 
 	auto ttysend = [&](const char *s) {
 		auto &tty = nst.getTTY();
@@ -34,7 +37,7 @@ inline std::vector<MouseShortcut> getMouseShortcuts(Nst &nst) {
 	};
 }
 
-inline std::vector<KbdShortcut> getKbdShortcuts(Nst &nst) {
+std::vector<KbdShortcut> getKbdShortcuts(Nst &nst) {
 	/* Internal keyboard shortcuts. */
 	//constexpr auto MODKEY = Mod1Mask;
 	constexpr auto TERMMOD = ControlMask|ShiftMask;

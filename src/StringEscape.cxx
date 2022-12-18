@@ -1,5 +1,5 @@
 // nst
-#include "nst_config.h"
+#include "nst_config.hxx"
 #include "StringEscape.hxx"
 #include "TTY.hxx"
 #include "nst.hxx"

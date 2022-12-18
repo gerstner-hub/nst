@@ -11,7 +11,7 @@
 
 // nst
 #include "codecs.hxx"
-#include "nst_config.h"
+#include "nst_config.hxx"
 #include "Selection.hxx"
 #include "StringEscape.hxx"
 #include "Term.hxx"

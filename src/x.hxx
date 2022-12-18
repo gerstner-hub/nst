@@ -12,7 +12,7 @@
 #include "X++/XWindow.hxx"
 // nst
 #include "font.hxx"
-#include "nst_config.h"
+#include "nst_config.hxx"
 #include "win.h"
 #include "TermWindow.hxx"
 #include "XSelection.hxx"

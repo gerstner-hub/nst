@@ -1,7 +1,7 @@
 #include "Cmdline.hxx"
 
 // nst
-#include "nst_config.h"
+#include "nst_config.hxx"
 
 namespace nst {
 

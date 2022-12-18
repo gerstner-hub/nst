@@ -33,7 +33,7 @@
 
 // nst
 /* nst_config.h for applying patches and the configuration. */
-#include "nst_config.h"
+#include "nst_config.hxx"
 #include "Cmdline.hxx"
 #include "codecs.hxx"
 #include "helper.hxx"
@@ -45,9 +45,6 @@
 #include "win.h"
 #include "x.hxx"
 #include "XSelection.hxx"
-
-// config parts specific to this compilation unit
-#include "nst_config.inl"
 
 namespace nst {
 

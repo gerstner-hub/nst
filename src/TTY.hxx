@@ -33,7 +33,7 @@ protected: // data
 
 public: // functions
 
-	TTY(Term *term) : m_term(*term) {}
+	TTY(Term &term) : m_term(term) {}
 	~TTY();
 	cosmos::FileDescriptor create(const Cmdline &cmdline);
 	size_t read();

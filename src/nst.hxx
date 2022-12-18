@@ -10,11 +10,9 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "XEventHandler.hxx"
+#include "x.hxx"
 
 namespace nst {
-
-struct TermWindow;
-struct X11;
 
 /// Nst main application class
 class Nst {
@@ -45,9 +43,9 @@ protected: // functions
 protected: // data
 	cosmos::Init m_init;
 	Cmdline m_cmdline;
-	X11 &m_x11;
-	TTY m_tty;
+	X11 m_x11;
 	Term m_term;
+	TTY m_tty;
 	Selection m_selection;
 	XEventHandler m_event_handler;
 	static Nst *the_instance;

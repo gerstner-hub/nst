@@ -46,6 +46,12 @@ Term::TCursor::TCursor() {
 	attr.bg = config::DEFAULTBG;
 }
 
+Term::Term(Nst &nst) :
+	m_selection(nst.getSelection()),
+	m_tty(nst.getTTY()),
+	m_x11(nst.getX11()),
+	m_strescseq(nst),
+	m_csiescseq(nst, m_strescseq) {}
 
 void Term::init(const TermSize &tsize) {
 	resize(tsize);
@@ -483,10 +489,10 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 		if (priv) {
 			switch (arg) {
 			case 1: /* DECCKM -- Cursor key */
-				xsetmode(set, WinMode::APPCURSOR);
+				m_x11.setMode(WinMode::APPCURSOR, set);
 				break;
 			case 5: /* DECSCNM -- Reverse video */
-				xsetmode(set, WinMode::REVERSE);
+				m_x11.setMode(WinMode::REVERSE, set);
 				break;
 			case 6: /* DECOM -- Origin */
 				m_cursor.state.set(TCursor::State::ORIGIN, set);
@@ -506,36 +512,36 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 			case 12: /* att610 -- Start blinking cursor (IGNORED) */
 				break;
 			case 25: /* DECTCEM -- Text Cursor Enable Mode */
-				xsetmode(!set, WinMode::HIDE);
+				m_x11.setMode(WinMode::HIDE, !set);
 				break;
 			case 9:    /* X10 mouse compatibility mode */
-				xsetpointermotion(0);
-				xsetmode(false, WinMode::MOUSE);
-				xsetmode(set, WinMode::MOUSEX10);
+				m_x11.setPointerMotion(false);
+				m_x11.setMode(WinMode::MOUSE, false);
+				m_x11.setMode(WinMode::MOUSEX10, set);
 				break;
 			case 1000: /* 1000: report button press */
-				xsetpointermotion(0);
-				xsetmode(false, WinMode::MOUSE);
-				xsetmode(set, WinMode::MOUSEBTN);
+				m_x11.setPointerMotion(false);
+				m_x11.setMode(WinMode::MOUSE, false);
+				m_x11.setMode(WinMode::MOUSEBTN, set);
 				break;
 			case 1002: /* 1002: report motion on button press */
-				xsetpointermotion(0);
-				xsetmode(false, WinMode::MOUSE);
-				xsetmode(set, WinMode::MOUSEMOTION);
+				m_x11.setPointerMotion(false);
+				m_x11.setMode(WinMode::MOUSE, false);
+				m_x11.setMode(WinMode::MOUSEMOTION, set);
 				break;
 			case 1003: /* 1003: enable all mouse motions */
-				xsetpointermotion(set);
-				xsetmode(false, WinMode::MOUSE);
-				xsetmode(set, WinMode::MOUSEMANY);
+				m_x11.setPointerMotion(set);
+				m_x11.setMode(WinMode::MOUSE, false);
+				m_x11.setMode(WinMode::MOUSEMANY, set);
 				break;
 			case 1004: /* 1004: send focus events to tty */
-				xsetmode(set, WinMode::FOCUS);
+				m_x11.setMode(WinMode::FOCUS, set);
 				break;
 			case 1006: /* 1006: extended reporting mode */
-				xsetmode(set, WinMode::MOUSESGR);
+				m_x11.setMode(WinMode::MOUSESGR, set);
 				break;
 			case 1034:
-				xsetmode(set, WinMode::EIGHT_BIT);
+				m_x11.setMode(WinMode::EIGHT_BIT, set);
 				break;
 			case 1049: /* swap screen & set/restore cursor as xterm */
 				if (!m_allowaltscreen)
@@ -560,7 +566,7 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 				cursorControl(set ? TCursor::Control::SAVE : TCursor::Control::LOAD);
 				break;
 			case 2004: /* 2004: bracketed paste mode */
-				xsetmode(set, WinMode::BRCKTPASTE);
+				m_x11.setMode(WinMode::BRCKTPASTE, set);
 				break;
 			/* Not implemented mouse modes. See comments there. */
 			case 1001: /* mouse highlight mode; can hang the
@@ -581,7 +587,7 @@ void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
 			case 0:  /* Error (IGNORED) */
 				break;
 			case 2:
-				xsetmode(set, WinMode::KBDLOCK);
+				m_x11.setMode(WinMode::KBDLOCK, set);
 				break;
 			case 4:  /* IRM -- Insertion-replacement */
 				m_mode.set(Mode::INSERT, set);
@@ -640,12 +646,12 @@ void Term::drawRegion(const Range &range) const {
 			continue;
 
 		m_dirty_lines[y] = false;
-		xdrawline(m_screen[y], range.begin.x, y, range.end.x);
+		m_x11.drawLine(m_screen[y], range.begin.x, y, range.end.x);
 	}
 }
 
 void Term::draw() {
-	if (!xstartdraw())
+	if (!m_x11.canDraw())
 		return;
 
 	// TODO: pretty confusing logic, further comments or improved
@@ -663,7 +669,7 @@ void Term::draw() {
 		old_cx--;
 
 	drawScreen();
-	xdrawcursor(
+	m_x11.drawCursor(
 		old_cx, m_cursor.pos.y,
 		m_screen[m_cursor.pos.y][old_cx],
 		m_old_cursor_pos.x, m_old_cursor_pos.y,
@@ -671,9 +677,9 @@ void Term::draw() {
 	);
 
 	m_old_cursor_pos.set(old_cx, m_cursor.pos.y);
-	xfinishdraw();
+	m_x11.finishDraw();
 	if (m_old_cursor_pos != old_cursor_pos)
-		xximspot(m_old_cursor_pos);
+		m_x11.getInput().setSpot(m_old_cursor_pos);
 }
 
 void Term::strSequence(unsigned char ch) {
@@ -776,7 +782,7 @@ void Term::handleControlCode(unsigned char ascii) {
 			/* backwards compatibility to xterm */
 			m_strescseq.handle();
 		} else {
-			xbell();
+			m_x11.ringBell();
 		}
 		break;
 	case '\033': /* ESC */

@@ -151,7 +151,9 @@ public: // functions
 	void finishDraw();
 	void changeEventMask(long event, bool on_off);
 	void setIconTitle(const std::string &title);
+	void setDefaultIconTitle();
 	void setTitle(const std::string &title);
+	void setDefaultTitle();
 	void loadColors();
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
 	bool setColorName(size_t idx, const char *name);
@@ -180,6 +182,7 @@ public: // functions
 	auto& getXSelection() { return m_xsel; }
 	auto& getTermWin() const { return m_twin; }
 	auto& getTermSize() const { return m_tsize; }
+	bool canDraw() const { return m_twin.mode[WinMode::VISIBLE]; }
 protected:
 	int getGravity();
 	int loadFont(Font *f, FcPattern *pattern);

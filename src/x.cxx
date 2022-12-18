@@ -48,13 +48,6 @@
 
 namespace nst {
 
-namespace {
-
-/* Globals */
-X11 x11;
-
-} // end anon ns
-
 Nst *Nst::the_instance = nullptr;
 
 void X11::copyToClipboard() {
@@ -64,10 +57,6 @@ void X11::copyToClipboard() {
 		Atom clipboard = m_mapper->getAtom("CLIPBOARD");
 		XSetSelectionOwner(*m_display, clipboard, m_window, CurrentTime);
 	}
-}
-
-void xclipcopy(void) {
-	x11.copyToClipboard();
 }
 
 void X11::pasteClipboard() {
@@ -119,20 +108,16 @@ const char* getColorName(size_t nr) {
 	return nullptr;
 }
 
-void xsetsel(const char *str) {
-	x11.getXSelection().setSelection(str);
-}
-
 void Nst::resizeConsole(const Extent &win) {
 
-	x11.setWinSize(win);
+	m_x11.setWinSize(win);
 
-	const auto &twin = x11.getTermWin();
+	const auto &twin = m_x11.getTermWin();
 
 	auto tdim = twin.getTermDim();
 
 	m_term.resize(tdim);
-	x11.resize(tdim);
+	m_x11.resize(tdim);
 	m_tty.resize(twin.tty);
 }
 
@@ -180,10 +165,6 @@ int X11::loadColor(size_t i, const char *name, Color *ncolor) {
 	return XftColorAllocName(*m_display, m_visual, m_color_map, name, ncolor);
 }
 
-void xloadcols() {
-	x11.loadColors();
-}
-
 void X11::loadColors() {
 	if (m_colors_loaded) {
 		for (auto &c: m_draw_ctx.col) {
@@ -207,10 +188,6 @@ void X11::loadColors() {
 	m_colors_loaded = true;
 }
 
-int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b) {
-	return x11.getColor(x, r, g, b) ? 0 : 1;
-}
-
 bool X11::getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const {
 	if (idx >= m_draw_ctx.col.size())
 		return false;
@@ -220,10 +197,6 @@ bool X11::getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char
 	*b = m_draw_ctx.col[idx].color.blue >> 8;
 
 	return true;
-}
-
-int xsetcolorname(size_t x, const char *name) {
-	return x11.setColorName(x, name) ? 0 : 1;
 }
 
 bool X11::setColorName(size_t idx, const char *name) {
@@ -470,7 +443,7 @@ bool X11::Input::open() {
 
 	if (!m_ctx) {
 		// NOTE: this function takes varargs, passing in C++ objects
-		// like x11.win even with conversion operator does not work
+		// like m_window even with conversion operator does not work
 		m_ctx = XCreateIC(m_method,
 		                       XNInputStyle,
 		                       XIMPreeditNothing | XIMStatusNothing,
@@ -572,7 +545,7 @@ void X11::init() {
 
 	/* colors */
 	m_color_map = m_display->getDefaultColormap(m_screen);
-	xloadcols();
+	loadColors();
 
 	/* adjust fixed window geometry */
 	m_twin.setWinExtent(m_tsize);
@@ -661,7 +634,7 @@ void X11::init() {
 			PropModeReplace, (uchar *)&thispid, 1);
 
 	m_twin.mode = WinModeMask(WinMode::NUMLOCK);
-	xsettitle(nullptr);
+	setDefaultTitle();
 	setHints();
 	XMapWindow(*m_display, m_window);
 	XSync(*m_display, False);
@@ -937,10 +910,6 @@ void X11::drawGlyph(Glyph g, int x, int y) {
 	drawGlyphFontSpecs(&spec, g, numspecs, x, y);
 }
 
-void xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
-	return x11.drawCursor(cx, cy, g, ox, oy, og);
-}
-
 void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	auto &sel = Nst::getSelection();
 
@@ -1033,8 +1002,8 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	}
 }
 
-void xseticontitle(const char *p) {
-	x11.setIconTitle(p ? std::string(p) : Nst::getInstance().getCmdline().getTitle());
+void X11::setDefaultIconTitle() {
+	setIconTitle(m_cmdline->getTitle());
 }
 
 void X11::setIconTitle(const std::string &title) {
@@ -1051,8 +1020,8 @@ void X11::setIconTitle(const std::string &title) {
 	XFree(prop.value);
 }
 
-void xsettitle(const char *p) {
-	x11.setTitle(p ? std::string(p) : Nst::getInstance().getCmdline().getTitle().c_str());
+void X11::setDefaultTitle() {
+	setTitle(m_cmdline->getTitle());
 }
 
 void X11::setTitle(const std::string &title) {
@@ -1065,10 +1034,6 @@ void X11::setTitle(const std::string &title) {
 	XSetWMName(*m_display, m_window, &prop);
 	XSetTextProperty(*m_display, m_window, &prop, m_netwmname);
 	XFree(prop.value);
-}
-
-void xdrawline(const Line &line, int x1, int y1, int x2) {
-	return x11.drawLine(line, x1, y1, x2);
 }
 
 void X11::drawLine(const Line &line, int x1, int y1, int x2) {
@@ -1101,14 +1066,6 @@ void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 		drawGlyphFontSpecs(specs, base, i, ox, y1);
 }
 
-bool xstartdraw(void) {
-	return x11.getTermWin().mode[WinMode::VISIBLE];
-}
-
-void xfinishdraw() {
-	x11.finishDraw();
-}
-
 void X11::finishDraw() {
 	XCopyArea(*m_display, m_draw_buf, m_window, m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
 	XSetForeground(*m_display, m_draw_ctx.gc,
@@ -1121,21 +1078,9 @@ void X11::changeEventMask(long event, bool on_off) {
 	XChangeWindowAttributes(*m_display, m_window, CWEventMask, &m_win_attrs);
 }
 
-void xximspot(const CharPos &chp) {
-	x11.getInput().setSpot(chp);
-}
-
-void xsetpointermotion(bool set) {
-	x11.setPointerMotion(set);
-}
-
 void X11::setPointerMotion(bool on_off) {
 	modifyBit(m_win_attrs.event_mask, on_off, PointerMotionMask);
 	XChangeWindowAttributes(*m_display, m_window, CWEventMask, &m_win_attrs);
-}
-
-void xsetmode(bool set, const WinMode &flag) {
-	x11.setMode(flag, set);
 }
 
 void X11::setMode(const WinMode &flag, const bool set) {
@@ -1143,10 +1088,6 @@ void X11::setMode(const WinMode &flag, const bool set) {
 	m_twin.mode.set(flag, set);
 	if (m_twin.mode[WinMode::REVERSE] != prevmode[WinMode::REVERSE])
 		Nst::getTerm().redraw();
-}
-
-void xsetcursor(const CursorStyle &cursor) {
-	x11.setCursorStyle(cursor);
 }
 
 void X11::setCursorStyle(const CursorStyle &cursor) {
@@ -1159,10 +1100,6 @@ void X11::setUrgency(int add) {
 	modifyBit(h->flags, add, XUrgencyHint);
 	XSetWMHints(*m_display, m_window, h);
 	XFree(h);
-}
-
-void xbell(void) {
-	x11.ringBell();
 }
 
 void X11::ringBell() {
@@ -1216,11 +1153,11 @@ void Nst::waitForWindowMapping() {
 
 		if (ev.isConfigureNotify()) {
 			const auto &configure = ev.toConfigureNotify();
-			x11.setWinSize(Extent{configure.width, configure.height});
+			m_x11.setWinSize(Extent{configure.width, configure.height});
 		}
 	} while (!ev.isMapNotify());
 
-	resizeConsole(x11.getTermWin().win);
+	resizeConsole(m_x11.getTermWin().win);
 }
 
 void Nst::applyCmdline() {
@@ -1235,45 +1172,44 @@ void Nst::applyCmdline() {
 	}
 
 	if (m_cmdline.window_geometry.isSet()) {
-		x11.setGeometry(m_cmdline.window_geometry.getValue());
+		m_x11.setGeometry(m_cmdline.window_geometry.getValue());
 	}
 }
 
 Nst::Nst() :
-		m_x11(x11),
-		m_tty(&m_term),
-		m_term(m_tty, m_selection),
+		m_term(*this),
+		m_tty(m_term),
 		m_selection(m_term),
 		m_event_handler(*this) {
 	if (the_instance) {
 		cosmos_throw (cosmos::UsageError("more than once Nst instances alive"));
 	}
 	the_instance = this;
-	xsetcursor(config::CURSORSHAPE);
+	m_x11.setCursorStyle(config::CURSORSHAPE);
 }
 
 void Nst::run(int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
-	m_term.init(x11.getTermSize());
+	m_term.init(m_x11.getTermSize());
 	applyCmdline();
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
-	x11.init();
+	m_x11.init();
 	m_event_handler.init();
 	setEnv();
 	mainLoop();
 }
 
 void Nst::setEnv() {
-	::setenv("WINDOWID", std::to_string(x11.getWindow()).c_str(), 1);
+	::setenv("WINDOWID", std::to_string(m_x11.getWindow()).c_str(), 1);
 }
 
 
 void Nst::mainLoop() {
 	auto ttyfd = m_tty.create(m_cmdline);
 
-	auto &display = x11.getDisplay();
+	auto &display = m_x11.getDisplay();
 	auto childfd = m_tty.getChildFD();
 	auto xfd = display.getConnectionNumber();
 
@@ -1347,8 +1283,8 @@ void Nst::mainLoop() {
 			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */
-					x11.setBlinking(true);
-				x11.switchBlinking();
+					m_x11.setBlinking(true);
+				m_x11.switchBlinking();
 				m_term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
 				timeout = config::BLINKTIMEOUT;

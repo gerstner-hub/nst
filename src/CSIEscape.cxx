@@ -24,8 +24,8 @@ namespace {
 constexpr size_t MAX_ARG_SIZE = 16;
 }
 
-CSIEscape::CSIEscape(Term &term, Selection &selection, STREscape &strescseq) :
-		m_term(term), m_selection(selection), m_strescseq(strescseq) {
+CSIEscape::CSIEscape(Nst &nst, STREscape &strescseq) :
+		m_nst(nst), m_term(nst.getTerm()), m_strescseq(strescseq) {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -115,7 +115,7 @@ void CSIEscape::handle() {
 			m_term.dumpLine(cursor.pos.y);
 			break;
 		case 2:
-			m_selection.dump();
+			m_nst.getSelection().dump();
 			break;
 		case 4:
 			m_term.setPrintMode(false);
@@ -281,7 +281,7 @@ void CSIEscape::handle() {
 		case 'q': /* DECSCUSR -- Set Cursor Style */
 			if (arg0 < 0 || static_cast<unsigned>(arg0) >= static_cast<unsigned>(CursorStyle::END))
 				break;
-			xsetcursor(static_cast<CursorStyle>(arg0));
+			m_nst.getX11().setCursorStyle(static_cast<CursorStyle>(arg0));
 			return;
 		default:
 			break;
@@ -296,6 +296,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	auto &esc = m_term.getEscapeState();
 	using Escape = Term::Escape;
 	auto &cursor = m_term.getCursor();
+	auto &x11 = m_nst.getX11();
 
 	switch (ascii) {
 	case '[':
@@ -350,14 +351,14 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		m_term.reset();
-		xsettitle(NULL);
-		xloadcols();
+		x11.setDefaultTitle();
+		x11.loadColors();
 		break;
 	case '=': /* DECPAM -- Application keypad */
-		xsetmode(true, WinMode::APPKEYPAD);
+		x11.setMode(WinMode::APPKEYPAD, true);
 		break;
 	case '>': /* DECPNM -- Normal keypad */
-		xsetmode(false, WinMode::APPKEYPAD);
+		x11.setMode(WinMode::APPKEYPAD, false);
 		break;
 	case '7': /* DECSC -- Save Cursor */
 		m_term.cursorControl(Term::TCursor::Control::SAVE);

@@ -18,6 +18,7 @@ namespace nst {
 
 class Selection;
 class TTY;
+class X11;
 
 /// Internal representation of the screen
 class Term {
@@ -82,6 +83,7 @@ protected: // data
 
 	Selection &m_selection;
 	TTY &m_tty;
+	X11 &m_x11;
 	CharPos m_old_cursor_pos;
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
@@ -107,12 +109,7 @@ protected: // data
 
 public: // functions
 
-	Term(TTY &tty, Selection &sel) :
-		m_selection(sel),
-		m_tty(tty),
-		m_strescseq(*this),
-		m_csiescseq(*this,
-				sel, m_strescseq) {}
+	Term(Nst &nst);
 
 	void init(const TermSize &tsize);
 

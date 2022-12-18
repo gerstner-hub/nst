@@ -45,23 +45,6 @@ enum class CursorStyle : unsigned {
 	END
 };
 
-void xbell(void);
-void xclipcopy(void);
-void xdrawcursor(int, int, Glyph, int, int, Glyph);
-void xdrawline(const Line&, int, int, int);
-void xfinishdraw(void);
-void xloadcols(void);
-int xsetcolorname(size_t, const char *);
-void xseticontitle(const char *);
-void xsettitle(const char *);
-void xsetcursor(const CursorStyle &);
-void xsetmode(bool, const WinMode &);
-void xsetpointermotion(bool);
-void xsetsel(char *);
-bool xstartdraw();
-void xximspot(const CharPos&);
-int xgetcolor(size_t x, unsigned char *r, unsigned char *g, unsigned char *b);
-
 }
 
 #endif // inc. guard

@@ -14,8 +14,8 @@
 
 namespace nst {
 
+class Nst;
 class Term;
-class Selection;
 struct STREscape;
 
 /* CSI (Control Sequence Introducer) Escape sequence structs */
@@ -28,8 +28,8 @@ protected: // data
 	std::vector<int> m_args;
 	std::string m_str;
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
+	Nst &m_nst;
 	Term &m_term;
-	Selection &m_selection;
 	STREscape &m_strescseq;
 
 protected: // functions
@@ -45,7 +45,7 @@ protected: // functions
 
 public: // functions
 
-	CSIEscape(Term &term, Selection &selection, STREscape &strescseq);
+	CSIEscape(Nst &nst, STREscape &strescseq);
 
 	void handle(void);
 	void parse(void);

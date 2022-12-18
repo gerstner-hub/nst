@@ -18,11 +18,12 @@ namespace nst {
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
 constexpr size_t MAX_STR_ARGS = 16;
 
+namespace {
 
-static void osc4_color_response(int num) {
+void osc4_color_response(X11 &x11, int num) {
 	unsigned char r, g, b;
 
-	if (xgetcolor(num, &r, &g, &b)) {
+	if (!x11.getColor(num, &r, &g, &b)) {
 		std::cerr << "erresc: failed to fetch osc4 color " << num << "\n";
 		return;
 	}
@@ -32,10 +33,10 @@ static void osc4_color_response(int num) {
 	Nst::getTTY().write(res.c_str(), res.size(), true);
 }
 
-static void osc_color_response(int index, int num) {
+void osc_color_response(X11 &x11, int index, int num) {
 	unsigned char r, g, b;
 
-	if (xgetcolor(index, &r, &g, &b)) {
+	if (!x11.getColor(index, &r, &g, &b)) {
 		std::cerr << "erresc: failed to fetch osc color " << index << "\n";
 		return;
 	}
@@ -45,8 +46,33 @@ static void osc_color_response(int index, int num) {
 	Nst::getTTY().write(res.c_str(), res.size(), true);
 }
 
+} // end anon ns
+
+STREscape::STREscape(Nst &nst) :
+	m_nst(nst)
+{}
+
+void STREscape::setTitle(const char *s) {
+	auto &x11 = m_nst.getX11();
+	if (s)
+		x11.setTitle(s);
+	else
+		x11.setDefaultTitle();
+}
+
+void STREscape::setIconTitle(const char *s) {
+	auto &x11 = m_nst.getX11();
+	if (s)
+		x11.setIconTitle(s);
+	else
+		x11.setDefaultIconTitle();
+}
+
 void STREscape::handle() {
-	m_term.resetStringEscape();
+	auto &term = m_nst.getTerm();
+	auto &x11 = m_nst.getX11();
+
+	term.resetStringEscape();
 	parse();
 	const int par = m_args.empty() ? 0 : std::atoi(m_args[0]);
 	const char *p = nullptr;
@@ -56,24 +82,24 @@ void STREscape::handle() {
 		switch (par) {
 		case 0:
 			if (m_args.size() > 1) {
-				xsettitle(m_args[1]);
-				xseticontitle(m_args[1]);
+				setTitle(m_args[1]);
+				setIconTitle(m_args[1]);
 			}
 			return;
 		case 1:
 			if (m_args.size() > 1)
-				xseticontitle(m_args[1]);
+				setIconTitle(m_args[1]);
 			return;
 		case 2:
 			if (m_args.size() > 1)
-				xsettitle(m_args[1]);
+				setTitle(m_args[1]);
 			return;
 		case 52:
 			if (m_args.size() > 2 && config::ALLOWWINDOWOPS) {
 				char *dec = base64::decode(m_args[2]);
 				if (dec) {
-					xsetsel(dec);
-					xclipcopy();
+					x11.getXSelection().setSelection(dec);
+					x11.copyToClipboard();
 				} else {
 					std::cerr << "erresc: invalid base64\n";
 				}
@@ -86,11 +112,11 @@ void STREscape::handle() {
 			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
-				osc_color_response(config::DEFAULTFG, 10);
-			else if (xsetcolorname(config::DEFAULTFG, p))
+				osc_color_response(x11, config::DEFAULTFG, 10);
+			else if (!x11.setColorName(config::DEFAULTFG, p))
 				std::cerr << "erresc: invalid foreground color: " << p << "\n";
 			else
-				m_term.redraw();
+				term.redraw();
 			return;
 		case 11:
 			if (m_args.size() < 2)
@@ -99,11 +125,11 @@ void STREscape::handle() {
 			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
-				osc_color_response(config::DEFAULTBG, 11);
-			else if (xsetcolorname(config::DEFAULTBG, p))
+				osc_color_response(x11, config::DEFAULTBG, 11);
+			else if (!x11.setColorName(config::DEFAULTBG, p))
 				std::cerr << "erresc: invalid background color: " << p << "%s\n";
 			else
-				m_term.redraw();
+				term.redraw();
 			return;
 		case 12:
 			if (m_args.size() < 2)
@@ -112,11 +138,11 @@ void STREscape::handle() {
 			p = m_args[1];
 
 			if (!std::strcmp(p, "?"))
-				osc_color_response(config::DEFAULTCS, 12);
-			else if (xsetcolorname(config::DEFAULTCS, p))
+				osc_color_response(x11, config::DEFAULTCS, 12);
+			else if (!x11.setColorName(config::DEFAULTCS, p))
 				std::cerr << "erresc: invalid cursor color: " << p << "\n";
 			else
-				m_term.redraw();
+				term.redraw();
 			return;
 		case 4: /* color set */
 			if (m_args.size() < 3)
@@ -127,8 +153,8 @@ void STREscape::handle() {
 			int j = (m_args.size() > 1) ? atoi(m_args[1]) : -1;
 
 			if (p && !std::strcmp(p, "?"))
-				osc4_color_response(j);
-			else if (xsetcolorname(j, p)) {
+				osc4_color_response(x11, j);
+			else if (!x11.setColorName(j, p)) {
 				if (par == 104 && m_args.size() <= 1)
 					return; /* color reset without parameter */
 				std::cerr << "erresc: invalid color j=" << j << ", p=" << (p ? p : "(null)") << "\n";
@@ -137,14 +163,14 @@ void STREscape::handle() {
 				 * TODO if defaultbg color is changed, borders
 				 * are dirty
 				 */
-				m_term.redraw();
+				term.redraw();
 			}
 			return;
 		}
 		}
 		break;
 	case 'k': /* old title set compatibility */
-		xsettitle(m_args[0]);
+		setTitle(m_args[0]);
 		return;
 	case 'P': /* DCS -- Device Control String */
 	case '_': /* APC -- Application Program Command */
@@ -213,7 +239,7 @@ void STREscape::add(const char *ch, size_t len) {
 		 * In the case users ever get fixed, here is the code:
 		 */
 		/*
-		 * m_term.m_esc_state.reset();
+		 * term.m_esc_state.reset();
 		 * handle();
 		 */
 		if (m_str.size() > (SIZE_MAX - utf8::UTF_SIZE) / 2)

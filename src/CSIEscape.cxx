@@ -350,8 +350,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		m_term.reset();
-		x11.setDefaultTitle();
-		x11.loadColors();
+		x11.resetState();
 		break;
 	case '=': /* DECPAM -- Application keypad */
 		x11.setMode(WinMode::APPKEYPAD, true);

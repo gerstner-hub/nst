@@ -43,7 +43,6 @@ protected: // functions
 
 	void mainLoop();
 	void waitForWindowMapping();
-	void applyCmdline();
 	/// sets up environment variables for the terminal process
 	void setEnv();
 

@@ -129,10 +129,7 @@ protected: // data
 public: // functions
 
 	explicit X11(Nst &nst);
-	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
-	auto& getDisplay() { return *(m_display); }
-	Atom getAtom(const char *name) const { return m_mapper->getAtom(name); }
-	xpp::XAtom getXAtom(const char *name) const { return m_mapper->getAtom(name); }
+
 	void pasteSelection();
 	void pasteClipboard();
 	void copyToClipboard();
@@ -144,6 +141,11 @@ public: // functions
 	void setHints();
 	Input& getInput() { return m_input; }
 	void init();
+	/// reset the initial state
+	void resetState() {
+		setDefaultTitle();
+		loadColors();
+	}
 	void setGeometry(const std::string &g);
 	void setPointerMotion(bool on_off);
 	void finishDraw();
@@ -152,17 +154,14 @@ public: // functions
 	void setDefaultIconTitle();
 	void setTitle(const std::string &title);
 	void setDefaultTitle();
-	void loadColors();
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
 	bool setColorName(size_t idx, const char *name);
 	void drawLine(const Line &line, int x1, int y1, int x2);
 	void drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og);
-	void setFixedGeometry(bool fixed) {
-		m_fixed_geometry = fixed;
-	}
 	void setMode(const WinMode &flag, const bool set);
 	void setCursorStyle(const CursorStyle &cursor);
 	void ringBell();
+
 	void setWinSize(const Extent &ext) {
 		m_twin.setWinExtent(ext);
 	}
@@ -175,6 +174,10 @@ public: // functions
 	void switchBlinking() {
 		m_twin.mode.flip(WinMode::BLINK);
 	}
+
+	auto& getDisplay() { return *(m_display); }
+	Atom getAtom(const char *name) const { return getXAtom(name).get(); }
+	xpp::XAtom getXAtom(const char *name) const { return m_mapper->getAtom(name); }
 	const xpp::XWindow& getWindow() const { return m_window; }
 	const Atom& getWmDeleteWin() const { return m_wmdeletewin; }
 	auto& getXSelection() { return m_xsel; }
@@ -184,7 +187,9 @@ public: // functions
 
 protected: // functions
 
+	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
 	int getGravity();
+	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
 	std::tuple<Font*, FRC> getFontForMode(const Glyph::AttrBitMask &mode);

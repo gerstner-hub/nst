@@ -525,6 +525,12 @@ void X11::init() {
 	m_screen = m_display->getDefaultScreen();
 	m_visual = m_display->getDefaultVisual(m_screen);
 
+	m_fixed_geometry = m_cmdline->fixed_geometry.isSet();
+
+	if (m_cmdline->window_geometry.isSet()) {
+		setGeometry(m_cmdline->window_geometry.getValue());
+	}
+
 	/* font */
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));

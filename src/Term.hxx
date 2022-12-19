@@ -82,6 +82,7 @@ public: // types
 protected: // data
 
 	Selection &m_selection;
+	Nst &m_nst;
 	TTY &m_tty;
 	X11 &m_x11;
 	CharPos m_old_cursor_pos;
@@ -124,10 +125,6 @@ public: // functions
 	EscapeState& getEscapeState() { return m_esc_state; }
 
 	void clearRegion(Range range);
-
-	void setAllowAltScreen(bool allow) {
-		m_allowaltscreen = allow;
-	}
 
 	void setDirty(int top, int bot);
 

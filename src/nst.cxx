@@ -34,26 +34,9 @@ void Nst::waitForWindowMapping() {
 	resizeConsole(m_x11.getTermWin().win);
 }
 
-void Nst::applyCmdline() {
-	if (m_cmdline.use_alt_screen.isSet()) {
-		m_term.setAllowAltScreen(m_cmdline.use_alt_screen.getValue());
-	} else {
-		m_term.setAllowAltScreen(config::ALLOWALTSCREEN);
-	}
-
-	if (m_cmdline.fixed_geometry.isSet()) {
-		m_x11.setFixedGeometry(true);
-	}
-
-	if (m_cmdline.window_geometry.isSet()) {
-		m_x11.setGeometry(m_cmdline.window_geometry.getValue());
-	}
-}
-
 void Nst::run(int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
 	m_term.init(m_x11.getTermSize());
-	applyCmdline();
 
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");

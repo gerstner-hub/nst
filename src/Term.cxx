@@ -47,12 +47,19 @@ Term::TCursor::TCursor() {
 
 Term::Term(Nst &nst) :
 	m_selection(nst.getSelection()),
+	m_nst(nst),
 	m_tty(nst.getTTY()),
 	m_x11(nst.getX11()),
+	m_allowaltscreen(config::ALLOWALTSCREEN),
 	m_strescseq(nst),
 	m_csiescseq(nst, m_strescseq) {}
 
 void Term::init(const TermSize &tsize) {
+
+	if (auto &cmdline = m_nst.getCmdline(); cmdline.use_alt_screen.isSet()) {
+		m_allowaltscreen = cmdline.use_alt_screen.getValue();
+	}
+
 	resize(tsize);
 	reset();
 }

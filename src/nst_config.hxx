@@ -1,6 +1,9 @@
 #ifndef NST_CONFIG_H
 #define NST_CONFIG_H
 
+// libc
+#include <limits.h>
+
 // stdlib
 #include <array>
 #include <chrono>
@@ -10,6 +13,7 @@
 #include <X11/cursorfont.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include <X11/X.h>
 
 // nst
 #include "Selection.hxx"
@@ -20,6 +24,11 @@ namespace nst {
 class Nst; // fwd. decl
 
 namespace config {
+
+/* X modifiers */
+#define XK_ANY_MOD    UINT_MAX
+#define XK_NO_MOD     0
+#define XK_SWITCH_MOD (1<<13|1<<14)
 
 /*
  * appearance
@@ -190,7 +199,7 @@ const unsigned int DEFAULTATTR = 11;
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to 0 to not use it.
  */
-const uint FORCEMOUSEMOD = ShiftMask;
+const unsigned int FORCEMOUSEMOD = ShiftMask;
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -225,7 +234,7 @@ const std::set<KeySym> MAPPEDKEYS({
  * State bits to ignore when matching key or button events.  By default,
  * numlock (Mod2Mask) and keyboard layout (XK_SWITCH_MOD) are ignored.
  */
-const uint IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
+const unsigned int IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
 
 // we use a multiset for the key definitions below
 // the keysym is the comparison key, so we don't have to iterate over the

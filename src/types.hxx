@@ -7,10 +7,7 @@
 #include <functional>
 #include <string_view>
 
-// libc
-#include <limits.h>
-
-// X11
+// Xlib
 #include <X11/X.h>
 
 // cosmos
@@ -18,10 +15,7 @@
 
 namespace nst {
 
-typedef unsigned char uchar;
-typedef unsigned int uint;
-typedef unsigned long ulong;
-typedef unsigned short ushort;
+/* this header contains smaller utility types used throughout the project */
 
 /// baseclass for position or coordinate like types
 /**
@@ -139,21 +133,21 @@ typedef std::function<void ()> Callback;
 
 /* types used in nst_config.h */
 struct KbdShortcut {
-	uint mod;
+	unsigned int mod;
 	KeySym keysym;
 	Callback func;
 };
 
 struct MouseShortcut {
-	uint mod;
-	uint button;
+	unsigned int mod;
+	unsigned int button;
 	Callback func;
 	bool  release;
 };
 
 struct Key {
 	KeySym k;
-	uint mask = 0;
+	unsigned int mask = 0;
 	std::string_view s = "";
 	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
 	signed char appkey = 0;    /* application keypad */
@@ -224,15 +218,6 @@ enum class CursorStyle : unsigned {
 	SNOWMAN, // "☃"
 	END
 };
-
-/* X modifiers */
-#define XK_ANY_MOD    UINT_MAX
-#define XK_NO_MOD     0
-#define XK_SWITCH_MOD (1<<13|1<<14)
-
-/* XEMBED messages */
-#define XEMBED_FOCUS_IN  4
-#define XEMBED_FOCUS_OUT 5
 
 } // end ns
 

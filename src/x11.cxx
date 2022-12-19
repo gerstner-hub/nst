@@ -620,7 +620,7 @@ void X11::init() {
 	auto netwmpid = getAtom("_NET_WM_PID");
 	auto thispid = cosmos::g_process.getPid();
 	XChangeProperty(*m_display, m_window, netwmpid, XA_CARDINAL, 32,
-			PropModeReplace, (uchar *)&thispid, 1);
+			PropModeReplace, (unsigned char *)&thispid, 1);
 
 	m_twin.mode = WinModeMask(WinMode::NUMLOCK);
 	setDefaultTitle();

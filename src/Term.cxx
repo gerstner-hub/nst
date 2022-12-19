@@ -455,9 +455,9 @@ int32_t Term::defcolor(const std::vector<int> &attr, size_t &npar) {
 			std::cerr << "erresc(38): Incorrect number of parameters (" << npar << ")\n";
 			break;
 		}
-		const uint r = attr[npar + 2];
-		const uint g = attr[npar + 3];
-		const uint b = attr[npar + 4];
+		const unsigned int r = attr[npar + 2];
+		const unsigned int g = attr[npar + 3];
+		const unsigned int b = attr[npar + 4];
 		npar += 4;
 		if (r > 255 || g > 255 || b > 255) {
 			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;

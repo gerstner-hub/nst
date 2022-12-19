@@ -227,7 +227,7 @@ protected: // functions
 
 	int32_t defcolor(const std::vector<int> &attr, size_t &npar);
 
-	int32_t toTrueColor(uint r, uint g, uint b) const {
+	int32_t toTrueColor(unsigned int r, unsigned int g, unsigned int b) const {
 		return (1 << 24) | (r << 16) | (g << 8) | b;
 	}
 

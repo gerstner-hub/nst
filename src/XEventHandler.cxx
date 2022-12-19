@@ -10,6 +10,14 @@
 
 namespace nst {
 
+namespace {
+
+/* XEMBED messages */
+constexpr long XEMBED_FOCUS_IN  = 4;
+constexpr long XEMBED_FOCUS_OUT = 5;
+
+}
+
 XEventHandler::XEventHandler(Nst &nst) :
 	m_nst(nst),
 	m_x11(nst.getX11()),

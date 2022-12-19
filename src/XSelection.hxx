@@ -23,7 +23,7 @@ public: // functions
 	void init();
 	void copyPrimaryToClipboard();
 	bool havePrimarySelection() const { return !m_primary.empty(); }
-	Atom getTargetFormat() const { return m_target_fmt; }
+	auto getTargetFormat() const { return m_target_fmt; }
 	const std::string* getSelection(Atom which) const;
 	Selection::Snap handleClick();
 
@@ -31,7 +31,7 @@ protected: // data
 
 	Nst &m_nst;
 	X11 &m_x11;
-	Atom m_target_fmt; //! the X11 format used for the selection text
+	xpp::XAtom m_target_fmt; //! the X11 format used for the selection text
 	cosmos::MonotonicStopWatch m_tclick1;
 	cosmos::MonotonicStopWatch m_tclick2;
 	std::string m_clipboard; //! current clipboard contents

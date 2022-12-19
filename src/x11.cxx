@@ -57,15 +57,13 @@ void X11::copyToClipboard() {
 }
 
 void X11::pasteClipboard() {
-	Atom clipboard = getAtom("CLIPBOARD");
-	XConvertSelection(*m_display, clipboard, m_xsel.getTargetFormat(), clipboard,
-			m_window, CurrentTime);
+	auto clipboard = getXAtom("CLIPBOARD");
+	m_window.convertSelection(clipboard, m_xsel.getTargetFormat(), clipboard);
 }
 
 void X11::pasteSelection() {
-	XConvertSelection(
-		*m_display, XA_PRIMARY, m_xsel.getTargetFormat(), XA_PRIMARY,
-		m_window, CurrentTime);
+	auto primary = xpp::XAtom(XA_PRIMARY);
+	m_window.convertSelection(primary, m_xsel.getTargetFormat(), primary);
 }
 
 void X11::toggleNumlock() {
@@ -73,9 +71,8 @@ void X11::toggleNumlock() {
 }
 
 void X11::zoomFont(float val) {
-	val += (float)m_used_font_size;
 	unloadFonts();
-	loadFontsOrThrow(m_cmdline->font.getValue(), val);
+	loadFontsOrThrow(m_cmdline->font.getValue(), m_used_font_size + (double)val);
 	m_nst.resizeConsole();
 	m_nst.getTerm().redraw();
 	setHints();
@@ -88,32 +85,31 @@ void X11::resetFont() {
 	}
 }
 
-const char* getColorName(size_t nr) {
+const char* X11::getColorName(size_t nr) {
 	if (nr < config::COLORNAMES.size())
 		return config::COLORNAMES[nr];
-	else if (nr < 256)
-		// unassigned
-		return nullptr;
-	else {
+	else if (nr >= 256) {
 		// check for extended colors
 		nr -= 256;
 		if (nr < config::EXTENDED_COLORS.size())
 			return config::EXTENDED_COLORS[nr];
 	}
 
+	// unassigned
+	// NOTE: the libX functions that consume this are tolerant against
+	// null pointers
 	return nullptr;
 }
 
 void X11::resize(const TermSize &dim) {
 
 	m_twin.setTermDim(dim);
-
 	XFreePixmap(*m_display, m_draw_buf);
 	m_draw_buf = XCreatePixmap(
 		*m_display,
 		m_window,
 		m_twin.win.width, m_twin.win.height,
-		DefaultDepth(getRawDisplay(), m_screen)
+		m_display->getDefaultDepth(m_screen)
 	);
 	XftDrawChange(m_font_draw, m_draw_buf);
 	clearRect(DrawPos{0,0}, DrawPos{m_twin.win.width, m_twin.win.height});

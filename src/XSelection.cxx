@@ -29,9 +29,9 @@ void XSelection::init() {
 	m_primary.clear();
 	m_clipboard.clear();
 	try {
-		m_target_fmt = m_x11.getAtom("UTF8_STRING");
+		m_target_fmt = m_x11.getXAtom("UTF8_STRING");
 	} catch (const xpp::XDisplay::AtomMappingError &) {
-		m_target_fmt = XA_STRING;
+		m_target_fmt = xpp::XAtom(XA_STRING);
 	}
 }
 

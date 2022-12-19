@@ -109,7 +109,7 @@ protected: // data
 	int m_left_offset = 0;
 	int m_top_offset = 0;
 	XSetWindowAttributes m_win_attrs;
-	Drawable m_draw_buf;
+	Pixmap m_draw_buf;
 	Atom m_netwmname;
 	Atom m_netwmiconname;
 	Atom m_wmdeletewin;
@@ -209,6 +209,7 @@ protected: // functions
 	void setVisible(const bool visible) {
 		m_twin.mode.set(WinMode::VISIBLE, visible);
 	}
+	static const char* getColorName(size_t nr);
 };
 
 } // end ns

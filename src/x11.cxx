@@ -12,8 +12,6 @@
 // stdlib
 #include <algorithm>
 #include <iostream>
-#include <map>
-#include <string>
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -21,9 +19,7 @@
 #include "cosmos/errors/ApiError.hxx"
 #include "cosmos/errors/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
-#include "cosmos/io/Poller.hxx"
 #include "cosmos/proc/Process.hxx"
-#include "cosmos/time/TimeSpec.hxx"
 
 // X++
 #include "X++/Event.hxx"
@@ -32,16 +28,15 @@
 #include "X++/Xpp.hxx"
 
 // nst
-/* nst_config.h for applying patches and the configuration. */
-#include "nst_config.hxx"
-#include "Cmdline.hxx"
 #include "codecs.hxx"
 #include "helper.hxx"
+/* nst_config.h for applying patches and the configuration. */
+#include "nst_config.hxx"
 #include "nst.hxx"
-#include "types.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
+#include "types.hxx"
 #include "x11.hxx"
 #include "XSelection.hxx"
 

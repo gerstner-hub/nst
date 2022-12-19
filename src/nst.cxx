@@ -1,3 +1,7 @@
+// cosmos
+#include "cosmos/io/Poller.hxx"
+#include "cosmos/time/TimeSpec.hxx"
+
 // nst
 #include "nst.hxx"
 

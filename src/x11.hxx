@@ -3,6 +3,8 @@
 
 // libc
 #include <math.h>
+// stdlib
+#include <string>
 // libX11
 #include <X11/Xft/Xft.h>
 #include <X11/cursorfont.h>

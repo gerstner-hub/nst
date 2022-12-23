@@ -109,7 +109,7 @@ protected: // data
 	int m_left_offset = 0;
 	int m_top_offset = 0;
 	XSetWindowAttributes m_win_attrs;
-	Pixmap m_draw_buf;
+	xpp::PixMap m_pixmap;
 	Atom m_netwmname;
 	Atom m_netwmiconname;
 	Atom m_wmdeletewin;
@@ -209,6 +209,8 @@ protected: // functions
 	void setVisible(const bool visible) {
 		m_twin.mode.set(WinMode::VISIBLE, visible);
 	}
+	/// (re)allocate the m_pixmap buffer and related context according to the current window size
+	void allocPixmap();
 	static const char* getColorName(size_t nr);
 };
 

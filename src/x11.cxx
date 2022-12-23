@@ -101,17 +101,27 @@ const char* X11::getColorName(size_t nr) {
 	return nullptr;
 }
 
+void X11::allocPixmap() {
+	if (m_pixmap.valid()) {
+		m_display->freePixmap(m_pixmap);
+	}
+	m_pixmap = m_display->createPixmap(
+		m_window,
+		m_twin.win
+	);
+
+	if (m_font_draw) {
+		XftDrawChange(m_font_draw, m_pixmap.id());
+	} else {
+		/* Xft rendering context */
+		m_font_draw = XftDrawCreate(*m_display, m_pixmap.id(), m_visual, m_color_map);
+	}
+}
+
 void X11::resize(const TermSize &dim) {
 
 	m_twin.setTermDim(dim);
-	XFreePixmap(*m_display, m_draw_buf);
-	m_draw_buf = XCreatePixmap(
-		*m_display,
-		m_window,
-		m_twin.win.width, m_twin.win.height,
-		m_display->getDefaultDepth(m_screen)
-	);
-	XftDrawChange(m_font_draw, m_draw_buf);
+	allocPixmap();
 	clearRect(DrawPos{0,0}, DrawPos{m_twin.win.width, m_twin.win.height});
 
 	/* resize to new width */
@@ -575,15 +585,12 @@ void X11::init() {
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
 	m_draw_ctx.gc = XCreateGC(*m_display, parent->id(), GCGraphicsExposures, &gcvalues);
-	m_draw_buf = XCreatePixmap(*m_display, m_window, m_twin.win.width, m_twin.win.height, m_display->getDefaultDepth(m_screen));
+	allocPixmap();
 	XSetForeground(*m_display, m_draw_ctx.gc, m_draw_ctx.col[config::DEFAULTBG].pixel);
-	XFillRectangle(*m_display, m_draw_buf, m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height);
+	XFillRectangle(*m_display, m_pixmap.id(), m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height);
 
 	/* font spec buffer */
 	m_font_specs.resize(m_tsize.cols);
-
-	/* Xft rendering context */
-	m_font_draw = XftDrawCreate(*m_display, m_draw_buf, m_visual, m_color_map);
 
 	/* input methods */
 	ximOpen();
@@ -1052,7 +1059,7 @@ void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 }
 
 void X11::finishDraw() {
-	XCopyArea(*m_display, m_draw_buf, m_window, m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
+	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
 	XSetForeground(*m_display, m_draw_ctx.gc,
 			m_draw_ctx.col[m_twin.mode[WinMode::REVERSE] ?
 				config::DEFAULTFG : config::DEFAULTBG].pixel);

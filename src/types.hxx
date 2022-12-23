@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <bitset>
 #include <functional>
+#include <stdexcept>
 #include <string_view>
 
 // Xlib
@@ -12,6 +13,9 @@
 
 // cosmos
 #include "cosmos/BitMask.hxx"
+
+// X++
+#include "X++/types.hxx"
 
 namespace nst {
 
@@ -126,6 +130,18 @@ struct Extent {
 
 	bool operator!=(const Extent &o) const {
 		return !(*this == o);
+	}
+
+	void assertPositive() const {
+		if (width < 0 || height < 0) {
+			throw(std::runtime_error("extent-positive assertion failed"));
+		}
+	}
+
+	// TODO: consider switching to unsigned here and use xpp::Extent instead
+	operator xpp::Extent() const {
+		assertPositive();
+		return xpp::Extent{static_cast<unsigned int>(width), static_cast<unsigned int>(height)};
 	}
 };
 

@@ -160,6 +160,7 @@ void X11::loadColors() {
 			XftColorFree(*m_display, m_visual, m_color_map, &c);
 		}
 	} else {
+		m_color_map = m_display->getDefaultColormap(m_screen);
 		auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
 		m_draw_ctx.col.resize(len);
 	}
@@ -539,7 +540,6 @@ void X11::init() {
 	loadFontsOrThrow(m_cmdline->font.getValue());
 
 	/* colors */
-	m_color_map = m_display->getDefaultColormap(m_screen);
 	loadColors();
 
 	/* adjust fixed window geometry */

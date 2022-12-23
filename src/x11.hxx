@@ -115,7 +115,7 @@ protected: // data
 	Atom m_wmdeletewin;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
-	Colormap m_color_map;
+	Colormap m_color_map = xpp::INVALID_XID;
 
 	std::vector<Fontcache> m_font_cache;
 	/* Fontcache is an array now. A new font will be appended to the array. */

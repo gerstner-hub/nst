@@ -513,11 +513,15 @@ void X11::Input::unsetFocus() {
 void X11::setGeometry(const std::string &g) {
 	unsigned int cols, rows;
 
-	m_geometry = XParseGeometry(
-			g.c_str(), &m_left_offset, &m_top_offset, &cols, &rows);
+	m_geometry = XParseGeometry(g.c_str(), &m_left_offset, &m_top_offset, &cols, &rows);
 
 	m_tsize.rows = rows;
 	m_tsize.cols = cols;
+	m_twin.setWinExtent(m_tsize);
+	if (m_geometry & XNegative)
+		m_left_offset += m_display->getDisplayWidth(m_screen) - m_twin.win.width - 2;
+	if (m_geometry & YNegative)
+		m_top_offset  += m_display->getDisplayHeight(m_screen) - m_twin.win.height - 2;
 }
 
 void X11::init() {
@@ -529,10 +533,6 @@ void X11::init() {
 
 	m_fixed_geometry = m_cmdline->fixed_geometry.isSet();
 
-	if (m_cmdline->window_geometry.isSet()) {
-		setGeometry(m_cmdline->window_geometry.getValue());
-	}
-
 	/* font */
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
@@ -543,11 +543,11 @@ void X11::init() {
 	loadColors();
 
 	/* adjust fixed window geometry */
+	if (m_cmdline->window_geometry.isSet()) {
+		setGeometry(m_cmdline->window_geometry.getValue());
+	}
+
 	m_twin.setWinExtent(m_tsize);
-	if (m_geometry & XNegative)
-		m_left_offset += DisplayWidth(getRawDisplay(), m_screen) - m_twin.win.width - 2;
-	if (m_geometry & YNegative)
-		m_top_offset += DisplayHeight(getRawDisplay(), m_screen) - m_twin.win.height - 2;
 
 	/* Events */
 	m_win_attrs.background_pixel = m_draw_ctx.col[config::DEFAULTBG].pixel;

@@ -20,42 +20,6 @@
 
 namespace nst {
 
-typedef Glyph::Attr Attr;
-
-class Color : public XftColor {
-public:
-	void invert() {
-		color.red = ~color.red;
-		color.green = ~color.green;
-		color.blue = ~color.blue;
-	}
-
-	Color inverted() const {
-		auto ret = Color(*this);
-		ret.invert();
-		return ret;
-	}
-
-	void makeFaint() {
-		color.red /= 2;
-		color.green /= 2;
-		color.blue /= 2;
-	}
-
-	Color faint() const {
-		auto ret = Color(*this);
-		ret.makeFaint();
-		return ret;
-	}
-
-	void assignTo(XRenderColor &xc) const {
-		xc.red = color.red;
-		xc.green = color.green;
-		xc.blue = color.blue;
-		xc.alpha = color.alpha;
-	}
-};
-
 /* Drawing Context */
 struct DrawingContext {
 	std::vector<Color> col;

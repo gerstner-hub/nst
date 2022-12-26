@@ -42,9 +42,22 @@
 
 namespace nst {
 
+void DrawingContext::createGC(xpp::XDisplay &display, xpp::XWindow &parent) {
+	XGCValues gcvalues = {};
+	gcvalues.graphics_exposures = False;
+	m_gc = display.createGraphicsContext(
+			parent,
+			xpp::GcOptMask(xpp::GcOpts::GraphicsExposures),
+			gcvalues);
+}
+
 X11::X11(Nst &nst) : m_nst(nst), m_input(*this), m_xsel(nst), m_tsize{config::COLS, config::ROWS} {
 	m_tsize.normalize();
 	setCursorStyle(config::CURSORSHAPE);
+}
+
+X11::~X11() {
+	m_draw_ctx.freeGC();
 }
 
 void X11::copyToClipboard() {
@@ -573,7 +586,7 @@ void X11::init() {
 		xpp::WindowSpec{m_left_offset, m_top_offset,
 			static_cast<unsigned int>(m_twin.win.width),
 			static_cast<unsigned int>(m_twin.win.height)},
-		0,
+		/*border_width=*/0,
 		/*clazz = */InputOutput,
 		&(*parent),
 		m_display->getDefaultDepth(m_screen),
@@ -582,12 +595,10 @@ void X11::init() {
 		&m_win_attrs
 	);
 
-	XGCValues gcvalues = {};
-	gcvalues.graphics_exposures = False;
-	m_draw_ctx.gc = XCreateGC(*m_display, parent->id(), GCGraphicsExposures, &gcvalues);
+	m_draw_ctx.createGC(*m_display, *parent);
 	allocPixmap();
-	XSetForeground(*m_display, m_draw_ctx.gc, m_draw_ctx.col[config::DEFAULTBG].pixel);
-	XFillRectangle(*m_display, m_pixmap.id(), m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height);
+	XSetForeground(*m_display, m_draw_ctx.getRawGC(), m_draw_ctx.col[config::DEFAULTBG].pixel);
+	XFillRectangle(*m_display, m_pixmap.id(), m_draw_ctx.getRawGC(), 0, 0, m_twin.win.width, m_twin.win.height);
 
 	/* font spec buffer */
 	m_font_specs.resize(m_tsize.cols);
@@ -1059,8 +1070,8 @@ void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 }
 
 void X11::finishDraw() {
-	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.gc, 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
-	XSetForeground(*m_display, m_draw_ctx.gc,
+	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.getRawGC(), 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
+	XSetForeground(*m_display, m_draw_ctx.getRawGC(),
 			m_draw_ctx.col[m_twin.mode[WinMode::REVERSE] ?
 				config::DEFAULTFG : config::DEFAULTBG].pixel);
 }

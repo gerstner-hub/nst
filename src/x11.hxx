@@ -24,7 +24,15 @@ namespace nst {
 struct DrawingContext {
 	std::vector<Color> col;
 	Font font, bfont, ifont, ibfont;
-	GC gc;
+
+public: // functions
+	void createGC(xpp::XDisplay &display, xpp::XWindow &parent);
+	void freeGC() { m_gc.reset(); }
+	void setRawGC(xpp::XDisplay::GcSharedPtr gc) { m_gc = gc; }
+	auto getRawGC() { return m_gc.get(); }
+
+protected: // data
+	xpp::XDisplay::GcSharedPtr m_gc;
 };
 
 struct X11 {
@@ -95,6 +103,7 @@ protected: // data
 public: // functions
 
 	explicit X11(Nst &nst);
+	~X11();
 
 	void pasteSelection();
 	void pasteClipboard();

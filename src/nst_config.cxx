@@ -4,15 +4,13 @@
 #include "Selection.hxx"
 #include "x11.hxx"
 
-namespace nst {
-
 /*
  * the implementation of these are placed in this separate file since they are
  * need data structures that would cause circular dependencies when included
  * in the config header
  */
 
-namespace config {
+namespace nst::config {
 
 /*
  * Internal mouse shortcuts.
@@ -68,4 +66,20 @@ std::vector<KbdShortcut> getKbdShortcuts(Nst &nst) {
 	};
 }
 
-}} // ns nst::config
+const char* getColorName(size_t nr) {
+	if (nr < COLORNAMES.size())
+		return COLORNAMES[nr];
+	else if (nr >= 256) {
+		// check for extended colors
+		nr -= 256;
+		if (nr < EXTENDED_COLORS.size())
+			return EXTENDED_COLORS[nr];
+	}
+
+	// unassigned
+	// NOTE: the libX functions that consume this are tolerant against
+	// null pointers
+	return nullptr;
+}
+
+} // ns nst::config

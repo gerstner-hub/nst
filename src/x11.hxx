@@ -184,7 +184,6 @@ protected: // functions
 	}
 	/// (re)allocate the m_pixmap buffer and related context according to the current window size
 	void allocPixmap();
-	static const char* getColorName(size_t nr);
 };
 
 } // end ns

@@ -171,6 +171,12 @@ constexpr std::array<const char*, 16> COLORNAMES({
 	"white",
 });
 
+/// returns the color name for a color number taking into account extended color configuration
+/**
+ * \return The according color name or nullptr if none is configured for the number
+ **/
+const char* getColorName(size_t nr);
+
 /// Default shape of cursor
 static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
 

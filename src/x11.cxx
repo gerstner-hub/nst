@@ -98,22 +98,6 @@ void X11::resetFont() {
 	}
 }
 
-const char* X11::getColorName(size_t nr) {
-	if (nr < config::COLORNAMES.size())
-		return config::COLORNAMES[nr];
-	else if (nr >= 256) {
-		// check for extended colors
-		nr -= 256;
-		if (nr < config::EXTENDED_COLORS.size())
-			return config::EXTENDED_COLORS[nr];
-	}
-
-	// unassigned
-	// NOTE: the libX functions that consume this are tolerant against
-	// null pointers
-	return nullptr;
-}
-
 void X11::allocPixmap() {
 	if (m_pixmap.valid()) {
 		m_display->freePixmap(m_pixmap);
@@ -161,7 +145,7 @@ int X11::loadColor(size_t i, const char *name, Color *ncolor) {
 			return XftColorAllocValue(*m_display, m_visual,
 			                          m_color_map, &color, ncolor);
 		} else
-			name = getColorName(i);
+			name = config::getColorName(i);
 	}
 
 	return XftColorAllocName(*m_display, m_visual, m_color_map, name, ncolor);
@@ -180,7 +164,7 @@ void X11::loadColors() {
 
 	for (size_t i = 0; i < m_draw_ctx.col.size(); i++) {
 		if (!loadColor(i, nullptr, &m_draw_ctx.col[i])) {
-			auto colorname = getColorName(i);
+			auto colorname = config::getColorName(i);
 			if (colorname)
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname)));
 			else
@@ -612,13 +596,13 @@ void X11::init() {
 
 	XColor xmousefg, xmousebg;
 
-	if (XParseColor(*m_display, m_color_map, getColorName(config::MOUSEFG), &xmousefg) == 0) {
+	if (XParseColor(*m_display, m_color_map, config::getColorName(config::MOUSEFG), &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
 		xmousefg.green = 0xffff;
 		xmousefg.blue  = 0xffff;
 	}
 
-	if (XParseColor(*m_display, m_color_map, getColorName(config::MOUSEBG), &xmousebg) == 0) {
+	if (XParseColor(*m_display, m_color_map, config::getColorName(config::MOUSEBG), &xmousebg) == 0) {
 		xmousebg.red   = 0x0000;
 		xmousebg.green = 0x0000;
 		xmousebg.blue  = 0x0000;

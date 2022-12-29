@@ -35,7 +35,7 @@ void Nst::waitForWindowMapping() {
 		}
 	} while (!ev.isMapNotify());
 
-	resizeConsole(m_x11.getTermWin().win);
+	resizeConsole(m_x11.getTermWin().getWinExtent());
 }
 
 void Nst::run(int argc, const char **argv) {
@@ -154,7 +154,7 @@ void Nst::resizeConsole(const Extent &win) {
 
 	m_term.resize(tdim);
 	m_x11.resize(tdim);
-	m_tty.resize(twin.tty);
+	m_tty.resize(twin.getTTYExtent());
 }
 
 } // end ns nst

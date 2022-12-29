@@ -101,7 +101,7 @@ void X11::pasteSelection() {
 }
 
 void X11::toggleNumlock() {
-	m_twin.mode.flip(WinMode::NUMLOCK);
+	m_twin.flipFlag(WinMode::NUMLOCK);
 }
 
 void X11::zoomFont(float val) {
@@ -125,7 +125,7 @@ void X11::allocPixmap() {
 	}
 	m_pixmap = m_display->createPixmap(
 		m_window,
-		m_twin.win
+		m_twin.getWinExtent()
 	);
 
 	if (m_font_draw) {
@@ -142,7 +142,8 @@ void X11::resize(const TermSize &dim) {
 
 	m_twin.setTermDim(dim);
 	allocPixmap();
-	clearRect(DrawPos{0,0}, DrawPos{m_twin.win.width, m_twin.win.height});
+	const auto &win = m_twin.getWinExtent();
+	clearRect(DrawPos{0,0}, DrawPos{win.width, win.height});
 
 	/* resize to new width */
 	m_font_specs.resize(dim.cols);
@@ -236,23 +237,25 @@ void X11::setHints() {
 	// the command line arguments
 	auto wname = m_cmdline->window_name.getValue();
 	auto wclass = m_cmdline->window_class.getValue();
+	const auto &chr = m_twin.getChrExtent();
+	const auto &win = m_twin.getWinExtent();
 	XClassHint clazz = {&wname[0], &wclass[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
 	XSizeHints *sizeh = XAllocSizeHints();
 
 	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
-	sizeh->height = m_twin.win.height;
-	sizeh->width = m_twin.win.width;
-	sizeh->height_inc = m_twin.chr.height;
-	sizeh->width_inc = m_twin.chr.width;
+	sizeh->height = win.height;
+	sizeh->width = win.width;
+	sizeh->height_inc = chr.height;
+	sizeh->width_inc = chr.width;
 	sizeh->base_height = 2 * config::BORDERPX;
 	sizeh->base_width = 2 * config::BORDERPX;
-	sizeh->min_height = m_twin.chr.height + 2 * config::BORDERPX;
-	sizeh->min_width = m_twin.chr.width + 2 * config::BORDERPX;
+	sizeh->min_height = chr.height + 2 * config::BORDERPX;
+	sizeh->min_width = chr.width + 2 * config::BORDERPX;
 	if (m_fixed_geometry) {
 		sizeh->flags |= PMaxSize;
-		sizeh->min_width = sizeh->max_width = m_twin.win.width;
-		sizeh->min_height = sizeh->max_height = m_twin.win.height;
+		sizeh->min_width = sizeh->max_width = win.width;
+		sizeh->min_height = sizeh->max_height = win.height;
 	}
 	if (m_geometry & (XValue|YValue)) {
 		sizeh->flags |= USPosition | PWinGravity;
@@ -538,10 +541,11 @@ void X11::setGeometry(const std::string &g) {
 	m_tsize.rows = rows;
 	m_tsize.cols = cols;
 	m_twin.setWinExtent(m_tsize);
+	const auto &win = m_twin.getWinExtent();
 	if (m_geometry & XNegative)
-		m_left_offset += m_display->getDisplayWidth(m_screen) - m_twin.win.width - 2;
+		m_left_offset += m_display->getDisplayWidth(m_screen) - win.width - 2;
 	if (m_geometry & YNegative)
-		m_top_offset  += m_display->getDisplayHeight(m_screen) - m_twin.win.height - 2;
+		m_top_offset  += m_display->getDisplayHeight(m_screen) - win.height - 2;
 }
 
 xpp::XWindow X11::getParent() const {
@@ -625,11 +629,12 @@ void X11::init() {
 	m_win_attrs.colormap = m_color_map;
 
 	auto parent = getParent();
+	const auto &win = m_twin.getWinExtent();
 
 	m_window = m_display->createWindow(
 		xpp::WindowSpec{m_left_offset, m_top_offset,
-			static_cast<unsigned int>(m_twin.win.width),
-			static_cast<unsigned int>(m_twin.win.height)},
+			static_cast<unsigned int>(win.width),
+			static_cast<unsigned int>(win.height)},
 		/*border_width=*/0,
 		/*clazz = */InputOutput,
 		&parent,
@@ -642,7 +647,7 @@ void X11::init() {
 	m_draw_ctx.createGC(*m_display, parent);
 	allocPixmap();
 	m_draw_ctx.setForeground(bgcolor);
-	m_draw_ctx.fillRectangle(DrawPos{0,0}, m_twin.win);
+	m_draw_ctx.fillRectangle(DrawPos{0,0}, win);
 
 	/* input methods */
 	ximOpen();
@@ -674,7 +679,8 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	const auto pos = m_twin.getDrawPos(CharPos{x,y});
 	Font *fnt = &m_draw_ctx.font;
 	FRC frcflags = FRC::NORMAL;
-	int runewidth = m_twin.chr.width;
+	const auto chr = m_twin.getChrExtent();
+	int runewidth = chr.width;
 	size_t numspecs = 0;
 	Glyph::AttrBitMask prevmode(Glyph::AttrBitMask::all);
 
@@ -691,7 +697,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 		if (prevmode != mode) {
 			prevmode = mode;
 			std::tie(fnt, frcflags) = m_draw_ctx.getFontForMode(mode);
-			runewidth = m_twin.chr.width * (mode[Attr::WIDE] ? 2 : 1);
+			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
 			yp = pos.y + fnt->ascent;
 		}
 
@@ -828,7 +834,7 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 		fg = &m_draw_ctx.col[base.fg + 8];
 
 	Color revfg, revbg;
-	if (m_twin.mode[WinMode::REVERSE]) {
+	if (m_twin.checkFlag(WinMode::REVERSE)) {
 		if (fg == &m_draw_ctx.col[config::DEFAULTFG]) {
 			fg = &m_draw_ctx.col[config::DEFAULTBG];
 		} else {
@@ -859,43 +865,46 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 		std::swap(fg, bg);
 	}
 
-	if (base.mode[Attr::BLINK] && m_twin.mode[WinMode::BLINK])
+	if (base.mode[Attr::BLINK] && m_twin.checkFlag(WinMode::BLINK))
 		fg = bg;
 	else if (base.mode[Attr::INVISIBLE])
 		fg = bg;
 
 	/* Intelligent cleaning up of the borders. */
 	auto pos = m_twin.getDrawPos({x, y});
-	int width = charlen * m_twin.chr.width;
+	const auto &win = m_twin.getWinExtent();
+	const auto &chr = m_twin.getChrExtent();
+	const auto &tty = m_twin.getTTYExtent();
+	int width = charlen * chr.width;
 
 	if (x == 0) {
 		const auto pos1 = DrawPos{0, y ? pos.y : 0};
-		const auto pos2 = DrawPos{config::BORDERPX, pos.y + m_twin.chr.height + 
-			((pos.y + m_twin.chr.height >= config::BORDERPX + m_twin.tty.height) ? m_twin.win.height : 0)};
+		const auto pos2 = DrawPos{config::BORDERPX, pos.y + chr.height +
+			((pos.y + chr.height >= config::BORDERPX + tty.height) ? win.height : 0)};
 		clearRect(pos1, pos2);
 	}
 
-	if (pos.x + width >= config::BORDERPX + m_twin.tty.width) {
+	if (pos.x + width >= config::BORDERPX + tty.width) {
 		const auto pos1 = DrawPos{pos.x + width, y ? pos.y : 0};
-		const auto pos2 = DrawPos{m_twin.win.width,
-			(pos.y + m_twin.chr.height >= config::BORDERPX + m_twin.tty.height) ? m_twin.win.height : (pos.y + m_twin.chr.height)};
+		const auto pos2 = DrawPos{win.width,
+			(pos.y + chr.height >= config::BORDERPX + tty.height) ? win.height : (pos.y + chr.height)};
 		clearRect(pos1, pos2);
 	}
 
 	if (y == 0)
 		clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + width, config::BORDERPX});
 
-	if (pos.y + m_twin.chr.height >= config::BORDERPX + m_twin.tty.height)
-		clearRect(DrawPos{pos.x, pos.y + m_twin.chr.height}, DrawPos{pos.x + width, m_twin.win.height});
+	if (pos.y + chr.height >= config::BORDERPX + tty.height)
+		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + width, win.height});
 
 	/* Clean up the region we want to draw to. */
-	XftDrawRect(m_font_draw, bg, pos.x, pos.y, width, m_twin.chr.height);
+	XftDrawRect(m_font_draw, bg, pos.x, pos.y, width, chr.height);
 
 	/* Set the clip region because Xft is sometimes dirty. */
 	XRectangle r;
 	r.x = 0;
 	r.y = 0;
-	r.height = m_twin.chr.height;
+	r.height = chr.height;
 	r.width = width;
 	XftDrawSetClipRectangles(m_font_draw, pos.x, pos.y, &r, 1);
 
@@ -930,7 +939,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		og.mode.flip(Attr::REVERSE);
 	drawGlyph(og, ox, oy);
 
-	if (m_twin.mode[WinMode::HIDE])
+	if (m_twin.checkFlag(WinMode::HIDE))
 		return;
 
 	/*
@@ -939,7 +948,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 	Color drawcol;
 
-	if (m_twin.mode[WinMode::REVERSE]) {
+	if (m_twin.checkFlag(WinMode::REVERSE)) {
 		g.mode.set(Attr::REVERSE);
 		g.bg = config::DEFAULTFG;
 		if (sel.isSelected(cx, cy)) {
@@ -960,9 +969,11 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		drawcol = m_draw_ctx.col[g.bg];
 	}
 
+	auto &chr = m_twin.getChrExtent();
+
 	/* draw the new one */
-	if (m_twin.mode[WinMode::FOCUSED]) {
-		switch (m_twin.cursor) {
+	if (m_twin.checkFlag(WinMode::FOCUSED)) {
+		switch (m_twin.getCursorStyle()) {
 		case CursorStyle::SNOWMAN: /* st extension */
 			g.u = 0x2603; /* snowman (U+2603) */
 		/* FALLTHROUGH */
@@ -977,7 +988,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 			XftDrawRect(
 					m_font_draw, &drawcol,
 					pos.x, pos.y - config::CURSORTHICKNESS,
-					m_twin.chr.width, config::CURSORTHICKNESS);
+					chr.width, config::CURSORTHICKNESS);
 			break;
 		}
 		case CursorStyle::BLINKING_BAR:
@@ -986,7 +997,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 			XftDrawRect(
 					m_font_draw, &drawcol,
 					pos.x, pos.y,
-					config::CURSORTHICKNESS, m_twin.chr.height);
+					config::CURSORTHICKNESS, chr.height);
 			break;
 		}
 		default:
@@ -998,19 +1009,19 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 		XftDrawRect(m_font_draw, &drawcol,
 				pos.x,
 				pos.y,
-				m_twin.chr.width - 1, 1);
+				chr.width - 1, 1);
 		XftDrawRect(m_font_draw, &drawcol,
 				pos.x,
 				pos.y,
-				1, m_twin.chr.height - 1);
+				1, chr.height - 1);
 		XftDrawRect(m_font_draw, &drawcol,
 				m_twin.getNextCol(pos).x - 1,
 				pos.y,
-				1, m_twin.chr.height - 1);
+				1, chr.height - 1);
 		XftDrawRect(m_font_draw, &drawcol,
 				pos.x,
 				m_twin.getNextLine(pos).y - 1,
-				m_twin.chr.width, 1);
+				chr.width, 1);
 	}
 }
 
@@ -1079,7 +1090,8 @@ void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 }
 
 void X11::finishDraw() {
-	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.getRawGC(), 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
+	auto win = m_twin.getWinExtent();
+	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.getRawGC(), 0, 0, win.width, win.height, 0, 0);
 	m_draw_ctx.setForeground(m_twin.getActiveForegroundColor());
 }
 
@@ -1094,14 +1106,14 @@ void X11::setPointerMotion(bool on_off) {
 }
 
 void X11::setMode(const WinMode &flag, const bool set) {
-	auto prevmode = m_twin.mode;
-	m_twin.mode.set(flag, set);
-	if (m_twin.mode[WinMode::REVERSE] != prevmode[WinMode::REVERSE])
+	const auto prevmode = m_twin.getMode();
+	m_twin.setFlag(flag, set);
+	if (m_twin.checkFlag(WinMode::REVERSE) != prevmode[WinMode::REVERSE])
 		m_nst.getTerm().redraw();
 }
 
 void X11::setCursorStyle(const CursorStyle &cursor) {
-	m_twin.cursor = cursor;
+	m_twin.setCursorStyle(cursor);
 }
 
 void X11::setUrgency(int add) {
@@ -1113,7 +1125,7 @@ void X11::setUrgency(int add) {
 }
 
 void X11::ringBell() {
-	if (!(m_twin.mode[WinMode::FOCUSED]))
+	if (!(m_twin.checkFlag(WinMode::FOCUSED)))
 		setUrgency(1);
 	if (config::BELLVOLUME)
 		XkbBell(*m_display, m_window, config::BELLVOLUME, (Atom)nullptr);
@@ -1123,10 +1135,10 @@ void X11::embeddedFocusChange(const bool in_focus) {
 	// called when we run embedded in another window and the focus
 	// changes
 	if (in_focus) {
-		m_twin.mode.set(WinMode::FOCUSED);
+		m_twin.setFlag(WinMode::FOCUSED);
 		setUrgency(0);
 	} else {
-		m_twin.mode.reset(WinMode::FOCUSED);
+		m_twin.resetFlag(WinMode::FOCUSED);
 	}
 }
 
@@ -1134,15 +1146,15 @@ void X11::focusChange(const bool in_focus) {
 	// called when focus changes and we run in our own window
 	if (in_focus) {
 		m_input.setFocus();
-		m_twin.mode.set(WinMode::FOCUSED);
+		m_twin.setFlag(WinMode::FOCUSED);
 		setUrgency(0);
-		if (m_twin.mode[WinMode::FOCUS]) {
+		if (m_twin.checkFlag(WinMode::FOCUS)) {
 			m_nst.getTTY().write("\033[I", 3, 0);
 		}
 	} else {
 		m_input.unsetFocus();
-		m_twin.mode.reset(WinMode::FOCUSED);
-		if (m_twin.mode[WinMode::FOCUS])
+		m_twin.resetFlag(WinMode::FOCUSED);
+		if (m_twin.checkFlag(WinMode::FOCUS))
 			m_nst.getTTY().write("\033[O", 3, 0);
 	}
 }

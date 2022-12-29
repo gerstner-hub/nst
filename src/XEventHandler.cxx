@@ -70,7 +70,7 @@ XEventHandler::getCustomKeyMapping(KeySym k, unsigned state) const {
 		return {};
 	}
 
-	const auto &tmode = m_x11.getTermWin().mode;
+	const auto &tmode = m_x11.getTermWin().getMode();
 
 	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
 		auto &key = *it;
@@ -124,7 +124,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	// the escape code to report for the mouse motion
 	int code;
 	const auto &twin = m_x11.getTermWin();
-	const auto &tmode = twin.mode;
+	const auto &tmode = twin.getMode();
 	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
 
 	if (ev.type == MotionNotify) {
@@ -235,7 +235,7 @@ void XEventHandler::focus(const xpp::Event &ev) {
 }
 
 void XEventHandler::keyPress(const XKeyEvent &ev) {
-	const auto &tmode = m_x11.getTermWin().mode;
+	const auto &tmode = m_x11.getTermWin().getMode();
 
 	if (tmode[WinMode::KBDLOCK])
 		return;
@@ -311,7 +311,7 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 void XEventHandler::resize(const XConfigureEvent &config) {
 	auto new_size = Extent{config.width, config.height};
 
-	if (new_size == m_x11.getTermWin().win)
+	if (new_size == m_x11.getTermWin().getWinExtent())
 		return;
 
 	m_nst.resizeConsole(new_size);
@@ -324,7 +324,7 @@ void XEventHandler::buttonPress(const XButtonEvent &ev) {
 	if (m_buttons.valid(btn))
 		m_buttons.setPressed(btn);
 
-	if (twin.mode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
+	if (twin.checkFlag(WinMode::MOUSE) && !(ev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(ev);
 		return;
 	}
@@ -411,12 +411,12 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			*needle++ = '\r';
 		}
 
-		const auto &tmode = m_x11.getTermWin().mode;
+		const bool brcktpaste = m_x11.getTermWin().checkFlag(WinMode::BRCKTPASTE);
 
-		if (tmode[WinMode::BRCKTPASTE] && ofs == 0)
+		if (brcktpaste && ofs == 0)
 			tty.write("\033[200~", 6, false);
 		tty.write((char *)data, nitems * format / 8, true);
-		if (tmode[WinMode::BRCKTPASTE] && rem == 0)
+		if (brcktpaste && rem == 0)
 			tty.write("\033[201~", 6, false);
 		XFree(data);
 		/* number of 32-bit chunks returned */
@@ -485,7 +485,7 @@ void XEventHandler::buttonRelease(const XButtonEvent &ev) {
 	if (m_buttons.valid(btn))
 		m_buttons.setReleased(btn);
 
-	const auto &tmode = m_x11.getTermWin().mode;
+	const auto &tmode = m_x11.getTermWin().getMode();
 
 	if (tmode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(ev);
@@ -504,7 +504,7 @@ void XEventHandler::motionEvent(const xpp::Event &ev) {
 	// raw structure
 	// TODO: maybe fix this using a template function
 	const auto &bev = ev.raw()->xbutton;
-	const auto &tmode = m_x11.getTermWin().mode;
+	const auto &tmode = m_x11.getTermWin().getMode();
 
 	if (tmode[WinMode::MOUSE] && !(bev.state & config::FORCEMOUSEMOD)) {
 		handleMouseReport(bev);

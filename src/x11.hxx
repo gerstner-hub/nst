@@ -152,12 +152,12 @@ public: // functions
 	}
 	void setBlinking(const bool blinking) {
 		if (blinking)
-			m_twin.mode.set(WinMode::BLINK);
+			m_twin.setFlag(WinMode::BLINK);
 		else
-			m_twin.mode.reset(WinMode::BLINK);
+			m_twin.resetFlag(WinMode::BLINK);
 	}
 	void switchBlinking() {
-		m_twin.mode.flip(WinMode::BLINK);
+		m_twin.flipFlag(WinMode::BLINK);
 	}
 
 	auto& getDisplay() { return *(m_display); }
@@ -168,7 +168,7 @@ public: // functions
 	auto& getXSelection() { return m_xsel; }
 	auto& getTermWin() const { return m_twin; }
 	auto& getTermSize() const { return m_tsize; }
-	bool canDraw() const { return m_twin.mode[WinMode::VISIBLE]; }
+	bool canDraw() const { return m_twin.checkFlag(WinMode::VISIBLE); }
 
 protected: // functions
 
@@ -189,7 +189,7 @@ protected: // functions
 	void embeddedFocusChange(const bool in_focus);
 	void focusChange(const bool in_focus);
 	void setVisible(const bool visible) {
-		m_twin.mode.set(WinMode::VISIBLE, visible);
+		m_twin.setFlag(WinMode::VISIBLE, visible);
 	}
 	/// (re)allocate the m_pixmap buffer and related context according to the current window size
 	void allocPixmap();

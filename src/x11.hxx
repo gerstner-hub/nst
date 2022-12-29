@@ -30,8 +30,17 @@ public: // functions
 	void freeGC() { m_gc.reset(); }
 	void setRawGC(xpp::XDisplay::GcSharedPtr gc) { m_gc = gc; }
 	auto getRawGC() { return m_gc.get(); }
+	void setPixmap(xpp::PixMap &pm) { m_pixmap = pm; }
+	std::tuple<Font*, FRC> getFontForMode(const Glyph::AttrBitMask &mode);
+	void setForeground(const Color &color);
+	void setForeground(size_t colidx) {
+		setForeground(col[colidx]);
+	}
+	void fillRectangle(const DrawPos &pos, const Extent &ext);
 
 protected: // data
+	xpp::XDisplay *m_display = nullptr;
+	xpp::PixMap m_pixmap;
 	xpp::XDisplay::GcSharedPtr m_gc;
 };
 
@@ -116,6 +125,7 @@ public: // functions
 	void setHints();
 	Input& getInput() { return m_input; }
 	void init();
+	void setupCursor();
 	/// reset the initial state
 	void resetState() {
 		setDefaultTitle();
@@ -167,7 +177,6 @@ protected: // functions
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
-	std::tuple<Font*, FRC> getFontForMode(const Glyph::AttrBitMask &mode);
 	int loadColor(size_t i, const char *name, Color *ncolor);
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
 	bool loadFonts(const std::string &fontstr, double fontsize);
@@ -184,6 +193,8 @@ protected: // functions
 	}
 	/// (re)allocate the m_pixmap buffer and related context according to the current window size
 	void allocPixmap();
+	/// returns the parent window to be used as parent of the terminal window
+	xpp::XWindow getParent() const;
 };
 
 } // end ns

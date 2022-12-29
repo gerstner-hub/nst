@@ -1,3 +1,7 @@
+// stdlib
+#include <stdlib.h>
+
+// nst
 #include "Cmdline.hxx"
 
 // nst
@@ -23,6 +27,17 @@ Cmdline::Cmdline() :
 	tty_line("l", "tty", "use a tty line instead of pseudo terminal. Remaining parameters will be passed as flags to stty", false, "", "path-to-tty", *this),
 	rest("rest", "command to execute instead of shell for -e, or if -l is not given. If -l is given then these are stty parameters", false, "extra-pars", *this)
 {
+}
+
+bool Cmdline::useXSync() const {
+	// this is not really command line parsing, but we could add a switch
+	// to the command line in the future.
+	// this way all runtime configuration settings are kept in this class.
+	if (getenv("NST_XSYNC") != nullptr) {
+		return true;
+	}
+
+	return false;
 }
 
 } // end ns

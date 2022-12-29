@@ -28,6 +28,9 @@ public: // functions
 		return window_title.getValue();
 	}
 
+	/// returns wheter XLib should be set to XSync() mode
+	bool useXSync() const;
+
 public: // data
 	TCLAP::SwitchArg use_alt_screen;
 	TCLAP::SwitchArg fixed_geometry;

@@ -43,12 +43,33 @@
 namespace nst {
 
 void DrawingContext::createGC(xpp::XDisplay &display, xpp::XWindow &parent) {
+	m_display = &display;
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
 	m_gc = display.createGraphicsContext(
 			parent,
 			xpp::GcOptMask(xpp::GcOpts::GraphicsExposures),
 			gcvalues);
+}
+
+std::tuple<Font*, FRC> DrawingContext::getFontForMode(const Glyph::AttrBitMask &mode) {
+	if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
+		return std::make_tuple(&ibfont, FRC::ITALICBOLD);
+	} else if (mode[Attr::ITALIC]) {
+		return std::make_tuple(&ifont, FRC::ITALIC);
+	} else if (mode[Attr::BOLD]) {
+		return std::make_tuple(&bfont, FRC::BOLD);
+	} else {
+		return std::make_tuple(&font, FRC::NORMAL);
+	}
+}
+
+void DrawingContext::setForeground(const Color &color) {
+	XSetForeground(*m_display, getRawGC(), color.pixel);
+}
+
+void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
+	XFillRectangle(*m_display, m_pixmap.id(), getRawGC(), pos.x, pos.y, ext.width, ext.height);
 }
 
 X11::X11(Nst &nst) : m_nst(nst), m_input(*this), m_xsel(nst), m_tsize{config::COLS, config::ROWS} {
@@ -113,6 +134,8 @@ void X11::allocPixmap() {
 		/* Xft rendering context */
 		m_font_draw = XftDrawCreate(*m_display, m_pixmap.id(), m_visual, m_color_map);
 	}
+
+	m_draw_ctx.setPixmap(m_pixmap);
 }
 
 void X11::resize(const TermSize &dim) {
@@ -204,7 +227,7 @@ bool X11::setColorName(size_t idx, const char *name) {
  * Absolute coordinates.
  */
 void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
-	const auto colindex = m_twin.mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
+	const auto colindex = m_twin.getActiveForegroundColor();
 	XftDrawRect(m_font_draw, &m_draw_ctx.col[colindex], pos1.x, pos1.y, pos2.x - pos1.x, pos2.y - pos1.y);
 }
 
@@ -521,6 +544,49 @@ void X11::setGeometry(const std::string &g) {
 		m_top_offset  += m_display->getDisplayHeight(m_screen) - m_twin.win.height - 2;
 }
 
+xpp::XWindow X11::getParent() const {
+	xpp::XWindow ret;
+
+	if (m_cmdline->embed_window.isSet()) {
+		// use window ID passed on command line as parent
+		ret = xpp::XWindow(m_cmdline->embed_window.getValue());
+	}
+
+	if (!ret.valid()) {
+		// either not embedded or the command line parsing failed
+		ret = xpp::RootWin(*m_display, m_screen);
+	}
+
+	return ret;
+}
+
+void X11::setupCursor() {
+	/* white cursor, black outline */
+	Cursor cursor = XCreateFontCursor(*m_display, config::MOUSESHAPE);
+	XDefineCursor(*m_display, m_window, cursor);
+
+	XColor xmousefg, xmousebg;
+
+	auto parseColor = [this](size_t colnr, XColor &out) {
+		auto res = XParseColor(*m_display, m_color_map, config::getColorName(colnr), &out);
+		return res != 0;
+	};
+
+	if (!parseColor(config::MOUSEFG, xmousefg)) {
+		xmousefg.red   = 0xffff;
+		xmousefg.green = 0xffff;
+		xmousefg.blue  = 0xffff;
+	}
+
+	if (!parseColor(config::MOUSEBG, xmousebg)) {
+		xmousebg.red   = 0x0000;
+		xmousebg.green = 0x0000;
+		xmousebg.blue  = 0x0000;
+	}
+
+	XRecolorCursor(*m_display, cursor, &xmousefg, &xmousebg);
+}
+
 void X11::init() {
 	m_cmdline = &m_nst.getCmdline();
 	m_display = &xpp::XDisplay::getInstance();
@@ -545,26 +611,20 @@ void X11::init() {
 	}
 
 	m_twin.setWinExtent(m_tsize);
+	/* font spec buffer */
+	m_font_specs.resize(m_tsize.cols);
 
 	/* Events */
-	m_win_attrs.background_pixel = m_draw_ctx.col[config::DEFAULTBG].pixel;
-	m_win_attrs.border_pixel = m_draw_ctx.col[config::DEFAULTBG].pixel;
+	const auto &bgcolor = m_draw_ctx.col[config::DEFAULTBG];
+	m_win_attrs.background_pixel = bgcolor.pixel;
+	m_win_attrs.border_pixel = bgcolor.pixel;
 	m_win_attrs.bit_gravity = NorthWestGravity;
 	m_win_attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
 	m_win_attrs.colormap = m_color_map;
 
-	std::optional<xpp::XWindow> parent;
-	if (m_cmdline->embed_window.isSet()) {
-		// use window ID passed on command line as parent
-		parent.emplace(xpp::XWindow(m_cmdline->embed_window.getValue()));
-	}
-
-	if (!parent) {
-		// either not embedded or the command line parsing failed
-		parent.emplace(xpp::RootWin(*m_display, m_screen));
-	}
+	auto parent = getParent();
 
 	m_window = m_display->createWindow(
 		xpp::WindowSpec{m_left_offset, m_top_offset,
@@ -572,76 +632,41 @@ void X11::init() {
 			static_cast<unsigned int>(m_twin.win.height)},
 		/*border_width=*/0,
 		/*clazz = */InputOutput,
-		&(*parent),
+		&parent,
 		m_display->getDefaultDepth(m_screen),
 		m_visual,
 		CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
 		&m_win_attrs
 	);
 
-	m_draw_ctx.createGC(*m_display, *parent);
+	m_draw_ctx.createGC(*m_display, parent);
 	allocPixmap();
-	XSetForeground(*m_display, m_draw_ctx.getRawGC(), m_draw_ctx.col[config::DEFAULTBG].pixel);
-	XFillRectangle(*m_display, m_pixmap.id(), m_draw_ctx.getRawGC(), 0, 0, m_twin.win.width, m_twin.win.height);
-
-	/* font spec buffer */
-	m_font_specs.resize(m_tsize.cols);
+	m_draw_ctx.setForeground(bgcolor);
+	m_draw_ctx.fillRectangle(DrawPos{0,0}, m_twin.win);
 
 	/* input methods */
 	ximOpen();
 
-	/* white cursor, black outline */
-	Cursor cursor = XCreateFontCursor(*m_display, config::MOUSESHAPE);
-	XDefineCursor(*m_display, m_window, cursor);
-
-	XColor xmousefg, xmousebg;
-
-	if (XParseColor(*m_display, m_color_map, config::getColorName(config::MOUSEFG), &xmousefg) == 0) {
-		xmousefg.red   = 0xffff;
-		xmousefg.green = 0xffff;
-		xmousefg.blue  = 0xffff;
-	}
-
-	if (XParseColor(*m_display, m_color_map, config::getColorName(config::MOUSEBG), &xmousebg) == 0) {
-		xmousebg.red   = 0x0000;
-		xmousebg.green = 0x0000;
-		xmousebg.blue  = 0x0000;
-	}
-
-	XRecolorCursor(*m_display, cursor, &xmousefg, &xmousebg);
+	setupCursor();
 
 	m_wmdeletewin = getAtom("WM_DELETE_WINDOW");
 	m_netwmname = getAtom("_NET_WM_NAME");
 	m_netwmiconname = getAtom("_NET_WM_ICON_NAME");
 	XSetWMProtocols(*m_display, m_window, &m_wmdeletewin, 1);
 
-	auto netwmpid = getAtom("_NET_WM_PID");
-	auto thispid = cosmos::g_process.getPid();
-	XChangeProperty(*m_display, m_window, netwmpid, XA_CARDINAL, 32,
-			PropModeReplace, (unsigned char *)&thispid, 1);
+	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
+	xpp::Property<int> pid_prop(cosmos::g_process.getPid());
+	m_window.setProperty(getAtom("_NET_WM_PID"), pid_prop);
 
-	m_twin.mode = WinModeMask(WinMode::NUMLOCK);
 	setDefaultTitle();
 	setHints();
-	XMapWindow(*m_display, m_window);
-	XSync(*m_display, False);
+	m_display->mapWindow(m_window);
+	m_display->sync();
 
 	m_xsel.init();
 
-	if (getenv("NST_XSYNC") != nullptr) {
-		::XSynchronize(*m_display, true);
-	}
-}
-
-std::tuple<Font*, FRC> X11::getFontForMode(const Glyph::AttrBitMask &mode) {
-	if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
-		return std::make_tuple(&m_draw_ctx.ibfont, FRC::ITALICBOLD);
-	} else if (mode[Attr::ITALIC]) {
-		return std::make_tuple(&m_draw_ctx.ifont, FRC::ITALIC);
-	} else if (mode[Attr::BOLD]) {
-		return std::make_tuple(&m_draw_ctx.bfont, FRC::BOLD);
-	} else {
-		return std::make_tuple(&m_draw_ctx.font, FRC::NORMAL);
+	if (m_cmdline->useXSync()) {
+		m_display->setSynchronized(true);
 	}
 }
 
@@ -665,7 +690,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 		/* Determine font for glyph if different from previous glyph. */
 		if (prevmode != mode) {
 			prevmode = mode;
-			std::tie(fnt, frcflags) = getFontForMode(mode);
+			std::tie(fnt, frcflags) = m_draw_ctx.getFontForMode(mode);
 			runewidth = m_twin.chr.width * (mode[Attr::WIDE] ? 2 : 1);
 			yp = pos.y + fnt->ascent;
 		}
@@ -1055,9 +1080,7 @@ void X11::drawLine(const Line &line, int x1, int y1, int x2) {
 
 void X11::finishDraw() {
 	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.getRawGC(), 0, 0, m_twin.win.width, m_twin.win.height, 0, 0);
-	XSetForeground(*m_display, m_draw_ctx.getRawGC(),
-			m_draw_ctx.col[m_twin.mode[WinMode::REVERSE] ?
-				config::DEFAULTFG : config::DEFAULTBG].pixel);
+	m_draw_ctx.setForeground(m_twin.getActiveForegroundColor());
 }
 
 void X11::changeEventMask(long event, bool on_off) {

@@ -3,6 +3,7 @@
 
 // nst
 #include "types.hxx"
+#include "nst_config.hxx"
 
 namespace nst {
 
@@ -13,6 +14,10 @@ struct TermWindow {
 	Extent chr; /* single character dimensions */
 	WinModeMask mode; /* window state/mode flags */
 	CursorStyle cursor;
+
+	TermWindow() :
+		mode(WinModeMask(WinMode::NUMLOCK))
+	{}
 
 	void setCharSize(const Font &font) {
 		chr.width = ceilf(font.width * config::CWSCALE);
@@ -72,6 +77,10 @@ struct TermWindow {
 		ret.y /= chr.height;
 
 		return ret;
+	}
+
+	size_t getActiveForegroundColor() const {
+		return mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
 	}
 };
 

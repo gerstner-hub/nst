@@ -99,6 +99,9 @@ struct Range {
 	void invalidate() { begin.x = -1; }
 	bool isValid() const { return begin.x != -1; }
 
+	int width() const { return end.x - begin.x; }
+	int height() const { return end.y - begin.y; }
+
 	void clamp(int max_x, int max_y) {
 		begin.clampX(max_x);
 		begin.clampY(max_y);

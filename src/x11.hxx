@@ -141,7 +141,7 @@ public: // functions
 	void setDefaultTitle();
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
 	bool setColorName(size_t idx, const char *name);
-	void drawLine(const Line &line, int x1, int y1, int x2);
+	void drawLine(const Line &line, const CharPos &start, const int count);
 	void drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og);
 	void setMode(const WinMode &flag, const bool set);
 	void setCursorStyle(const CursorStyle &cursor);
@@ -183,9 +183,9 @@ protected: // functions
 	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();
 	bool ximOpen();
-	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, int x, int y);
-	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, int x, int y);
-	void drawGlyph(Glyph g, int x, int y);
+	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
+	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
+	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);
 	void focusChange(const bool in_focus);
 	void setVisible(const bool visible) {

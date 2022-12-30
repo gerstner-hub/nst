@@ -652,7 +652,7 @@ void Term::drawRegion(const Range &range) const {
 			continue;
 
 		m_dirty_lines[y] = false;
-		m_x11.drawLine(m_screen[y], range.begin.x, y, range.end.x);
+		m_x11.drawLine(m_screen[y], CharPos{range.begin.x, y}, range.width());
 	}
 }
 

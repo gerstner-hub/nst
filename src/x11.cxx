@@ -52,15 +52,15 @@ void DrawingContext::createGC(xpp::XDisplay &display, xpp::XWindow &parent) {
 			gcvalues);
 }
 
-std::tuple<Font*, FRC> DrawingContext::getFontForMode(const Glyph::AttrBitMask &mode) {
+std::tuple<Font*, FontFlags> DrawingContext::getFontForMode(const Glyph::AttrBitMask &mode) {
 	if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
-		return std::make_tuple(&ibfont, FRC::ITALICBOLD);
+		return std::make_tuple(&ibfont, FontFlags::ITALICBOLD);
 	} else if (mode[Attr::ITALIC]) {
-		return std::make_tuple(&ifont, FRC::ITALIC);
+		return std::make_tuple(&ifont, FontFlags::ITALIC);
 	} else if (mode[Attr::BOLD]) {
-		return std::make_tuple(&bfont, FRC::BOLD);
+		return std::make_tuple(&bfont, FontFlags::BOLD);
 	} else {
-		return std::make_tuple(&font, FRC::NORMAL);
+		return std::make_tuple(&font, FontFlags::NORMAL);
 	}
 }
 
@@ -675,7 +675,7 @@ void X11::init() {
 	}
 }
 
-std::tuple<XftFont*, FT_UInt> X11::lookupFontEntry(const Rune rune, Font &fnt, const FRC flags) {
+std::tuple<XftFont*, FT_UInt> X11::lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags) {
 	/* Lookup character index with default font. */
 	auto glyphidx = XftCharIndex(*m_display, fnt.match, rune);
 	if (glyphidx) {
@@ -728,7 +728,7 @@ std::tuple<XftFont*, FT_UInt> X11::lookupFontEntry(const Rune rune, Font &fnt, c
 	auto font = XftFontOpenPattern(*m_display, fontpattern);
 	if (!font)
 		cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
-	m_font_cache.emplace_back(Fontcache{font, flags, rune});
+	m_font_cache.emplace_back(FontCache{font, flags, rune});
 
 	auto &new_font = m_font_cache.back();
 
@@ -739,7 +739,7 @@ std::tuple<XftFont*, FT_UInt> X11::lookupFontEntry(const Rune rune, Font &fnt, c
 
 size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc) {
 	Font *fnt = &m_draw_ctx.font;
-	FRC frcflags = FRC::NORMAL;
+	FontFlags fflags = FontFlags::NORMAL;
 	const auto chr = m_twin.getChrExtent();
 	auto runewidth = chr.width;
 	size_t numspecs = 0;
@@ -759,12 +759,12 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 		/* Determine font for glyph if different from previous glyph. */
 		if (prevmode != mode) {
 			prevmode = mode;
-			std::tie(fnt, frcflags) = m_draw_ctx.getFontForMode(mode);
+			std::tie(fnt, fflags) = m_draw_ctx.getFontForMode(mode);
 			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
 			cur.y = start.y + fnt->ascent;
 		}
 
-		auto [xftfont, glyphidx] = lookupFontEntry(rune, *fnt, frcflags);
+		auto [xftfont, glyphidx] = lookupFontEntry(rune, *fnt, fflags);
 
 		auto &spec = specs[numspecs++];
 		spec.font = xftfont;

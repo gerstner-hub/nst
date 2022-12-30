@@ -26,17 +26,16 @@ enum class Weight : int {
 	BLACK = FC_WEIGHT_BLACK
 };
 
-/* Font Ring Cache */
-enum class FRC {
+enum class FontFlags {
 	NORMAL,
 	ITALIC,
 	BOLD,
 	ITALICBOLD
 };
 
-struct Fontcache {
-	XftFont *font;
-	FRC flags;
+struct FontCache {
+	XftFont *font = nullptr;
+	FontFlags flags;
 	Rune unicodep;
 };
 

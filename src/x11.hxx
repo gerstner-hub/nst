@@ -31,7 +31,7 @@ public: // functions
 	void setRawGC(xpp::XDisplay::GcSharedPtr gc) { m_gc = gc; }
 	auto getRawGC() { return m_gc.get(); }
 	void setPixmap(xpp::PixMap &pm) { m_pixmap = pm; }
-	std::tuple<Font*, FRC> getFontForMode(const Glyph::AttrBitMask &mode);
+	std::tuple<Font*, FontFlags> getFontForMode(const Glyph::AttrBitMask &mode);
 	void setForeground(const Color &color);
 	void setForeground(size_t colidx) {
 		setForeground(col[colidx]);
@@ -98,8 +98,7 @@ protected: // data
 	bool m_colors_loaded = false;
 	Colormap m_color_map = xpp::INVALID_XID;
 
-	std::vector<Fontcache> m_font_cache;
-	/* Fontcache is an array now. A new font will be appended to the array. */
+	std::vector<FontCache> m_font_cache;
 	double m_used_font_size = 0;
 	double m_default_font_size = 0;
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
@@ -186,7 +185,7 @@ protected: // functions
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font
-	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FRC flags);
+	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);

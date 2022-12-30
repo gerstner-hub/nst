@@ -72,6 +72,27 @@ void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
 	XFillRectangle(*m_display, m_pixmap.id(), getRawGC(), pos.x, pos.y, ext.width, ext.height);
 }
 
+void DrawingContext::sanitizeColor(Glyph &g) const {
+	/* Fallback on color display for attributes not supported by the font */
+	if (g.mode[Attr::ITALIC] && g.mode[Attr::BOLD]) {
+		if (ibfont.badslant || ibfont.badweight) {
+			g.fg = config::DEFAULTATTR;
+		}
+	} else if ((g.mode[Attr::ITALIC] && ifont.badslant) || (g.mode[Attr::BOLD] && bfont.badweight)) {
+		g.fg = config::DEFAULTATTR;
+	}
+}
+
+void RenderColor::setFromRGB(const uint32_t rgb) {
+	/* seems like the X color values are 16-bit wide and we need to
+	 * translate the one color bytes into the upper byte in the
+	 * XRenderColor */
+	alpha = 0xffff;
+	red = (rgb & 0xff0000) >> 8;
+	green = (rgb & 0xff00);
+	blue = (rgb & 0xff) << 8;
+}
+
 X11::X11(Nst &nst) : m_nst(nst), m_input(*this), m_xsel(nst), m_tsize{config::COLS, config::ROWS} {
 	m_tsize.normalize();
 	setCursorStyle(config::CURSORSHAPE);
@@ -777,34 +798,16 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	return numspecs;
 }
 
-static void setRenderColor(XRenderColor &out, const uint32_t in) {
-	/* seems like the X color values are 16-bit wide and we need to
-	 * translate the one color bytes into the upper byte in the
-	 * XRenderColor */
-	out.alpha = 0xffff;
-	out.red = (in & 0xff0000) >> 8;
-	out.green = (in & 0xff00);
-	out.blue = (in & 0xff) << 8;
-}
-
 void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
-	const size_t charlen = len * (base.mode[Attr::WIDE] ? 2 : 1);
 
-	/* Fallback on color display for attributes not supported by the font */
-	if (base.mode[Attr::ITALIC] && base.mode[Attr::BOLD]) {
-		if (m_draw_ctx.ibfont.badslant || m_draw_ctx.ibfont.badweight)
-			base.fg = config::DEFAULTATTR;
-	} else if ((base.mode[Attr::ITALIC] && m_draw_ctx.ifont.badslant) ||
-	    (base.mode[Attr::BOLD] && m_draw_ctx.bfont.badweight)) {
-		base.fg = config::DEFAULTATTR;
-	}
+	m_draw_ctx.sanitizeColor(base);
 
 	Color *fg = nullptr;
-	XRenderColor colfg;
+	RenderColor colfg;
 	Color truefg;
 
 	if (base.isFgTrueColor()) {
-		setRenderColor(colfg, base.fg);
+		colfg.setFromRGB(base.fg);
 		XftColorAllocValue(*m_display, m_visual, m_color_map, &colfg, &truefg);
 		fg = &truefg;
 	} else {
@@ -812,11 +815,11 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	}
 
 	Color *bg = nullptr;
-	XRenderColor colbg;
+	RenderColor colbg;
 	Color truebg;
 
 	if (base.isBgTrueColor()) {
-		setRenderColor(colbg, base.bg);
+		colbg.setFromRGB(base.bg);
 		XftColorAllocValue(*m_display, m_visual, m_color_map, &colbg, &truebg);
 		bg = &truebg;
 	} else {
@@ -869,6 +872,7 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	const auto &win = m_twin.getWinExtent();
 	const auto &chr = m_twin.getChrExtent();
 	const auto &tty = m_twin.getTTYExtent();
+	const size_t charlen = len * (base.mode[Attr::WIDE] ? 2 : 1);
 	int width = charlen * chr.width;
 
 	if (loc.x == 0) {

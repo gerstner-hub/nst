@@ -37,11 +37,16 @@ public: // functions
 		setForeground(col[colidx]);
 	}
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
+	void sanitizeColor(Glyph &g) const;
 
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
 	xpp::PixMap m_pixmap;
 	xpp::XDisplay::GcSharedPtr m_gc;
+};
+
+struct RenderColor : public XRenderColor {
+	void setFromRGB(const uint32_t rgb);
 };
 
 struct X11 {

@@ -32,8 +32,9 @@ public: // types
 	typedef cosmos::BitMask<Attr> AttrBitMask;
 
 public: // data
+
 	Rune u = 0;       /* character code */
-	AttrBitMask mode;  /* attribute flags */
+	AttrBitMask mode; /* attribute flags */
 	uint32_t fg = 0;  /* foreground  */
 	uint32_t bg = 0;  /* background  */
 

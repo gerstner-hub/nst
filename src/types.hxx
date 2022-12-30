@@ -88,7 +88,15 @@ class draw_pos_t;
 
 /// represents a drawing position in a window in pixel units
 struct DrawPos : public PosT<draw_pos_t> {
+	auto& moveDown( int px) { y += px; return *this; }
+	auto& moveUp(   int px) { y -= px; return *this; }
+	auto& moveLeft( int px) { x -= px; return *this; }
+	auto& moveRight(int px) { x += px; return *this; }
 
+	DrawPos atBelow(int px) const { return DrawPos(*this).moveDown(px); }
+	DrawPos atAbove(int px) const { return DrawPos(*this).moveUp(px); }
+	DrawPos atLeft( int px) const { return DrawPos(*this).moveLeft(px); }
+	DrawPos atRight(int px) const { return DrawPos(*this).moveRight(px); }
 };
 
 /// a rectangular range of characters between a begin and and end CharPos

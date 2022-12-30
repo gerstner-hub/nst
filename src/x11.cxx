@@ -675,16 +675,79 @@ void X11::init() {
 	}
 }
 
+std::tuple<XftFont*, FT_UInt> X11::lookupFontEntry(const Rune rune, Font &fnt, const FRC flags) {
+	/* Lookup character index with default font. */
+	auto glyphidx = XftCharIndex(*m_display, fnt.match, rune);
+	if (glyphidx) {
+		return std::make_tuple(fnt.match, glyphidx);
+	}
+
+	/* Fallback on font cache, search the font cache for match. */
+	for (auto &fc: m_font_cache) {
+		glyphidx = XftCharIndex(*m_display, fc.font, rune);
+		/* Everything correct. */
+		if (glyphidx && fc.flags == flags) {
+			return std::make_tuple(fc.font, glyphidx);
+		}
+		/* We got a default font for a not found glyph. */
+		else if (!glyphidx && fc.flags == flags && fc.unicodep == rune) {
+			return std::make_tuple(fc.font, glyphidx);
+		}
+	}
+
+	/* Nothing was found. Use fontconfig to find matching font. */
+	FcResult fcres;
+	if (!fnt.set)
+		fnt.set = FcFontSort(0, fnt.pattern, 1, 0, &fcres);
+	FcFontSet *fcsets[] = { NULL };
+	fcsets[0] = fnt.set;
+
+	/*
+	 * Nothing was found in the cache. Now use some dozen
+	 * of Fontconfig calls to get the font for one single
+	 * character.
+	 *
+	 * Xft and fontconfig are design failures.
+	 */
+	FcPattern *fcpattern = FcPatternDuplicate(fnt.pattern);
+	FcPatternGuard fcpattern_guard(fcpattern);
+	FcCharSet *fccharset = FcCharSetCreate();
+	FcCharSetGuard fccharset_guard(fccharset);
+
+	FcCharSetAddChar(fccharset, rune);
+	FcPatternAddCharSet(fcpattern, FC_CHARSET, fccharset);
+	FcPatternAddBool(fcpattern, FC_SCALABLE, 1);
+
+	FcConfigSubstitute(0, fcpattern, FcMatchPattern);
+	FcDefaultSubstitute(fcpattern);
+
+	FcPattern *fontpattern = FcFontSetMatch(0, fcsets, 1, fcpattern, &fcres);
+
+	/* Allocate memory for the new cache entry. */
+
+	auto font = XftFontOpenPattern(*m_display, fontpattern);
+	if (!font)
+		cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
+	m_font_cache.emplace_back(Fontcache{font, flags, rune});
+
+	auto &new_font = m_font_cache.back();
+
+	glyphidx = XftCharIndex(*m_display, new_font.font, rune);
+
+	return std::make_tuple(new_font.font, glyphidx);
+}
+
 size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc) {
-	const auto pos = m_twin.getDrawPos(loc);
 	Font *fnt = &m_draw_ctx.font;
 	FRC frcflags = FRC::NORMAL;
 	const auto chr = m_twin.getChrExtent();
-	int runewidth = chr.width;
+	auto runewidth = chr.width;
 	size_t numspecs = 0;
 	Glyph::AttrBitMask prevmode(Glyph::AttrBitMask::all);
+	const auto start = m_twin.getDrawPos(loc);
+	DrawPos cur(start.atBelow(fnt->ascent));
 
-	for (size_t i = 0, xp = pos.x, yp = pos.y + fnt->ascent; i < len; ++i) {
+	for (size_t i = 0; i < len; i++) {
 		/* Fetch rune and mode for current glyph. */
 		Rune rune = glyphs[i].u;
 		const auto &mode = glyphs[i].mode;
@@ -698,86 +761,17 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 			prevmode = mode;
 			std::tie(fnt, frcflags) = m_draw_ctx.getFontForMode(mode);
 			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
-			yp = pos.y + fnt->ascent;
+			cur.y = start.y + fnt->ascent;
 		}
 
-		/* Lookup character index with default font. */
-		auto glyphidx = XftCharIndex(*m_display, fnt->match, rune);
-		if (glyphidx) {
-			auto &spec = specs[numspecs];
-			spec.font = fnt->match;
-			spec.glyph = glyphidx;
-			spec.x = (short)xp;
-			spec.y = (short)yp;
-			xp += runewidth;
-			numspecs++;
-			continue;
-		}
+		auto [xftfont, glyphidx] = lookupFontEntry(rune, *fnt, frcflags);
 
-		Fontcache *font_entry = nullptr;
-		/* Fallback on font cache, search the font cache for match. */
-		for (auto &fc: m_font_cache) {
-			glyphidx = XftCharIndex(*m_display, fc.font, rune);
-			/* Everything correct. */
-			if (glyphidx && fc.flags == frcflags) {
-				font_entry = &fc;
-				break;
-			}
-			/* We got a default font for a not found glyph. */
-			else if (!glyphidx && fc.flags == frcflags && fc.unicodep == rune) {
-				font_entry = &fc;
-				break;
-			}
-		}
-
-		/* Nothing was found. Use fontconfig to find matching font. */
-		if (!font_entry) {
-			FcResult fcres;
-			if (!fnt->set)
-				fnt->set = FcFontSort(0, fnt->pattern, 1, 0, &fcres);
-			FcFontSet *fcsets[] = { NULL };
-			fcsets[0] = fnt->set;
-
-			/*
-			 * Nothing was found in the cache. Now use some dozen
-			 * of Fontconfig calls to get the font for one single
-			 * character.
-			 *
-			 * Xft and fontconfig are design failures.
-			 */
-			FcPattern *fcpattern = FcPatternDuplicate(fnt->pattern);
-			FcPatternGuard fcpattern_guard(fcpattern);
-			FcCharSet *fccharset = FcCharSetCreate();
-			FcCharSetGuard fccharset_guard(fccharset);
-
-			FcCharSetAddChar(fccharset, rune);
-			FcPatternAddCharSet(fcpattern, FC_CHARSET, fccharset);
-			FcPatternAddBool(fcpattern, FC_SCALABLE, 1);
-
-			FcConfigSubstitute(0, fcpattern, FcMatchPattern);
-			FcDefaultSubstitute(fcpattern);
-
-			FcPattern *fontpattern = FcFontSetMatch(0, fcsets, 1, fcpattern, &fcres);
-
-			/* Allocate memory for the new cache entry. */
-
-			auto font = XftFontOpenPattern(*m_display, fontpattern);
-			if (!font)
-				cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
-			m_font_cache.emplace_back(Fontcache{font, frcflags, rune});
-
-			glyphidx = XftCharIndex(*m_display, m_font_cache.back().font, rune);
-
-			font_entry = &m_font_cache.back();
-		}
-
-		auto &spec = specs[numspecs];
-		spec.font = font_entry->font;
+		auto &spec = specs[numspecs++];
+		spec.font = xftfont;
 		spec.glyph = glyphidx;
-		spec.x = (short)xp;
-		spec.y = (short)yp;
-		xp += runewidth;
-		numspecs++;
+		spec.x = (short)cur.x;
+		spec.y = (short)cur.y;
+		cur.moveRight(runewidth);
 	}
 
 	return numspecs;

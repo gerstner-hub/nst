@@ -183,7 +183,10 @@ protected: // functions
 	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();
 	bool ximOpen();
+	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
+	/// looks up the matching XftFont and Glyph index for the given rune and Font
+	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FRC flags);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);

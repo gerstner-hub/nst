@@ -39,6 +39,9 @@ public: // functions
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
 	void sanitizeColor(Glyph &g) const;
 
+	const Color& getDefaultFG() const { return col[config::DEFAULTFG]; }
+	const Color& getDefaultBG() const { return col[config::DEFAULTBG]; }
+
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
 	xpp::PixMap m_pixmap;
@@ -46,7 +49,14 @@ protected: // data
 };
 
 struct RenderColor : public XRenderColor {
-	void setFromRGB(const uint32_t rgb);
+	RenderColor() {}
+	explicit RenderColor(const Glyph::color_t rgb) {
+		setFromRGB(rgb);
+	}
+	explicit RenderColor(const Color &c) {
+		c.assignTo(*this);
+	}
+	void setFromRGB(const Glyph::color_t rgb);
 };
 
 struct X11 {
@@ -191,6 +201,7 @@ protected: // functions
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font
 	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
+	void getGlyphColors(const Glyph base, Color &fg, Color &bg);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);

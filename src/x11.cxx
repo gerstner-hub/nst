@@ -83,7 +83,7 @@ void DrawingContext::sanitizeColor(Glyph &g) const {
 	}
 }
 
-void RenderColor::setFromRGB(const uint32_t rgb) {
+void RenderColor::setFromRGB(const Glyph::color_t rgb) {
 	/* seems like the X color values are 16-bit wide and we need to
 	 * translate the one color bytes into the upper byte in the
 	 * XRenderColor */
@@ -798,64 +798,49 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	return numspecs;
 }
 
-void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
+void X11::getGlyphColors(const Glyph base, Color &fg, Color &bg) {
 
-	m_draw_ctx.sanitizeColor(base);
+	auto assignBaseColor = [this](Color &out, const Glyph::color_t col) {
+		if (Glyph::isTrueColor(col)) {
+			RenderColor tmp(col);
+			XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &out);
+		} else {
+			// col is a base index < 16
+			out = m_draw_ctx.col[col];
+		}
+	};
 
-	Color *fg = nullptr;
-	RenderColor colfg;
-	Color truefg;
+	auto invertColor = [this](Color &c) {
+		c.invert();
+		RenderColor tmp(c);
+		XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &c);
+	};
 
-	if (base.isFgTrueColor()) {
-		colfg.setFromRGB(base.fg);
-		XftColorAllocValue(*m_display, m_visual, m_color_map, &colfg, &truefg);
-		fg = &truefg;
-	} else {
-		fg = &m_draw_ctx.col[base.fg];
-	}
-
-	Color *bg = nullptr;
-	RenderColor colbg;
-	Color truebg;
-
-	if (base.isBgTrueColor()) {
-		colbg.setFromRGB(base.bg);
-		XftColorAllocValue(*m_display, m_visual, m_color_map, &colbg, &truebg);
-		bg = &truebg;
-	} else {
-		bg = &m_draw_ctx.col[base.bg];
-	}
+	assignBaseColor(fg, base.fg);
+	assignBaseColor(bg, base.bg);
 
 	/* Change basic system colors [0-7] to bright system colors [8-15] */
-	if (base.mode[Attr::BOLD] && !base.mode[Attr::FAINT] && base.fg <= 7)
-		fg = &m_draw_ctx.col[base.fg + 8];
+	if (base.needBrightColor() && base.isBasicColor())
+		fg = m_draw_ctx.col[base.getBrightColor()];
 
-	Color revfg, revbg;
-	if (m_twin.checkFlag(WinMode::REVERSE)) {
-		if (fg == &m_draw_ctx.col[config::DEFAULTFG]) {
-			fg = &m_draw_ctx.col[config::DEFAULTBG];
+	if (m_twin.inReverseMode()) {
+		if (fg == m_draw_ctx.getDefaultFG()) {
+			fg = m_draw_ctx.getDefaultBG();
 		} else {
-			auto inverted = fg->inverted();
-			inverted.assignTo(colfg);
-			XftColorAllocValue(*m_display, m_visual, m_color_map, &colfg, &revfg);
-			fg = &revfg;
+			invertColor(fg);
 		}
 
-		if (bg == &m_draw_ctx.col[config::DEFAULTBG]) {
-			bg = &m_draw_ctx.col[config::DEFAULTFG];
+		if (bg == m_draw_ctx.getDefaultBG()) {
+			bg = m_draw_ctx.getDefaultFG();
 		} else {
-			auto inverted = bg->inverted();
-			inverted.assignTo(colbg);
-			XftColorAllocValue(*m_display, m_visual, m_color_map, &colbg, &revbg);
-			bg = &revbg;
+			invertColor(bg);
 		}
 	}
 
-	if (base.mode[Attr::FAINT] && !base.mode[Attr::BOLD]) {
-		auto faint = fg->faint();
-		faint.assignTo(colfg);
-		XftColorAllocValue(*m_display, m_visual, m_color_map, &colfg, &revfg);
-		fg = &revfg;
+	if (base.needFaintColor()) {
+		auto faint = fg.faint();
+		RenderColor tmp(faint);
+		XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &fg);
 	}
 
 	if (base.mode[Attr::REVERSE]) {
@@ -866,6 +851,13 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 		fg = bg;
 	else if (base.mode[Attr::INVISIBLE])
 		fg = bg;
+}
+
+void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
+
+	Color fg, bg;
+	m_draw_ctx.sanitizeColor(base);
+	getGlyphColors(base, fg, bg);
 
 	/* Intelligent cleaning up of the borders. */
 	auto pos = m_twin.getDrawPos(loc);
@@ -896,7 +888,7 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + width, win.height});
 
 	/* Clean up the region we want to draw to. */
-	XftDrawRect(m_font_draw, bg, pos.x, pos.y, width, chr.height);
+	XftDrawRect(m_font_draw, &bg, pos.x, pos.y, width, chr.height);
 
 	/* Set the clip region because Xft is sometimes dirty. */
 	XRectangle r;
@@ -907,15 +899,15 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	XftDrawSetClipRectangles(m_font_draw, pos.x, pos.y, &r, 1);
 
 	/* Render the glyphs. */
-	XftDrawGlyphFontSpec(m_font_draw, fg, specs, len);
+	XftDrawGlyphFontSpec(m_font_draw, &fg, specs, len);
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
-		XftDrawRect(m_font_draw, fg, pos.x, pos.y + m_draw_ctx.font.ascent + 1, width, 1);
+		XftDrawRect(m_font_draw, &fg, pos.x, pos.y + m_draw_ctx.font.ascent + 1, width, 1);
 	}
 
 	if (base.mode[Attr::STRUCK]) {
-		XftDrawRect(m_font_draw, fg, pos.x, pos.y + 2 * m_draw_ctx.font.ascent / 3, width, 1);
+		XftDrawRect(m_font_draw, &fg, pos.x, pos.y + 2 * m_draw_ctx.font.ascent / 3, width, 1);
 	}
 
 	/* Reset clip to none. */
@@ -946,7 +938,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 	Color drawcol;
 
-	if (m_twin.checkFlag(WinMode::REVERSE)) {
+	if (m_twin.inReverseMode()) {
 		g.mode.set(Attr::REVERSE);
 		g.bg = config::DEFAULTFG;
 		if (sel.isSelected(cx, cy)) {

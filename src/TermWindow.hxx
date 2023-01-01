@@ -90,6 +90,8 @@ struct TermWindow {
 	void resetFlag(const WinMode &flag) { m_mode.reset(flag); }
 	void flipFlag(const WinMode &flag) { m_mode.flip(flag); }
 
+	bool inReverseMode() const { return checkFlag(WinMode::REVERSE); }
+
 protected: // data
 
 	CursorStyle m_cursor_style = CursorStyle::STEADY_BLOCK;

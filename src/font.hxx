@@ -143,6 +143,13 @@ public:
 		xc.blue = color.blue;
 		xc.alpha = color.alpha;
 	}
+
+	bool operator==(const Color &other) const {
+		return pixel == other.pixel &&
+			color.red == other.color.red &&
+			color.green == other.color.green &&
+			color.blue == other.color.blue;
+	}
 };
 
 } // end ns

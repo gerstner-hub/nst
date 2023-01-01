@@ -31,23 +31,41 @@ public: // types
 
 	typedef cosmos::BitMask<Attr> AttrBitMask;
 
+	typedef uint32_t color_t;
+
 public: // data
 
 	Rune u = 0;       /* character code */
 	AttrBitMask mode; /* attribute flags */
-	uint32_t fg = 0;  /* foreground  */
-	uint32_t bg = 0;  /* background  */
+	color_t fg = 0;  /* foreground  */
+	color_t bg = 0;  /* background  */
 
 public: // functions
 
 	bool isFgTrueColor() const {
-		return 1 << 24 & fg;
+		return isTrueColor(fg);
 	}
 	bool isBgTrueColor() const {
-		return 1 << 24 & bg;
+		return isTrueColor(bg);
 	}
 	bool attrsDiffer(const Glyph &other) const {
 		return mode != other.mode || fg != other.fg || bg != other.bg;
+	}
+	bool needBrightColor() const {
+		return mode[Attr::BOLD] && !mode[Attr::FAINT];
+	}
+	bool needFaintColor() const {
+		return mode[Attr::FAINT] && !mode[Attr::BOLD];
+	}
+	bool isBasicColor() const {
+		return fg <= 7;
+	}
+	color_t getBrightColor() const {
+		return fg + 8;
+	}
+
+	static bool isTrueColor(const color_t c) {
+		return 1 << 24 & c;
 	}
 };
 

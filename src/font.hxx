@@ -111,7 +111,7 @@ struct FcCharSetGuard : public cosmos::ResourceGuard<FcCharSet*> {
 
 typedef Glyph::Attr Attr;
 
-class Color : public XftColor {
+class FontColor : public XftColor {
 public:
 	void invert() {
 		color.red = ~color.red;
@@ -119,8 +119,8 @@ public:
 		color.blue = ~color.blue;
 	}
 
-	Color inverted() const {
-		auto ret = Color(*this);
+	FontColor inverted() const {
+		auto ret = FontColor(*this);
 		ret.invert();
 		return ret;
 	}
@@ -131,8 +131,8 @@ public:
 		color.blue /= 2;
 	}
 
-	Color faint() const {
-		auto ret = Color(*this);
+	FontColor faint() const {
+		auto ret = FontColor(*this);
 		ret.makeFaint();
 		return ret;
 	}
@@ -144,7 +144,7 @@ public:
 		xc.alpha = color.alpha;
 	}
 
-	bool operator==(const Color &other) const {
+	bool operator==(const FontColor &other) const {
 		return pixel == other.pixel &&
 			color.red == other.color.red &&
 			color.green == other.color.green &&

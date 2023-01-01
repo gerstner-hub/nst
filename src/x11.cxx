@@ -64,7 +64,7 @@ std::tuple<Font*, FontFlags> DrawingContext::getFontForMode(const Glyph::AttrBit
 	}
 }
 
-void DrawingContext::setForeground(const Color &color) {
+void DrawingContext::setForeground(const FontColor &color) {
 	XSetForeground(*m_display, getRawGC(), color.pixel);
 }
 
@@ -170,7 +170,7 @@ void X11::resize(const TermSize &dim) {
 	m_font_specs.resize(dim.cols);
 }
 
-int X11::loadColor(size_t i, const char *name, Color *ncolor) {
+int X11::loadColor(size_t i, const char *name, FontColor *ncolor) {
 	XRenderColor color = { 0, 0, 0, 0xfff };
 
 	auto sixd_to_16bit = [](size_t x) -> uint16_t {
@@ -235,7 +235,7 @@ bool X11::setColorName(size_t idx, const char *name) {
 	if (idx >= m_draw_ctx.col.size())
 		return false;
 
-	Color ncolor;
+	FontColor ncolor;
 	if (!loadColor(idx, name, &ncolor))
 		return false;
 
@@ -250,7 +250,7 @@ void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 	drawRect(m_draw_ctx.col[colindex], pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
-void X11::drawRect(const Color &col, const DrawPos &start, const Extent &ext) {
+void X11::drawRect(const FontColor &col, const DrawPos &start, const Extent &ext) {
 	XftDrawRect(m_font_draw, &col, start.x, start.y, ext.width, ext.height);
 }
 
@@ -799,9 +799,9 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	return numspecs;
 }
 
-void X11::getGlyphColors(const Glyph base, Color &fg, Color &bg) {
+void X11::getGlyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 
-	auto assignBaseColor = [this](Color &out, const Glyph::color_t col) {
+	auto assignBaseColor = [this](FontColor &out, const Glyph::color_t col) {
 		if (Glyph::isTrueColor(col)) {
 			RenderColor tmp(col);
 			XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &out);
@@ -811,7 +811,7 @@ void X11::getGlyphColors(const Glyph base, Color &fg, Color &bg) {
 		}
 	};
 
-	auto invertColor = [this](Color &c) {
+	auto invertColor = [this](FontColor &c) {
 		c.invert();
 		RenderColor tmp(c);
 		XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &c);
@@ -856,7 +856,7 @@ void X11::getGlyphColors(const Glyph base, Color &fg, Color &bg) {
 
 void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
 
-	Color fg, bg;
+	FontColor fg, bg;
 	m_draw_ctx.sanitizeColor(base);
 	getGlyphColors(base, fg, bg);
 
@@ -943,7 +943,7 @@ void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
 	 * Select the right color for the right mode.
 	 */
 	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
-	Color drawcol;
+	FontColor drawcol;
 
 	if (m_twin.inReverseMode()) {
 		g.mode.set(Attr::REVERSE);

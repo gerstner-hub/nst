@@ -22,7 +22,7 @@ namespace nst {
 
 /* Drawing Context */
 struct DrawingContext {
-	std::vector<Color> col;
+	std::vector<FontColor> col;
 	Font font, bfont, ifont, ibfont;
 
 public: // functions
@@ -32,15 +32,15 @@ public: // functions
 	auto getRawGC() { return m_gc.get(); }
 	void setPixmap(xpp::PixMap &pm) { m_pixmap = pm; }
 	std::tuple<Font*, FontFlags> getFontForMode(const Glyph::AttrBitMask &mode);
-	void setForeground(const Color &color);
+	void setForeground(const FontColor &color);
 	void setForeground(size_t colidx) {
 		setForeground(col[colidx]);
 	}
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
 	void sanitizeColor(Glyph &g) const;
 
-	const Color& getDefaultFG() const { return col[config::DEFAULTFG]; }
-	const Color& getDefaultBG() const { return col[config::DEFAULTBG]; }
+	const FontColor& getDefaultFG() const { return col[config::DEFAULTFG]; }
+	const FontColor& getDefaultBG() const { return col[config::DEFAULTBG]; }
 
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
@@ -53,7 +53,7 @@ struct RenderColor : public XRenderColor {
 	explicit RenderColor(const Glyph::color_t rgb) {
 		setFromRGB(rgb);
 	}
-	explicit RenderColor(const Color &c) {
+	explicit RenderColor(const FontColor &c) {
 		c.assignTo(*this);
 	}
 	void setFromRGB(const Glyph::color_t rgb);
@@ -191,11 +191,11 @@ protected: // functions
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
-	int loadColor(size_t i, const char *name, Color *ncolor);
+	int loadColor(size_t i, const char *name, FontColor *ncolor);
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
 	//! draw a rectangular font area using a starting point and extent
-	void drawRect(const Color &col, const DrawPos &start, const Extent &ext);
+	void drawRect(const FontColor &col, const DrawPos &start, const Extent &ext);
 	bool loadFonts(const std::string &fontstr, double fontsize);
 	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();
@@ -204,7 +204,7 @@ protected: // functions
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font
 	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
-	void getGlyphColors(const Glyph base, Color &fg, Color &bg);
+	void getGlyphColors(const Glyph base, FontColor &fg, FontColor &bg);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);

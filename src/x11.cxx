@@ -245,12 +245,13 @@ bool X11::setColorName(size_t idx, const char *name) {
 	return true;
 }
 
-/*
- * Absolute coordinates.
- */
 void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 	const auto colindex = m_twin.getActiveForegroundColor();
-	XftDrawRect(m_font_draw, &m_draw_ctx.col[colindex], pos1.x, pos1.y, pos2.x - pos1.x, pos2.y - pos1.y);
+	drawRect(m_draw_ctx.col[colindex], pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
+}
+
+void X11::drawRect(const Color &col, const DrawPos &start, const Extent &ext) {
+	XftDrawRect(m_font_draw, &col, start.x, start.y, ext.width, ext.height);
 }
 
 void X11::setHints() {
@@ -859,43 +860,49 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	m_draw_ctx.sanitizeColor(base);
 	getGlyphColors(base, fg, bg);
 
-	/* Intelligent cleaning up of the borders. */
 	auto pos = m_twin.getDrawPos(loc);
 	const auto &win = m_twin.getWinExtent();
 	const auto &chr = m_twin.getChrExtent();
 	const auto &tty = m_twin.getTTYExtent();
-	const size_t charlen = len * (base.mode[Attr::WIDE] ? 2 : 1);
-	int width = charlen * chr.width;
+	const int textwidth = len * (base.mode[Attr::WIDE] ? 2 : 1) * chr.width;
+	constexpr auto BORDERPX = config::BORDERPX;
+	const bool reaches_bottom_border = pos.y + chr.height >= BORDERPX + tty.height;
 
+	/* Intelligent cleaning up of the borders. */
+
+	// left border
 	if (loc.x == 0) {
 		const auto pos1 = DrawPos{0, loc.y ? pos.y : 0};
-		const auto pos2 = DrawPos{config::BORDERPX, pos.y + chr.height +
-			((pos.y + chr.height >= config::BORDERPX + tty.height) ? win.height : 0)};
+		const auto pos2 = DrawPos{
+			BORDERPX,
+			pos.y + chr.height + (reaches_bottom_border ? win.height : 0)
+		};
 		clearRect(pos1, pos2);
 	}
 
-	if (pos.x + width >= config::BORDERPX + tty.width) {
-		const auto pos1 = DrawPos{pos.x + width, loc.y ? pos.y : 0};
-		const auto pos2 = DrawPos{win.width,
-			(pos.y + chr.height >= config::BORDERPX + tty.height) ? win.height : (pos.y + chr.height)};
+	// right border
+	if (pos.x + textwidth >= BORDERPX + tty.width) {
+		const auto pos1 = DrawPos{pos.x + textwidth, loc.y ? pos.y : 0};
+		const auto pos2 = DrawPos{
+			win.width,
+			reaches_bottom_border ? win.height : pos.y + chr.height
+		};
 		clearRect(pos1, pos2);
 	}
 
+	// top border
 	if (loc.y == 0)
-		clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + width, config::BORDERPX});
+		clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + textwidth, BORDERPX});
 
-	if (pos.y + chr.height >= config::BORDERPX + tty.height)
-		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + width, win.height});
+	// bottom border
+	if (pos.y + chr.height >= BORDERPX + tty.height)
+		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + textwidth, win.height});
 
 	/* Clean up the region we want to draw to. */
-	XftDrawRect(m_font_draw, &bg, pos.x, pos.y, width, chr.height);
+	drawRect(bg, pos, Extent{textwidth, chr.height});
 
 	/* Set the clip region because Xft is sometimes dirty. */
-	XRectangle r;
-	r.x = 0;
-	r.y = 0;
-	r.height = chr.height;
-	r.width = width;
+	XRectangle r{0, 0, static_cast<unsigned short>(textwidth), static_cast<unsigned short>(chr.height)};
 	XftDrawSetClipRectangles(m_font_draw, pos.x, pos.y, &r, 1);
 
 	/* Render the glyphs. */
@@ -903,11 +910,11 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
-		XftDrawRect(m_font_draw, &fg, pos.x, pos.y + m_draw_ctx.font.ascent + 1, width, 1);
+		drawRect(fg, pos.atBelow(m_draw_ctx.font.ascent + 1), Extent{textwidth, 1});
 	}
 
 	if (base.mode[Attr::STRUCK]) {
-		XftDrawRect(m_font_draw, &fg, pos.x, pos.y + 2 * m_draw_ctx.font.ascent / 3, width, 1);
+		drawRect(fg, pos.atBelow(2 * m_draw_ctx.font.ascent / 3), Extent{textwidth, 1});
 	}
 
 	/* Reset clip to none. */

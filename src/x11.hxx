@@ -192,7 +192,10 @@ protected: // functions
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
 	int loadColor(size_t i, const char *name, Color *ncolor);
+	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
+	//! draw a rectangular font area using a starting point and extent
+	void drawRect(const Color &col, const DrawPos &start, const Extent &ext);
 	bool loadFonts(const std::string &fontstr, double fontsize);
 	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();

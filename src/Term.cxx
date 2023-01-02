@@ -176,7 +176,7 @@ void Term::clearRegion(Range range) {
 		m_dirty_lines[y] = true;
 		for (auto x = range.begin.x; x <= range.end.x; x++) {
 			auto &gp = m_screen[y][x];
-			if (m_selection.isSelected(x, y))
+			if (m_selection.isSelected(CharPos{x, y}))
 				m_selection.clear();
 			gp.fg = m_cursor.attr.fg;
 			gp.bg = m_cursor.attr.bg;
@@ -675,14 +675,11 @@ void Term::draw() {
 		old_cx--;
 
 	drawScreen();
-	m_x11.drawCursor(
-		old_cx, m_cursor.pos.y,
-		m_screen[m_cursor.pos.y][old_cx],
-		m_old_cursor_pos.x, m_old_cursor_pos.y,
-		getGlyphAt(m_old_cursor_pos)
-	);
+	const auto new_pos = CharPos{old_cx, m_cursor.pos.y};
+	m_x11.clearCursor(m_old_cursor_pos, getGlyphAt(m_old_cursor_pos));
+	m_x11.drawCursor(new_pos, getGlyphAt(new_pos));
 
-	m_old_cursor_pos.set(old_cx, m_cursor.pos.y);
+	m_old_cursor_pos = new_pos;
 	m_x11.finishDraw();
 	if (m_old_cursor_pos != old_cursor_pos)
 		m_x11.getInput().setSpot(m_old_cursor_pos);
@@ -943,7 +940,7 @@ void Term::putChar(Rune u) {
 		return;
 	}
 
-	if (m_selection.isSelected(m_cursor.pos.x, m_cursor.pos.y))
+	if (m_selection.isSelected(m_cursor.pos))
 		m_selection.clear();
 
 	Glyph *gp = &getGlyphAt(m_cursor.pos);

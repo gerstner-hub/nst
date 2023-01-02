@@ -928,97 +928,92 @@ void X11::drawGlyph(Glyph g, const CharPos &loc) {
 	drawGlyphFontSpecs(&spec, g, numspecs, loc);
 }
 
-void X11::drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og) {
-	auto &sel = m_nst.getSelection();
-
+void X11::clearCursor(const CharPos &pos, Glyph glyph) {
 	/* remove the old cursor */
-	if (sel.isSelected(ox, oy))
-		og.mode.flip(Attr::REVERSE);
-	drawGlyph(og, CharPos{ox, oy});
+	if (m_nst.getSelection().isSelected(pos))
+		glyph.mode.flip(Attr::REVERSE);
+	drawGlyph(glyph, pos);
+}
 
-	if (m_twin.checkFlag(WinMode::HIDE))
-		return;
+const FontColor& X11::getCursorColor(const CharPos &pos, Glyph &glyph) const {
+	const bool is_selected = m_nst.getSelection().isSelected(pos);
 
 	/*
 	 * Select the right color for the right mode.
 	 */
-	g.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
-	FontColor drawcol;
+	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 
 	if (m_twin.inReverseMode()) {
-		g.mode.set(Attr::REVERSE);
-		g.bg = config::DEFAULTFG;
-		if (sel.isSelected(cx, cy)) {
-			drawcol = m_draw_ctx.col[config::DEFAULTCS];
-			g.fg = config::DEFAULTRCS;
+		glyph.mode.set(Attr::REVERSE);
+		glyph.bg = config::DEFAULTFG;
+		if (is_selected) {
+			glyph.fg = config::DEFAULTRCS;
+			return m_draw_ctx.col[config::DEFAULTCS];
 		} else {
-			drawcol = m_draw_ctx.col[config::DEFAULTRCS];
-			g.fg = config::DEFAULTCS;
+			glyph.fg = config::DEFAULTCS;
+			return m_draw_ctx.col[config::DEFAULTRCS];
 		}
 	} else {
-		if (sel.isSelected(cx, cy)) {
-			g.fg = config::DEFAULTFG;
-			g.bg = config::DEFAULTRCS;
+		if (is_selected) {
+			glyph.fg = config::DEFAULTFG;
+			glyph.bg = config::DEFAULTRCS;
 		} else {
-			g.fg = config::DEFAULTBG;
-			g.bg = config::DEFAULTCS;
+			glyph.fg = config::DEFAULTBG;
+			glyph.bg = config::DEFAULTCS;
 		}
-		drawcol = m_draw_ctx.col[g.bg];
-	}
 
+		return m_draw_ctx.col[glyph.bg];
+	}
+}
+
+void X11::drawCursor(const CharPos &pos, Glyph glyph) {
+
+	if (m_twin.checkFlag(WinMode::HIDE))
+		return;
+
+	auto &drawcol = getCursorColor(pos, glyph);
 	auto &chr = m_twin.getChrExtent();
+	constexpr auto CURSORTHICKNESS = config::CURSORTHICKNESS;
 
 	/* draw the new one */
 	if (m_twin.checkFlag(WinMode::FOCUSED)) {
 		switch (m_twin.getCursorStyle()) {
 		case CursorStyle::SNOWMAN: /* st extension */
-			g.u = 0x2603; /* snowman (U+2603) */
+			glyph.u = 0x2603; /* snowman (U+2603) */
 		/* FALLTHROUGH */
 		case CursorStyle::BLINKING_BLOCK:
 		case CursorStyle::BLINKING_BLOCK_DEFAULT:
 		case CursorStyle::STEADY_BLOCK:
-			drawGlyph(g, CharPos{cx, cy});
+			drawGlyph(glyph, pos);
 			break;
 		case CursorStyle::BLINKING_UNDERLINE:
 		case CursorStyle::STEADY_UNDERLINE: {
-			auto pos = m_twin.getDrawPos(CharPos{cx,cy+1});
-			XftDrawRect(
-					m_font_draw, &drawcol,
-					pos.x, pos.y - config::CURSORTHICKNESS,
-					chr.width, config::CURSORTHICKNESS);
+			auto dpos = m_twin.getDrawPos(pos.nextLine());
+			dpos.moveUp(CURSORTHICKNESS);
+			drawRect(drawcol, dpos, Extent{chr.width, CURSORTHICKNESS});
 			break;
 		}
 		case CursorStyle::BLINKING_BAR:
 		case CursorStyle::STEADY_BAR: {
-			auto pos = m_twin.getDrawPos(CharPos{cx, cy});
-			XftDrawRect(
-					m_font_draw, &drawcol,
-					pos.x, pos.y,
-					config::CURSORTHICKNESS, chr.height);
+			auto dpos = m_twin.getDrawPos(pos);
+			drawRect(drawcol, dpos, Extent{CURSORTHICKNESS, chr.height});
 			break;
 		}
 		default:
 			break;
 		}
 	} else {
-		auto pos = m_twin.getDrawPos(CharPos{cx, cy});
+		// only draw a non-solid rectangle outline of the cursor, if
+		// there's no focus
+		auto dpos = m_twin.getDrawPos(pos);
+		drawRect(drawcol, dpos, Extent{chr.width - 1, 1});
+		drawRect(drawcol, dpos, Extent{1, chr.height - 1});
 
-		XftDrawRect(m_font_draw, &drawcol,
-				pos.x,
-				pos.y,
-				chr.width - 1, 1);
-		XftDrawRect(m_font_draw, &drawcol,
-				pos.x,
-				pos.y,
-				1, chr.height - 1);
-		XftDrawRect(m_font_draw, &drawcol,
-				m_twin.getNextCol(pos).x - 1,
-				pos.y,
-				1, chr.height - 1);
-		XftDrawRect(m_font_draw, &drawcol,
-				pos.x,
-				m_twin.getNextLine(pos).y - 1,
-				chr.width, 1);
+		auto nextcol = m_twin.getNextCol(dpos).atLeft(1);
+		drawRect(drawcol, nextcol, Extent{1, chr.height - 1});
+
+		auto nextline = m_twin.getNextLine(dpos).atAbove(1);
+		drawRect(drawcol, nextline, Extent{chr.width, 1});
 	}
 }
 
@@ -1068,7 +1063,7 @@ void X11::drawLine(const Line &line, const CharPos &start, const int count) {
 		newone = line[x];
 		if (newone.mode.only(Attr::WDUMMY))
 			continue;
-		if (selection.isSelected(x, start.y))
+		if (selection.isSelected(CharPos{x, start.y}))
 			newone.mode.flip(Attr::REVERSE);
 		if (i > 0 && base.attrsDiffer(newone)) {
 			drawGlyphFontSpecs(specs, base, i, CharPos{ox, start.y});

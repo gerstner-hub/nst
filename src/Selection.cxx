@@ -39,15 +39,15 @@ void Selection::clear() {
 	m_term.setDirty(m_normal.begin.y, m_normal.end.y);
 }
 
-bool Selection::isSelected(int x, int y) const {
+bool Selection::isSelected(const CharPos &pos) const {
 	if (inEmptyMode() || !m_orig.isValid() || m_alt_screen != m_term.getMode().test(Term::Mode::ALTSCREEN))
 		return 0;
 	else if (isRectType())
-		return in_range(y, m_normal.begin.y, m_normal.end.y) && in_range(x, m_normal.begin.x, m_normal.end.x);
+		return in_range(pos.y, m_normal.begin.y, m_normal.end.y) && in_range(pos.x, m_normal.begin.x, m_normal.end.x);
 	else
-		return in_range(y, m_normal.begin.y, m_normal.end.y) &&
-			(y != m_normal.begin.y || x >= m_normal.begin.x) &&
-			(y != m_normal.end.y || x <= m_normal.end.x);
+		return in_range(pos.y, m_normal.begin.y, m_normal.end.y) &&
+			(pos.y != m_normal.begin.y || pos.x >= m_normal.begin.x) &&
+			(pos.y != m_normal.end.y || pos.x <= m_normal.end.x);
 }
 
 void Selection::start(int col, int row, Snap snap) {

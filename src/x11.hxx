@@ -156,7 +156,8 @@ public: // functions
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
 	bool setColorName(size_t idx, const char *name);
 	void drawLine(const Line &line, const CharPos &start, const int count);
-	void drawCursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og);
+	void clearCursor(const CharPos &pos, Glyph glyph);
+	void drawCursor(const CharPos &pos, Glyph glyph);
 	void setMode(const WinMode &flag, const bool set);
 	void setCursorStyle(const CursorStyle &cursor);
 	void ringBell();
@@ -216,6 +217,7 @@ protected: // functions
 	void allocPixmap();
 	/// returns the parent window to be used as parent of the terminal window
 	xpp::XWindow getParent() const;
+	const FontColor& getCursorColor(const CharPos &pos, Glyph &glyph) const;
 };
 
 } // end ns

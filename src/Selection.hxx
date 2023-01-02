@@ -59,7 +59,7 @@ public: // functions
 
 	void clear();
 
-	bool isSelected(int x, int y) const;
+	bool isSelected(const CharPos &pos) const;
 	void start(int col, int row, Snap snap);
 	void extend(int col, int row, const Type &type, const bool &done);
 	void scroll(int orig, int n);

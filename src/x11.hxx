@@ -28,8 +28,9 @@ struct DrawingContext {
 public: // functions
 	void createGC(xpp::XDisplay &display, xpp::XWindow &parent);
 	void freeGC() { m_gc.reset(); }
-	void setRawGC(xpp::XDisplay::GcSharedPtr gc) { m_gc = gc; }
+	void setRawGC(xpp::GcSharedPtr gc) { m_gc = gc; }
 	auto getRawGC() { return m_gc.get(); }
+	auto getGC() { return m_gc; }
 	void setPixmap(xpp::PixMap &pm) { m_pixmap = pm; }
 	std::tuple<Font*, FontFlags> getFontForMode(const Glyph::AttrBitMask &mode);
 	void setForeground(const FontColor &color);
@@ -45,7 +46,7 @@ public: // functions
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
 	xpp::PixMap m_pixmap;
-	xpp::XDisplay::GcSharedPtr m_gc;
+	xpp::GcSharedPtr m_gc;
 };
 
 struct RenderColor : public XRenderColor {

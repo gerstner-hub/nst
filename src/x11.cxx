@@ -1069,8 +1069,8 @@ void X11::drawLine(const Line &line, const CharPos &start, const int count) {
 }
 
 void X11::finishDraw() {
-	auto win = m_twin.getWinExtent();
-	XCopyArea(*m_display, m_pixmap.id(), m_window, m_draw_ctx.getRawGC(), 0, 0, win.width, win.height, 0, 0);
+	auto extent = m_twin.getWinExtent();
+	m_window.copyArea(m_draw_ctx.getGC(), m_pixmap, extent);
 	m_draw_ctx.setForeground(m_twin.getActiveForegroundColor());
 }
 

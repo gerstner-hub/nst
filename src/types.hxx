@@ -97,6 +97,10 @@ struct DrawPos : public PosT<draw_pos_t> {
 	DrawPos atAbove(int px) const { return DrawPos(*this).moveUp(px); }
 	DrawPos atLeft( int px) const { return DrawPos(*this).moveLeft(px); }
 	DrawPos atRight(int px) const { return DrawPos(*this).moveRight(px); }
+
+	operator xpp::Coord() const {
+		return xpp::Coord{x, y};
+	}
 };
 
 /// a rectangular range of characters between a begin and and end CharPos

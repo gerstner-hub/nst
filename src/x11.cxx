@@ -678,6 +678,7 @@ void X11::init() {
 
 	m_wmdeletewin = getAtom("WM_DELETE_WINDOW");
 	m_netwmname = getAtom("_NET_WM_NAME");
+	m_wmname = getAtom("WM_NAME");
 	m_netwmiconname = getAtom("_NET_WM_ICON_NAME");
 	XSetWMProtocols(*m_display, m_window, &m_wmdeletewin, 1);
 
@@ -1022,17 +1023,9 @@ void X11::setDefaultIconTitle() {
 }
 
 void X11::setIconTitle(const std::string &title) {
-	XTextProperty prop;
-	// the API forces us to unconst this, the parameter should not be
-	// modified though
-	char *titlep = const_cast<char*>(title.c_str());
-
-	if (Xutf8TextListToTextProperty(*m_display, &titlep, 1, XUTF8StringStyle,
-	                                &prop) != Success)
-		return;
-	XSetWMIconName(*m_display, m_window, &prop);
-	XSetTextProperty(*m_display, m_window, &prop, m_netwmiconname);
-	XFree(prop.value);
+	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
+	m_window.setProperty(XA_WM_ICON_NAME, data);
+	m_window.setProperty(m_netwmiconname, data);
 }
 
 void X11::setDefaultTitle() {
@@ -1040,15 +1033,9 @@ void X11::setDefaultTitle() {
 }
 
 void X11::setTitle(const std::string &title) {
-	XTextProperty prop;
-	char *titlep = const_cast<char*>(title.c_str());
-
-	if (Xutf8TextListToTextProperty(*m_display, &titlep, 1, XUTF8StringStyle,
-	                                &prop) != Success)
-		return;
-	XSetWMName(*m_display, m_window, &prop);
-	XSetTextProperty(*m_display, m_window, &prop, m_netwmname);
-	XFree(prop.value);
+	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
+	m_window.setProperty(m_wmname, data);
+	m_window.setProperty(m_netwmname, data);
 }
 
 void X11::drawLine(const Line &line, const CharPos &start, const int count) {

@@ -107,6 +107,7 @@ protected: // data
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMap m_pixmap;
 	Atom m_netwmname;
+	Atom m_wmname;
 	Atom m_netwmiconname;
 	Atom m_wmdeletewin;
 	DrawingContext m_draw_ctx;

@@ -1041,31 +1041,31 @@ void X11::setTitle(const std::string &title) {
 void X11::drawLine(const Line &line, const CharPos &start, const int count) {
 	Glyph base, newone;
 	auto *specs = m_font_specs.data();
-	size_t i = 0;
-	int ox = 0;
+	size_t numcols = 0;
+	CharPos curpos{0, start.y};
 	auto &selection = m_nst.getSelection();
 
 	auto numspecs = makeGlyphFontSpecs(specs, &line[start.x], count, start);
-	for (int x = start.x; x < start.x + count && i < numspecs; x++) {
+	for (int x = start.x; x < start.x + count && numcols < numspecs; x++) {
 		newone = line[x];
 		if (newone.mode.only(Attr::WDUMMY))
 			continue;
 		if (selection.isSelected(CharPos{x, start.y}))
 			newone.mode.flip(Attr::REVERSE);
-		if (i > 0 && base.attrsDiffer(newone)) {
-			drawGlyphFontSpecs(specs, base, i, CharPos{ox, start.y});
-			specs += i;
-			numspecs -= i;
-			i = 0;
+		if (numcols > 0 && base.attrsDiffer(newone)) {
+			drawGlyphFontSpecs(specs, base, numcols, curpos);
+			specs += numcols;
+			numspecs -= numcols;
+			numcols = 0;
 		}
-		if (i == 0) {
-			ox = x;
+		if (numcols == 0) {
+			curpos.x = x;
 			base = newone;
 		}
-		i++;
+		numcols++;
 	}
-	if (i > 0)
-		drawGlyphFontSpecs(specs, base, i, CharPos{ox, start.y});
+	if (numcols > 0)
+		drawGlyphFontSpecs(specs, base, numcols, curpos);
 }
 
 void X11::finishDraw() {

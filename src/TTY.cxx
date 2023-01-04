@@ -367,4 +367,11 @@ void TTY::doPrintToIoFile(const char *s, size_t len) {
 	}
 }
 
+void TTY::reportFocus(bool in_focus) {
+	if (in_focus)
+		write("\033[I", 3, false);
+	else
+		write("\033[O", 3, false);
+}
+
 } // end ns

@@ -49,6 +49,7 @@ public: // functions
 	auto getChildFD() { return m_child_proc.pidFD(); }
 	void sigChildEvent();
 	void sendBreak();
+	void reportFocus(bool in_focus);
 
 protected: // functions
 

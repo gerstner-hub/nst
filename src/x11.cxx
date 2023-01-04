@@ -22,6 +22,7 @@
 #include "cosmos/proc/Process.hxx"
 
 // X++
+#include "X++/helpers.hxx"
 #include "X++/Event.hxx"
 #include "X++/RootWin.hxx"
 #include "X++/XDisplay.hxx"
@@ -263,7 +264,7 @@ void X11::setHints() {
 	const auto &win = m_twin.getWinExtent();
 	XClassHint clazz = {&wname[0], &wclass[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
-	XSizeHints *sizeh = XAllocSizeHints();
+	auto sizeh = xpp::make_shared_xptr(XAllocSizeHints());
 
 	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
 	sizeh->height = win.height;
@@ -286,8 +287,7 @@ void X11::setHints() {
 		sizeh->win_gravity = getGravity();
 	}
 
-	XSetWMProperties(*m_display, m_window, NULL, NULL, NULL, 0, sizeh, &wm, &clazz);
-	XFree(sizeh);
+	XSetWMProperties(*m_display, m_window, NULL, NULL, NULL, 0, sizeh.get(), &wm, &clazz);
 }
 
 int X11::getGravity() {
@@ -1096,11 +1096,12 @@ void X11::setCursorStyle(const CursorStyle &cursor) {
 }
 
 void X11::setUrgency(int add) {
-	XWMHints *h = XGetWMHints(*m_display, m_window);
+	// should never be nullptr, since we've set hints initially
+	auto hints = m_window.getWMHints();
 
-	modifyBit(h->flags, add, XUrgencyHint);
-	XSetWMHints(*m_display, m_window, h);
-	XFree(h);
+	modifyBit(hints->flags, add, XUrgencyHint);
+
+	m_window.setWMHints(*hints);
 }
 
 void X11::ringBell() {

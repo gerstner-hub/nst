@@ -282,8 +282,8 @@ void X11::setHints() {
 	}
 	if (m_geometry & (XValue|YValue)) {
 		sizeh->flags |= USPosition | PWinGravity;
-		sizeh->x = m_left_offset;
-		sizeh->y = m_top_offset;
+		sizeh->x = m_win_offset.x;
+		sizeh->y = m_win_offset.y;
 		sizeh->win_gravity = getGravity();
 	}
 
@@ -558,16 +558,16 @@ void X11::Input::unsetFocus() {
 void X11::setGeometry(const std::string &g) {
 	unsigned int cols, rows;
 
-	m_geometry = XParseGeometry(g.c_str(), &m_left_offset, &m_top_offset, &cols, &rows);
+	m_geometry = XParseGeometry(g.c_str(), &m_win_offset.x, &m_win_offset.y, &cols, &rows);
 
 	m_tsize.rows = rows;
 	m_tsize.cols = cols;
 	m_twin.setWinExtent(m_tsize);
 	const auto &win = m_twin.getWinExtent();
 	if (m_geometry & XNegative)
-		m_left_offset += m_display->getDisplayWidth(m_screen) - win.width - 2;
+		m_win_offset.x += m_display->getDisplayWidth(m_screen) - win.width - 2;
 	if (m_geometry & YNegative)
-		m_top_offset  += m_display->getDisplayHeight(m_screen) - win.height - 2;
+		m_win_offset.y  += m_display->getDisplayHeight(m_screen) - win.height - 2;
 }
 
 xpp::XWindow X11::getParent() const {
@@ -654,7 +654,7 @@ void X11::init() {
 	const auto &win = m_twin.getWinExtent();
 
 	m_window = m_display->createWindow(
-		xpp::WindowSpec{m_left_offset, m_top_offset,
+		xpp::WindowSpec{m_win_offset.x, m_win_offset.y,
 			static_cast<unsigned int>(win.width),
 			static_cast<unsigned int>(win.height)},
 		/*border_width=*/0,

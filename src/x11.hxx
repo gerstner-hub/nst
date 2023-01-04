@@ -103,8 +103,7 @@ protected: // data
 	xpp::XAtomMapper *m_mapper = nullptr;
 	int m_geometry = 0; /* geometry mask */
 	bool m_fixed_geometry = false;
-	int m_left_offset = 0;
-	int m_top_offset = 0;
+	DrawPos m_win_offset;
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMap m_pixmap;
 	Atom m_netwmname;

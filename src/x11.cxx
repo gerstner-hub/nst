@@ -1076,12 +1076,12 @@ void X11::finishDraw() {
 
 void X11::changeEventMask(long event, bool on_off) {
 	modifyBit(m_win_attrs.event_mask, on_off ? 1 : 0, event);
-	XChangeWindowAttributes(*m_display, m_window, CWEventMask, &m_win_attrs);
+	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
 }
 
 void X11::setPointerMotion(bool on_off) {
 	modifyBit(m_win_attrs.event_mask, on_off, PointerMotionMask);
-	XChangeWindowAttributes(*m_display, m_window, CWEventMask, &m_win_attrs);
+	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
 }
 
 void X11::setMode(const WinMode &flag, const bool set) {

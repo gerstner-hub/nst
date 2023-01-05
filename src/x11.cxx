@@ -676,15 +676,16 @@ void X11::init() {
 
 	setupCursor();
 
-	m_wmdeletewin = getAtom("WM_DELETE_WINDOW");
-	m_netwmname = getAtom("_NET_WM_NAME");
-	m_wmname = getAtom("WM_NAME");
-	m_netwmiconname = getAtom("_NET_WM_ICON_NAME");
-	XSetWMProtocols(*m_display, m_window, &m_wmdeletewin, 1);
+	m_wmdeletewin = getXAtom("WM_DELETE_WINDOW");
+	m_netwmname = getXAtom("_NET_WM_NAME");
+	m_wmname = getXAtom("WM_NAME");
+	m_netwmiconname = getXAtom("_NET_WM_ICON_NAME");
+
+	m_window.setProtocols(xpp::XAtomVector{m_wmdeletewin});
 
 	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
 	xpp::Property<int> pid_prop(cosmos::g_process.getPid());
-	m_window.setProperty(getAtom("_NET_WM_PID"), pid_prop);
+	m_window.setProperty(getXAtom("_NET_WM_PID"), pid_prop);
 
 	setDefaultTitle();
 	setHints();

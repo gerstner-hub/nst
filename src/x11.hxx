@@ -106,10 +106,10 @@ protected: // data
 	DrawPos m_win_offset;
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMap m_pixmap;
-	Atom m_netwmname;
-	Atom m_wmname;
-	Atom m_netwmiconname;
-	Atom m_wmdeletewin;
+	xpp::XAtom m_netwmname;
+	xpp::XAtom m_wmname;
+	xpp::XAtom m_netwmiconname;
+	xpp::XAtom m_wmdeletewin;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
 	Colormap m_color_map = xpp::INVALID_XID;
@@ -180,7 +180,7 @@ public: // functions
 	Atom getAtom(const char *name) const { return getXAtom(name).get(); }
 	xpp::XAtom getXAtom(const char *name) const { return m_mapper->getAtom(name); }
 	const xpp::XWindow& getWindow() const { return m_window; }
-	const Atom& getWmDeleteWin() const { return m_wmdeletewin; }
+	auto& getWmDeleteWin() const { return m_wmdeletewin; }
 	auto& getXSelection() { return m_xsel; }
 	auto& getTermWin() const { return m_twin; }
 	auto& getTermSize() const { return m_tsize; }

@@ -1,5 +1,6 @@
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/formatting.hxx"
 
 // nst
 #include "nst.hxx"
@@ -55,7 +56,7 @@ void XEventHandler::process(xpp::Event &ev) {
 	}
 }
 
-bool XEventHandler::match(unsigned mask, unsigned state) {
+bool XEventHandler::stateMatches(unsigned mask, unsigned state) {
 	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
 
@@ -75,7 +76,7 @@ XEventHandler::getCustomKeyMapping(KeySym k, unsigned state) const {
 	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
 		auto &key = *it;
 
-		if (!match(key.mask, state))
+		if (!stateMatches(key.mask, state))
 			continue;
 		if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
 			continue;
@@ -109,8 +110,8 @@ bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 		if (ms.release != is_release || ms.button != ev.button)
 			continue;
 
-		if ( match(ms.mod, state) ||  /* exact or forced */
-		     match(ms.mod, state & ~config::FORCEMOUSEMOD)) {
+		if ( stateMatches(ms.mod, state) ||  /* exact or forced */
+		     stateMatches(ms.mod, state & ~config::FORCEMOUSEMOD)) {
 			ms.func();
 			return true;
 		}
@@ -135,8 +136,6 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
 		else if (tmode[WinMode::MOUSEMOTION] && m_buttons.none())
 			return;
-		/* Set btn to lowest-numbered pressed button, or NO_BUTTON if no
-		 * buttons are pressed. */
 		btn = m_buttons.getFirstButton();
 		code = 32;
 	} else {
@@ -149,7 +148,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 			if (tmode[WinMode::MOUSEX10])
 				return;
 			/* Don't send release events for the scroll wheel */
-			if (btn == 4 || btn == 5)
+			else if (m_buttons.isScrollWheel(btn))
 				return;
 		}
 		code = 0;
@@ -175,31 +174,30 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 		      + ((state & ControlMask) ? 16 : 0);
 	}
 
-	int len;
-	char buf[40];
+	std::string report;
 
 	if (tmode[WinMode::MOUSESGR]) {
-		len = snprintf(buf, sizeof(buf), "\033[<%d;%d;%d%c",
-				code, pos.x+1, pos.y+1,
-				ev.type == ButtonRelease ? 'm' : 'M');
+		const auto ch = ev.type == ButtonRelease ? 'm' : 'M';
+		report = cosmos::sprintf(
+				"\033[<%d;%d;%d%c",
+				code, pos.x+1, pos.y+1, ch);
 	} else if (pos.x < 223 && pos.y < 223) {
-		len = snprintf(buf, sizeof(buf), "\033[M%c%c%c",
-				32+code, 32+pos.x+1, 32+pos.y+1);
+		report = cosmos::sprintf(
+				"\033[M%c%c%c",
+				32 + code, 32 + pos.x + 1, 32 + pos.y + 1);
 	} else {
 		return;
 	}
 
-	if (len >= 0) {
-		m_nst.getTTY().write(buf, len, false);
-	}
+	m_nst.getTTY().write(report.c_str(), report.size(), false);
 }
 
-void XEventHandler::handleMouseSelection(const XButtonEvent &ev, bool done) {
+void XEventHandler::handleMouseSelection(const XButtonEvent &ev, const bool done) {
 	auto seltype = Selection::Type::REGULAR;
 	const unsigned state = ev.state & ~(Button1Mask | config::FORCEMOUSEMOD);
 
 	for (auto [type, mask]: config::SELMASKS) {
-		if (match(mask, state)) {
+		if (stateMatches(mask, state)) {
 			seltype = type;
 			break;
 		}
@@ -254,7 +252,7 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 
 	/* 1. shortcuts */
 	for (auto &sc: m_kbd_shortcuts) {
-		if (ksym == sc.keysym && match(sc.mod, ev.state)) {
+		if (ksym == sc.keysym && stateMatches(sc.mod, ev.state)) {
 			sc.func();
 			return;
 		}

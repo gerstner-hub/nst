@@ -191,7 +191,7 @@ public: // data
 	static constexpr size_t NO_BUTTON = 12;
 public:
 
-	/// returns the position of the lowest button pressed
+	/// returns the position of the lowest button pressed, or NO_BUTTON
 	size_t getFirstButton() const {
 		for (size_t bit = 0; bit < size(); bit++) {
 			if (this->test(bit))
@@ -211,6 +211,10 @@ public:
 
 	void setReleased(const size_t button) {
 		this->set(button - 1, false);
+	}
+
+	static bool isScrollWheel(const size_t button) {
+		return button == 4 || button == 5;
 	}
 };
 

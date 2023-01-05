@@ -52,7 +52,7 @@ protected: // functions
 	void selectionClear();
 	void selectionRequest(const XSelectionRequestEvent &);
 
-	void handleMouseSelection(const XButtonEvent &, bool done = false);
+	void handleMouseSelection(const XButtonEvent &, const bool done = false);
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
 
@@ -64,7 +64,7 @@ protected: // functions
 	 **/
 	std::optional<std::string_view> getCustomKeyMapping(KeySym k, unsigned state) const;
 	static unsigned getButtonMask(unsigned button);
-	static bool match(unsigned mask, unsigned state);
+	static bool stateMatches(unsigned mask, unsigned state);
 
 protected: // data
 

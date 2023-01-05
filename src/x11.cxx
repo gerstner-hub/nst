@@ -107,8 +107,8 @@ void X11::copyToClipboard() {
 	m_xsel.copyPrimaryToClipboard();
 
 	if (m_xsel.havePrimarySelection()) {
-		Atom clipboard = m_mapper->getAtom("CLIPBOARD");
-		XSetSelectionOwner(*m_display, clipboard, m_window, CurrentTime);
+		auto clipboard = getXAtom("CLIPBOARD");
+		m_window.makeSelectionOwner(clipboard);
 	}
 }
 

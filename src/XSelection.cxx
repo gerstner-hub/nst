@@ -18,7 +18,7 @@ void XSelection::setSelection(const std::string_view &str, Time t) {
 	m_primary = str;
 	auto& display = m_x11.getDisplay();
 
-	XSetSelectionOwner(display, XA_PRIMARY, m_x11.getWindow(), t);
+	m_x11.getWindow().makeSelectionOwner(xpp::XAtom(XA_PRIMARY), t);
 	if (XGetSelectionOwner(display, XA_PRIMARY) != m_x11.getWindow())
 		m_nst.getSelection().clear();
 }

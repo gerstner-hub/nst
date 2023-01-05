@@ -180,6 +180,7 @@ public: // functions
 	Atom getAtom(const char *name) const { return getXAtom(name).get(); }
 	xpp::XAtom getXAtom(const char *name) const { return m_mapper->getAtom(name); }
 	const xpp::XWindow& getWindow() const { return m_window; }
+	xpp::XWindow& getWindow() { return m_window; }
 	auto& getWmDeleteWin() const { return m_wmdeletewin; }
 	auto& getXSelection() { return m_xsel; }
 	auto& getTermWin() const { return m_twin; }

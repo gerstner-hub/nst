@@ -238,17 +238,8 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 	if (tmode[WinMode::KBDLOCK])
 		return;
 
-	KeySym ksym;
-	char buf[64];
-	int len;
-
-	if (auto &input = m_x11.getInput(); input.haveContext()) {
-		Status status;
-		len = XmbLookupString(input.getContext(), const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, &status);
-	}
-	else {
-		len = XLookupString(const_cast<XKeyEvent*>(&ev), buf, sizeof(buf), &ksym, NULL);
-	}
+	std::string buf;
+	const auto ksym = m_x11.getInput().lookupString(ev, buf);
 
 	/* 1. shortcuts */
 	for (auto &sc: m_kbd_shortcuts) {
@@ -265,23 +256,24 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 	}
 
 	/* 3. composed string from input method */
-	if (len == 0)
+	if (buf.empty())
 		return;
 
-	if (len == 1 && (ev.state & Mod1Mask)) {
+	if (buf.size() == 1 && (ev.state & Mod1Mask)) {
 		if (tmode[WinMode::EIGHT_BIT]) {
-			if (*buf < 0177) {
-				Rune c = *buf | 0x80;
-				len = utf8::encode(c, buf);
+			if (buf[0] < 0177) {
+				Rune c = buf[0] | 0x80;
+				buf.clear();
+				utf8::encode(c, buf);
 			}
 		} else {
 			buf[1] = buf[0];
 			buf[0] = '\033';
-			len = 2;
+			buf.resize(2);
 		}
 	}
 
-	m_nst.getTTY().write(buf, len, /*may_echo=*/true);
+	m_nst.getTTY().write(buf.c_str(), buf.size(), /*may_echo=*/true);
 }
 
 void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
@@ -300,7 +292,7 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 				break;
 			}
 		}
-	} else if ((Atom)msg.data.l[0] == m_x11.getWmDeleteWin()) {
+	} else if (xpp::XAtom(msg.data.l[0]) == m_x11.getWmDeleteWin()) {
 		m_nst.getTTY().hangup();
 		exit(0);
 	}
@@ -359,6 +351,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 	Atom type;
 	int format;
 	auto &tty = m_nst.getTTY();
+	auto &win = m_x11.getWindow();
 
 	if (property == None)
 		return;
@@ -367,7 +360,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		if (XGetWindowProperty(m_x11.getDisplay(), m_x11.getWindow(), property, ofs,
 					BUFSIZ/4, False, AnyPropertyType,
 					&type, &format, &nitems, &rem, &data)) {
-			fprintf(stderr, "Clipboard allocation failed\n");
+			std::cerr << "Clipboard allocation failed" << std::endl;
 			return;
 		}
 
@@ -392,7 +385,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			/*
 			 * Deleting the property is the transfer start signal.
 			 */
-			XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), property);
+			win.delProperty(property);
 			continue;
 		}
 
@@ -425,7 +418,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 	 * Deleting the property again tells the selection owner to send the
 	 * next data chunk in the property.
 	 */
-	XDeleteProperty(m_x11.getDisplay(), m_x11.getWindow(), property);
+	win.delProperty(property);
 }
 
 void XEventHandler::selectionClear() {
@@ -461,7 +454,7 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 		auto seltext = m_xsel.getSelection(req.selection);
 
 		if (!seltext) {
-			fprintf(stderr, "Unhandled clipboard selection 0x%lx\n", req.selection);
+			std::cerr << "Unhandled clipboard selection " << cosmos::hexnum(req.selection, 0) << std::endl;
 			return;
 		} else if (!seltext->empty()) {
 			XChangeProperty(req.display, req.requestor,
@@ -474,7 +467,7 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 
 	/* all done, send a notification to the listener */
 	if (!XSendEvent(req.display, req.requestor, 1, 0, (XEvent *) &xev))
-		fprintf(stderr, "Error sending SelectionNotify event\n");
+		std::cerr << "Error sending SelectionNotify event" << std::endl;
 }
 
 void XEventHandler::buttonRelease(const XButtonEvent &ev) {

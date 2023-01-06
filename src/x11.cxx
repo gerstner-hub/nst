@@ -555,6 +555,27 @@ void X11::Input::unsetFocus() {
 	XUnsetICFocus(m_ctx);
 }
 
+KeySym X11::Input::lookupString(const XKeyEvent &ev, std::string &s) {
+	int len;
+	KeySym sym;
+
+	s.resize(64);
+
+	if (haveContext()) {
+		Status status;
+		len = XmbLookupString(
+				getContext(), const_cast<XKeyEvent*>(&ev),
+				&s[0], s.size() + 1,
+				&sym, &status);
+	}
+	else {
+		len = XLookupString(const_cast<XKeyEvent*>(&ev), &s[0], s.size() + 1, &sym, nullptr);
+	}
+
+	s.resize(len);
+	return sym;
+}
+
 void X11::setGeometry(const std::string &g) {
 	unsigned int cols, rows;
 

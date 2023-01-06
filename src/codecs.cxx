@@ -97,8 +97,6 @@ void encode(Rune u, std::string &s) {
 	}
 
 	c[0] = encodebyte(u, len);
-
-	return;
 }
 
 size_t validate(Rune *u, size_t i) {

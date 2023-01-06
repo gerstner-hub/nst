@@ -88,6 +88,8 @@ public: // types
 		XIC getContext() { return m_ctx; }
 		void setFocus();
 		void unsetFocus();
+		/// looks up a KeySym and string representation of the given event
+		KeySym lookupString(const XKeyEvent &ev, std::string &s);
 	};
 
 protected: // data

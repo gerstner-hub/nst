@@ -1,3 +1,6 @@
+// C++
+#include <algorithm>
+
 // cosmos
 #include "cosmos/algs.hxx"
 #include "cosmos/formatting.hxx"
@@ -339,32 +342,33 @@ void XEventHandler::propertyNotify(const xpp::Event &ev) {
 }
 
 void XEventHandler::selectionNotify(const xpp::Event &ev) {
-	const Atom property = [&ev]() {
+	const xpp::XAtom atom = [&ev]() {
 		switch (ev.getType()) {
-			case SelectionNotify: return ev.toSelectionNotify().property;
-			case PropertyNotify: return ev.toProperty().atom;
-			default: return (Atom)None;
+			case SelectionNotify: return xpp::XAtom(ev.toSelectionNotify().property);
+			case PropertyNotify: return xpp::XAtom(ev.toProperty().atom);
+			default: return xpp::XAtom();
 		}
 	}();
-	unsigned long nitems, rem, ofs = 0;
-	unsigned char *data;
-	Atom type;
-	int format;
+
 	auto &tty = m_nst.getTTY();
 	auto &win = m_x11.getWindow();
+	xpp::XWindow::PropertyInfo info;
+	xpp::RawProperty prop;
 
-	if (property == None)
+	if (!atom.valid())
 		return;
 
+	prop.length = BUFSIZ;
+
 	do {
-		if (XGetWindowProperty(m_x11.getDisplay(), m_x11.getWindow(), property, ofs,
-					BUFSIZ/4, False, AnyPropertyType,
-					&type, &format, &nitems, &rem, &data)) {
-			std::cerr << "Clipboard allocation failed" << std::endl;
+		try {
+			win.getRawProperty(atom, info, prop);
+		} catch (const std::exception &ex) {
+			std::cerr << "Clipboard property retrieval failed: " << ex.what() << std::endl;
 			return;
 		}
 
-		if (ev.isPropertyNotify() && nitems == 0 && rem == 0) {
+		if (ev.isPropertyNotify() && prop.length == 0 && prop.left == 0) {
 			/*
 			 * If there is some PropertyNotify with no data, then
 			 * this is the signal of the selection owner that all
@@ -374,7 +378,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			m_x11.changeEventMask(PropertyChangeMask, false);
 		}
 
-		if (type == m_incr_atom) {
+		if (info.type == m_incr_atom) {
 			/*
 			 * Activate the PropertyNotify events so we receive
 			 * when the selection owner does send us the next
@@ -385,7 +389,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			/*
 			 * Deleting the property is the transfer start signal.
 			 */
-			win.delProperty(property);
+			win.delProperty(atom);
 			continue;
 		}
 
@@ -396,29 +400,25 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		 * replace all '\n' with '\r'.
 		 * FIXME: Fix the computer world.
 		 */
-		unsigned char *needle = data;
-		unsigned char *last = data + nitems * format / 8;
-		while ((needle = (unsigned char*)memchr(needle, '\n', last - needle))) {
-			*needle++ = '\r';
-		}
+		auto ptr = prop.data.get();
+		std::replace(ptr, ptr + prop.length, '\n', '\r');
 
 		const bool brcktpaste = m_x11.getTermWin().checkFlag(WinMode::BRCKTPASTE);
 
-		if (brcktpaste && ofs == 0)
+		if (brcktpaste && prop.offset == 0)
 			tty.write("\033[200~", 6, false);
-		tty.write((char *)data, nitems * format / 8, true);
-		if (brcktpaste && rem == 0)
+		tty.write(reinterpret_cast<const char*>(ptr), prop.length, true);
+		if (brcktpaste && prop.left == 0)
 			tty.write("\033[201~", 6, false);
-		XFree(data);
 		/* number of 32-bit chunks returned */
-		ofs += nitems * format / 32;
-	} while (rem > 0);
+		prop.offset += prop.length;
+	} while (prop.left > 0);
 
 	/*
 	 * Deleting the property again tells the selection owner to send the
 	 * next data chunk in the property.
 	 */
-	win.delProperty(property);
+	win.delProperty(atom);
 }
 
 void XEventHandler::selectionClear() {

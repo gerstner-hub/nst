@@ -428,25 +428,27 @@ void XEventHandler::selectionClear() {
 }
 
 void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
-	XSelectionEvent xev;
+	XEvent ev;
+	XSelectionEvent &xev = ev.xselection;
 	xev.type = SelectionNotify;
 	xev.requestor = req.requestor;
 	xev.selection = req.selection;
 	xev.target = req.target;
 	xev.time = req.time;
-	/* reject */
+	/* reject by default, if nothing matches below */
 	xev.property = None;
 
-	const auto reqprop = req.property == None ? req.target : req.property;
+	xpp::XWindow requestor(req.requestor);
+	const xpp::XAtom target = xpp::XAtom(req.target);
+	const xpp::XAtom req_prop = req.property == None ? target : xpp::XAtom(req.property);
 
-	if (req.target == m_x11.getAtom("TARGETS")) {
+	if (target == m_x11.getXAtom("TARGETS")) {
 		/* respond with the supported type */
-		Atom fmt = m_xsel.getTargetFormat();
-		XChangeProperty(req.display, req.requestor, reqprop,
-				XA_ATOM, 32, PropModeReplace,
-				(unsigned char *) &fmt, 1);
-		xev.property = reqprop;
-	} else if (req.target == m_xsel.getTargetFormat() || req.target == XA_STRING) {
+		xpp::Property<xpp::XAtom> tgt_format(m_xsel.getTargetFormat());
+
+		requestor.setProperty(req_prop, tgt_format);
+		xev.property = req_prop;
+	} else if (target == m_xsel.getTargetFormat() || target == XA_STRING) {
 		/*
 		 * with XA_STRING non ascii characters may be incorrect in the
 		 * requestor. It is not our problem, use utf8.
@@ -457,17 +459,26 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 			std::cerr << "Unhandled clipboard selection " << cosmos::hexnum(req.selection, 0) << std::endl;
 			return;
 		} else if (!seltext->empty()) {
-			XChangeProperty(req.display, req.requestor,
-					reqprop, req.target,
-					8, PropModeReplace,
-					(unsigned char *)seltext->c_str(), seltext->size());
-			xev.property = reqprop;
+			// TODO: this potentially needlessly copies the
+			// selection string, because we need to turn it into
+			// an utf8_string wrapper object.
+			// either keep utf8_string within XSelection right
+			// away or use string_view in utf8_string to avoid
+			// this.
+			xpp::Property<xpp::utf8_string> sel_utf8{xpp::utf8_string(*seltext)};
+			requestor.setProperty(req_prop, sel_utf8);
 		}
+
+		xev.property = req_prop;
 	}
 
-	/* all done, send a notification to the listener */
-	if (!XSendEvent(req.display, req.requestor, 1, 0, (XEvent *) &xev))
-		std::cerr << "Error sending SelectionNotify event" << std::endl;
+
+	try {
+		/* all done, send a notification to the listener */
+		requestor.sendEvent(ev);
+	} catch(const std::exception &ex) {
+		std::cerr << "Error sending SelectionNotify event: " << ex.what() << std::endl;
+	}
 }
 
 void XEventHandler::buttonRelease(const XButtonEvent &ev) {

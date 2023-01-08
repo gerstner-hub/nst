@@ -84,7 +84,7 @@ constexpr int ALLOWWINDOWOPS = 0;
  *
  *	stty tabs
  */
-constexpr unsigned int TABSPACES = 8;
+constexpr int TABSPACES = 8;
 
 /*
  * Default colors (colorname index)

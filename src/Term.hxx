@@ -5,14 +5,14 @@
 #include <array>
 #include <vector>
 
+// libcosmos
+#include "cosmos/BitMask.hxx"
+
 // nst
-#include "types.hxx"
 #include "CSIEscape.hxx"
 #include "Glyph.hxx"
 #include "StringEscape.hxx"
-
-// libcosmos
-#include "cosmos/BitMask.hxx"
+#include "types.hxx"
 
 namespace nst {
 
@@ -42,13 +42,13 @@ public: // types
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
 	enum class Escape {
-		START      = 1,
-		CSI        = 2,
-		STR        = 4,  /* DCS, OSC, PM, APC */
-		ALTCHARSET = 8,
-		STR_END    = 16, /* a final string was encountered */
-		TEST       = 32, /* Enter in test mode */
-		UTF8       = 64,
+		START      = 1 << 0,
+		CSI        = 1 << 1,
+		STR        = 1 << 2,  /* DCS, OSC, PM, APC */
+		ALTCHARSET = 1 << 3,
+		STR_END    = 1 << 4, /* a final string was encountered */
+		TEST       = 1 << 5, /* Enter in test mode */
+		UTF8       = 1 << 6,
 	};
 
 	typedef cosmos::BitMask<Escape> EscapeState;
@@ -85,10 +85,12 @@ public: // types
 
 protected: // data
 
-	Selection &m_selection;
 	Nst &m_nst;
+	Selection &m_selection;
 	TTY &m_tty;
 	X11 &m_x11;
+
+	TermSize m_size;
 	CharPos m_old_cursor_pos;
 	int m_ocx = 0;            /* old cursor col */
 	int m_ocy = 0;            /* old cursor row */
@@ -101,20 +103,19 @@ protected: // data
 	TCursor m_cursor;         /* cursor */
 	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
-	std::vector<bool> m_tabs; // marks horizontal tab positions
-	mutable std::vector<bool> m_dirty_lines; /* dirtyness of lines */
-	int m_top_scroll = 0;     /* top    scroll limit */
-	int m_bottom_scroll = 0;  /* bottom scroll limit */
-	int m_rows = 0;           /* nb row */
-	int m_cols = 0;           /* nb col */
+	LineSpan m_scroll_limit;    /* top and bottom sroll limit */
+
 	std::vector<Line> m_alt_screen;
 	std::vector<Line> m_screen;
+	mutable std::vector<bool> m_dirty_lines;
+	std::vector<bool> m_tabs; // marks horizontal tab positions
+
 	STREscape m_strescseq;
 	CSIEscape m_csiescseq;
 
 public: // functions
 
-	Term(Nst &nst);
+	explicit Term(Nst &nst);
 
 	void init(const TermSize &tsize);
 
@@ -133,12 +134,12 @@ public: // functions
 	void setDirty(int top, int bot);
 
 	void setAllDirty() {
-		setDirty(0, m_rows-1);
+		setDirty(0, m_size.rows - 1);
 	}
 
 	void clearAllTabs() {
 		m_tabs.clear();
-		m_tabs.resize(m_cols);
+		m_tabs.resize(m_size.cols);
 	}
 
 	void setCharset(size_t charset) {
@@ -149,7 +150,7 @@ public: // functions
 		m_icharset = charset;
 	}
 
-	void setScroll(int top, int bottom);
+	void setScrollLimit(const LineSpan &span);
 
 	void moveCursorTo(CharPos pos);
 
@@ -183,7 +184,7 @@ public: // functions
 
 	//! write all current lines into the I/O file
 	void dump() const {
-		for (size_t i = 0; i < static_cast<size_t>(m_rows); ++i)
+		for (size_t i = 0; i < static_cast<size_t>(m_size.rows); ++i)
 			dumpLine(i);
 	}
 
@@ -219,11 +220,11 @@ public: // functions
 
 	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
 
-	int bottomScrollLimit() const { return m_bottom_scroll; }
-	int topScrollLimit() const { return m_top_scroll; }
+	LineSpan getScrollLimit() const { return m_scroll_limit; }
 
-	auto getNumRows() const { return m_rows; }
-	auto getNumCols() const { return m_cols; }
+	const auto getSize() const { return m_size; }
+	auto getNumRows() const { return m_size.rows; }
+	auto getNumCols() const { return m_size.cols; }
 
 	auto& getScreen() const { return m_screen; }
 
@@ -238,6 +239,10 @@ protected: // functions
 	/// draws the given rectangular screen region
 	void drawRegion(const Range &range) const;
 
+	void resetScrollLimit() {
+		m_scroll_limit = {0, m_size.rows - 1};
+	}
+
 	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
 
 	void setChar(Rune u, const Glyph &attr, const CharPos &pos);
@@ -246,10 +251,10 @@ protected: // functions
 	void handleControlCode(unsigned char ascii);
 
 	CharPos topLeft() const { return {0, 0}; }
-	CharPos bottomRight() const { return {m_cols-1, m_rows-1}; }
+	CharPos bottomRight() const { return {m_size.cols - 1, m_size.rows - 1}; }
 
-	auto limitRow(int row) { return std::clamp(row, 0, m_rows-1); }
-	auto limitCol(int col) { return std::clamp(col, 0, m_cols-1); }
+	auto limitRow(int row) { return std::clamp(row, 0, m_size.rows - 1); }
+	auto limitCol(int col) { return std::clamp(col, 0, m_size.cols - 1); }
 	auto clampRow(int &row) { row = limitRow(row); return row; }
 	auto clampCol(int &col) { col = limitCol(col); return col; }
 	auto clampToScreen(CharPos &c) {

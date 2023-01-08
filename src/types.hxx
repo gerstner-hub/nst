@@ -123,15 +123,43 @@ struct Range {
 	}
 };
 
+/// represents the terminal size in character elements
 struct TermSize {
 public: // data
+
 	int cols = 0;
 	int rows = 0;
+
 public: // functions
+
 	void normalize() {
 		cols = std::max(cols, 1);
 		rows = std::max(rows, 1);
 	}
+
+	bool valid() const {
+		return cols >= 1 && rows >= 1;
+	}
+};
+
+/// a span over one or more terminal lines
+struct LineSpan {
+public: // data
+	int top = 0;
+	int bottom = 0;
+
+public: // functions
+	void sanitize() {
+		if (top > bottom) {
+			std::swap(top, bottom);
+		}
+	}
+};
+
+/// a span over one or more terminal columns
+struct ColSpan {
+	int left = 0;
+	int right = 0;
 };
 
 //! a two-dimensional extent in pixels e.g. for characters, windows, ...

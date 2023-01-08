@@ -214,11 +214,11 @@ void CSIEscape::handle() {
 		return;
 	case 'S': /* SU -- Scroll <n> line up */
 		setDefault(arg0, 1);
-		m_term.scrollUp(m_term.topScrollLimit(), arg0);
+		m_term.scrollUp(m_term.getScrollLimit().top, arg0);
 		return;
 	case 'T': /* SD -- Scroll <n> line down */
 		setDefault(arg0, 1);
-		m_term.scrollDown(m_term.topScrollLimit(), arg0);
+		m_term.scrollDown(m_term.getScrollLimit().top, arg0);
 		return;
 	case 'L': /* IL -- Insert <n> blank lines */
 		setDefault(arg0, 1);
@@ -265,7 +265,7 @@ void CSIEscape::handle() {
 		} else {
 			setDefault(arg0, 1);
 			ensureArg(1, trows);
-			m_term.setScroll(arg0 - 1, m_args[1] - 1);
+			m_term.setScrollLimit(LineSpan{arg0 - 1, m_args[1] - 1});
 			m_term.moveCursorAbsTo({0, 0});
 		}
 		return;
@@ -326,8 +326,8 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		esc.set(Escape::ALTCHARSET);
 		return 0;
 	case 'D': /* IND -- Linefeed */
-		if (cursor.pos.y == m_term.bottomScrollLimit()) {
-			m_term.scrollUp(m_term.topScrollLimit(), 1);
+		if (cursor.pos.y == m_term.getScrollLimit().bottom) {
+			m_term.scrollUp(m_term.getScrollLimit().top, 1);
 		} else {
 			m_term.moveCursorTo(cursor.pos.nextLine());
 		}
@@ -339,8 +339,8 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		m_term.setTabAtCursor(true);
 		break;
 	case 'M': /* RI -- Reverse index */
-		if (cursor.pos.y == m_term.topScrollLimit()) {
-			m_term.scrollDown(m_term.topScrollLimit(), 1);
+		if (cursor.pos.y == m_term.getScrollLimit().top) {
+			m_term.scrollDown(m_term.getScrollLimit().top, 1);
 		} else {
 			m_term.moveCursorTo(cursor.pos.prevLine());
 		}

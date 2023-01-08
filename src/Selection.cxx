@@ -187,13 +187,15 @@ void Selection::scroll(int orig, int n) {
 	if (!m_orig.isValid())
 		return;
 
-	if (in_range(m_normal.begin.y, orig, m_term.bottomScrollLimit()) != in_range(m_normal.end.y, orig, m_term.bottomScrollLimit())) {
+	const auto scroll_limit = m_term.getScrollLimit();
+
+	if (in_range(m_normal.begin.y, orig, scroll_limit.bottom) != in_range(m_normal.end.y, orig, scroll_limit.bottom)) {
 		clear();
-	} else if (in_range(m_normal.begin.y, orig, m_term.bottomScrollLimit())) {
+	} else if (in_range(m_normal.begin.y, orig, scroll_limit.bottom)) {
 		m_orig.begin.y += n;
 		m_orig.end.y += n;
-		if (m_orig.begin.y < m_term.topScrollLimit() || m_orig.begin.y > m_term.bottomScrollLimit() ||
-		    m_orig.end.y < m_term.topScrollLimit() || m_orig.end.y > m_term.bottomScrollLimit()) {
+		if (m_orig.begin.y < scroll_limit.top || m_orig.begin.y > scroll_limit.bottom ||
+		    m_orig.end.y < scroll_limit.top || m_orig.end.y > scroll_limit.bottom) {
 			clear();
 		} else {
 			normalize();

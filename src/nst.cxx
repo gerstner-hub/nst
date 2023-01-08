@@ -39,11 +39,11 @@ void Nst::waitForWindowMapping() {
 }
 
 void Nst::run(int argc, const char **argv) {
-	m_cmdline.parse(argc, argv);
-	m_term.init(m_x11.getTermSize());
-
 	setlocale(LC_CTYPE, "");
 	XSetLocaleModifiers("");
+
+	m_cmdline.parse(argc, argv);
+	m_term.init(m_x11.getTermSize());
 	m_x11.init();
 	m_event_handler.init();
 	setEnv();
@@ -86,9 +86,9 @@ void Nst::mainLoop() {
 		bool draw_event = false;
 
 		for (const auto &event: events) {
-			if (event.fd() == childfd)
+			if (event.fd() == childfd) {
 				m_tty.sigChildEvent();
-			else if (event.fd() == ttyfd) {
+			} else if (event.fd() == ttyfd) {
 				m_tty.read();
 				draw_event = true;
 			}
@@ -129,7 +129,7 @@ void Nst::mainLoop() {
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = std::chrono::milliseconds(-1);
 
-		if (config::BLINKTIMEOUT.count() > 0 && m_term.testAttrSet(Attr::BLINK)) {
+		if (config::BLINKTIMEOUT.count() > 0 && m_term.existsBlinkingGlyph()) {
 			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */

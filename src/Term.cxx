@@ -624,10 +624,13 @@ void Term::dumpLine(size_t n) const {
 	m_tty.printToIoFile("\n", 1);
 }
 
-bool Term::testAttrSet(const Glyph::Attr &attr) const {
+bool Term::existsBlinkingGlyph() const {
+	// NOTE: this test could probably be cheaper by keeping track of this
+	// attribute when changing glyphs.
+
 	for (int y = 0; y < m_rows-1; y++) {
 		for (int x = 0; x < m_cols-1; x++) {
-			if (m_screen[y][x].mode[attr])
+			if (m_screen[y][x].mode[Attr::BLINK])
 				return true;
 		}
 	}

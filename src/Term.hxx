@@ -191,7 +191,7 @@ public: // functions
 	void dumpLine(size_t n) const;
 
 	//! returns whether any glyph currently has this attribute set
-	bool testAttrSet(const Glyph::Attr &attr) const;
+	bool existsBlinkingGlyph() const;
 
 	//! sets all lines as dirty that have a glyph matching the given attribute
 	void setDirtyByAttr(const Glyph::Attr &attr);

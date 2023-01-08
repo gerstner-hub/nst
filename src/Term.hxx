@@ -131,10 +131,10 @@ public: // functions
 
 	void clearRegion(Range range);
 
-	void setDirty(int top, int bot);
+	void setDirty(LineSpan span);
 
 	void setAllDirty() {
-		setDirty(0, m_size.rows - 1);
+		setDirty(LineSpan{0, m_size.rows - 1});
 	}
 
 	void clearAllTabs() {
@@ -260,6 +260,10 @@ protected: // functions
 	auto clampToScreen(CharPos &c) {
 		clampRow(c.y);
 		clampCol(c.x);
+	}
+	auto clamp(LineSpan &span) {
+		clampRow(span.top);
+		clampRow(span.bottom);
 	}
 
 	Glyph& getGlyphAt(const CharPos &c) { return m_screen[c.y][c.x]; }

@@ -71,6 +71,13 @@ public: // functions
 	static bool isTrueColor(const color_t c) {
 		return 1 << 24 & c;
 	}
+
+	void clear(const Glyph &templ) {
+		fg = templ.fg;
+		bg = templ.bg;
+		mode.reset();
+		u = ' ';
+	}
 };
 
 /// a series of Glyphs forming a line on the terminal

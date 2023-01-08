@@ -84,14 +84,13 @@ void Term::reset(void) {
 	}
 }
 
-void Term::setDirty(int top, int bot) {
+void Term::setDirty(LineSpan span) {
 	if (m_dirty_lines.empty())
 		return;
 
-	top = std::clamp(top, 0, m_size.rows - 1);
-	bot = std::clamp(bot, 0, m_size.rows - 1);
+	clamp(span);
 
-	for (int i = top; i <= bot; i++)
+	for (int i = span.top; i <= span.bottom; i++)
 		m_dirty_lines[i] = true;
 }
 
@@ -165,49 +164,38 @@ void Term::resize(const TermSize &new_size) {
 }
 
 void Term::clearRegion(Range range) {
-	if (range.begin.x > range.end.x)
-		std::swap(range.begin.x, range.end.x);
-	if (range.begin.y > range.end.y)
-		std::swap(range.begin.y, range.end.y);
 
-	range.clamp(m_size.cols - 1, m_size.rows - 1);
+	range.sanitize();
+	range.clamp(bottomRight());
 
 	for (auto y = range.begin.y; y <= range.end.y; y++) {
 		m_dirty_lines[y] = true;
 		for (auto x = range.begin.x; x <= range.end.x; x++) {
-			auto &gp = m_screen[y][x];
-			if (m_selection.isSelected(CharPos{x, y}))
+			const auto pos = CharPos{x, y};
+			if (m_selection.isSelected(pos))
 				m_selection.clear();
-			gp.fg = m_cursor.attr.fg;
-			gp.bg = m_cursor.attr.bg;
-			gp.mode.reset();
-			gp.u = ' ';
+			auto &gp = getGlyphAt(pos);
+			gp.clear(m_cursor.attr);
 		}
 	}
 }
 
 void Term::setScrollLimit(const LineSpan &span) {
 	m_scroll_limit = span;
-	clampRow(m_scroll_limit.top);
-	clampRow(m_scroll_limit.bottom);
+	clamp(m_scroll_limit);
 	m_scroll_limit.sanitize();
 }
 
 void Term::moveCursorTo(CharPos pos) {
-	int miny, maxy;
+	LineSpan limit{0, m_size.rows - 1};
 
 	if (m_cursor.state[TCursor::State::ORIGIN]) {
-		miny = m_scroll_limit.top;
-		maxy = m_scroll_limit.bottom;
-	} else {
-		miny = 0;
-		maxy = m_size.rows - 1;
+		limit = m_scroll_limit;
 	}
 
 	m_cursor.state.reset(TCursor::State::WRAPNEXT);
 	clampCol(pos.x);
-	pos.clampY(miny, maxy);
-
+	pos.clampY(limit.top, limit.bottom);
 	m_cursor.pos = pos;
 }
 
@@ -224,8 +212,7 @@ void Term::swapScreen() {
 	setAllDirty();
 }
 
-void Term::cursorControl(const TCursor::Control &ctrl)
-{
+void Term::cursorControl(const TCursor::Control &ctrl) {
 	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_cursors[1] : m_cached_cursors[0];
 
 	if (ctrl == TCursor::Control::SAVE) {
@@ -236,8 +223,7 @@ void Term::cursorControl(const TCursor::Control &ctrl)
 	}
 }
 
-int Term::getLineLen(int y) const
-{
+int Term::getLineLen(int y) const {
 	auto col = m_size.cols;
 	const auto &line = m_screen[y];
 
@@ -312,17 +298,15 @@ void Term::insertBlank(int n) {
 	clearRegion({CharPos{src, m_cursor.pos.y}, CharPos{dst - 1, m_cursor.pos.y}});
 }
 
-void Term::insertBlankLine(int n)
-{
+void Term::insertBlankLine(int n) {
 	if (in_range(m_cursor.pos.y, m_scroll_limit.top, m_scroll_limit.bottom))
 		scrollDown(m_cursor.pos.y, n);
 }
 
-void Term::scrollDown(int orig, int n)
-{
+void Term::scrollDown(int orig, int n) {
 	n = std::clamp(n, 0, m_scroll_limit.bottom - orig + 1);
 
-	setDirty(orig, m_scroll_limit.bottom - n);
+	setDirty(LineSpan{orig, m_scroll_limit.bottom - n});
 	clearRegion({CharPos{0, m_scroll_limit.bottom - n + 1}, CharPos{m_size.cols - 1, m_scroll_limit.bottom}});
 
 	for (int i = m_scroll_limit.bottom; i >= orig+n; i--) {
@@ -332,11 +316,10 @@ void Term::scrollDown(int orig, int n)
 	m_selection.scroll(orig, n);
 }
 
-void Term::scrollUp(int orig, int n)
-{
+void Term::scrollUp(int orig, int n) {
 	n = std::clamp(n, 0, m_scroll_limit.bottom - orig + 1);
 
-	setDirty(orig+n, m_scroll_limit.bottom);
+	setDirty(LineSpan{orig+n, m_scroll_limit.bottom});
 	clearRegion({CharPos{0, orig}, CharPos{m_size.cols - 1, orig+n-1}});
 
 	for (int i = orig; i <= m_scroll_limit.bottom - n; i++) {
@@ -637,7 +620,7 @@ void Term::setDirtyByAttr(const Glyph::Attr &attr) {
 	for (int y = 0; y < m_size.rows - 1; y++) {
 		for (int x = 0; x < m_size.cols-1; x++) {
 			if (m_screen[y][x].mode[attr]) {
-				setDirty(y, y);
+				setDirty(LineSpan{y, y});
 				break;
 			}
 		}

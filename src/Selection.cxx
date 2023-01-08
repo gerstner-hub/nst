@@ -35,7 +35,7 @@ void Selection::clear() {
 
 	m_mode = Mode::IDLE;
 	m_orig.invalidate();
-	m_term.setDirty(m_normal.begin.y, m_normal.end.y);
+	m_term.setDirty(LineSpan{m_normal});
 }
 
 bool Selection::isSelected(const CharPos &pos) const {
@@ -62,7 +62,7 @@ void Selection::start(int col, int row, Snap snap) {
 	if (m_snap != Snap::NONE)
 		m_mode = Mode::READY;
 
-	m_term.setDirty(m_normal.begin.y, m_normal.end.y);
+	m_term.setDirty(LineSpan{m_normal});
 }
 
 void Selection::normalize(void) {
@@ -178,7 +178,7 @@ void Selection::extend(int col, int row, const Type &type, const bool &done) {
 	m_type = type;
 
 	if (old_end.y != m_orig.end.y || old_end.x != m_orig.end.x || oldtype != m_type || inEmptyMode())
-		m_term.setDirty(std::min(m_normal.begin.y, oldsby), std::max(m_normal.end.y, oldsey));
+		m_term.setDirty(LineSpan{std::min(m_normal.begin.y, oldsby), std::max(m_normal.end.y, oldsey)});
 
 	m_mode = done ? Mode::IDLE : Mode::READY;
 }

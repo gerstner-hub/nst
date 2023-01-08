@@ -114,12 +114,19 @@ struct Range {
 	int width() const { return end.x - begin.x; }
 	int height() const { return end.y - begin.y; }
 
-	void clamp(int max_x, int max_y) {
-		begin.clampX(max_x);
-		begin.clampY(max_y);
+	void clamp(const CharPos &max) {
+		begin.clampX(max.x);
+		begin.clampY(max.y);
 
-		end.clampX(max_x);
-		end.clampY(max_y);
+		end.clampX(max.x);
+		end.clampY(max.y);
+	}
+
+	void sanitize() {
+		if (begin.x > end.x)
+			std::swap(begin.x, end.x);
+		if (begin.y > end.y)
+			std::swap(begin.y, end.y);
 	}
 };
 
@@ -149,6 +156,11 @@ public: // data
 	int bottom = 0;
 
 public: // functions
+
+	LineSpan() = default;
+	LineSpan(int t, int b) : top(t), bottom(b) {}
+	explicit LineSpan(const Range &r) : top(r.begin.y), bottom(r.end.y) {}
+
 	void sanitize() {
 		if (top > bottom) {
 			std::swap(top, bottom);

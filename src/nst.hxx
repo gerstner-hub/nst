@@ -20,7 +20,8 @@ namespace nst {
 /// Nst main application class
 /**
  * This type holds instances of all the other types that make up nst. It also
- * holds the main loop and is invoked from the main function of the program.
+ * implements the main loop and is invoked from the main function of the
+ * program.
  **/
 class Nst {
 public: // functions

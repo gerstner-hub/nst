@@ -21,6 +21,10 @@ class TTY;
 class X11;
 
 /// Internal representation of the screen
+/**
+ * This class maintains the terminal contents on a logical level without
+ * containing the actual X11 drawing logic.
+ **/
 class Term {
 
 public: // types

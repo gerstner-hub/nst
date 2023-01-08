@@ -9,11 +9,14 @@
 
 namespace nst {
 
+/// primitive integer type to store character codes to be displayed on the terminal
 typedef uint_least32_t Rune;
 
+/// code, color and attribute information for a single character position on the terminal
 struct Glyph {
 public: // types
 
+	/// Glyph rendering attributes
 	enum class Attr : unsigned {
 		NONE       = 0,
 		BOLD       = 1 << 0,
@@ -31,6 +34,7 @@ public: // types
 
 	typedef cosmos::BitMask<Attr> AttrBitMask;
 
+	/// primitive integer to store Glyph color information
 	typedef uint32_t color_t;
 
 public: // data
@@ -69,6 +73,7 @@ public: // functions
 	}
 };
 
+/// a series of Glyphs forming a line on the terminal
 using Line = std::vector<Glyph>;
 
 } // end ns

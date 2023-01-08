@@ -15,6 +15,7 @@ namespace nst {
 struct X11;
 class Nst;
 
+/// This type manages the X11 specific parts of the selection handling
 struct XSelection {
 public: // functions
 

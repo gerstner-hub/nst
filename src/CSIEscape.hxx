@@ -18,8 +18,15 @@ class Nst;
 class Term;
 struct STREscape;
 
-/* CSI (Control Sequence Introducer) Escape sequence structs */
-/* ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]] */
+/// Handles CSI escape sequences
+/**
+ * CSI (Control Sequence Introducer) struct follow the following model:
+ *
+ * ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]]
+ *
+ * This class parses such sequences and triggers actions that result from the
+ * sequences.
+ **/
 struct CSIEscape {
 protected: // data
 

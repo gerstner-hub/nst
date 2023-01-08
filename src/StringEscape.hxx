@@ -15,8 +15,12 @@ namespace nst {
 
 class Nst;
 
-/* STR Escape sequence structs */
-/* ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\' */
+/// Handles STR escape sequences
+/**
+ * STR escape sequences follow the following model:
+ *
+ * ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
+ **/
 struct STREscape {
 protected: // data
 

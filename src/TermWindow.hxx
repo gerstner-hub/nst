@@ -7,7 +7,7 @@
 
 namespace nst {
 
-/// Purely graphic info
+/// Purely graphic info about the Terminal
 struct TermWindow {
 	TermWindow() :
 		m_mode(WinModeMask(WinMode::NUMLOCK))

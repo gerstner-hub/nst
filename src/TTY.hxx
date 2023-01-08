@@ -17,6 +17,11 @@ namespace nst {
 class Term;
 class Cmdline;
 
+/// Pseudo Terminal I/O
+/**
+ * This class covers the PTY interfacing towards the operating system.
+ * It's job is mainly the raw I/O handling and handling low level TTY aspects.
+ **/
 class TTY {
 
 protected: // data

@@ -20,7 +20,7 @@
 
 namespace nst {
 
-/* Drawing Context */
+/// X11 drawing specific data and logic
 struct DrawingContext {
 	std::vector<FontColor> col;
 	Font font, bfont, ifont, ibfont;
@@ -49,6 +49,7 @@ protected: // data
 	xpp::GcSharedPtr m_gc;
 };
 
+/// Wrapper around the XRenderColor primitive that adds some helper functions
 struct RenderColor : public XRenderColor {
 	RenderColor() {}
 	explicit RenderColor(const Glyph::color_t rgb) {
@@ -60,11 +61,13 @@ struct RenderColor : public XRenderColor {
 	void setFromRGB(const Glyph::color_t rgb);
 };
 
+/// This contains central X11 graphics, input and font handling
 struct X11 {
 public: // types
 
 	friend class XEventHandler;
 
+	/// X11 Input Method handling
 	struct Input {
 	protected: // data
 		XIM m_method = nullptr;

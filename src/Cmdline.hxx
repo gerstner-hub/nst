@@ -9,13 +9,14 @@
 
 namespace nst {
 
-/// nst command line parameter handling
+/// nst command line parameter handling and storage
 class Cmdline :
 	public TCLAP::CmdLine {
 public: // functions
 
 	Cmdline();
 
+	/// returns the string that should be used as terminal window title
 	const std::string& getTitle() const {
 		auto &rst = rest.getValue();
 
@@ -28,10 +29,11 @@ public: // functions
 		return window_title.getValue();
 	}
 
-	/// returns wheter XLib should be set to XSync() mode
+	/// returns whether XLib should be set to XSync() mode
 	bool useXSync() const;
 
 public: // data
+
 	TCLAP::SwitchArg use_alt_screen;
 	TCLAP::SwitchArg fixed_geometry;
 	TCLAP::SwitchArg execute;

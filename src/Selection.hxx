@@ -13,6 +13,7 @@ namespace nst {
 class Term;
 class Nst;
 
+/// This type handles the current copy/paste selection on a purely logical level (without X11 aspects)
 class Selection {
 public: // types
 

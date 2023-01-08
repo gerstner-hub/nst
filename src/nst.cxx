@@ -89,7 +89,9 @@ void Nst::mainLoop() {
 			if (event.fd() == childfd) {
 				m_tty.sigChildEvent();
 			} else if (event.fd() == ttyfd) {
-				m_tty.read();
+				if (m_tty.read() == 0)
+					// EOF condition
+					return;
 				draw_event = true;
 			}
 		}

@@ -136,20 +136,38 @@ void TTY::runStty(const Cmdline &cmdline) {
 }
 
 size_t TTY::read() {
-	/* append read bytes to unprocessed bytes */
 	try {
-		switch (auto ret = m_cmd_file.read(m_buf + m_buf_bytes, sizeof(m_buf) - m_buf_bytes)) {
+		size_t read_bytes;
+
+		try {
+			read_bytes = m_cmd_file.read(m_buf + m_buf_bytes, sizeof(m_buf) - m_buf_bytes);
+		} catch (const cosmos::ApiError &ex) {
+			if (ex.errnum() == EIO) {
+				// the way the PTY is operated currently
+				// causes no EOF condition to be signaled but
+				// an EIO is returned. There are different
+				// modes the PTY can be operated in, but for
+				// the moment let's catch the EIO and
+				// translate it into EOF.
+				return 0;
+			}
+
+			throw;
+		}
+
+		/* append read bytes to unprocessed bytes */
+		switch (read_bytes) {
 		case 0:
-			// EOF
+			// EOF, never happens, see above
 			exit(0);
 		default:
-			m_buf_bytes += ret;
+			m_buf_bytes += read_bytes;
 			auto written = m_term.write(m_buf, m_buf_bytes, 0);
 			m_buf_bytes -= written;
 			/* keep any incomplete UTF-8 byte sequence for the next call */
 			if (m_buf_bytes > 0)
 				std::memmove(m_buf, m_buf + written, m_buf_bytes);
-			return ret;
+			return read_bytes;
 		}
 	} catch (const std::exception &ex) {
 		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Couldn't read from shell: %s", ex.what())));

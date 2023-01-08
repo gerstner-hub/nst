@@ -11,7 +11,6 @@
 namespace nst {
 
 class Term;
-class TTY;
 class Nst;
 
 class Selection {
@@ -38,8 +37,8 @@ protected: // types
 
 protected: // data
 
+	Nst &m_nst;
 	Term &m_term;
-	TTY *m_tty = nullptr;
 	bool m_alt_screen = false;
 	Snap m_snap = Snap::WORD;
 	Type m_type = Type::REGULAR;

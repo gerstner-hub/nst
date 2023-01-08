@@ -21,9 +21,8 @@ namespace nst {
 
 typedef Glyph::Attr Attr;
 
-Selection::Selection(Nst &nst) : m_term(nst.getTerm()) {
+Selection::Selection(Nst &nst) : m_nst(nst), m_term(nst.getTerm()) {
 	m_orig.invalidate();
-	m_tty = &nst.getTTY();
 }
 
 bool Selection::isDelim(const Glyph &g) const {
@@ -261,7 +260,7 @@ void Selection::dump() const {
 	if (selection.empty())
 		return;
 
-	m_tty->printToIoFile(selection.c_str(), selection.length());
+	m_nst.getTTY().printToIoFile(selection.c_str(), selection.length());
 }
 
 } // end ns

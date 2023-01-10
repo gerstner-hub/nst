@@ -83,9 +83,9 @@ void Selection::normalize(void) {
 	/* expand selection over line breaks */
 	if (isRectType())
 		return;
-	const auto len = m_term.getLineLen(m_normal.begin.y);
+	const auto len = m_term.getLineLen(m_normal.begin);
 	m_normal.begin.x = std::min(m_normal.begin.x, len);
-	if (m_term.getLineLen(m_normal.end.y) <= m_normal.end.x)
+	if (m_term.getLineLen(m_normal.end) <= m_normal.end.x)
 		m_normal.end.x = m_term.getNumCols() - 1;
 }
 
@@ -120,7 +120,7 @@ void Selection::checkSnap(CharPos &c, const int direction) const {
 					break;
 			}
 
-			if (newc.x >= m_term.getLineLen(newc.y))
+			if (newc.x >= m_term.getLineLen(newc))
 				break;
 
 			const Glyph *gp = &screen[newc.y][newc.x];

@@ -105,14 +105,31 @@ struct DrawPos : public PosT<draw_pos_t> {
 
 /// a rectangular range of characters between a begin and and end CharPos
 struct Range {
+public: // data
 	CharPos begin;
 	CharPos end;
+
+public: // types
+
+	enum class Width : int {};
+	enum class Height : int {};
+
+public: // functions
+
+	Range() = default;
+	Range(const CharPos &b, const CharPos &e) : begin(b), end(e) {}
+	Range(const CharPos &b, const Width &w) : Range(b, b) {
+		end.x += static_cast<int>(w);
+	}
+	Range(const CharPos &b, const Height &h) : Range(b, b) {
+		end.y += static_cast<int>(h);
+	}
 
 	void invalidate() { begin.x = -1; }
 	bool isValid() const { return begin.x != -1; }
 
-	int width() const { return end.x - begin.x; }
-	int height() const { return end.y - begin.y; }
+	Width width() const { return static_cast<Width>(end.x - begin.x); }
+	Height height() const { return static_cast<Height>(end.y - begin.y); }
 
 	void clamp(const CharPos &max) {
 		begin.clampX(max.x);
@@ -165,6 +182,11 @@ public: // functions
 		if (top > bottom) {
 			std::swap(top, bottom);
 		}
+	}
+
+	/// returns whether the given position's y coordinate in within this LineSpan range
+	bool inRange(const CharPos &pos) const {
+		return top <= pos.y && pos.y <= bottom;
 	}
 };
 

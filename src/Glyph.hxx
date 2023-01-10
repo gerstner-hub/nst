@@ -78,6 +78,10 @@ public: // functions
 		mode.reset();
 		u = ' ';
 	}
+
+	/// returns whether the Glyph is "empty", currently meaning "space"
+	bool isEmpty() const { return u == ' '; }
+	bool hasValue() const { return !isEmpty(); }
 };
 
 /// a series of Glyphs forming a line on the terminal

@@ -94,7 +94,7 @@ void CSIEscape::handle() {
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
 		setDefault(arg0, 1);
-		m_term.insertBlank(arg0);
+		m_term.insertBlanksAfterCursor(arg0);
 		return;
 	case 'A': /* CUU -- Cursor <n> Up */
 		setDefault(arg0, 1);
@@ -177,7 +177,7 @@ void CSIEscape::handle() {
 		return;
 	case 'I': /* CHT -- Cursor Forward Tabulation <n> tab stops */
 		setDefault(arg0, 1);
-		m_term.putTab(arg0);
+		m_term.moveToNextTab(arg0);
 		return;
 	case 'J': /* ED -- Clear screen */
 		switch (arg0) {
@@ -222,14 +222,14 @@ void CSIEscape::handle() {
 		return;
 	case 'L': /* IL -- Insert <n> blank lines */
 		setDefault(arg0, 1);
-		m_term.insertBlankLine(arg0);
+		m_term.insertBlankLinesBelowCursor(arg0);
 		return;
 	case 'l': /* RM -- Reset Mode */
 		m_term.setMode(m_priv, false, m_args);
 		return;
 	case 'M': /* DL -- Delete <n> lines */
 		setDefault(arg0, 1);
-		m_term.deleteLine(arg0);
+		m_term.deleteLinesBelowCursor(arg0);
 		return;
 	case 'X': /* ECH -- Erase <n> char */
 		setDefault(arg0, 1);
@@ -237,11 +237,11 @@ void CSIEscape::handle() {
 		return;
 	case 'P': /* DCH -- Delete <n> char */
 		setDefault(arg0, 1);
-		m_term.deleteChar(arg0);
+		m_term.deleteColsAfterCursor(arg0);
 		return;
 	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
 		setDefault(arg0, 1);
-		m_term.putTab(-arg0);
+		m_term.moveToPrevTab(arg0);
 		return;
 	case 'd': /* VPA -- Move to <row> */
 		setDefault(arg0, 1);
@@ -333,7 +333,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		}
 		break;
 	case 'E': /* NEL -- Next line */
-		m_term.putNewline(); /* always go to first col */
+		m_term.moveToNewline(); /* always go to first col */
 		break;
 	case 'H': /* HTS -- Horizontal tab stop */
 		m_term.setTabAtCursor(true);

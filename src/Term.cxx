@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <type_traits>
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -33,6 +34,10 @@ bool isControlC1(const nst::Rune &c) {
 bool isControlChar(const nst::Rune &c) {
 	return isControlC0(c) || isControlC1(c);
 }
+
+// we're relying on Glyph being POD so that we can memmove individual Glyphs
+// in this unit
+static_assert(std::is_pod<Glyph>::value, "Glyph type needs to be POD because of memmove");
 
 } // end anon ns
 
@@ -213,53 +218,64 @@ void Term::swapScreen() {
 }
 
 void Term::cursorControl(const TCursor::Control &ctrl) {
-	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_cursors[1] : m_cached_cursors[0];
+	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_alt_cursor : m_cached_main_cursor;
 
-	if (ctrl == TCursor::Control::SAVE) {
-		cursor = m_cursor;
-	} else if (ctrl == TCursor::Control::LOAD) {
-		m_cursor = cursor;
-		moveCursorTo(cursor.pos);
+	switch(ctrl) {
+		case TCursor::Control::SAVE:
+			cursor = m_cursor;
+			break;
+		case TCursor::Control::LOAD:
+			m_cursor = cursor;
+			moveCursorTo(cursor.pos);
+			break;
 	}
 }
 
-int Term::getLineLen(int y) const {
-	auto col = m_size.cols;
-	const auto &line = m_screen[y];
+int Term::getLineLen(const CharPos &pos) const {
+	const auto &line = m_screen[pos.y];
 
-	if (line[col-1].mode[Attr::WRAP])
-		return col;
+	if (line.back().mode[Attr::WRAP])
+		return m_size.cols;
 
-	while (col > 0 && line[col-1].u == ' ')
-		--col;
+	auto last_col = std::find_if(
+			line.rbegin(), line.rend(),
+			[](const Glyph &g) { return g.hasValue(); });
 
-	return col;
+	return line.rend() - last_col;
 }
 
-void Term::putTab(int n) {
+void Term::moveToNextTab(size_t count) {
 	auto x = m_cursor.pos.x;
 
-	if (n > 0) {
-		while (x < m_size.cols && n--)
-			for (++x; x < m_size.cols && !m_tabs[x]; ++x)
-				/* nothing */ ;
-	} else if (n < 0) {
-		while (x > 0 && n++)
-			for (--x; x > 0 && !m_tabs[x]; --x)
-				/* nothing */ ;
+	while (count && x < m_size.cols) {
+		for (++x; x < m_size.cols && !m_tabs[x]; ++x)
+			; // noop
+		count--;
 	}
 
 	m_cursor.pos.x = limitCol(x);
 }
 
-void Term::putNewline(bool first_col) {
+void Term::moveToPrevTab(size_t count) {
+	auto x = m_cursor.pos.x;
+
+	while (count && x > 0) {
+		for (--x; x > 0 && !m_tabs[x]; --x)
+			; // noop
+		count--;
+	}
+
+	m_cursor.pos.x = limitCol(x);
+}
+
+void Term::moveToNewline(bool carriage_return) {
 	CharPos new_pos = m_cursor.pos;
 
-	if (first_col)
+	if (carriage_return)
 		new_pos.x = 0;
 
 	if (new_pos.y == m_scroll_limit.bottom) {
-		scrollUp(m_scroll_limit.top, 1);
+		scrollUp(m_scroll_limit.top);
 	} else {
 		new_pos.y++;
 	}
@@ -267,40 +283,50 @@ void Term::putNewline(bool first_col) {
 	moveCursorTo(new_pos);
 }
 
-void Term::deleteChar(int n) {
-	n = std::clamp(n, 0, m_size.cols - m_cursor.pos.x);
+void Term::deleteColsAfterCursor(int count) {
+	count = std::clamp(count, 0, colsLeft());
 
-	const int dst = m_cursor.pos.x;
-	const int src = m_cursor.pos.x + n;
-	const int size = m_size.cols - src;
-	auto &line = m_screen[m_cursor.pos.y];
+	const auto &cursor = m_cursor.pos;
+	const int dst = cursor.x;
+	const int src = cursor.x + count;
+	const int left = m_size.cols - src;
+	auto &line = getLine(cursor);
 
-	// slide remaining line content n characters to the left
-	std::memmove(&line[dst], &line[src], size * sizeof(Glyph));
-	// clear n characters at end of line
-	clearRegion({CharPos{m_size.cols - n, m_cursor.pos.y}, CharPos{m_size.cols - 1, m_cursor.pos.y}});
+	// slide remaining line content count characters to the left
+	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
+	// clear count characters at end of line
+	clearRegion(Range{
+		CharPos{m_size.cols - count, cursor.y},
+		Range::Width{count}
+	});
 }
 
-void Term::deleteLine(int n) {
-	if (in_range(m_cursor.pos.y, m_scroll_limit.top, m_scroll_limit.bottom))
-		scrollUp(m_cursor.pos.y, n);
+void Term::deleteLinesBelowCursor(int count) {
+	if (m_scroll_limit.inRange(m_cursor.pos)) {
+		scrollUp(m_cursor.pos.y, count);
+	}
 }
 
-void Term::insertBlank(int n) {
-	n = std::clamp(n, 0, m_size.cols - m_cursor.pos.x);
+void Term::insertBlanksAfterCursor(int count) {
+	count = std::clamp(count, 0, colsLeft());
 
-	const int dst = m_cursor.pos.x + n;
-	const int src = m_cursor.pos.x;
-	const int size = m_size.cols - dst;
-	auto &line = m_screen[m_cursor.pos.y];
+	const auto &cursor = m_cursor.pos;
+	const int dst = cursor.x + count;
+	const int src = cursor.x;
+	const int left = m_size.cols - dst;
+	auto &line = getLine(cursor);
 
-	std::memmove(&line[dst], &line[src], size * sizeof(Glyph));
-	clearRegion({CharPos{src, m_cursor.pos.y}, CharPos{dst - 1, m_cursor.pos.y}});
+	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
+	clearRegion(Range{
+		CharPos{src, cursor.y},
+		Range::Width{count}
+	});
 }
 
-void Term::insertBlankLine(int n) {
-	if (in_range(m_cursor.pos.y, m_scroll_limit.top, m_scroll_limit.bottom))
-		scrollDown(m_cursor.pos.y, n);
+void Term::insertBlankLinesBelowCursor(int count) {
+	if (m_scroll_limit.inRange(m_cursor.pos)) {
+		scrollDown(m_cursor.pos.y, count);
+	}
 }
 
 void Term::scrollDown(int orig, int n) {
@@ -633,7 +659,7 @@ void Term::drawRegion(const Range &range) const {
 			continue;
 
 		m_dirty_lines[y] = false;
-		m_x11.drawLine(m_screen[y], CharPos{range.begin.x, y}, range.width());
+		m_x11.drawLine(m_screen[y], CharPos{range.begin.x, y}, cosmos::to_integral(range.width()));
 	}
 }
 
@@ -747,7 +773,7 @@ void Term::decTest(char ch) {
 void Term::handleControlCode(unsigned char ascii) {
 	switch (ascii) {
 	case '\t':   /* HT */
-		putTab(1);
+		moveToNextTab();
 		return;
 	case '\b':   /* BS */
 		moveCursorTo(m_cursor.pos.prevCol());
@@ -759,7 +785,7 @@ void Term::handleControlCode(unsigned char ascii) {
 	case '\v':   /* VT */
 	case '\n':   /* LF */
 		/* go to first col if the mode is set */
-		putNewline(m_mode[Mode::CRLF]);
+		moveToNewline(/*carriage_return=*/m_mode[Mode::CRLF]);
 		return;
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {
@@ -797,7 +823,7 @@ void Term::handleControlCode(unsigned char ascii) {
 	case 0x84:   /* TODO: IND */
 		break;
 	case 0x85:   /* NEL -- Next line */
-		putNewline(); /* always go to first col */
+		moveToNewline(); /* always go to first col */
 		break;
 	case 0x86:   /* TODO: SSA */
 	case 0x87:   /* TODO: ESA */
@@ -927,7 +953,7 @@ void Term::putChar(Rune u) {
 	Glyph *gp = &getGlyphAt(m_cursor.pos);
 	if (m_mode[Mode::WRAP] && m_cursor.state[TCursor::State::WRAPNEXT]) {
 		gp->mode.set(Attr::WRAP);
-		putNewline();
+		moveToNewline();
 		gp = &getGlyphAt(m_cursor.pos);
 	}
 
@@ -935,7 +961,7 @@ void Term::putChar(Rune u) {
 		std::memmove(gp+width, gp, (m_size.cols - m_cursor.pos.x - width) * sizeof(Glyph));
 
 	if (m_cursor.pos.x + width > m_size.cols) {
-		putNewline();
+		moveToNewline();
 		gp = &getGlyphAt(m_cursor.pos);
 	}
 

@@ -101,7 +101,8 @@ protected: // data
 	Rune m_last_char = 0;     /* last printed char outside of sequence, 0 if control */
 	EscapeState m_esc_state;  /* escape state flags */
 	TCursor m_cursor;         /* cursor */
-	TCursor m_cached_cursors[2]; // save/load cursors for main and alt screen
+	TCursor m_cached_main_cursor;    // save/load cursor for main screen
+	TCursor m_cached_alt_cursor;     // ... and for alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
 	LineSpan m_scroll_limit;    /* top and bottom sroll limit */
 
@@ -162,23 +163,30 @@ public: // functions
 
 	const auto& getMode() const { return m_mode; }
 
-	void putTab(int count);
-	void putNewline(bool firstcol = true);
+	/// moves the cursor to the next `count` tab position(s)
+	void moveToNextTab(size_t count = 1);
+	/// moves the cursor to the previous `count` tab position(s)
+	void moveToPrevTab(size_t count = 1);
+	/// moves the cursor the the next line (and also the first column, if set)
+	void moveToNewline(bool carriage_return = true);
 
 	void setTabAtCursor(const bool on_off) {
 		m_tabs[m_cursor.pos.x] = on_off;
 	}
 
-	void scrollUp(int orig, int n);
-	void scrollDown(int orig, int n);
+	void scrollUp(int orig, int n = 1);
+	void scrollDown(int orig, int n = 1);
 
-	int getLineLen(int y) const;
+	/// returns the number of characters found in the given line nr
+	int getLineLen(int y) const { return getLineLen(CharPos{0, y}); }
+	/// returns the number of characters found in the given line position
+	int getLineLen(const CharPos &pos) const;
 
 	/// delete the given number of characters from the cursor position to the right
-	void deleteChar(int n);
-	void deleteLine(int n);
-	void insertBlank(int n);
-	void insertBlankLine(int n);
+	void deleteColsAfterCursor(int count);
+	void deleteLinesBelowCursor(int count);
+	void insertBlanksAfterCursor(int count);
+	void insertBlankLinesBelowCursor(int count);
 	void setAttr(const std::vector<int> &attrs);
 	void setMode(bool priv, bool set, const std::vector<int> &args);
 
@@ -249,6 +257,11 @@ protected: // functions
 	void setDefTran(char ascii);
 	void decTest(char c);
 	void handleControlCode(unsigned char ascii);
+
+	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
+
+	///! returns how many columns are left after the current cursor position
+	int colsLeft() const { return m_size.cols - m_cursor.pos.x; }
 
 	CharPos topLeft() const { return {0, 0}; }
 	CharPos bottomRight() const { return {m_size.cols - 1, m_size.rows - 1}; }

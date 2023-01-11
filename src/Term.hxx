@@ -108,7 +108,7 @@ protected: // data
 	TCursor m_cached_main_cursor;    // save/load cursor for main screen
 	TCursor m_cached_alt_cursor;     // ... and for alt screen
 	ModeBitMask m_mode;       /* terminal mode flags */
-	LineSpan m_scroll_limit;    /* top and bottom sroll limit */
+	LineSpan m_scroll_area;    /* region of lines that will be affected by scroll operations */
 
 	std::vector<Line> m_alt_screen;
 	std::vector<Line> m_screen;
@@ -157,7 +157,7 @@ public: // functions
 		m_icharset = charset;
 	}
 
-	void setScrollLimit(const LineSpan &span);
+	void setScrollArea(const LineSpan &span);
 
 	void moveCursorTo(CharPos pos);
 
@@ -243,7 +243,7 @@ public: // functions
 
 	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
 
-	LineSpan getScrollLimit() const { return m_scroll_limit; }
+	LineSpan getScrollArea() const { return m_scroll_area; }
 
 	const auto getSize() const { return m_size; }
 	auto getNumRows() const { return m_size.rows; }
@@ -262,8 +262,8 @@ protected: // functions
 	/// draws the given rectangular screen region
 	void drawRegion(const Range &range) const;
 
-	void resetScrollLimit() {
-		m_scroll_limit = {0, m_size.rows - 1};
+	void resetScrollArea() {
+		m_scroll_area = {0, m_size.rows - 1};
 	}
 
 	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }

@@ -75,7 +75,7 @@ void Term::reset(void) {
 	clearAllTabs();
 	for (auto i = config::TABSPACES; i < m_size.cols; i += config::TABSPACES)
 		m_tabs[i] = true;
-	resetScrollLimit();
+	resetScrollArea();
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	m_trantbl.fill(Charset::USA);
 	m_charset = 0;
@@ -147,7 +147,7 @@ void Term::resize(const TermSize &new_size) {
 	/* update terminal size */
 	m_size = new_size;
 	/* reset scrolling region */
-	resetScrollLimit();
+	resetScrollArea();
 	/* make use of the clamping in moveCursorTo() to get a valid cursor position again */
 	moveCursorTo(m_cursor.pos);
 
@@ -189,17 +189,17 @@ void Term::clearRegion(const LineSpan &span) {
 	clearRegion({CharPos{0, span.top}, CharPos{m_size.cols - 1, span.bottom}});
 }
 
-void Term::setScrollLimit(const LineSpan &span) {
-	m_scroll_limit = span;
-	clamp(m_scroll_limit);
-	m_scroll_limit.sanitize();
+void Term::setScrollArea(const LineSpan &span) {
+	m_scroll_area = span;
+	clamp(m_scroll_area);
+	m_scroll_area.sanitize();
 }
 
 void Term::moveCursorTo(CharPos pos) {
 	LineSpan limit{0, m_size.rows - 1};
 
 	if (m_cursor.state[TCursor::State::ORIGIN]) {
-		limit = m_scroll_limit;
+		limit = m_scroll_area;
 	}
 
 	m_cursor.state.reset(TCursor::State::WRAPNEXT);
@@ -211,7 +211,7 @@ void Term::moveCursorTo(CharPos pos) {
 /* for absolute user moves, when decom is set */
 void Term::moveCursorAbsTo(CharPos pos) {
 	if (m_cursor.state[TCursor::State::ORIGIN])
-		pos.y += m_scroll_limit.top;
+		pos.y += m_scroll_area.top;
 	moveCursorTo(pos);
 }
 
@@ -278,7 +278,7 @@ void Term::moveToNewline(const CarriageReturn cr) {
 	if (cr)
 		new_pos.x = 0;
 
-	if (new_pos.y == m_scroll_limit.bottom) {
+	if (new_pos.y == m_scroll_area.bottom) {
 		scrollUp();
 	} else {
 		new_pos.y++;
@@ -306,7 +306,7 @@ void Term::deleteColsAfterCursor(int count) {
 }
 
 void Term::deleteLinesBelowCursor(int count) {
-	if (m_scroll_limit.inRange(m_cursor.pos)) {
+	if (m_scroll_area.inRange(m_cursor.pos)) {
 		scrollUp(count, m_cursor.pos.y);
 	}
 }
@@ -328,21 +328,21 @@ void Term::insertBlanksAfterCursor(int count) {
 }
 
 void Term::insertBlankLinesBelowCursor(int count) {
-	if (m_scroll_limit.inRange(m_cursor.pos)) {
+	if (m_scroll_area.inRange(m_cursor.pos)) {
 		scrollDown(count, m_cursor.pos.y);
 	}
 }
 
 void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
-	const auto &limit = m_scroll_limit;
-	int origin = opt_origin ? *opt_origin : m_scroll_limit.top;
+	const auto &area = m_scroll_area;
+	int origin = opt_origin ? *opt_origin : m_scroll_area.top;
 
-	num_lines = std::clamp(num_lines, 0, limit.bottom - origin + 1);
+	num_lines = std::clamp(num_lines, 0, area.bottom - origin + 1);
 
-	setDirty(LineSpan{origin, limit.bottom - num_lines});
-	clearRegion(LineSpan{limit.bottom - num_lines + 1, limit.bottom});
+	setDirty(LineSpan{origin, area.bottom - num_lines});
+	clearRegion(LineSpan{area.bottom - num_lines + 1, area.bottom});
 
-	for (int i = limit.bottom; i >= origin + num_lines; i--) {
+	for (int i = area.bottom; i >= origin + num_lines; i--) {
 		std::swap(m_screen[i], m_screen[i-num_lines]);
 	}
 
@@ -350,15 +350,15 @@ void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
 }
 
 void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
-	const auto &limit = m_scroll_limit;
-	int origin = opt_origin ? *opt_origin : m_scroll_limit.top;
+	const auto &area = m_scroll_area;
+	int origin = opt_origin ? *opt_origin : m_scroll_area.top;
 
-	num_lines = std::clamp(num_lines, 0, limit.bottom - origin + 1);
+	num_lines = std::clamp(num_lines, 0, area.bottom - origin + 1);
 
-	setDirty(LineSpan{origin + num_lines, limit.bottom});
+	setDirty(LineSpan{origin + num_lines, area.bottom});
 	clearRegion(LineSpan{origin, origin + num_lines -1});
 
-	for (int i = origin; i <= limit.bottom - num_lines; i++) {
+	for (int i = origin; i <= area.bottom - num_lines; i++) {
 		std::swap(m_screen[i], m_screen[i+num_lines]);
 	}
 

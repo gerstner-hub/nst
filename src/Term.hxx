@@ -3,6 +3,7 @@
 
 // C++
 #include <array>
+#include <optional>
 #include <vector>
 
 // libcosmos
@@ -134,6 +135,8 @@ public: // functions
 	EscapeState& getEscapeState() { return m_esc_state; }
 
 	void clearRegion(Range range);
+	/// clears the given span of lines completely
+	void clearRegion(const LineSpan &span);
 
 	void setDirty(LineSpan span);
 
@@ -177,8 +180,17 @@ public: // functions
 		m_tabs[m_cursor.pos.x] = on_off;
 	}
 
-	void scrollUp(int orig, int n = 1);
-	void scrollDown(int orig, int n = 1);
+	/// scrolls terminal lines downwards, creating empty lines at the top
+	/**
+	 * The optional origin line can be used to scroll only part of the
+	 * scrolling area and keep the upper lines untouched.
+	 **/
+	void scrollDown(int num_lines = 1, std::optional<int> origin = {});
+	/// scrolls terminal lines upwards, creating empty lines at the bottom
+	/**
+	 * \see scrollDown()
+	 **/
+	void scrollUp(int num_lines = 1, std::optional<int> origin = {});
 
 	/// returns the number of characters found in the given line nr
 	int getLineLen(int y) const { return getLineLen(CharPos{0, y}); }

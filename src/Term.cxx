@@ -185,6 +185,10 @@ void Term::clearRegion(Range range) {
 	}
 }
 
+void Term::clearRegion(const LineSpan &span) {
+	clearRegion({CharPos{0, span.top}, CharPos{m_size.cols - 1, span.bottom}});
+}
+
 void Term::setScrollLimit(const LineSpan &span) {
 	m_scroll_limit = span;
 	clamp(m_scroll_limit);
@@ -275,7 +279,7 @@ void Term::moveToNewline(const CarriageReturn cr) {
 		new_pos.x = 0;
 
 	if (new_pos.y == m_scroll_limit.bottom) {
-		scrollUp(m_scroll_limit.top);
+		scrollUp();
 	} else {
 		new_pos.y++;
 	}
@@ -303,7 +307,7 @@ void Term::deleteColsAfterCursor(int count) {
 
 void Term::deleteLinesBelowCursor(int count) {
 	if (m_scroll_limit.inRange(m_cursor.pos)) {
-		scrollUp(m_cursor.pos.y, count);
+		scrollUp(count, m_cursor.pos.y);
 	}
 }
 
@@ -325,34 +329,40 @@ void Term::insertBlanksAfterCursor(int count) {
 
 void Term::insertBlankLinesBelowCursor(int count) {
 	if (m_scroll_limit.inRange(m_cursor.pos)) {
-		scrollDown(m_cursor.pos.y, count);
+		scrollDown(count, m_cursor.pos.y);
 	}
 }
 
-void Term::scrollDown(int orig, int n) {
-	n = std::clamp(n, 0, m_scroll_limit.bottom - orig + 1);
+void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
+	const auto &limit = m_scroll_limit;
+	int origin = opt_origin ? *opt_origin : m_scroll_limit.top;
 
-	setDirty(LineSpan{orig, m_scroll_limit.bottom - n});
-	clearRegion({CharPos{0, m_scroll_limit.bottom - n + 1}, CharPos{m_size.cols - 1, m_scroll_limit.bottom}});
+	num_lines = std::clamp(num_lines, 0, limit.bottom - origin + 1);
 
-	for (int i = m_scroll_limit.bottom; i >= orig+n; i--) {
-		std::swap(m_screen[i], m_screen[i-n]);
+	setDirty(LineSpan{origin, limit.bottom - num_lines});
+	clearRegion(LineSpan{limit.bottom - num_lines + 1, limit.bottom});
+
+	for (int i = limit.bottom; i >= origin + num_lines; i--) {
+		std::swap(m_screen[i], m_screen[i-num_lines]);
 	}
 
-	m_selection.scroll(orig, n);
+	m_selection.scroll(origin, num_lines);
 }
 
-void Term::scrollUp(int orig, int n) {
-	n = std::clamp(n, 0, m_scroll_limit.bottom - orig + 1);
+void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
+	const auto &limit = m_scroll_limit;
+	int origin = opt_origin ? *opt_origin : m_scroll_limit.top;
 
-	setDirty(LineSpan{orig+n, m_scroll_limit.bottom});
-	clearRegion({CharPos{0, orig}, CharPos{m_size.cols - 1, orig+n-1}});
+	num_lines = std::clamp(num_lines, 0, limit.bottom - origin + 1);
 
-	for (int i = orig; i <= m_scroll_limit.bottom - n; i++) {
-		std::swap(m_screen[i], m_screen[i+n]);
+	setDirty(LineSpan{origin + num_lines, limit.bottom});
+	clearRegion(LineSpan{origin, origin + num_lines -1});
+
+	for (int i = origin; i <= limit.bottom - num_lines; i++) {
+		std::swap(m_screen[i], m_screen[i+num_lines]);
 	}
 
-	m_selection.scroll(orig, -n);
+	m_selection.scroll(origin, -num_lines);
 }
 
 void Term::setAttr(const std::vector<int> &attr) {

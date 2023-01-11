@@ -7,6 +7,7 @@
 
 // libcosmos
 #include "cosmos/BitMask.hxx"
+#include "cosmos/types.hxx"
 
 // nst
 #include "CSIEscape.hxx"
@@ -82,6 +83,8 @@ public: // types
 		GER,
 		FIN
 	};
+
+	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
 
 protected: // data
 
@@ -168,7 +171,7 @@ public: // functions
 	/// moves the cursor to the previous `count` tab position(s)
 	void moveToPrevTab(size_t count = 1);
 	/// moves the cursor the the next line (and also the first column, if set)
-	void moveToNewline(bool carriage_return = true);
+	void moveToNewline(const CarriageReturn cr = CarriageReturn());
 
 	void setTabAtCursor(const bool on_off) {
 		m_tabs[m_cursor.pos.x] = on_off;

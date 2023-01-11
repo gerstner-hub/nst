@@ -268,10 +268,10 @@ void Term::moveToPrevTab(size_t count) {
 	m_cursor.pos.x = limitCol(x);
 }
 
-void Term::moveToNewline(bool carriage_return) {
+void Term::moveToNewline(const CarriageReturn cr) {
 	CharPos new_pos = m_cursor.pos;
 
-	if (carriage_return)
+	if (cr)
 		new_pos.x = 0;
 
 	if (new_pos.y == m_scroll_limit.bottom) {
@@ -785,7 +785,7 @@ void Term::handleControlCode(unsigned char ascii) {
 	case '\v':   /* VT */
 	case '\n':   /* LF */
 		/* go to first col if the mode is set */
-		moveToNewline(/*carriage_return=*/m_mode[Mode::CRLF]);
+		moveToNewline(CarriageReturn(m_mode[Mode::CRLF]));
 		return;
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {

@@ -251,7 +251,7 @@ void CSIEscape::handle() {
 		m_term.setMode(m_priv, true, m_args);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		m_term.setAttr(m_args);
+		m_term.setCursorAttrs(m_args);
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {

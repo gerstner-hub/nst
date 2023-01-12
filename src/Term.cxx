@@ -46,9 +46,172 @@ namespace nst {
 typedef Glyph::Attr Attr;
 
 Term::TCursor::TCursor() {
-	attr.fg = config::DEFAULTFG;
-	attr.bg = config::DEFAULTBG;
+	m_attr.fg = config::DEFAULTFG;
+	m_attr.bg = config::DEFAULTBG;
 }
+
+bool Term::TCursor::setAttrs(const std::vector<int> &attrs) {
+	bool ret = true;
+	auto &mode = m_attr.mode;
+
+	for (size_t i = 0; i < attrs.size(); i++) {
+		const auto &attr = attrs[i];
+		switch (attr) {
+		case 0:
+			m_attr.mode.reset({
+				Attr::BOLD,
+				Attr::FAINT,
+				Attr::ITALIC,
+				Attr::UNDERLINE,
+				Attr::BLINK,
+				Attr::REVERSE,
+				Attr::INVISIBLE,
+				Attr::STRUCK
+			});
+			m_attr.fg = config::DEFAULTFG;
+			m_attr.bg = config::DEFAULTBG;
+			break;
+		case 1:
+			mode.set(Attr::BOLD);
+			break;
+		case 2:
+			mode.set(Attr::FAINT);
+			break;
+		case 3:
+			mode.set(Attr::ITALIC);
+			break;
+		case 4:
+			mode.set(Attr::UNDERLINE);
+			break;
+		case 5: /* slow blink */
+			/* FALLTHROUGH */
+		case 6: /* rapid blink */
+			mode.set(Attr::BLINK);
+			break;
+		case 7:
+			mode.set(Attr::REVERSE);
+			break;
+		case 8:
+			mode.set(Attr::INVISIBLE);
+			break;
+		case 9:
+			mode.set(Attr::STRUCK);
+			break;
+		case 22:
+			mode.reset({Attr::BOLD, Attr::FAINT});
+			break;
+		case 23:
+			mode.reset(Attr::ITALIC);
+			break;
+		case 24:
+			mode.reset(Attr::UNDERLINE);
+			break;
+		case 25:
+			mode.reset(Attr::BLINK);
+			break;
+		case 27:
+			mode.reset(Attr::REVERSE);
+			break;
+		case 28:
+			mode.reset(Attr::INVISIBLE);
+			break;
+		case 29:
+			mode.reset(Attr::STRUCK);
+			break;
+		case 38: {
+			int32_t colidx;
+			if (auto parsed = parseColor(attrs, i + 1, colidx); parsed > 0) {
+				m_attr.fg = colidx;
+				i += parsed;
+			}
+			break;
+		}
+		case 39:
+			m_attr.fg = config::DEFAULTFG;
+			break;
+		case 48: {
+			int32_t colidx;
+			if (auto parsed = parseColor(attrs, i + 1, colidx); parsed > 0) {
+				m_attr.bg = colidx;
+				i += parsed;
+			}
+			break;
+		}
+		case 49:
+			m_attr.bg = config::DEFAULTBG;
+			break;
+		default:
+			if (in_range(attr, 30, 37)) {
+				m_attr.fg = attr - 30;
+			} else if (in_range(attr, 40, 47)) {
+				m_attr.bg = attr - 40;
+			} else if (in_range(attr, 90, 97)) {
+				m_attr.fg = attr - 90 + 8;
+			} else if (in_range(attr, 100, 107)) {
+				m_attr.bg = attr - 100 + 8;
+			} else {
+				std::cerr << "erresc(default): gfx attr " << attr << " unknown\n",
+				ret = false;
+			}
+			break;
+		}
+	}
+
+	return ret;
+}
+
+size_t Term::TCursor::parseColor(const std::vector<int> &attrs, size_t idx, int32_t &colidx) {
+
+	auto badPars = [&]() {
+		std::cerr << "erresc(38): Incorrect number of parameters (" << attrs.size() << ")\n";
+		return 0;
+	};
+
+	if (attrs.size() == idx)
+		return badPars();
+
+	const auto coltype = attrs[idx++];
+	const auto left = attrs.size() - idx;
+
+	switch (coltype) {
+	case 2: /* direct color in RGB space */ {
+		if (left < 3)
+			return badPars();
+
+		const auto [r, g, b] = std::tie(attrs[idx], attrs[idx+1], attrs[idx+2]);
+
+		if (r <= 255 && g <= 255 && b <= 255) {
+			colidx = toTrueColor(r, g, b);
+		} else {
+			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
+		}
+
+		return 4;
+	}
+	case 5: /* indexed color */ {
+		if (left < 1)
+			return badPars();
+
+		const auto col = attrs[idx];
+
+		if (in_range(col, 0, 255)) {
+			colidx = col;
+		} else {
+			std::cerr << "erresc: bad fg/bgcolor " << col << std::endl;
+		}
+
+		return 2;
+	}
+	case 0: /* implementation defined (only foreground) */
+	case 1: /* transparent */
+	case 3: /* direct color in CMY space */
+	case 4: /* direct color in CMYK space */
+	default:
+		std::cerr << "erresc(38): gfx attr " << coltype << " unknown" << std::endl;
+		return 0;
+	}
+}
+
 
 Term::Term(Nst &nst) :
 	m_nst(nst),
@@ -180,7 +343,7 @@ void Term::clearRegion(Range range) {
 			if (m_selection.isSelected(pos))
 				m_selection.clear();
 			auto &gp = getGlyphAt(pos);
-			gp.clear(m_cursor.attr);
+			gp.clear(m_cursor.getAttr());
 		}
 	}
 }
@@ -363,145 +526,6 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 	}
 
 	m_selection.scroll(origin, -num_lines);
-}
-
-void Term::setAttr(const std::vector<int> &attr) {
-	for (size_t i = 0; i < attr.size(); i++) {
-		switch (attr[i]) {
-		case 0:
-			m_cursor.attr.mode.reset({
-				Attr::BOLD,
-				Attr::FAINT,
-				Attr::ITALIC,
-				Attr::UNDERLINE,
-				Attr::BLINK,
-				Attr::REVERSE,
-				Attr::INVISIBLE,
-				Attr::STRUCK
-			});
-			m_cursor.attr.fg = config::DEFAULTFG;
-			m_cursor.attr.bg = config::DEFAULTBG;
-			break;
-		case 1:
-			m_cursor.attr.mode.set(Attr::BOLD);
-			break;
-		case 2:
-			m_cursor.attr.mode.set(Attr::FAINT);
-			break;
-		case 3:
-			m_cursor.attr.mode.set(Attr::ITALIC);
-			break;
-		case 4:
-			m_cursor.attr.mode.set(Attr::UNDERLINE);
-			break;
-		case 5: /* slow blink */
-			/* FALLTHROUGH */
-		case 6: /* rapid blink */
-			m_cursor.attr.mode.set(Attr::BLINK);
-			break;
-		case 7:
-			m_cursor.attr.mode.set(Attr::REVERSE);
-			break;
-		case 8:
-			m_cursor.attr.mode.set(Attr::INVISIBLE);
-			break;
-		case 9:
-			m_cursor.attr.mode.set(Attr::STRUCK);
-			break;
-		case 22:
-			m_cursor.attr.mode.reset({Attr::BOLD, Attr::FAINT});
-			break;
-		case 23:
-			m_cursor.attr.mode.reset(Attr::ITALIC);
-			break;
-		case 24:
-			m_cursor.attr.mode.reset(Attr::UNDERLINE);
-			break;
-		case 25:
-			m_cursor.attr.mode.reset(Attr::BLINK);
-			break;
-		case 27:
-			m_cursor.attr.mode.reset(Attr::REVERSE);
-			break;
-		case 28:
-			m_cursor.attr.mode.reset(Attr::INVISIBLE);
-			break;
-		case 29:
-			m_cursor.attr.mode.reset(Attr::STRUCK);
-			break;
-		case 38:
-			if (auto idx = defcolor(attr, i); idx >= 0)
-				m_cursor.attr.fg = idx;
-			break;
-		case 39:
-			m_cursor.attr.fg = config::DEFAULTFG;
-			break;
-		case 48:
-			if (auto idx = defcolor(attr, i); idx >= 0)
-				m_cursor.attr.bg = idx;
-			break;
-		case 49:
-			m_cursor.attr.bg = config::DEFAULTBG;
-			break;
-		default:
-			if (in_range(attr[i], 30, 37)) {
-				m_cursor.attr.fg = attr[i] - 30;
-			} else if (in_range(attr[i], 40, 47)) {
-				m_cursor.attr.bg = attr[i] - 40;
-			} else if (in_range(attr[i], 90, 97)) {
-				m_cursor.attr.fg = attr[i] - 90 + 8;
-			} else if (in_range(attr[i], 100, 107)) {
-				m_cursor.attr.bg = attr[i] - 100 + 8;
-			} else {
-				std::cerr << "erresc(default): gfx attr " << attr[i] << " unknown\n",
-				m_csiescseq.dump("");
-			}
-			break;
-		}
-	}
-}
-
-int32_t Term::defcolor(const std::vector<int> &attr, size_t &npar) {
-	// TODO: could this be a possible out of bound access here if attr.size() == 1?
-	switch (attr[npar + 1]) {
-	case 2: /* direct color in RGB space */ {
-		if (npar + 4 >= attr.size()) {
-			std::cerr << "erresc(38): Incorrect number of parameters (" << npar << ")\n";
-			break;
-		}
-		const unsigned int r = attr[npar + 2];
-		const unsigned int g = attr[npar + 3];
-		const unsigned int b = attr[npar + 4];
-		npar += 4;
-		if (r > 255 || g > 255 || b > 255) {
-			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
-			break;
-		}
-
-		return toTrueColor(r, g, b);
-	}
-	case 5: /* indexed color */
-		if (npar + 2 >= attr.size()) {
-			std::cerr << "erresc(38): Incorrect number of parameters (" << npar << ")" << std::endl;
-			break;
-		}
-		npar += 2;
-		if (!in_range(attr[npar], 0, 255)) {
-			std::cerr << "erresc: bad fgcolor " << attr[npar] << std::endl;
-			break;
-		}
-
-		return attr[npar];
-	case 0: /* implementation defined (only foreground) */
-	case 1: /* transparent */
-	case 3: /* direct color in CMY space */
-	case 4: /* direct color in CMYK space */
-	default:
-		std::cerr << "erresc(38): gfx attr " << attr[npar] << " unknown" << std::endl;
-		break;
-	}
-
-	return -1;
 }
 
 void Term::setMode(bool priv, bool set, const std::vector<int> &args) {
@@ -775,7 +799,7 @@ void Term::decTest(char ch) {
 	if (ch == '8') { /* DEC screen alignment test. */
 		for (int x = 0; x < m_size.cols; ++x) {
 			for (int y = 0; y < m_size.rows; ++y)
-				setChar('E', m_cursor.attr, CharPos{x, y});
+				setChar('E', m_cursor.getAttr(), CharPos{x, y});
 		}
 	}
 }
@@ -815,7 +839,7 @@ void Term::handleControlCode(unsigned char ascii) {
 		m_charset = 1 - (ascii - '\016');
 		return;
 	case '\032': /* SUB */
-		setChar('?', m_cursor.attr, m_cursor.pos);
+		setChar('?', m_cursor.getAttr(), m_cursor.pos);
 		/* FALLTHROUGH */
 	case '\030': /* CAN */
 		m_csiescseq.reset();
@@ -975,7 +999,7 @@ void Term::putChar(Rune u) {
 		gp = &getGlyphAt(m_cursor.pos);
 	}
 
-	setChar(u, m_cursor.attr, m_cursor.pos);
+	setChar(u, m_cursor.getAttr(), m_cursor.pos);
 	m_last_char = u;
 
 	if (width == 2) {

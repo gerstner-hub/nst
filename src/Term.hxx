@@ -68,11 +68,32 @@ public: // types
 
 		typedef cosmos::BitMask<State> StateBitMask;
 	public: // data
-		Glyph attr; /* current char attributes */
 		CharPos pos;
 		StateBitMask state;
+	protected: // data
+		Glyph m_attr; /// contains the currently active font attributes for newly input characters
 	public: // functions
 		TCursor();
+		/// sets new attributes like font properties or colors
+		/**
+		 * \param[in] attrs contains the individual sequence codes of the
+		 * attribute change request.
+		 **/
+		bool setAttrs(const std::vector<int> &attrs);
+
+		const auto& getAttr() const { return m_attr; }
+	protected: // functions
+		/// parses the given escape sequence and returns the resulting color index to use
+		/**
+		 * \param[in] pos the current parse position in attrs
+		 * \param[out] colidx receives the parsed color index
+		 * \return the number of parsed elements in attrs at pos
+		 **/
+		size_t parseColor(const std::vector<int> &attrs, size_t pos, int32_t &colidx);
+
+		int32_t toTrueColor(unsigned int r, unsigned int g, unsigned int b) const {
+			return (1 << 24) | (r << 16) | (g << 8) | b;
+		}
 	};
 
 	enum class Charset {
@@ -202,7 +223,6 @@ public: // functions
 	void deleteLinesBelowCursor(int count);
 	void insertBlanksAfterCursor(int count);
 	void insertBlankLinesBelowCursor(int count);
-	void setAttr(const std::vector<int> &attrs);
 	void setMode(bool priv, bool set, const std::vector<int> &args);
 
 	//! write all current lines into the I/O file
@@ -236,6 +256,11 @@ public: // functions
 	Rune getLastChar() const { return m_last_char; }
 
 	const TCursor& getCursor() const { return m_cursor; }
+	void setCursorAttrs(const std::vector<int> &attrs) {
+		if (!m_cursor.setAttrs(attrs)) {
+			m_csiescseq.dump("");
+		}
+	}
 
 	void setPrintMode(const bool on_off) {
 		m_mode.set(Mode::PRINT, on_off);
@@ -252,12 +277,6 @@ public: // functions
 	auto& getScreen() const { return m_screen; }
 
 protected: // functions
-
-	int32_t defcolor(const std::vector<int> &attr, size_t &npar);
-
-	int32_t toTrueColor(unsigned int r, unsigned int g, unsigned int b) const {
-		return (1 << 24) | (r << 16) | (g << 8) | b;
-	}
 
 	/// draws the given rectangular screen region
 	void drawRegion(const Range &range) const;

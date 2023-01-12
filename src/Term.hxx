@@ -223,7 +223,7 @@ public: // functions
 	void deleteLinesBelowCursor(int count);
 	void insertBlanksAfterCursor(int count);
 	void insertBlankLinesBelowCursor(int count);
-	void setMode(bool priv, bool set, const std::vector<int> &args);
+	void setMode(bool priv, const bool set, const std::vector<int> &args);
 
 	//! write all current lines into the I/O file
 	void dump() const {
@@ -291,6 +291,8 @@ protected: // functions
 	void setDefTran(char ascii);
 	void decTest(char c);
 	void handleControlCode(unsigned char ascii);
+
+	void setPrivateMode(const bool set, const std::vector<int> &args);
 
 	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
 

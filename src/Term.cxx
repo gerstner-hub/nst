@@ -1020,7 +1020,7 @@ void Term::putChar(Rune u) {
 				gp[2].mode.reset(Attr::WDUMMY);
 			}
 			gp[1].u = '\0';
-			gp[1].mode.limit(Attr::WDUMMY);
+			gp[1].mode = Glyph::AttrBitMask(Attr::WDUMMY);
 		}
 	}
 

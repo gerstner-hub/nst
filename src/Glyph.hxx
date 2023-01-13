@@ -29,7 +29,7 @@ public: // types
 		STRUCK     = 1 << 7,
 		WRAP       = 1 << 8,
 		WIDE       = 1 << 9,
-		WDUMMY     = 1 << 10
+		WDUMMY     = 1 << 10 /// for wide UTF8 characters this is a dummy placeholder position
 	};
 
 	typedef cosmos::BitMask<Attr> AttrBitMask;
@@ -82,6 +82,7 @@ public: // functions
 	/// returns whether the Glyph is "empty", currently meaning "space"
 	bool isEmpty() const { return u == ' '; }
 	bool hasValue() const { return !isEmpty(); }
+	bool isDummy() const { return mode[Attr::WDUMMY]; }
 };
 
 /// a series of Glyphs forming a line on the terminal

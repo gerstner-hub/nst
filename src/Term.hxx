@@ -116,7 +116,7 @@ protected: // data
 	X11 &m_x11;
 
 	TermSize m_size;
-	CharPos m_old_cursor_pos;
+	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
 	std::array<Charset, 4> m_trantbl;  /* charset table translation */
 	size_t m_charset = 0; /* current charset in m_trantbl */
 	size_t m_icharset = 0;       /* selected charset for sequence */

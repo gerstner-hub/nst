@@ -711,29 +711,29 @@ void Term::draw() {
 	if (!m_x11.canDraw())
 		return;
 
-	// TODO: pretty confusing logic, further comments or improved
-	// readability required
+	const auto orig_last_pos = m_last_cursor_pos;
+	auto new_pos = m_cursor.pos;
 
-	auto old_cursor_pos = m_old_cursor_pos;
-	int old_cx = m_cursor.pos.x;
+	/* make sure the last cursor pos is still sane */
+	clampToScreen(m_last_cursor_pos);
 
-	/* adjust cursor position */
-	clampToScreen(m_old_cursor_pos);
-
-	if (getGlyphAt(m_old_cursor_pos).mode[Attr::WDUMMY])
-		m_old_cursor_pos.x--;
-	if (m_screen[m_cursor.pos.y][old_cx].mode[Attr::WDUMMY])
-		old_cx--;
+	// in case we point to a wide character dummy position, move one
+	// character to the left to point to the actual character
+	if (getGlyphAt(m_last_cursor_pos).isDummy())
+		m_last_cursor_pos.moveLeft();
+	if (getGlyphAt(new_pos).isDummy())
+		new_pos.moveLeft();
 
 	drawScreen();
-	const auto new_pos = CharPos{old_cx, m_cursor.pos.y};
-	m_x11.clearCursor(m_old_cursor_pos, getGlyphAt(m_old_cursor_pos));
+	m_x11.clearCursor(m_last_cursor_pos, getGlyphAt(m_last_cursor_pos));
 	m_x11.drawCursor(new_pos, getGlyphAt(new_pos));
 
-	m_old_cursor_pos = new_pos;
+	const bool cursor_pos_changed = orig_last_pos != new_pos;
+	m_last_cursor_pos = new_pos;
 	m_x11.finishDraw();
-	if (m_old_cursor_pos != old_cursor_pos)
-		m_x11.getInput().setSpot(m_old_cursor_pos);
+
+	if (cursor_pos_changed)
+		m_x11.getInput().setSpot(new_pos);
 }
 
 void Term::strSequence(unsigned char ch) {

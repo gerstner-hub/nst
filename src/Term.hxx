@@ -117,8 +117,8 @@ protected: // data
 
 	TermSize m_size;
 	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
-	std::array<Charset, 4> m_trantbl;  /* charset table translation */
-	size_t m_charset = 0; /* current charset in m_trantbl */
+	std::array<Charset, 4> m_charset_translation;  /* charset table translation */
+	size_t m_charset = 0; /* current charset in m_charset_translation */
 	size_t m_icharset = 0;       /* selected charset for sequence */
 	bool m_allowaltscreen = false;
 	Rune m_last_char = 0;     /* last printed char outside of sequence, 0 if control */
@@ -246,8 +246,8 @@ public: // functions
 
 	void draw();
 
-	//! process a terminal string sequence
-	void strSequence(unsigned char c);
+	//! initialize a newly starting terminal string escape sequence
+	void initStrSequence(unsigned char c);
 
 	void putChar(Rune u);
 	size_t write(const char *buf, const size_t buflen, const bool show_ctrl);
@@ -286,7 +286,10 @@ protected: // functions
 
 	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
 
-	void setChar(Rune u, const Glyph &attr, const CharPos &pos);
+	/// place the given Rune at the given terminal position
+	void setChar(Rune u, const CharPos &pos);
+	/// checks whether the given input Rune needs to be translated and does so if necessary
+	Rune translateChar(Rune u);
 	void setDefTran(char ascii);
 	void decTest(char c);
 	void handleControlCode(unsigned char ascii);
@@ -301,6 +304,9 @@ protected: // functions
 
 	CharPos topLeft() const { return {0, 0}; }
 	CharPos bottomRight() const { return {m_size.cols - 1, m_size.rows - 1}; }
+	bool atEndOfLine(const CharPos &pos) {
+		return pos.x >= m_size.cols - 1;
+	}
 
 	auto limitRow(int row) { return std::clamp(row, 0, m_size.rows - 1); }
 	auto limitCol(int col) { return std::clamp(col, 0, m_size.cols - 1); }

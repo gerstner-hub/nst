@@ -240,7 +240,7 @@ void Term::reset(void) {
 		m_tabs[i] = true;
 	resetScrollArea();
 	m_mode.set({Mode::WRAP, Mode::UTF8});
-	m_trantbl.fill(Charset::USA);
+	m_charset_translation.fill(Charset::USA);
 	m_charset = 0;
 
 	// reset main and alt screen
@@ -736,7 +736,8 @@ void Term::draw() {
 		m_x11.getInput().setSpot(new_pos);
 }
 
-void Term::strSequence(unsigned char ch) {
+void Term::initStrSequence(unsigned char ch) {
+	// translate if not already done
 	switch (ch) {
 	case 0x90:   /* DCS -- Device Control String */
 		ch = 'P';
@@ -756,8 +757,16 @@ void Term::strSequence(unsigned char ch) {
 	m_esc_state.set(Escape::STR);
 }
 
-void Term::setChar(Rune u, const Glyph &attr, const CharPos &pos) {
-	constexpr const char *VT100_0[0x7e - 0x41 + 1] = { /* 0x41 - 0x7e */
+Rune Term::translateChar(Rune u) {
+	// GRAPHIC0 translation table for VT100 "special graphics mode"
+	/*
+	 * The table is proudly stolen from rxvt.
+	 */
+
+	constexpr auto VT100_GR_START = 0x41;
+	constexpr auto VT100_GR_END = 0x7e;
+
+	constexpr const char *VT100_0[VT100_GR_END - VT100_GR_START + 1] = { /* 0x41 - 0x7e */
 		"↑", "↓", "→", "←", "█", "▚", "☃", /* A - G */
 		0, 0, 0, 0, 0, 0, 0, 0, /* H - O */
 		0, 0, 0, 0, 0, 0, 0, 0, /* P - W */
@@ -768,16 +777,30 @@ void Term::setChar(Rune u, const Glyph &attr, const CharPos &pos) {
 		"│", "≤", "≥", "π", "≠", "£", "·", /* x - ~ */
 	};
 
-	/*
-	 * The table is proudly stolen from rxvt.
-	 */
-	if (m_trantbl[m_charset] == Charset::GRAPHIC0 && in_range(u, 0x41, 0x7e) && VT100_0[u - 0x41])
-		utf8::decode(VT100_0[u - 0x41], &u, utf8::UTF_SIZE);
+	switch (m_charset_translation[m_charset]) {
+		// nothing to do or not implemented
+		default: break;
+		case Charset::GRAPHIC0:
+			 if (in_range(u, VT100_GR_START, VT100_GR_END)) {
+				 const auto TRANS_CHAR = VT100_0[u - VT100_GR_START];
 
+				 if (TRANS_CHAR) {
+					utf8::decode(TRANS_CHAR, &u, utf8::UTF_SIZE);
+				 }
+			 }
+			 break;
+	}
+
+	return u;
+}
+
+void Term::setChar(Rune u, const CharPos &pos) {
 	auto &glyph = getGlyphAt(pos);
 
+	// if we replace a WIDE/DUMMY position then correct the sibbling
+	// position
 	if (glyph.mode[Attr::WIDE]) {
-		if (pos.x+1 < m_size.cols) {
+		if (!atEndOfLine(pos)) {
 			auto &next_glyph = getGlyphAt(pos.nextCol());
 			next_glyph.u = ' ';
 			next_glyph.mode.reset(Attr::WDUMMY);
@@ -789,8 +812,8 @@ void Term::setChar(Rune u, const Glyph &attr, const CharPos &pos) {
 	}
 
 	m_dirty_lines[pos.y] = true;
-	glyph = attr;
-	glyph.u = u;
+	glyph = m_cursor.getAttr();
+	glyph.u = translateChar(u);
 }
 
 void Term::setDefTran(char ascii) {
@@ -801,7 +824,7 @@ void Term::setDefTran(char ascii) {
 	if (p == nullptr) {
 		std::cerr << "esc unhandled charset: ESC ( " << ascii << "\n";
 	} else {
-		m_trantbl[m_icharset] = vcs[p - cs];
+		m_charset_translation[m_icharset] = vcs[p - cs];
 	}
 }
 
@@ -809,7 +832,7 @@ void Term::decTest(char ch) {
 	if (ch == '8') { /* DEC screen alignment test. */
 		for (int x = 0; x < m_size.cols; ++x) {
 			for (int y = 0; y < m_size.rows; ++y)
-				setChar('E', m_cursor.getAttr(), CharPos{x, y});
+				setChar('E', CharPos{x, y});
 		}
 	}
 }
@@ -849,7 +872,7 @@ void Term::handleControlCode(unsigned char ascii) {
 		m_charset = 1 - (ascii - '\016');
 		return;
 	case '\032': /* SUB */
-		setChar('?', m_cursor.getAttr(), m_cursor.pos);
+		setChar('?', m_cursor.pos);
 		/* FALLTHROUGH */
 	case '\030': /* CAN */
 		m_csiescseq.reset();
@@ -902,7 +925,7 @@ void Term::handleControlCode(unsigned char ascii) {
 	case 0x9d:   /* OSC -- Operating System Command */
 	case 0x9e:   /* PM -- Privacy Message */
 	case 0x9f:   /* APC -- Application Program Command */
-		strSequence(ascii);
+		initStrSequence(ascii);
 		return;
 	}
 	/* only CAN, SUB, \a and C1 chars interrupt a sequence */
@@ -1009,7 +1032,7 @@ void Term::putChar(Rune u) {
 		gp = &getGlyphAt(m_cursor.pos);
 	}
 
-	setChar(u, m_cursor.getAttr(), m_cursor.pos);
+	setChar(u, m_cursor.pos);
 	m_last_char = u;
 
 	if (width == 2) {

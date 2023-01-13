@@ -312,7 +312,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	case '^': /* PM -- Privacy Message */
 	case ']': /* OSC -- Operating System Command */
 	case 'k': /* old title set compatibility */
-		m_term.strSequence(ascii);
+		m_term.initStrSequence(ascii);
 		return 0;
 	case 'n': /* LS2 -- Locking shift 2 */
 	case 'o': /* LS3 -- Locking shift 3 */

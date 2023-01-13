@@ -322,7 +322,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	case ')': /* G1D4 -- set secondary charset G1 */
 	case '*': /* G2D4 -- set tertiary charset G2 */
 	case '+': /* G3D4 -- set quaternary charset G3 */
-		m_term.setICharset(ascii - '(');
+		m_term.setEscCharset(ascii - '(');
 		esc.set(Escape::ALTCHARSET);
 		return 0;
 	case 'D': /* IND -- Linefeed */

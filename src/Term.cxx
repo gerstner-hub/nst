@@ -240,8 +240,8 @@ void Term::reset(void) {
 		m_tabs[i] = true;
 	resetScrollArea();
 	m_mode.set({Mode::WRAP, Mode::UTF8});
-	m_charset_translation.fill(Charset::USA);
-	m_charset = 0;
+	m_charsets.fill(Charset::USA);
+	m_active_charset = 0;
 
 	// reset main and alt screen
 	for (size_t i = 0; i < 2; i++) {
@@ -777,7 +777,7 @@ Rune Term::translateChar(Rune u) {
 		"│", "≤", "≥", "π", "≠", "£", "·", /* x - ~ */
 	};
 
-	switch (m_charset_translation[m_charset]) {
+	switch (m_charsets[m_active_charset]) {
 		// nothing to do or not implemented
 		default: break;
 		case Charset::GRAPHIC0:
@@ -816,20 +816,23 @@ void Term::setChar(Rune u, const CharPos &pos) {
 	glyph.u = translateChar(u);
 }
 
-void Term::setDefTran(char ascii) {
-	constexpr char cs[] = "0B";
-	constexpr Charset vcs[] = {Charset::GRAPHIC0, Charset::USA};
-	const char *p = strchr(cs, ascii);
-
-	if (p == nullptr) {
-		std::cerr << "esc unhandled charset: ESC ( " << ascii << "\n";
-	} else {
-		m_charset_translation[m_icharset] = vcs[p - cs];
+void Term::setCharsetMapping(const char code) {
+	// this is DEC VT100 spec related
+	switch(code) {
+	default:
+		std::cerr << "esc unhandled charset: ESC ( " << code << "\n";
+		break;
+	case '0':
+		m_charsets[m_esc_charset] = Charset::GRAPHIC0;
+		break;
+	case 'B':
+		m_charsets[m_esc_charset] = Charset::USA;
+		break;
 	}
 }
 
-void Term::decTest(char ch) {
-	if (ch == '8') { /* DEC screen alignment test. */
+void Term::runDECTest(char code) {
+	if (code == '8') { /* DEC screen alignment test. */
 		for (int x = 0; x < m_size.cols; ++x) {
 			for (int y = 0; y < m_size.rows; ++y)
 				setChar('E', CharPos{x, y});
@@ -869,7 +872,7 @@ void Term::handleControlCode(unsigned char ascii) {
 		return;
 	case '\016': /* SO (LS1 -- Locking shift 1) */
 	case '\017': /* SI (LS0 -- Locking shift 0) */
-		m_charset = 1 - (ascii - '\016');
+		m_active_charset = 1 - (ascii - '\016');
 		return;
 	case '\032': /* SUB */
 		setChar('?', m_cursor.pos);
@@ -997,9 +1000,9 @@ void Term::putChar(Rune u) {
 				break;
 			}
 		} else if (m_esc_state[Escape::ALTCHARSET]) {
-			setDefTran(u);
+			setCharsetMapping(u);
 		} else if (m_esc_state[Escape::TEST]) {
-			decTest(u);
+			runDECTest(u);
 		} else if (!m_csiescseq.eschandle(u)) {
 			return;
 			/* sequence already finished */

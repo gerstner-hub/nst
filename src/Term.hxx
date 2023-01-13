@@ -97,10 +97,10 @@ public: // types
 	};
 
 	enum class Charset {
-		GRAPHIC0,
+		GRAPHIC0, /// DEC Special Graphics 7-bit character set
 		GRAPHIC1,
 		UK,
-		USA,
+		USA, // US-ASCII
 		MULTI,
 		GER,
 		FIN
@@ -117,9 +117,9 @@ protected: // data
 
 	TermSize m_size;
 	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
-	std::array<Charset, 4> m_charset_translation;  /* charset table translation */
-	size_t m_charset = 0; /* current charset in m_charset_translation */
-	size_t m_icharset = 0;       /* selected charset for sequence */
+	std::array<Charset, 4> m_charsets;  /// four configurable translation charsets
+	size_t m_active_charset = 0; /* current charset in m_charset_translation */
+	size_t m_esc_charset = 0; /// selected charset index for escape sequences
 	bool m_allowaltscreen = false;
 	Rune m_last_char = 0;     /* last printed char outside of sequence, 0 if control */
 	EscapeState m_esc_state;  /* escape state flags */
@@ -169,11 +169,11 @@ public: // functions
 	}
 
 	void setCharset(size_t charset) {
-		m_charset = charset;
+		m_active_charset = charset;
 	}
 
-	void setICharset(size_t charset) {
-		m_icharset = charset;
+	void setEscCharset(size_t charset) {
+		m_esc_charset = std::clamp(charset, 0UL, m_charsets.size() - 1);
 	}
 
 	void setScrollArea(const LineSpan &span);
@@ -290,8 +290,13 @@ protected: // functions
 	void setChar(Rune u, const CharPos &pos);
 	/// checks whether the given input Rune needs to be translated and does so if necessary
 	Rune translateChar(Rune u);
-	void setDefTran(char ascii);
-	void decTest(char c);
+	/// sets the currently selected escape charset to the given mapping
+	/**
+	 * \param[in] code The escape code representing the character set to
+	 * map to.
+	 **/
+	void setCharsetMapping(const char code);
+	void runDECTest(char code);
 	void handleControlCode(unsigned char ascii);
 
 	void setPrivateMode(const bool set, const std::vector<int> &args);

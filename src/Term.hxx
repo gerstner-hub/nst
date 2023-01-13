@@ -232,7 +232,8 @@ public: // functions
 	}
 
 	//! write the given line into the I/O file
-	void dumpLine(size_t n) const;
+	void dumpLine(const CharPos &pos) const;
+	void dumpLine(int line) const { dumpLine(CharPos{0, line}); }
 
 	//! returns whether any glyph currently has this attribute set
 	bool existsBlinkingGlyph() const;
@@ -295,6 +296,7 @@ protected: // functions
 	void setPrivateMode(const bool set, const std::vector<int> &args);
 
 	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
+	const Line& getLine(const CharPos &pos) const { return m_screen[pos.y]; }
 
 	///! returns how many columns are left after the current cursor position
 	int colsLeft() const { return m_size.cols - m_cursor.pos.x; }

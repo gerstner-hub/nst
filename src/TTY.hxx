@@ -1,6 +1,9 @@
 #ifndef NST_TTY_HXX
 #define NST_TTY_HXX
 
+// C++
+#include <string_view>
+
 // nst
 #include "Term.hxx"
 
@@ -49,6 +52,9 @@ public: // functions
 		if (!m_io_file.isOpen())
 			return;
 		doPrintToIoFile(s, len);
+	}
+	void printToIoFile(const std::string_view s) {
+		return printToIoFile(s.data(), s.length());
 	}
 
 	auto getChildFD() { return m_child_proc.pidFD(); }

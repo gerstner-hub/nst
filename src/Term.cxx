@@ -657,16 +657,16 @@ void Term::setPrivateMode(const bool set, const std::vector<int> &args) {
 	}
 }
 
-void Term::dumpLine(size_t n) const {
+void Term::dumpLine(const CharPos &pos) const {
 	char buf[utf8::UTF_SIZE];
 
-	auto bp = m_screen[n].begin();
-	auto end = bp + std::min(getLineLen(n), m_size.cols) - 1;
-	if (bp != end || bp->u != ' ') {
-		for ( ; bp <= end; ++bp)
-			m_tty.printToIoFile(buf, utf8::encode(bp->u, buf));
+	auto left = getLineLen(pos);
+	const auto line = getLine(pos);
+
+	for (auto it = line.begin(); left != 0; it++, left--) {
+		m_tty.printToIoFile(buf, utf8::encode(it->u, buf));
 	}
-	m_tty.printToIoFile("\n", 1);
+	m_tty.printToIoFile("\n");
 }
 
 bool Term::existsBlinkingGlyph() const {

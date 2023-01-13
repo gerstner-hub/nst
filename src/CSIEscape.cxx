@@ -111,7 +111,7 @@ void CSIEscape::handle() {
 			m_term.dump();
 			break;
 		case 1:
-			m_term.dumpLine(cursor.pos.y);
+			m_term.dumpLine(cursor.pos);
 			break;
 		case 2:
 			m_nst.getSelection().dump();

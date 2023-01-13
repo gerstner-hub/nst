@@ -117,8 +117,6 @@ protected: // data
 
 	TermSize m_size;
 	CharPos m_old_cursor_pos;
-	int m_ocx = 0;            /* old cursor col */
-	int m_ocy = 0;            /* old cursor row */
 	std::array<Charset, 4> m_trantbl;  /* charset table translation */
 	size_t m_charset = 0; /* current charset in m_trantbl */
 	size_t m_icharset = 0;       /* selected charset for sequence */

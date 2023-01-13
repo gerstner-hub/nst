@@ -673,10 +673,11 @@ bool Term::existsBlinkingGlyph() const {
 	// NOTE: this test could probably be cheaper by keeping track of this
 	// attribute when changing glyphs.
 
-	for (int y = 0; y < m_size.rows - 1; y++) {
-		for (int x = 0; x < m_size.cols-1; x++) {
-			if (m_screen[y][x].mode[Attr::BLINK])
+	for (auto &line: m_screen) {
+		for (auto &glyph: line) {
+			if (glyph.mode[Attr::BLINK]) {
 				return true;
+			}
 		}
 	}
 
@@ -685,8 +686,10 @@ bool Term::existsBlinkingGlyph() const {
 
 void Term::setDirtyByAttr(const Glyph::Attr &attr) {
 	for (int y = 0; y < m_size.rows - 1; y++) {
-		for (int x = 0; x < m_size.cols-1; x++) {
-			if (m_screen[y][x].mode[attr]) {
+		const auto &line = m_screen[y];
+
+		for (const auto &glyph: line) {
+			if (glyph.mode[attr]) {
 				setDirty(LineSpan{y, y});
 				break;
 			}

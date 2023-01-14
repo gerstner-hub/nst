@@ -840,8 +840,8 @@ void Term::runDECTest(char code) {
 	}
 }
 
-void Term::handleControlCode(unsigned char ascii) {
-	switch (ascii) {
+void Term::handleControlCode(unsigned char code) {
+	switch (code) {
 	case '\t':   /* HT */
 		moveToNextTab();
 		return;
@@ -849,12 +849,12 @@ void Term::handleControlCode(unsigned char ascii) {
 		moveCursorTo(m_cursor.pos.prevCol());
 		return;
 	case '\r':   /* CR */
-		moveCursorTo({0, m_cursor.pos.y});
+		moveCursorTo(m_cursor.pos.startOfLine());
 		return;
 	case '\f':   /* LF */
 	case '\v':   /* VT */
 	case '\n':   /* LF */
-		/* go to first col if the mode is set */
+		/* go to first col if CRLF mode is set */
 		moveToNewline(CarriageReturn(m_mode[Mode::CRLF]));
 		return;
 	case '\a':   /* BEL */
@@ -872,7 +872,7 @@ void Term::handleControlCode(unsigned char ascii) {
 		return;
 	case '\016': /* SO (LS1 -- Locking shift 1) */
 	case '\017': /* SI (LS0 -- Locking shift 0) */
-		m_active_charset = 1 - (ascii - '\016');
+		m_active_charset = 1 - (code - '\016');
 		return;
 	case '\032': /* SUB */
 		setChar('?', m_cursor.pos);
@@ -919,7 +919,7 @@ void Term::handleControlCode(unsigned char ascii) {
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		m_tty.write(config::VTIDEN, strlen(config::VTIDEN), 0);
+		m_tty.write(config::VTIDEN, /*may_echo=*/false);
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -928,9 +928,10 @@ void Term::handleControlCode(unsigned char ascii) {
 	case 0x9d:   /* OSC -- Operating System Command */
 	case 0x9e:   /* PM -- Privacy Message */
 	case 0x9f:   /* APC -- Application Program Command */
-		initStrSequence(ascii);
+		initStrSequence(code);
 		return;
 	}
+
 	/* only CAN, SUB, \a and C1 chars interrupt a sequence */
 	resetStringEscape();
 }

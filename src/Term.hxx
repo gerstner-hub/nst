@@ -35,7 +35,7 @@ public: // types
 		WRAP        = 1 << 0,
 		INSERT      = 1 << 1,
 		ALTSCREEN   = 1 << 2,
-		CRLF        = 1 << 3,
+		CRLF        = 1 << 3, /// implicit carriage return on newline
 		TECHO       = 1 << 4, /* ECHO conflicts with termios.h */
 		PRINT       = 1 << 5,
 		UTF8        = 1 << 6,
@@ -297,7 +297,8 @@ protected: // functions
 	 **/
 	void setCharsetMapping(const char code);
 	void runDECTest(char code);
-	void handleControlCode(unsigned char ascii);
+	/// handle the given input control code
+	void handleControlCode(unsigned char code);
 
 	void setPrivateMode(const bool set, const std::vector<int> &args);
 

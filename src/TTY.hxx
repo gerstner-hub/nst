@@ -45,6 +45,9 @@ public: // functions
 	~TTY();
 	cosmos::FileDescriptor create(const Cmdline &cmdline);
 	size_t read();
+	void write(const std::string_view s, bool may_echo) {
+		write(s.data(), s.size(), may_echo);
+	}
 	void write(const char *s, size_t n, bool may_echo);
 	void resize(const Extent &size);
 	void hangup();

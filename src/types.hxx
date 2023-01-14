@@ -82,11 +82,14 @@ struct CharPos : public PosT<char_pos_t> {
 	CharPos prevCol(const int n=1)  const { return CharPos{x - n, y    }; }
 	CharPos nextLine(const int n=1) const { return CharPos{x,     y + n}; }
 	CharPos prevLine(const int n=1) const { return CharPos{x,     y - n}; }
+	CharPos startOfLine() const { return CharPos{0, y}; }
 
 	CharPos& moveLeft(const int n=1) { x -= n; return *this; }
 	CharPos& moveRight(const int n=1) { x += n; return *this; }
 	CharPos& moveDown(const int n=1) { y += n; return *this; }
 	CharPos& moveUp(const int n=1) { y -= n; return *this; }
+
+	CharPos& moveToStartOfLine() { x = 0; return *this; }
 };
 
 class draw_pos_t;

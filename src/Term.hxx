@@ -116,24 +116,27 @@ protected: // data
 	X11 &m_x11;
 
 	TermSize m_size;
+	ModeBitMask m_mode; /// terminal mode flags
+
 	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
-	std::array<Charset, 4> m_charsets;  /// four configurable translation charsets
-	size_t m_active_charset = 0; /* current charset in m_charset_translation */
+	LineSpan m_scroll_area; /// region of lines that will be affected by scroll operations
+	Rune m_last_char = 0; /// last printed char outside of sequence, 0 if control
+
+	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
+	size_t m_active_charset = 0; /// current charset used from m_charsets
 	size_t m_esc_charset = 0; /// selected charset index for escape sequences
-	bool m_allowaltscreen = false;
-	Rune m_last_char = 0;     /* last printed char outside of sequence, 0 if control */
-	EscapeState m_esc_state;  /* escape state flags */
-	TCursor m_cursor;         /* cursor */
-	TCursor m_cached_main_cursor;    // save/load cursor for main screen
-	TCursor m_cached_alt_cursor;     // ... and for alt screen
-	ModeBitMask m_mode;       /* terminal mode flags */
-	LineSpan m_scroll_area;    /* region of lines that will be affected by scroll operations */
 
-	std::vector<Line> m_alt_screen;
-	std::vector<Line> m_screen;
-	mutable std::vector<bool> m_dirty_lines;
-	std::vector<bool> m_tabs; // marks horizontal tab positions
+	TCursor m_cursor; /// current cursor position and attributes
+	TCursor m_cached_main_cursor; /// save/load cursor for main screen
+	TCursor m_cached_alt_cursor;  /// ... and for alt screen
 
+	bool m_allowaltscreen = false; /// whether altscreen support is enabled
+	std::vector<Line> m_alt_screen; /// alt screen data
+	std::vector<Line> m_screen; /// main screen data
+	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
+	std::vector<bool> m_tabs; /// marks horizontal tab positions
+
+	EscapeState m_esc_state; //// escape state flags
 	STREscape m_strescseq;
 	CSIEscape m_csiescseq;
 
@@ -296,6 +299,7 @@ protected: // functions
 	 * map to.
 	 **/
 	void setCharsetMapping(const char code);
+	/// performs special DEC tests triggered by escape sequence code
 	void runDECTest(char code);
 	/// handle the given input control code
 	void handleControlCode(unsigned char code);

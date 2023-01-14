@@ -31,6 +31,7 @@ class Term {
 
 public: // types
 
+	/// gobal terminal mode settings
 	enum class Mode : unsigned {
 		WRAP        = 1 << 0,
 		INSERT      = 1 << 1,
@@ -43,46 +44,77 @@ public: // types
 
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
+	/// escape sequence parsing status
 	enum class Escape {
 		START      = 1 << 0,
 		CSI        = 1 << 1,
-		STR        = 1 << 2,  /* DCS, OSC, PM, APC */
+		STR        = 1 << 2, /// DCS, OSC, PM, APC
 		ALTCHARSET = 1 << 3,
-		STR_END    = 1 << 4, /* a final string was encountered */
-		TEST       = 1 << 5, /* Enter in test mode */
+		STR_END    = 1 << 4, /// a final string was encountered
+		TEST       = 1 << 5, /// Enter in test mode
 		UTF8       = 1 << 6,
 	};
 
 	typedef cosmos::BitMask<Escape> EscapeState;
 
-	struct TCursor { /* Cursor conflicts with X headers */
+	/// different terminal character sets (we don't support them all)
+	enum class Charset {
+		GRAPHIC0, /// DEC Special Graphics 7-bit character set
+		GRAPHIC1,
+		UK,
+		USA, // US-ASCII
+		MULTI,
+		GER,
+		FIN
+	};
+
+	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
+
+	/// cursor related data
+	/**
+	 * This contains the current logical cursor position as well as cursor
+	 * attributes and cursor specific control settings.
+	 **/
+	struct TCursor { /* "Cursor" identifier conflicts with X headers */
+		friend class Term;
 	public: // types
+
+		/// cursor control operations
 		enum class Control {
 			SAVE,
 			LOAD
 		};
+
+		/// cursor settings
 		enum class State : unsigned {
 			WRAPNEXT = 1,
 			ORIGIN   = 2
 		};
 
 		typedef cosmos::BitMask<State> StateBitMask;
-	public: // data
-		CharPos pos;
-		StateBitMask state;
+
 	protected: // data
+
+		CharPos pos; /// current cursor position (not yet rendered)
 		Glyph m_attr; /// contains the currently active font attributes for newly input characters
+		StateBitMask state;
+
 	public: // functions
+
 		TCursor();
+
 		/// sets new attributes like font properties or colors
 		/**
 		 * \param[in] attrs contains the individual sequence codes of the
 		 * attribute change request.
 		 **/
 		bool setAttrs(const std::vector<int> &attrs);
-
 		const auto& getAttr() const { return m_attr; }
+
+		const auto& getPos() const { return pos; }
+
 	protected: // functions
+
 		/// parses the given escape sequence and returns the resulting color index to use
 		/**
 		 * \param[in] pos the current parse position in attrs
@@ -95,18 +127,6 @@ public: // types
 			return (1 << 24) | (r << 16) | (g << 8) | b;
 		}
 	};
-
-	enum class Charset {
-		GRAPHIC0, /// DEC Special Graphics 7-bit character set
-		GRAPHIC1,
-		UK,
-		USA, // US-ASCII
-		MULTI,
-		GER,
-		FIN
-	};
-
-	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
 
 protected: // data
 
@@ -253,6 +273,7 @@ public: // functions
 	void initStrSequence(unsigned char c);
 
 	void putChar(Rune u);
+
 	size_t write(const char *buf, const size_t buflen, const bool show_ctrl);
 
 	Rune getLastChar() const { return m_last_char; }

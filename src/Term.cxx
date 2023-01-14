@@ -853,10 +853,12 @@ void Term::handleControlCode(unsigned char code) {
 		return;
 	case '\f':   /* LF */
 	case '\v':   /* VT */
-	case '\n':   /* LF */
-		/* go to first col if CRLF mode is set */
-		moveToNewline(CarriageReturn(m_mode[Mode::CRLF]));
+	case '\n':   /* LF */ {
+		/* go also to first col if CRLF mode is set */
+		auto cr = CarriageReturn(m_mode[Mode::CRLF]);
+		moveToNewline(cr);
 		return;
+	}
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {
 			/* backwards compatibility to xterm */

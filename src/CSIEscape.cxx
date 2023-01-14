@@ -84,7 +84,7 @@ void CSIEscape::handle() {
 
 	ensureArg(0, 0);
 	auto &arg0 = m_args[0];
-	auto &cursor = m_term.getCursor();
+	auto &curpos = m_term.getCursor().getPos();
 	const auto trows = m_term.getNumRows();
 	const auto tcols = m_term.getNumCols();
 
@@ -98,12 +98,12 @@ void CSIEscape::handle() {
 		return;
 	case 'A': /* CUU -- Cursor <n> Up */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(cursor.pos.prevLine(arg0));
+		m_term.moveCursorTo(curpos.prevLine(arg0));
 		return;
 	case 'B': /* CUD -- Cursor <n> Down */
 	case 'e': /* VPR --Cursor <n> Down */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(cursor.pos.nextLine(arg0));
+		m_term.moveCursorTo(curpos.nextLine(arg0));
 		return;
 	case 'i': /* MC -- Media Copy */
 		switch (arg0) {
@@ -111,7 +111,7 @@ void CSIEscape::handle() {
 			m_term.dump();
 			break;
 		case 1:
-			m_term.dumpLine(cursor.pos);
+			m_term.dumpLine(curpos);
 			break;
 		case 2:
 			m_nst.getSelection().dump();
@@ -138,19 +138,19 @@ void CSIEscape::handle() {
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(cursor.pos.nextCol(arg0));
+		m_term.moveCursorTo(curpos.nextCol(arg0));
 		return;
 	case 'D': /* CUB -- Cursor <n> Backward */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(cursor.pos.prevCol(arg0));
+		m_term.moveCursorTo(curpos.prevCol(arg0));
 		return;
 	case 'E': /* CNL -- Cursor <n> Down and first col */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo({0, cursor.pos.y + arg0});
+		m_term.moveCursorTo({0, curpos.y + arg0});
 		return;
 	case 'F': /* CPL -- Cursor <n> Up and first col */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo({0, cursor.pos.y - arg0});
+		m_term.moveCursorTo({0, curpos.y - arg0});
 		return;
 	case 'g': /* TBC -- Tabulation clear */
 		switch (arg0) {
@@ -167,7 +167,7 @@ void CSIEscape::handle() {
 	case 'G': /* CHA -- Move to <col> */
 	case '`': /* HPA */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo({arg0 - 1, cursor.pos.y});
+		m_term.moveCursorTo({arg0 - 1, curpos.y});
 		return;
 	case 'H': /* CUP -- Move to <row> <col> */
 	case 'f': /* HVP */
@@ -182,15 +182,15 @@ void CSIEscape::handle() {
 	case 'J': /* ED -- Clear screen */
 		switch (arg0) {
 		case 0: /* below */
-			m_term.clearRegion({cursor.pos, CharPos{tcols - 1, cursor.pos.y}});
-			if (cursor.pos.y < trows - 1) {
-				m_term.clearRegion({CharPos{0, cursor.pos.y + 1}, CharPos{tcols - 1, trows - 1}});
+			m_term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
+			if (curpos.y < trows - 1) {
+				m_term.clearRegion({CharPos{0, curpos.y + 1}, CharPos{tcols - 1, trows - 1}});
 			}
 			return;
 		case 1: /* above */
-			if (cursor.pos.y > 1)
-				m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, cursor.pos.y - 1}});
-			m_term.clearRegion({CharPos{0, cursor.pos.y}, cursor.pos});
+			if (curpos.y > 1)
+				m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, curpos.y - 1}});
+			m_term.clearRegion({CharPos{0, curpos.y}, curpos});
 			return;
 		case 2: /* all */
 			m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, trows - 1}});
@@ -202,13 +202,13 @@ void CSIEscape::handle() {
 	case 'K': /* EL -- Clear line */
 		switch (arg0) {
 		case 0: /* right */
-			m_term.clearRegion({cursor.pos, CharPos{tcols - 1, cursor.pos.y}});
+			m_term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
 			return;
 		case 1: /* left */
-			m_term.clearRegion({CharPos{0, cursor.pos.y}, cursor.pos});
+			m_term.clearRegion({CharPos{0, curpos.y}, curpos});
 			return;
 		case 2: /* all */
-			m_term.clearRegion({CharPos{0, cursor.pos.y}, CharPos{tcols - 1, cursor.pos.y}});
+			m_term.clearRegion({CharPos{0, curpos.y}, CharPos{tcols - 1, curpos.y}});
 			return;
 		}
 		return;
@@ -233,7 +233,7 @@ void CSIEscape::handle() {
 		return;
 	case 'X': /* ECH -- Erase <n> char */
 		setDefault(arg0, 1);
-		m_term.clearRegion({cursor.pos, cursor.pos.nextCol(arg0 -1)});
+		m_term.clearRegion({curpos, curpos.nextCol(arg0 -1)});
 		return;
 	case 'P': /* DCH -- Delete <n> char */
 		setDefault(arg0, 1);
@@ -245,7 +245,7 @@ void CSIEscape::handle() {
 		return;
 	case 'd': /* VPA -- Move to <row> */
 		setDefault(arg0, 1);
-		m_term.moveCursorAbsTo({cursor.pos.x, arg0 - 1});
+		m_term.moveCursorAbsTo({curpos.x, arg0 - 1});
 		return;
 	case 'h': /* SM -- Set terminal mode */
 		m_term.setMode(m_priv, true, m_args);
@@ -255,7 +255,7 @@ void CSIEscape::handle() {
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
-			auto buf = cosmos::sprintf("\033[%i;%iR", cursor.pos.y + 1, cursor.pos.x + 1);
+			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
 			m_nst.getTTY().write(buf.c_str(), buf.size(), 0);
 		}
 		return;
@@ -294,7 +294,7 @@ void CSIEscape::handle() {
 int CSIEscape::eschandle(unsigned char ascii) {
 	auto &esc = m_term.getEscapeState();
 	using Escape = Term::Escape;
-	auto &cursor = m_term.getCursor();
+	auto &curpos = m_term.getCursor().getPos();
 	auto &x11 = m_nst.getX11();
 
 	switch (ascii) {
@@ -326,10 +326,10 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		esc.set(Escape::ALTCHARSET);
 		return 0;
 	case 'D': /* IND -- Linefeed */
-		if (cursor.pos.y == m_term.getScrollArea().bottom) {
+		if (curpos.y == m_term.getScrollArea().bottom) {
 			m_term.scrollUp(1);
 		} else {
-			m_term.moveCursorTo(cursor.pos.nextLine());
+			m_term.moveCursorTo(curpos.nextLine());
 		}
 		break;
 	case 'E': /* NEL -- Next line */
@@ -339,10 +339,10 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		m_term.setTabAtCursor(true);
 		break;
 	case 'M': /* RI -- Reverse index */
-		if (cursor.pos.y == m_term.getScrollArea().top) {
+		if (curpos.y == m_term.getScrollArea().top) {
 			m_term.scrollDown(1);
 		} else {
-			m_term.moveCursorTo(cursor.pos.prevLine());
+			m_term.moveCursorTo(curpos.prevLine());
 		}
 		break;
 	case 'Z': /* DECID -- Identify Terminal */

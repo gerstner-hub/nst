@@ -21,6 +21,7 @@ namespace nst {
 class Selection;
 class TTY;
 class X11;
+class RuneInfo;
 
 /// Internal representation of the screen
 /**
@@ -38,7 +39,7 @@ public: // types
 		ALTSCREEN   = 1 << 2,
 		CRLF        = 1 << 3, /// implicit carriage return on newline
 		TECHO       = 1 << 4, /* ECHO conflicts with termios.h */
-		PRINT       = 1 << 5,
+		PRINT       = 1 << 5, /// duplicate all input into I/O file
 		UTF8        = 1 << 6,
 	};
 
@@ -299,6 +300,10 @@ public: // functions
 
 	auto& getScreen() const { return m_screen; }
 
+protected: // types
+
+	using ContinueProcessing = cosmos::NamedBool<struct continue_proc_t, true>;
+
 protected: // functions
 
 	/// draws the given rectangular screen region
@@ -314,6 +319,12 @@ protected: // functions
 	void setChar(Rune u, const CharPos &pos);
 	/// checks whether the given input Rune needs to be translated and does so if necessary
 	Rune translateChar(Rune u);
+	/// on input checks whether the given Rune requires special processing
+	/**
+	 * \return Whether graphical processing of the input Rune should continue
+	 **/
+	ContinueProcessing preProcessChar(const RuneInfo &r);
+
 	/// sets the currently selected escape charset to the given mapping
 	/**
 	 * \param[in] code The escape code representing the character set to

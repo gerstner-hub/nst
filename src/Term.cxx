@@ -43,6 +43,52 @@ static_assert(std::is_pod<Glyph>::value, "Glyph type needs to be POD because of 
 
 namespace nst {
 
+/// helper type for processing Runes related to UTF8 encoding and control chars
+class RuneInfo {
+public: // functions
+	RuneInfo(Rune r, const bool use_utf8) : m_rune(r) {
+		m_is_control = ::isControlChar(r);
+
+		if (r < 0x7f || !use_utf8) {
+			// ascii case: keep single byte width and encoding length
+			m_encoded[0] = r;
+			return;
+		}
+
+		/* unicode case */
+
+		// for non-control unicode characters check the display width
+		if (!m_is_control) {
+			// on error stick with a width of 1
+			if (int w = ::wcwidth(r); w != -1) {
+				m_width = w;
+			}
+		}
+
+		m_enc_len = utf8::encode(r, m_encoded);
+	}
+
+	Rune rune() const { return m_rune; }
+	int width() const { return m_width; }
+
+	std::string_view getEncoded() const {
+		return {&m_encoded[0], m_enc_len};
+	}
+
+	bool isWide() const { return m_width == 2; }
+	bool isControlChar() const { return m_is_control; }
+
+	char asChar() const { return static_cast<char>(m_rune); }
+
+protected: // data
+
+	Rune m_rune = 0;
+	bool m_is_control = false;
+	int m_width = 1;
+	size_t m_enc_len = 1; /// valid bytes in m_encoded
+	char m_encoded[utf8::UTF_SIZE];
+};
+
 typedef Glyph::Attr Attr;
 
 Term::TCursor::TCursor() {
@@ -874,6 +920,7 @@ void Term::handleControlCode(unsigned char code) {
 		return;
 	case '\016': /* SO (LS1 -- Locking shift 1) */
 	case '\017': /* SI (LS0 -- Locking shift 0) */
+		// switch between predefined character sets
 		m_active_charset = 1 - (code - '\016');
 		return;
 	case '\032': /* SUB */
@@ -938,23 +985,13 @@ void Term::handleControlCode(unsigned char code) {
 	resetStringEscape();
 }
 
-void Term::putChar(Rune u) {
-	char ch[utf8::UTF_SIZE];
-	int width;
-	size_t len;
+Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 
-	const int is_control = isControlChar(u);
-	if (u < 127 || !m_mode[Mode::UTF8]) {
-		ch[0] = u;
-		width = len = 1;
-	} else {
-		len = utf8::encode(u, ch);
-		if (!is_control && (width = wcwidth(u)) == -1)
-			width = 1;
+	if (m_mode[Mode::PRINT]) {
+		m_tty.printToIoFile(rinfo.getEncoded());
 	}
 
-	if (m_mode[Mode::PRINT])
-		m_tty.printToIoFile(ch, len);
+	const auto rune = rinfo.rune();
 
 	/*
 	 * STR sequence must be checked before anything else because it uses
@@ -962,12 +999,12 @@ void Term::putChar(Rune u) {
 	 * any other C1 control character.
 	 */
 	if (m_esc_state[Escape::STR]) {
-		if (u == '\a' || u == 030 || u == 032 || u == 033 || isControlC1(u)) {
+		if (cosmos::in_list(rinfo.asChar(), {'\a', '\030', '\032', '\033'}) || isControlC1(rune)) {
 			m_esc_state.reset({Escape::START, Escape::STR});
 			m_esc_state.set(Escape::STR_END);
 		} else {
-			m_strescseq.add(ch, len);
-			return;
+			m_strescseq.add(rinfo.getEncoded());
+			return ContinueProcessing(false);
 		}
 	}
 
@@ -976,25 +1013,29 @@ void Term::putChar(Rune u) {
 	 * because they can be embedded inside a control sequence, and they
 	 * must not cause conflicts with sequences.
 	 */
-	if (is_control) {
-		handleControlCode(u);
+	if (rinfo.isControlChar()) {
+		handleControlCode(rune);
 		/*
 		 * control codes are not shown ever
 		 */
 		if (m_esc_state.none())
 			m_last_char = 0;
-		return;
+
+		return ContinueProcessing(false);
 	} else if (m_esc_state[Escape::START]) {
+
+		bool reset = true;
+
 		if (m_esc_state[Escape::CSI]) {
-			const bool max_reached = m_csiescseq.add(u);
-			if (max_reached || in_range(u, 0x40, 0x7E)) {
+			const bool max_reached = m_csiescseq.add(rune);
+			if (max_reached || in_range(rinfo.asChar(), 0x40, 0x7E)) {
 				m_esc_state.reset();
 				m_csiescseq.parse();
 				m_csiescseq.handle();
 			}
-			return;
+			reset = false;
 		} else if (m_esc_state[Escape::UTF8]) {
-			switch (static_cast<char>(u)) {
+			switch (rinfo.asChar()) {
 			case 'G':
 				m_mode.set(Mode::UTF8);
 				break;
@@ -1003,22 +1044,35 @@ void Term::putChar(Rune u) {
 				break;
 			}
 		} else if (m_esc_state[Escape::ALTCHARSET]) {
-			setCharsetMapping(u);
+			setCharsetMapping(rune);
 		} else if (m_esc_state[Escape::TEST]) {
-			runDECTest(u);
-		} else if (!m_csiescseq.eschandle(u)) {
-			return;
+			runDECTest(rune);
+		} else if (!m_csiescseq.eschandle(rune)) {
+			reset = false;
 			/* sequence already finished */
 		}
 
-		m_esc_state.reset();
+		if (reset) {
+			m_esc_state.reset();
+		}
 
 		/*
 		 * All characters which form part of a sequence are not
 		 * printed
 		 */
-		return;
+		return ContinueProcessing(false);
 	}
+
+	return ContinueProcessing(true);
+}
+
+void Term::putChar(Rune u) {
+	const auto rinfo = RuneInfo(u, m_mode[Term::Mode::UTF8]);
+
+	if (preProcessChar(rinfo) == ContinueProcessing(false))
+		return;
+
+	// continue with the graphical handling of the input
 
 	if (m_selection.isSelected(m_cursor.pos))
 		m_selection.clear();
@@ -1030,10 +1084,10 @@ void Term::putChar(Rune u) {
 		gp = &getGlyphAt(m_cursor.pos);
 	}
 
-	if (m_mode[Mode::INSERT] && m_cursor.pos.x + width < m_size.cols)
-		std::memmove(gp+width, gp, (m_size.cols - m_cursor.pos.x - width) * sizeof(Glyph));
+	if (m_mode[Mode::INSERT] && m_cursor.pos.x + rinfo.width() < m_size.cols)
+		std::memmove(gp+rinfo.width(), gp, (m_size.cols - m_cursor.pos.x - rinfo.width()) * sizeof(Glyph));
 
-	if (m_cursor.pos.x + width > m_size.cols) {
+	if (m_cursor.pos.x + rinfo.width() > m_size.cols) {
 		moveToNewline();
 		gp = &getGlyphAt(m_cursor.pos);
 	}
@@ -1041,7 +1095,7 @@ void Term::putChar(Rune u) {
 	setChar(u, m_cursor.pos);
 	m_last_char = u;
 
-	if (width == 2) {
+	if (rinfo.isWide()) {
 		gp->mode.set(Attr::WIDE);
 		if (m_cursor.pos.x + 1 < m_size.cols) {
 			if (gp[1].mode[Attr::WIDE] && m_cursor.pos.x + 2 < m_size.cols) {
@@ -1053,8 +1107,8 @@ void Term::putChar(Rune u) {
 		}
 	}
 
-	if (m_cursor.pos.x + width < m_size.cols) {
-		moveCursorTo(m_cursor.pos.nextCol(width));
+	if (m_cursor.pos.x + rinfo.width() < m_size.cols) {
+		moveCursorTo(m_cursor.pos.nextCol(rinfo.width()));
 	} else {
 		m_cursor.state.set(TCursor::State::WRAPNEXT);
 	}

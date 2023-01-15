@@ -6,6 +6,7 @@
 
 // stdlib
 #include <string>
+#include <string_view>
 #include <vector>
 
 // nst
@@ -34,6 +35,9 @@ public: // functions
 	explicit STREscape(Nst &nst);
 	void reset(const char type);
 	void add(const char *ch, size_t len);
+	void add(const std::string_view &s) {
+		add(s.data(), s.size());
+	}
 	void handle();
 
 protected: // functions

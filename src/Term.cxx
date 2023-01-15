@@ -23,18 +23,6 @@ using cosmos::in_range;
 
 namespace {
 
-bool isControlC0(const nst::Rune &c) {
-	return c < 0x1f || c == 0x7f;
-}
-
-bool isControlC1(const nst::Rune &c) {
-	return in_range(c, 0x80, 0x9f);
-}
-
-bool isControlChar(const nst::Rune &c) {
-	return isControlC0(c) || isControlC1(c);
-}
-
 // we're relying on Glyph being POD so that we can memmove individual Glyphs
 // in this unit
 static_assert(std::is_pod<Glyph>::value, "Glyph type needs to be POD because of memmove");
@@ -47,7 +35,7 @@ namespace nst {
 class RuneInfo {
 public: // functions
 	RuneInfo(Rune r, const bool use_utf8) : m_rune(r) {
-		m_is_control = ::isControlChar(r);
+		m_is_control = isControlChar(r);
 
 		if (r < 0x7f || !use_utf8) {
 			// ascii case: keep single byte width and encoding length
@@ -79,6 +67,21 @@ public: // functions
 	bool isControlChar() const { return m_is_control; }
 
 	char asChar() const { return static_cast<char>(m_rune); }
+
+	/// checks whether the given rune is an ASCII control character (C0
+	/// class)
+	static bool isControlC0(const nst::Rune &r) {
+		return r < 0x1f || r == 0x7f;
+	}
+
+	/// checks whether the given rune is an extended 8 bit control code (C1 class)
+	static bool isControlC1(const nst::Rune &r) {
+		return in_range(r, 0x80, 0x9f);
+	}
+
+	static bool isControlChar(const nst::Rune &r) {
+		return isControlC0(r) || isControlC1(r);
+	}
 
 protected: // data
 
@@ -260,21 +263,20 @@ size_t Term::TCursor::parseColor(const std::vector<int> &attrs, size_t idx, int3
 
 
 Term::Term(Nst &nst) :
-	m_nst(nst),
 	m_selection(nst.getSelection()),
 	m_tty(nst.getTTY()),
 	m_x11(nst.getX11()),
 	m_allowaltscreen(config::ALLOWALTSCREEN),
-	m_strescseq(nst),
-	m_csiescseq(nst, m_strescseq) {}
+	m_str_escape(nst),
+	m_csi_escape(nst, m_str_escape) {}
 
-void Term::init(const TermSize &tsize) {
+void Term::init(const Nst &nst) {
 
-	if (auto &cmdline = m_nst.getCmdline(); cmdline.use_alt_screen.isSet()) {
+	if (auto &cmdline = nst.getCmdline(); cmdline.use_alt_screen.isSet()) {
 		m_allowaltscreen = cmdline.use_alt_screen.getValue();
 	}
 
-	resize(tsize);
+	resize(m_x11.getTermSize());
 	reset();
 }
 
@@ -804,7 +806,7 @@ void Term::initStrSequence(unsigned char ch) {
 		break;
 	}
 
-	m_strescseq.reset(ch);
+	m_str_escape.reset(ch);
 	m_esc_state.set(Escape::STR);
 }
 
@@ -913,13 +915,13 @@ void Term::handleControlCode(unsigned char code) {
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {
 			/* backwards compatibility to xterm */
-			m_strescseq.handle();
+			m_str_escape.handle();
 		} else {
 			m_x11.ringBell();
 		}
 		break;
 	case '\033': /* ESC */
-		m_csiescseq.reset();
+		m_csi_escape.reset();
 		m_esc_state.reset({Escape::CSI, Escape::ALTCHARSET, Escape::TEST});
 		m_esc_state.set(Escape::START);
 		return;
@@ -932,7 +934,7 @@ void Term::handleControlCode(unsigned char code) {
 		setChar('?', m_cursor.pos);
 		/* FALLTHROUGH */
 	case '\030': /* CAN */
-		m_csiescseq.reset();
+		m_csi_escape.reset();
 		break;
 	case '\005': /* ENQ (IGNORED) */
 	case '\000': /* NUL (IGNORED) */
@@ -1004,11 +1006,11 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 	 * any other C1 control character.
 	 */
 	if (m_esc_state[Escape::STR]) {
-		if (cosmos::in_list(rinfo.asChar(), {'\a', '\030', '\032', '\033'}) || isControlC1(rune)) {
+		if (cosmos::in_list(rinfo.asChar(), {'\a', '\030', '\032', '\033'}) || RuneInfo::isControlC1(rune)) {
 			m_esc_state.reset({Escape::START, Escape::STR});
 			m_esc_state.set(Escape::STR_END);
 		} else {
-			m_strescseq.add(rinfo.getEncoded());
+			m_str_escape.add(rinfo.getEncoded());
 			return ContinueProcessing(false);
 		}
 	}
@@ -1032,11 +1034,11 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 		bool reset = true;
 
 		if (m_esc_state[Escape::CSI]) {
-			const bool max_reached = m_csiescseq.add(rune);
+			const bool max_reached = m_csi_escape.add(rune);
 			if (max_reached || in_range(rinfo.asChar(), 0x40, 0x7E)) {
 				m_esc_state.reset();
-				m_csiescseq.parse();
-				m_csiescseq.handle();
+				m_csi_escape.parse();
+				m_csi_escape.handle();
 			}
 			reset = false;
 		} else if (m_esc_state[Escape::UTF8]) {
@@ -1052,7 +1054,7 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 			setCharsetMapping(rune);
 		} else if (m_esc_state[Escape::TEST]) {
 			runDECTest(rune);
-		} else if (!m_csiescseq.eschandle(rune)) {
+		} else if (!m_csi_escape.eschandle(rune)) {
 			reset = false;
 			/* sequence already finished */
 		}
@@ -1069,6 +1071,15 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 	}
 
 	return ContinueProcessing(true);
+}
+
+void Term::repeatChar(int count) {
+	if (m_last_char == 0)
+		// nothing to repeat
+		return;
+
+	while (count-- > 0)
+		putChar(m_last_char);
 }
 
 void Term::putChar(Rune rune) {
@@ -1151,7 +1162,7 @@ size_t Term::write(const std::string_view &data, const ShowCtrlChars &show_ctrl)
 			charsize = 1;
 		}
 
-		if (show_ctrl && isControlChar(u)) {
+		if (show_ctrl && RuneInfo::isControlChar(u)) {
 			// add symbolic annotation for control chars
 			if (u & 0x80) {
 				u &= 0x7f;

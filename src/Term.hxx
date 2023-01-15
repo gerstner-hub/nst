@@ -27,6 +27,9 @@ class RuneInfo;
 /**
  * This class maintains the terminal contents on a logical level without
  * containing the actual X11 drawing logic.
+ *
+ * It manages the dimensions of the terminal, each line and its contents,
+ * processes input data and therefore also escape sequences.
  **/
 class Term {
 
@@ -36,24 +39,24 @@ public: // types
 	enum class Mode : unsigned {
 		WRAP        = 1 << 0, /// automatically wrap to next line if cursor reaches end of line
 		INSERT      = 1 << 1, /// if set, on input, shift existing characters in a line to the right
-		ALTSCREEN   = 1 << 2,
+		ALTSCREEN   = 1 << 2, /// if set then the alternative screen is shown
 		CRLF        = 1 << 3, /// implicit carriage return on newline
 		TECHO       = 1 << 4, /* ECHO conflicts with termios.h */
 		PRINT       = 1 << 5, /// duplicate all input into I/O file
-		UTF8        = 1 << 6,
+		UTF8        = 1 << 6, /// UTF8 input support
 	};
 
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
 	/// escape sequence parsing status
 	enum class Escape {
-		START      = 1 << 0,
-		CSI        = 1 << 1,
+		START      = 1 << 0, /// \033 escape sequence started
+		CSI        = 1 << 1, /// CSI escape sequence is about to be parsed
 		STR        = 1 << 2, /// DCS, OSC, PM, APC
-		ALTCHARSET = 1 << 3,
+		ALTCHARSET = 1 << 3, /// requests setting an alternative character set
 		STR_END    = 1 << 4, /// a final string was encountered
 		TEST       = 1 << 5, /// Enter in test mode
-		UTF8       = 1 << 6,
+		UTF8       = 1 << 6, /// UTF8 mode setting requested
 	};
 
 	typedef cosmos::BitMask<Escape> EscapeState;
@@ -72,7 +75,7 @@ public: // types
 	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
 	using ShowCtrlChars = cosmos::NamedBool<struct show_ctrl_t, true>;
 
-	/// cursor related data
+	/// cursor position related data
 	/**
 	 * This contains the current logical cursor position as well as cursor
 	 * attributes and cursor specific control settings.
@@ -83,8 +86,8 @@ public: // types
 
 		/// cursor control operations
 		enum class Control {
-			SAVE,
-			LOAD
+			SAVE, /// save current cursor position
+			LOAD /// restore previously saved cursor position
 		};
 
 		/// cursor runtime state flags
@@ -132,41 +135,40 @@ public: // types
 
 protected: // data
 
-	Nst &m_nst;
 	Selection &m_selection;
 	TTY &m_tty;
 	X11 &m_x11;
 
-	TermSize m_size;
+	TermSize m_size;    /// current terminal dimensions
 	ModeBitMask m_mode; /// terminal mode flags
 
 	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
-	LineSpan m_scroll_area; /// region of lines that will be affected by scroll operations
-	Rune m_last_char = 0; /// last printed char outside of sequence, 0 if control
+	LineSpan m_scroll_area;    /// region of lines that will be affected by scroll operations
+	Rune m_last_char = 0;      /// last printed char outside of sequence, 0 if control
 
 	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
-	size_t m_active_charset = 0; /// current charset used from m_charsets
-	size_t m_esc_charset = 0; /// selected charset index for escape sequences
+	size_t m_active_charset = 0;       /// current charset used from m_charsets
+	size_t m_esc_charset = 0;          /// selected charset index for escape sequences
 
-	TCursor m_cursor; /// current cursor position and attributes
+	TCursor m_cursor;             /// current cursor position and attributes
 	TCursor m_cached_main_cursor; /// save/load cursor for main screen
 	TCursor m_cached_alt_cursor;  /// ... and for alt screen
 
-	bool m_allowaltscreen = false; /// whether altscreen support is enabled
+	bool m_allowaltscreen = false;  /// whether altscreen support is enabled
 	std::vector<Line> m_alt_screen; /// alt screen data
-	std::vector<Line> m_screen; /// main screen data
+	std::vector<Line> m_screen;     /// main screen data
 	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
-	std::vector<bool> m_tabs; /// marks horizontal tab positions
+	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 
-	EscapeState m_esc_state; //// escape state flags
-	STREscape m_strescseq;
-	CSIEscape m_csiescseq;
+	EscapeState m_esc_state; /// escape state flags
+	STREscape m_str_escape;  /// keeps track of string escape input sequences
+	CSIEscape m_csi_escape;  /// keeps track of CSI escape input sequences
 
 public: // functions
 
 	explicit Term(Nst &nst);
 
-	void init(const TermSize &tsize);
+	void init(const Nst &nst);
 
 	void resize(const TermSize &new_size);
 
@@ -248,43 +250,44 @@ public: // functions
 	void insertBlankLinesBelowCursor(int count);
 	void setMode(bool priv, const bool set, const std::vector<int> &args);
 
-	//! write all current lines into the I/O file
+	/// write all current lines into the I/O file
 	void dump() const {
 		for (size_t i = 0; i < static_cast<size_t>(m_size.rows); ++i)
 			dumpLine(i);
 	}
 
-	//! write the given line into the I/O file
+	/// write the given line into the I/O file
 	void dumpLine(const CharPos &pos) const;
 	void dumpLine(int line) const { dumpLine(CharPos{0, line}); }
 
-	//! returns whether any glyph currently has this attribute set
+	/// returns whether any glyph currently has this attribute set
 	bool existsBlinkingGlyph() const;
 
-	//! sets all lines as dirty that have a glyph matching the given attribute
+	/// sets all lines as dirty that have a glyph matching the given attribute
 	void setDirtyByAttr(const Glyph::Attr &attr);
 
+	/// draws the complete terminal (marking all dirty)
 	void redraw() {
 		setAllDirty();
 		draw();
 	}
 
+	/// draws only dirty lines
 	void draw();
 
-	//! initialize a newly starting terminal string escape sequence
+	/// initialize a newly starting terminal string escape sequence
 	void initStrSequence(unsigned char c);
 
-	void putChar(Rune u);
+	/// repeats the last input character the given number of times (if printable)
+	void repeatChar(int count);
 
 	/// provide new data to the terminal
 	size_t write(const std::string_view &data, const ShowCtrlChars &show_ctrl);
 
-	Rune getLastChar() const { return m_last_char; }
-
 	const TCursor& getCursor() const { return m_cursor; }
 	void setCursorAttrs(const std::vector<int> &attrs) {
 		if (!m_cursor.setAttrs(attrs)) {
-			m_csiescseq.dump("");
+			m_csi_escape.dump("");
 		}
 	}
 
@@ -308,12 +311,19 @@ protected: // types
 
 protected: // functions
 
-	/// draws the given rectangular screen region
-	void drawRegion(const Range &range) const;
+	/// feeds the given single input rune as input
+	/**
+	 * this also potentially handles control codes without changing any
+	 * actual terminal content.
+	 **/
+	void putChar(Rune rune);
 
 	void resetScrollArea() {
 		m_scroll_area = {0, m_size.rows - 1};
 	}
+
+	/// draws the given rectangular screen region
+	void drawRegion(const Range &range) const;
 
 	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
 
@@ -343,7 +353,7 @@ protected: // functions
 	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
 	const Line& getLine(const CharPos &pos) const { return m_screen[pos.y]; }
 
-	///! returns how many columns are left after the current cursor position
+	//// returns how many columns are left after the current cursor position
 	int colsLeft() const { return m_size.cols - m_cursor.pos.x; }
 
 	CharPos topLeft() const { return {0, 0}; }

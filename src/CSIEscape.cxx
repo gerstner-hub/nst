@@ -130,10 +130,7 @@ void CSIEscape::handle() {
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		setDefault(arg0, 1);
-		if (m_term.getLastChar()) {
-			while (arg0-- > 0)
-				m_term.putChar(m_term.getLastChar());
-		}
+		m_term.repeatChar(arg0);
 		return;
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */

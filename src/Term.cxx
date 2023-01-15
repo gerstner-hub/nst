@@ -1135,34 +1135,38 @@ void Term::putChar(Rune rune) {
 	}
 }
 
-size_t Term::write(const char *buf, const size_t buflen, const bool show_ctrl) {
+size_t Term::write(const std::string_view &data, const ShowCtrlChars &show_ctrl) {
 	Rune u;
-	size_t charsize = 0, n;
+	size_t charsize = 0;
+	const bool use_utf8 = m_mode[Mode::UTF8];
 
-	for (n = 0; n < buflen; n += charsize) {
-		if (m_mode[Mode::UTF8]) {
+	for (size_t pos = 0; pos < data.size(); pos += charsize) {
+		if (use_utf8) {
 			/* process a complete utf8 char */
-			charsize = utf8::decode(buf + n, &u, buflen - n);
+			charsize = utf8::decode(data.data() + pos, &u, data.size() - pos);
 			if (charsize == 0)
-				break;
+				return pos;
 		} else {
-			u = buf[n] & 0xFF;
+			u = data[pos] & 0xFF;
 			charsize = 1;
 		}
 
 		if (show_ctrl && isControlChar(u)) {
+			// add symbolic annotation for control chars
 			if (u & 0x80) {
 				u &= 0x7f;
 				putChar('^');
 				putChar('[');
-			} else if (u != '\n' && u != '\r' && u != '\t') {
+			} else if (!cosmos::in_list(static_cast<char>(u), {'\n', '\r', '\t'})) {
 				u ^= 0x40;
 				putChar('^');
 			}
 		}
+
 		putChar(u);
 	}
-	return n;
+
+	return data.size();
 }
 
 } // end ns

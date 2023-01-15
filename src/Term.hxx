@@ -70,6 +70,7 @@ public: // types
 	};
 
 	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
+	using ShowCtrlChars = cosmos::NamedBool<struct show_ctrl_t, true>;
 
 	/// cursor related data
 	/**
@@ -275,7 +276,8 @@ public: // functions
 
 	void putChar(Rune u);
 
-	size_t write(const char *buf, const size_t buflen, const bool show_ctrl);
+	/// provide new data to the terminal
+	size_t write(const std::string_view &data, const ShowCtrlChars &show_ctrl);
 
 	Rune getLastChar() const { return m_last_char; }
 

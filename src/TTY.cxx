@@ -162,7 +162,7 @@ size_t TTY::read() {
 			exit(0);
 		default:
 			m_buf_bytes += read_bytes;
-			auto written = m_term.write(m_buf, m_buf_bytes, 0);
+			auto written = m_term.write({m_buf, m_buf_bytes}, Term::ShowCtrlChars(false));
 			m_buf_bytes -= written;
 			/* keep any incomplete UTF-8 byte sequence for the next call */
 			if (m_buf_bytes > 0)
@@ -180,7 +180,7 @@ void TTY::write(const char *s, size_t n, bool may_echo) {
 	auto &mode = m_term.getMode();
 
 	if (may_echo && mode[Term::Mode::TECHO])
-		m_term.write(s, n, 1);
+		m_term.write({s, n}, Term::ShowCtrlChars(true));
 
 	if (!mode[Term::Mode::CRLF]) {
 		writeRaw(s, n);

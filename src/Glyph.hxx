@@ -27,9 +27,9 @@ public: // types
 		REVERSE    = 1 << 5,
 		INVISIBLE  = 1 << 6,
 		STRUCK     = 1 << 7,
-		WRAP       = 1 << 8,
-		WIDE       = 1 << 9,
-		WDUMMY     = 1 << 10 /// for wide UTF8 characters this is a dummy placeholder position
+		WRAP       = 1 << 8, /// an automatic line wrap was inserted at this position (can only occur at the end of a line)
+		WIDE       = 1 << 9, /// whether the Glyph spans multiple columns
+		WDUMMY     = 1 << 10 /// for wide UTF8 characters this is a dummy placeholder position (a following, blocked column)
 	};
 
 	typedef cosmos::BitMask<Attr> AttrBitMask;
@@ -83,6 +83,7 @@ public: // functions
 	bool isEmpty() const { return u == ' '; }
 	bool hasValue() const { return !isEmpty(); }
 	bool isDummy() const { return mode[Attr::WDUMMY]; }
+	bool isWide() const { return mode[Attr::WIDE]; }
 };
 
 /// a series of Glyphs forming a line on the terminal

@@ -34,8 +34,8 @@ public: // types
 
 	/// gobal terminal mode settings
 	enum class Mode : unsigned {
-		WRAP        = 1 << 0,
-		INSERT      = 1 << 1,
+		WRAP        = 1 << 0, /// automatically wrap to next line if cursor reaches end of line
+		INSERT      = 1 << 1, /// if set, on input, shift existing characters in a line to the right
 		ALTSCREEN   = 1 << 2,
 		CRLF        = 1 << 3, /// implicit carriage return on newline
 		TECHO       = 1 << 4, /* ECHO conflicts with termios.h */
@@ -86,10 +86,10 @@ public: // types
 			LOAD
 		};
 
-		/// cursor settings
-		enum class State : unsigned {
-			WRAPNEXT = 1,
-			ORIGIN   = 2
+		/// cursor runtime state flags
+		enum class State {
+			WRAPNEXT = 1, /// indicates that on next input automatic line wrap needs to occur
+			ORIGIN   = 2  /// if set then the cursor position is limited to the active scroll area
 		};
 
 		typedef cosmos::BitMask<State> StateBitMask;
@@ -349,6 +349,10 @@ protected: // functions
 	bool atEndOfLine(const CharPos &pos) {
 		return pos.x >= m_size.cols - 1;
 	}
+	/// returns the number of Glyph position left in the current line with respect to the current cursor position
+	int lineSpaceLeft() const {
+		return m_size.cols - m_cursor.pos.x;
+	}
 
 	auto limitRow(int row) { return std::clamp(row, 0, m_size.rows - 1); }
 	auto limitCol(int col) { return std::clamp(col, 0, m_size.cols - 1); }
@@ -364,6 +368,7 @@ protected: // functions
 	}
 
 	Glyph& getGlyphAt(const CharPos &c) { return m_screen[c.y][c.x]; }
+	Glyph* getCurGlyph() { return &getGlyphAt(m_cursor.pos); }
 };
 
 } // end ns

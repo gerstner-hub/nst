@@ -285,6 +285,11 @@ void Term::reset(void) {
 	for (auto i = config::TABSPACES; i < m_size.cols; i += config::TABSPACES)
 		m_tabs[i] = true;
 	resetScrollArea();
+	// TODO: there currently seems not to exist a way to disable WRAP mode
+	// neither during runtime nor via the config header. A test without
+	// WRAP mode showed that the screen kind of scrolls right and back
+	// left again (when deleting characters) but the original screen
+	// content does not appear again.
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	m_charsets.fill(Charset::USA);
 	m_active_charset = 0;
@@ -1066,49 +1071,65 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 	return ContinueProcessing(true);
 }
 
-void Term::putChar(Rune u) {
-	const auto rinfo = RuneInfo(u, m_mode[Term::Mode::UTF8]);
+void Term::putChar(Rune rune) {
+	const auto rinfo = RuneInfo(rune, m_mode[Term::Mode::UTF8]);
 
 	if (preProcessChar(rinfo) == ContinueProcessing(false))
+		// input was part of a special control sequence
 		return;
-
-	// continue with the graphical handling of the input
 
 	if (m_selection.isSelected(m_cursor.pos))
 		m_selection.clear();
 
-	Glyph *gp = &getGlyphAt(m_cursor.pos);
+	Glyph *gp = getCurGlyph();
+
+	// perform automatic line wrap, if necessary
 	if (m_mode[Mode::WRAP] && m_cursor.state[TCursor::State::WRAPNEXT]) {
 		gp->mode.set(Attr::WRAP);
 		moveToNewline();
-		gp = &getGlyphAt(m_cursor.pos);
+		gp = getCurGlyph();
 	}
 
-	if (m_mode[Mode::INSERT] && m_cursor.pos.x + rinfo.width() < m_size.cols)
-		std::memmove(gp+rinfo.width(), gp, (m_size.cols - m_cursor.pos.x - rinfo.width()) * sizeof(Glyph));
+	const auto req_width = rinfo.width();
 
-	if (m_cursor.pos.x + rinfo.width() > m_size.cols) {
-		moveToNewline();
-		gp = &getGlyphAt(m_cursor.pos);
-	}
-
-	setChar(u, m_cursor.pos);
-	m_last_char = u;
-
-	if (rinfo.isWide()) {
-		gp->mode.set(Attr::WIDE);
-		if (m_cursor.pos.x + 1 < m_size.cols) {
-			if (gp[1].mode[Attr::WIDE] && m_cursor.pos.x + 2 < m_size.cols) {
-				gp[2].u = ' ';
-				gp[2].mode.reset(Attr::WDUMMY);
-			}
-			gp[1].u = '\0';
-			gp[1].mode = Glyph::AttrBitMask(Attr::WDUMMY);
+	// shift any remaining Glyphs to the right
+	if (m_mode[Mode::INSERT]) {
+		if (auto to_move = lineSpaceLeft() - req_width; to_move > 0) {
+			std::memmove(gp + req_width, gp, to_move * sizeof(Glyph));
 		}
 	}
 
-	if (m_cursor.pos.x + rinfo.width() < m_size.cols) {
-		moveCursorTo(m_cursor.pos.nextCol(rinfo.width()));
+	if (lineSpaceLeft() < req_width) {
+		moveToNewline();
+		gp = getCurGlyph();
+	}
+
+	setChar(rune, m_cursor.pos);
+	m_last_char = rune;
+	const auto left_chars = lineSpaceLeft();
+
+	if (rinfo.isWide()) {
+		gp->mode.set(Attr::WIDE);
+
+		if (left_chars > 1) {
+			// mark the follow-up position as dummy
+			auto &next = gp[1];
+
+			// if we are overriding another wide character, clean
+			// up the dummy follow-up
+			if (next.isWide() && left_chars > 2) {
+				auto &after_next = gp[2];
+				after_next.u = ' ';
+				after_next.mode.reset(Attr::WDUMMY);
+			}
+
+			next.u = '\0';
+			next.mode = Glyph::AttrBitMask(Attr::WDUMMY);
+		}
+	}
+
+	if (left_chars > req_width) {
+		moveCursorTo(m_cursor.pos.nextCol(req_width));
 	} else {
 		m_cursor.state.set(TCursor::State::WRAPNEXT);
 	}

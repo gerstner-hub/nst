@@ -12,7 +12,7 @@ except Exception:
         cosmos_scripts = Path(Dir('.').abspath) / "libcosmos" / "scripts"
         sys.path.append(str(cosmos_scripts))
         from buildsystem import initSCons
-    env = initSCons("nst")
+    env = initSCons("nst", rtti=False)
 
 cosmos_env = env.Clone()
 cosmos_env['buildroot'] = ""

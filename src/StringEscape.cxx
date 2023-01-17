@@ -17,11 +17,11 @@ namespace nst {
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
 constexpr size_t MAX_STR_ARGS = 16;
 
-STREscape::STREscape(Nst &nst) :
+StringEscape::StringEscape(Nst &nst) :
 	m_nst(nst)
 {}
 
-void STREscape::osc4ColorResponse(int num) {
+void StringEscape::osc4ColorResponse(int num) {
 	unsigned char r, g, b;
 
 	if (!m_nst.getX11().getColor(num, &r, &g, &b)) {
@@ -34,7 +34,7 @@ void STREscape::osc4ColorResponse(int num) {
 	m_nst.getTTY().write(res.c_str(), res.size(), true);
 }
 
-void STREscape::oscColorResponse(int index, int num) {
+void StringEscape::oscColorResponse(int index, int num) {
 	unsigned char r, g, b;
 
 	if (!m_nst.getX11().getColor(index, &r, &g, &b)) {
@@ -47,7 +47,7 @@ void STREscape::oscColorResponse(int index, int num) {
 	m_nst.getTTY().write(res.c_str(), res.size(), true);
 }
 
-void STREscape::setTitle(const char *s) {
+void StringEscape::setTitle(const char *s) {
 	auto &x11 = m_nst.getX11();
 	if (s)
 		x11.setTitle(s);
@@ -55,7 +55,7 @@ void STREscape::setTitle(const char *s) {
 		x11.setDefaultTitle();
 }
 
-void STREscape::setIconTitle(const char *s) {
+void StringEscape::setIconTitle(const char *s) {
 	auto &x11 = m_nst.getX11();
 	if (s)
 		x11.setIconTitle(s);
@@ -63,7 +63,7 @@ void STREscape::setIconTitle(const char *s) {
 		x11.setDefaultIconTitle();
 }
 
-void STREscape::handle() {
+void StringEscape::handle() {
 	auto &term = m_nst.getTerm();
 	auto &x11 = m_nst.getX11();
 
@@ -73,23 +73,24 @@ void STREscape::handle() {
 	const char *p = nullptr;
 
 	switch (m_esc_type) {
-	case ']': /* OSC -- Operating System Command */
+	case Type::OSC: /* OSC -- Operating System Command */
+		// for reference see: https://www.xfree86.org/current/ctlseqs.html
 		switch (par) {
-		case 0:
+		case 0: // change icon name and window title
 			if (m_args.size() > 1) {
 				setTitle(m_args[1]);
 				setIconTitle(m_args[1]);
 			}
 			return;
-		case 1:
+		case 1: // change icon name
 			if (m_args.size() > 1)
 				setIconTitle(m_args[1]);
 			return;
-		case 2:
+		case 2: // change window title
 			if (m_args.size() > 1)
 				setTitle(m_args[1]);
 			return;
-		case 52:
+		case 52: // manipulate selection data
 			if (m_args.size() > 2 && config::ALLOWWINDOWOPS) {
 				char *dec = base64::decode(m_args[2]);
 				if (dec) {
@@ -100,7 +101,7 @@ void STREscape::handle() {
 				}
 			}
 			return;
-		case 10:
+		case 10: // change text FG color
 			if (m_args.size() < 2)
 				break;
 
@@ -113,7 +114,7 @@ void STREscape::handle() {
 			else
 				term.redraw();
 			return;
-		case 11:
+		case 11: // change text BG color
 			if (m_args.size() < 2)
 				break;
 
@@ -126,7 +127,7 @@ void STREscape::handle() {
 			else
 				term.redraw();
 			return;
-		case 12:
+		case 12: // change text cursor color
 			if (m_args.size() < 2)
 				break;
 
@@ -139,7 +140,7 @@ void STREscape::handle() {
 			else
 				term.redraw();
 			return;
-		case 4: /* color set */
+		case 4: /* change color number to RGB value */
 			if (m_args.size() < 3)
 				break;
 			p = m_args[2];
@@ -164,19 +165,20 @@ void STREscape::handle() {
 		}
 		}
 		break;
-	case 'k': /* old title set compatibility */
+	case Type::SET_TITLE: /* old title set compatibility */
 		setTitle(m_args[0]);
 		return;
-	case 'P': /* DCS -- Device Control String */
-	case '_': /* APC -- Application Program Command */
-	case '^': /* PM -- Privacy Message */
+	case Type::DCS: /* Device Control String */
+	case Type::APC: /* Application Program Command */
+	case Type::PM:  /* Privacy Message */
+	case Type::NONE: /* should never happend */
 		return;
 	}
 
 	dump("erresc: unknown str");
 }
 
-void STREscape::parse() {
+void StringEscape::parse() {
 	char *p = m_str.data();
 	m_args.clear();
 
@@ -194,8 +196,8 @@ void STREscape::parse() {
 	}
 }
 
-void STREscape::dump(const char *prefix) const {
-	std::cerr << prefix << " ESC" << m_esc_type;
+void StringEscape::dump(const char *prefix) const {
+	std::cerr << prefix << " ESC" << static_cast<char>(m_esc_type);
 
 	for (auto c: m_str) {
 		if (c == '\0') {
@@ -216,13 +218,13 @@ void STREscape::dump(const char *prefix) const {
 	std::cerr << "ESC\\\n";
 }
 
-void STREscape::reset(const char type) {
+void StringEscape::reset(const Type &type) {
 	m_str.clear();
 	m_str.reserve(DEF_BUF_SIZE);
 	m_esc_type = type;
 }
 
-void STREscape::add(const char *ch, size_t len) {
+void StringEscape::add(const char *ch, size_t len) {
 	if (m_str.size() + len >= m_str.capacity()) {
 		/*
 		 * Here is a bug in terminals. If the user never sends

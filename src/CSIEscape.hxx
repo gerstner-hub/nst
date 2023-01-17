@@ -16,7 +16,7 @@ namespace nst {
 
 class Nst;
 class Term;
-struct STREscape;
+struct StringEscape;
 
 /// Handles CSI escape sequences
 /**
@@ -37,7 +37,7 @@ protected: // data
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
 	Nst &m_nst;
 	Term &m_term;
-	STREscape &m_strescseq;
+	StringEscape &m_str_escape;
 
 protected: // functions
 
@@ -52,7 +52,7 @@ protected: // functions
 
 public: // functions
 
-	CSIEscape(Nst &nst, STREscape &strescseq);
+	CSIEscape(Nst &nst, StringEscape &str_escape);
 
 	void handle(void);
 	void parse(void);

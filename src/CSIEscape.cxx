@@ -23,8 +23,8 @@ namespace {
 constexpr size_t MAX_ARG_SIZE = 16;
 }
 
-CSIEscape::CSIEscape(Nst &nst, STREscape &strescseq) :
-		m_nst(nst), m_term(nst.getTerm()), m_strescseq(strescseq) {
+CSIEscape::CSIEscape(Nst &nst, StringEscape &str_escape) :
+		m_nst(nst), m_term(nst.getTerm()), m_str_escape(str_escape) {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -308,9 +308,11 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	case '_': /* APC -- Application Program Command */
 	case '^': /* PM -- Privacy Message */
 	case ']': /* OSC -- Operating System Command */
-	case 'k': /* old title set compatibility */
-		m_term.initStrSequence(ascii);
+	case 'k': /* old title set compatibility */ {
+		const auto esc_type = static_cast<StringEscape::Type>(ascii);
+		m_term.initStrSequence(esc_type);
 		return 0;
+	}
 	case 'n': /* LS2 -- Locking shift 2 */
 	case 'o': /* LS3 -- Locking shift 3 */
 		m_term.setCharset(2 + (ascii - 'n'));
@@ -363,7 +365,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		break;
 	case '\\': /* ST -- String Terminator */
 		if (esc.test(Escape::STR_END))
-			m_strescseq.handle();
+			m_str_escape.handle();
 		break;
 	default:
 		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ascii, 2)

@@ -161,7 +161,7 @@ protected: // data
 	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 
 	EscapeState m_esc_state; /// escape state flags
-	STREscape m_str_escape;  /// keeps track of string escape input sequences
+	StringEscape m_str_escape;  /// keeps track of string escape input sequences
 	CSIEscape m_csi_escape;  /// keeps track of CSI escape input sequences
 
 public: // functions
@@ -276,7 +276,7 @@ public: // functions
 	void draw();
 
 	/// initialize a newly starting terminal string escape sequence
-	void initStrSequence(unsigned char c);
+	void initStrSequence(const StringEscape::Type &type);
 
 	/// repeats the last input character the given number of times (if printable)
 	void repeatChar(int count);

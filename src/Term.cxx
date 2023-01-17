@@ -789,24 +789,8 @@ void Term::draw() {
 		m_x11.getInput().setSpot(new_pos);
 }
 
-void Term::initStrSequence(unsigned char ch) {
-	// translate if not already done
-	switch (ch) {
-	case 0x90:   /* DCS -- Device Control String */
-		ch = 'P';
-		break;
-	case 0x9f:   /* APC -- Application Program Command */
-		ch = '_';
-		break;
-	case 0x9e:   /* PM -- Privacy Message */
-		ch = '^';
-		break;
-	case 0x9d:   /* OSC -- Operating System Command */
-		ch = ']';
-		break;
-	}
-
-	m_str_escape.reset(ch);
+void Term::initStrSequence(const StringEscape::Type &type) {
+	m_str_escape.reset(type);
 	m_esc_state.set(Escape::STR);
 }
 
@@ -914,7 +898,8 @@ void Term::handleControlCode(unsigned char code) {
 	}
 	case '\a':   /* BEL */
 		if (m_esc_state[Escape::STR_END]) {
-			/* backwards compatibility to xterm */
+			/* backwards compatibility to xterm, which also
+			 * accepts BEL (instead of 'ST') as command terminator. */
 			m_str_escape.handle();
 		} else {
 			m_x11.ringBell();
@@ -983,10 +968,12 @@ void Term::handleControlCode(unsigned char code) {
 	case 0x90:   /* DCS -- Device Control String */
 	case 0x9d:   /* OSC -- Operating System Command */
 	case 0x9e:   /* PM -- Privacy Message */
-	case 0x9f:   /* APC -- Application Program Command */
-		initStrSequence(code);
+	case 0x9f:   /* APC -- Application Program Command */ {
+		const auto esc_type = static_cast<StringEscape::Type>(code);
+		initStrSequence(esc_type);
 		return;
 	}
+	} // end switch
 
 	/* only CAN, SUB, \a and C1 chars interrupt a sequence */
 	resetStringEscape();

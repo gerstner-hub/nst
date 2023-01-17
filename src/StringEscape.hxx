@@ -21,19 +21,26 @@ class Nst;
  * STR escape sequences follow the following model:
  *
  * ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
+ *
+ * This mostly implements OSC commands known from XTerm. Unimplemented
+ * commands are ignored.
  **/
-struct STREscape {
-protected: // data
+struct StringEscape {
+public: // types
 
-	std::string m_str; /* raw string */
-	std::vector<const char*> m_args;
-	char m_esc_type = 0;
-	Nst &m_nst;
+	enum class Type : char {
+		NONE = '\0',
+		OSC = ']', // operating system command
+		DCS = 'P', // device control string
+		APC = '_', // application specific program command
+		PM = '^',  // privacy message
+		SET_TITLE = 'k' // old title set compatibility
+	};
 
 public: // functions
 
-	explicit STREscape(Nst &nst);
-	void reset(const char type);
+	explicit StringEscape(Nst &nst);
+	void reset(const Type &type);
 	void add(const char *ch, size_t len);
 	void add(const std::string_view &s) {
 		add(s.data(), s.size());
@@ -49,6 +56,14 @@ protected: // functions
 	void setTitle(const char *s);
 	void osc4ColorResponse(int num);
 	void oscColorResponse(int index, int num);
+
+protected: // data
+
+	std::string m_str; /* raw string */
+	std::vector<const char*> m_args;
+	Type m_esc_type = Type::NONE; // the active escape type being parsed
+	Nst &m_nst;
+
 };
 
 } // end ns

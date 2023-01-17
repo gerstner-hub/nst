@@ -365,7 +365,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		break;
 	case '\\': /* ST -- String Terminator */
 		if (esc.test(Escape::STR_END))
-			m_str_escape.handle();
+			m_str_escape.process();
 		break;
 	default:
 		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(static_cast<unsigned>(ascii), 2)

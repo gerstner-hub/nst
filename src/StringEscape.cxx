@@ -5,6 +5,7 @@
 #include "nst.hxx"
 
 // stdlib
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -15,26 +16,14 @@
 namespace nst {
 
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
+/// maximum number of string escape sequence arguments we support
 constexpr size_t MAX_STR_ARGS = 16;
 
 StringEscape::StringEscape(Nst &nst) :
 	m_nst(nst)
 {}
 
-void StringEscape::osc4ColorResponse(int num) {
-	unsigned char r, g, b;
-
-	if (!m_nst.getX11().getColor(num, &r, &g, &b)) {
-		std::cerr << "erresc: failed to fetch osc4 color " << num << "\n";
-		return;
-	}
-
-	const auto res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
-
-	m_nst.getTTY().write(res.c_str(), res.size(), true);
-}
-
-void StringEscape::oscColorResponse(int index, int num) {
+void StringEscape::oscColorResponse(int index, int code) {
 	unsigned char r, g, b;
 
 	if (!m_nst.getX11().getColor(index, &r, &g, &b)) {
@@ -42,14 +31,21 @@ void StringEscape::oscColorResponse(int index, int num) {
 		return;
 	}
 
-	const auto res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b);
+	std::string res;
 
-	m_nst.getTTY().write(res.c_str(), res.size(), true);
+	if (code == 4) {
+		// for code 4 type responses also the index is reported back
+		res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", index, r, r, g, g, b, b);
+	} else {
+		res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", code, r, r, g, g, b, b);
+	}
+
+	m_nst.getTTY().write(res, /*echo=*/true);
 }
 
 void StringEscape::setTitle(const char *s) {
 	auto &x11 = m_nst.getX11();
-	if (s)
+	if (s && s[0])
 		x11.setTitle(s);
 	else
 		x11.setDefaultTitle();
@@ -57,116 +53,25 @@ void StringEscape::setTitle(const char *s) {
 
 void StringEscape::setIconTitle(const char *s) {
 	auto &x11 = m_nst.getX11();
-	if (s)
+	if (s && s[0])
 		x11.setIconTitle(s);
 	else
 		x11.setDefaultIconTitle();
 }
 
-void StringEscape::handle() {
-	auto &term = m_nst.getTerm();
-	auto &x11 = m_nst.getX11();
-
-	term.resetStringEscape();
-	parse();
-	const int par = m_args.empty() ? 0 : std::atoi(m_args[0]);
-	const char *p = nullptr;
+void StringEscape::process() {
+	m_nst.getTerm().resetStringEscape();
+	parseArgs();
 
 	switch (m_esc_type) {
-	case Type::OSC: /* OSC -- Operating System Command */
-		// for reference see: https://www.xfree86.org/current/ctlseqs.html
-		switch (par) {
-		case 0: // change icon name and window title
-			if (m_args.size() > 1) {
-				setTitle(m_args[1]);
-				setIconTitle(m_args[1]);
-			}
-			return;
-		case 1: // change icon name
-			if (m_args.size() > 1)
-				setIconTitle(m_args[1]);
-			return;
-		case 2: // change window title
-			if (m_args.size() > 1)
-				setTitle(m_args[1]);
-			return;
-		case 52: // manipulate selection data
-			if (m_args.size() > 2 && config::ALLOWWINDOWOPS) {
-				char *dec = base64::decode(m_args[2]);
-				if (dec) {
-					x11.getXSelection().setSelection(dec);
-					x11.copyToClipboard();
-				} else {
-					std::cerr << "erresc: invalid base64\n";
-				}
-			}
-			return;
-		case 10: // change text FG color
-			if (m_args.size() < 2)
-				break;
-
-			p = m_args[1];
-
-			if (!std::strcmp(p, "?"))
-				oscColorResponse(config::DEFAULTFG, 10);
-			else if (!x11.setColorName(config::DEFAULTFG, p))
-				std::cerr << "erresc: invalid foreground color: " << p << "\n";
-			else
-				term.redraw();
-			return;
-		case 11: // change text BG color
-			if (m_args.size() < 2)
-				break;
-
-			p = m_args[1];
-
-			if (!std::strcmp(p, "?"))
-				oscColorResponse(config::DEFAULTBG, 11);
-			else if (!x11.setColorName(config::DEFAULTBG, p))
-				std::cerr << "erresc: invalid background color: " << p << "%s\n";
-			else
-				term.redraw();
-			return;
-		case 12: // change text cursor color
-			if (m_args.size() < 2)
-				break;
-
-			p = m_args[1];
-
-			if (!std::strcmp(p, "?"))
-				oscColorResponse(config::DEFAULTCS, 12);
-			else if (!x11.setColorName(config::DEFAULTCS, p))
-				std::cerr << "erresc: invalid cursor color: " << p << "\n";
-			else
-				term.redraw();
-			return;
-		case 4: /* change color number to RGB value */
-			if (m_args.size() < 3)
-				break;
-			p = m_args[2];
-			/* FALLTHROUGH */
-		case 104: /* color reset */ {
-			int j = (m_args.size() > 1) ? atoi(m_args[1]) : -1;
-
-			if (p && !std::strcmp(p, "?"))
-				osc4ColorResponse(j);
-			else if (!x11.setColorName(j, p)) {
-				if (par == 104 && m_args.size() <= 1)
-					return; /* color reset without parameter */
-				std::cerr << "erresc: invalid color j=" << j << ", p=" << (p ? p : "(null)") << "\n";
-			} else {
-				/*
-				 * TODO if defaultbg color is changed, borders
-				 * are dirty
-				 */
-				term.redraw();
-			}
-			return;
+	case Type::OSC: /* Operating System Command */
+		if (!processOSC()) {
+			// error in OSC command, dump
+			dump("erresc: unknown str escape");
 		}
-		}
-		break;
+		return;
 	case Type::SET_TITLE: /* old title set compatibility */
-		setTitle(m_args[0]);
+		setTitle(m_args.empty() ? "" : m_args[0].data());
 		return;
 	case Type::DCS: /* Device Control String */
 	case Type::APC: /* Application Program Command */
@@ -174,36 +79,128 @@ void StringEscape::handle() {
 	case Type::NONE: /* should never happend */
 		return;
 	}
-
-	dump("erresc: unknown str");
 }
 
-void StringEscape::parse() {
-	char *p = m_str.data();
-	m_args.clear();
+bool StringEscape::processOSC() {
+	auto &term = m_nst.getTerm();
+	auto &x11 = m_nst.getX11();
+	const int par = m_args.empty() ? 0 : std::atoi(m_args[0].data());
+	const auto numargs = m_args.size();
 
-	if (*p == '\0')
-		return;
+	// handles different color settings and reporting
+	auto handle_color = [&](const char *label, const int code, const int colindex) {
+		if (numargs < 2)
+			return false;
 
-	int c;
-	while (m_args.size() < MAX_STR_ARGS) {
-		m_args.push_back(p);
-		while ((c = *p) != ';' && c != '\0')
-			++p;
-		if (c == '\0')
-			return;
-		*p++ = '\0';
+		const auto &arg = m_args[1];
+
+		if (arg == "?")
+			// report current color setting
+			oscColorResponse(colindex, code);
+		else if (!x11.setColorName(colindex, arg.data()))
+			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
+		else
+			term.redraw();
+
+		return true;
+	};
+
+	// for reference see: https://www.xfree86.org/current/ctlseqs.html
+	switch (par) {
+		case 0: // change icon name and window title
+			if (numargs > 1) {
+				const auto &title = m_args[1].data();
+				setTitle(title);
+				setIconTitle(title);
+			}
+			break;
+		case 1: // change icon name
+			if (numargs > 1)
+				setIconTitle(m_args[1].data());
+			break;
+		case 2: // change window title
+			if (numargs > 1)
+				setTitle(m_args[1].data());
+			break;
+		case 52: // manipulate selection data
+			if (numargs > 2 && config::ALLOWWINDOWOPS) {
+				auto decoded = base64::decode(m_args[2]);
+				if (!decoded.empty()) {
+					x11.getXSelection().setSelection(decoded);
+					x11.copyToClipboard();
+				} else {
+					std::cerr << "erresc: invalid base64\n";
+				}
+			}
+			break;
+		case 10: // change text FG color
+			return handle_color("foreground", par, config::DEFAULTFG);
+		case 11: // change text BG color
+			return handle_color("background", par, config::DEFAULTBG);
+		case 12: // change text cursor color
+			return handle_color("cursor", par, config::DEFAULTCS);
+		case 4: /* change color number to RGB value */
+			if (numargs < 3)
+				return false;
+			/* FALLTHROUGH */
+		case 104: /* color reset */ {
+			const auto name = (par == 4 ? m_args[2] : std::string_view(""));
+			const int colindex = (numargs > 1) ? atoi(m_args[1].data()) : -1;
+
+			if (name == "?")
+				oscColorResponse(colindex, 4);
+			else if (!x11.setColorName(colindex, name.data())) {
+				if (par == 104 && numargs <= 1)
+					break; /* color reset without parameter */
+				std::cerr << "erresc: invalid color index=" << colindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
+			} else {
+				// TODO if defaultbg color is changed, borders are dirty
+				term.redraw();
+			}
+			break;
+		}
+		default: return false;
+	}
+
+	return true;
+}
+
+
+void StringEscape::parseArgs() {
+	auto it = m_str.begin();
+
+	// parameters are separated by semilocon, extract them
+
+	while (it != m_str.end() && m_args.size() < MAX_STR_ARGS) {
+		auto end = std::find(it, m_str.end(), ';');
+
+		// NOTE: c++20 has a better constructor using iterators
+		std::string_view sv(&(*it), std::distance(it, end));
+		m_args.push_back(sv);
+
+		if (end != m_str.end()) {
+			// make sure the views we add to m_args are properly terminated
+			*end = '\0';
+			// advance to next arg
+			it++;
+		}
+
+		it = end;
+	}
+
+	if (it != m_str.end()) {
+		std::cerr << __FUNCTION__ << ": maximum number of arguments exceeded\n";
 	}
 }
 
 void StringEscape::dump(const char *prefix) const {
 	std::cerr << prefix << " ESC" << static_cast<char>(m_esc_type);
 
-	for (auto c: m_str) {
+	for (const auto c: m_str) {
 		if (c == '\0') {
 			std::cerr << '\n';
 			return;
-		} else if (isprint(c)) {
+		} else if (std::isprint(c)) {
 			std::cerr << (char)c;
 		} else if (c == '\n') {
 			std::cerr << "(\\n)";
@@ -212,7 +209,7 @@ void StringEscape::dump(const char *prefix) const {
 		} else if (c == 0x1b) {
 			std::cerr << "(\\e)";
 		} else {
-			std::cerr << "(" << cosmos::hexnum(c, 2).showBase(false) << ")";
+			std::cerr << "(" << cosmos::hexnum(static_cast<unsigned>(c), 2).showBase(false) << ")";
 		}
 	}
 	std::cerr << "ESC\\\n";
@@ -221,14 +218,15 @@ void StringEscape::dump(const char *prefix) const {
 void StringEscape::reset(const Type &type) {
 	m_str.clear();
 	m_str.reserve(DEF_BUF_SIZE);
+	m_args.clear();
 	m_esc_type = type;
 }
 
-void StringEscape::add(const char *ch, size_t len) {
-	if (m_str.size() + len >= m_str.capacity()) {
+void StringEscape::add(const std::string_view &s) {
+	if (m_str.size() + s.size() >= m_str.capacity()) {
 		/*
 		 * Here is a bug in terminals. If the user never sends
-		 * some code to stop the str or esc command, then st
+		 * some code to stop the str or esc command, then nst
 		 * will stop responding. But this is better than
 		 * silently failing with unknown characters. At least
 		 * then users will report back.
@@ -236,15 +234,15 @@ void StringEscape::add(const char *ch, size_t len) {
 		 * In the case users ever get fixed, here is the code:
 		 */
 		/*
-		 * term.m_esc_state.reset();
-		 * handle();
+		 * m_nst.getTerm().m_esc_state.reset();
+		 * process();
 		 */
 		if (m_str.size() > (SIZE_MAX - utf8::UTF_SIZE) / 2)
 			return;
 		m_str.reserve(m_str.capacity() << 1);
 	}
 
-	m_str.append(ch, len);
+	m_str.append(s);
 }
 
 } // end ns

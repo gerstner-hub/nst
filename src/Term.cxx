@@ -900,7 +900,7 @@ void Term::handleControlCode(unsigned char code) {
 		if (m_esc_state[Escape::STR_END]) {
 			/* backwards compatibility to xterm, which also
 			 * accepts BEL (instead of 'ST') as command terminator. */
-			m_str_escape.handle();
+			m_str_escape.process();
 		} else {
 			m_x11.ringBell();
 		}

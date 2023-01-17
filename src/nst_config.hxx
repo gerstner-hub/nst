@@ -67,7 +67,7 @@ constexpr const char *VTIDEN = "\033[?6c";
 
 /* allow certain non-interactive (insecure) window operations such as:
    setting the clipboard text */
-constexpr int ALLOWWINDOWOPS = 0;
+constexpr bool ALLOWWINDOWOPS = false;
 
 /*
  * spaces per tab

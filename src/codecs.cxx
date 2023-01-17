@@ -131,39 +131,44 @@ constexpr char BASE64_DIGITS[] = {
 
 }
 
-static unsigned char b64_getc(const char **src) {
-	while (**src && !std::isprint(**src))
-		(*src)++;
-	return **src ? *((*src)++) : '=';  /* emulate padding if string ends */
-}
+std::string decode(const std::string_view &src) {
+	std::string result;
+	// + 3 is to consider padding that might be necessary if src.size() % 4 != 0.
+	result.reserve(src.size() / 4 * 3 + 1 + 3);
 
-char* decode(const char *src) {
-	size_t in_len = std::strlen(src);
-	if (in_len % 4)
-		in_len += 4 - (in_len % 4);
+	// returns the next base64 character from the input sequence
+	auto nextchar = [&](auto &it) -> unsigned char {
+		while (it != src.end() && !std::isprint(*it))
+			it++;
 
-	char *result = new char[in_len / 4 * 3 + 1];
-	char *dst = result;
+		return it == src.end() ? '=' : *it++; /* emulate padding if string ends */
+	};
 
-	while (*src) {
-		int a = BASE64_DIGITS[b64_getc(&src)];
-		int b = BASE64_DIGITS[b64_getc(&src)];
-		int c = BASE64_DIGITS[b64_getc(&src)];
-		int d = BASE64_DIGITS[b64_getc(&src)];
+	for (auto it = src.begin(); it != src.end(); it++) {
+		const int a = BASE64_DIGITS[nextchar(it)];
+		const int b = BASE64_DIGITS[nextchar(it)];
+		const int c = BASE64_DIGITS[nextchar(it)];
+		const int d = BASE64_DIGITS[nextchar(it)];
 
 		/* invalid input. 'a' can be -1, e.g. if src is "\n" (c-str) */
 		if (a == -1 || b == -1)
 			break;
 
-		*dst++ = (a << 2) | ((b & 0x30) >> 4);
+		char ch = (a << 2) | ((b & 0x30) >> 4);
+		result.push_back(ch);
+
 		if (c == -1)
 			break;
-		*dst++ = ((b & 0x0f) << 4) | ((c & 0x3c) >> 2);
+
+		ch = ((b & 0x0f) << 4) | ((c & 0x3c) >> 2);
+		result.push_back(ch);
+
 		if (d == -1)
 			break;
-		*dst++ = ((c & 0x03) << 6) | d;
+		ch = ((c & 0x03) << 6) | d;
+		result.push_back(ch);
 	}
-	*dst = '\0';
+
 	return result;
 }
 

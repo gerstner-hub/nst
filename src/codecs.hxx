@@ -6,6 +6,7 @@
 
 // C++
 #include <string>
+#include <string_view>
 
 // nst
 #include "Glyph.hxx"
@@ -23,8 +24,8 @@ size_t validate(Rune *, size_t);
 
 namespace nst::base64 {
 
-/// decodes a base64 encoded string and returns new[] allocated string containing the result
-char* decode(const char *);
+/// decodes a base64 encoded string and returns a string containing the decoded result
+std::string decode(const std::string_view &s);
 
 }
 

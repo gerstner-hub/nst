@@ -1021,8 +1021,8 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 		bool reset = true;
 
 		if (m_esc_state[Escape::CSI]) {
-			const bool max_reached = m_csi_escape.add(rune);
-			if (max_reached || in_range(rinfo.asChar(), 0x40, 0x7E)) {
+			const bool finished = m_csi_escape.add(rune);
+			if (finished) {
 				m_esc_state.reset();
 				m_csi_escape.parse();
 				m_csi_escape.handle();

@@ -24,7 +24,7 @@ constexpr size_t MAX_ARG_SIZE = 16;
 }
 
 CSIEscape::CSIEscape(Nst &nst, StringEscape &str_escape) :
-		m_nst(nst), m_term(nst.getTerm()), m_str_escape(str_escape) {
+		m_nst(nst), m_str_escape(str_escape) {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -84,9 +84,10 @@ void CSIEscape::handle() {
 
 	ensureArg(0, 0);
 	auto &arg0 = m_args[0];
-	auto &curpos = m_term.getCursor().getPos();
-	const auto trows = m_term.getNumRows();
-	const auto tcols = m_term.getNumCols();
+	auto &term = m_nst.getTerm();
+	auto &curpos = term.getCursor().getPos();
+	const auto trows = term.getNumRows();
+	const auto tcols = term.getNumCols();
 
 	switch (m_mode[0]) {
 	default:
@@ -94,33 +95,33 @@ void CSIEscape::handle() {
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
 		setDefault(arg0, 1);
-		m_term.insertBlanksAfterCursor(arg0);
+		term.insertBlanksAfterCursor(arg0);
 		return;
 	case 'A': /* CUU -- Cursor <n> Up */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(curpos.prevLine(arg0));
+		term.moveCursorTo(curpos.prevLine(arg0));
 		return;
 	case 'B': /* CUD -- Cursor <n> Down */
 	case 'e': /* VPR --Cursor <n> Down */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(curpos.nextLine(arg0));
+		term.moveCursorTo(curpos.nextLine(arg0));
 		return;
 	case 'i': /* MC -- Media Copy */
 		switch (arg0) {
 		case 0:
-			m_term.dump();
+			term.dump();
 			break;
 		case 1:
-			m_term.dumpLine(curpos);
+			term.dumpLine(curpos);
 			break;
 		case 2:
 			m_nst.getSelection().dump();
 			break;
 		case 4:
-			m_term.setPrintMode(false);
+			term.setPrintMode(false);
 			break;
 		case 5:
-			m_term.setPrintMode(true);
+			term.setPrintMode(true);
 			break;
 		}
 		return;
@@ -130,32 +131,32 @@ void CSIEscape::handle() {
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		setDefault(arg0, 1);
-		m_term.repeatChar(arg0);
+		term.repeatChar(arg0);
 		return;
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(curpos.nextCol(arg0));
+		term.moveCursorTo(curpos.nextCol(arg0));
 		return;
 	case 'D': /* CUB -- Cursor <n> Backward */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo(curpos.prevCol(arg0));
+		term.moveCursorTo(curpos.prevCol(arg0));
 		return;
 	case 'E': /* CNL -- Cursor <n> Down and first col */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo({0, curpos.y + arg0});
+		term.moveCursorTo({0, curpos.y + arg0});
 		return;
 	case 'F': /* CPL -- Cursor <n> Up and first col */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo({0, curpos.y - arg0});
+		term.moveCursorTo({0, curpos.y - arg0});
 		return;
 	case 'g': /* TBC -- Tabulation clear */
 		switch (arg0) {
 		case 0: /* clear current tab stop */
-			m_term.setTabAtCursor(false);
+			term.setTabAtCursor(false);
 			return;
 		case 3: /* clear all the tabs */
-			m_term.clearAllTabs();
+			term.clearAllTabs();
 			return;
 		default:
 			break;
@@ -164,33 +165,33 @@ void CSIEscape::handle() {
 	case 'G': /* CHA -- Move to <col> */
 	case '`': /* HPA */
 		setDefault(arg0, 1);
-		m_term.moveCursorTo({arg0 - 1, curpos.y});
+		term.moveCursorTo({arg0 - 1, curpos.y});
 		return;
 	case 'H': /* CUP -- Move to <row> <col> */
 	case 'f': /* HVP */
 		setDefault(arg0, 1);
 		ensureArg(1, 1);
-		m_term.moveCursorAbsTo({m_args[1] - 1, arg0 - 1});
+		term.moveCursorAbsTo({m_args[1] - 1, arg0 - 1});
 		return;
 	case 'I': /* CHT -- Cursor Forward Tabulation <n> tab stops */
 		setDefault(arg0, 1);
-		m_term.moveToNextTab(arg0);
+		term.moveToNextTab(arg0);
 		return;
 	case 'J': /* ED -- Clear screen */
 		switch (arg0) {
 		case 0: /* below */
-			m_term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
+			term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
 			if (curpos.y < trows - 1) {
-				m_term.clearRegion({CharPos{0, curpos.y + 1}, CharPos{tcols - 1, trows - 1}});
+				term.clearRegion({CharPos{0, curpos.y + 1}, CharPos{tcols - 1, trows - 1}});
 			}
 			return;
 		case 1: /* above */
 			if (curpos.y > 1)
-				m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, curpos.y - 1}});
-			m_term.clearRegion({CharPos{0, curpos.y}, curpos});
+				term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, curpos.y - 1}});
+			term.clearRegion({CharPos{0, curpos.y}, curpos});
 			return;
 		case 2: /* all */
-			m_term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, trows - 1}});
+			term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, trows - 1}});
 			return;
 		default:
 			break;
@@ -199,56 +200,56 @@ void CSIEscape::handle() {
 	case 'K': /* EL -- Clear line */
 		switch (arg0) {
 		case 0: /* right */
-			m_term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
+			term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
 			return;
 		case 1: /* left */
-			m_term.clearRegion({CharPos{0, curpos.y}, curpos});
+			term.clearRegion({CharPos{0, curpos.y}, curpos});
 			return;
 		case 2: /* all */
-			m_term.clearRegion({CharPos{0, curpos.y}, CharPos{tcols - 1, curpos.y}});
+			term.clearRegion({CharPos{0, curpos.y}, CharPos{tcols - 1, curpos.y}});
 			return;
 		}
 		return;
 	case 'S': /* SU -- Scroll <n> line up */
 		setDefault(arg0, 1);
-		m_term.scrollUp(arg0);
+		term.scrollUp(arg0);
 		return;
 	case 'T': /* SD -- Scroll <n> line down */
 		setDefault(arg0, 1);
-		m_term.scrollDown(arg0);
+		term.scrollDown(arg0);
 		return;
 	case 'L': /* IL -- Insert <n> blank lines */
 		setDefault(arg0, 1);
-		m_term.insertBlankLinesBelowCursor(arg0);
+		term.insertBlankLinesBelowCursor(arg0);
 		return;
 	case 'l': /* RM -- Reset Mode */
-		m_term.setMode(m_priv, false, m_args);
+		term.setMode(m_priv, false, m_args);
 		return;
 	case 'M': /* DL -- Delete <n> lines */
 		setDefault(arg0, 1);
-		m_term.deleteLinesBelowCursor(arg0);
+		term.deleteLinesBelowCursor(arg0);
 		return;
 	case 'X': /* ECH -- Erase <n> char */
 		setDefault(arg0, 1);
-		m_term.clearRegion({curpos, curpos.nextCol(arg0 -1)});
+		term.clearRegion({curpos, curpos.nextCol(arg0 -1)});
 		return;
 	case 'P': /* DCH -- Delete <n> char */
 		setDefault(arg0, 1);
-		m_term.deleteColsAfterCursor(arg0);
+		term.deleteColsAfterCursor(arg0);
 		return;
 	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
 		setDefault(arg0, 1);
-		m_term.moveToPrevTab(arg0);
+		term.moveToPrevTab(arg0);
 		return;
 	case 'd': /* VPA -- Move to <row> */
 		setDefault(arg0, 1);
-		m_term.moveCursorAbsTo({curpos.x, arg0 - 1});
+		term.moveCursorAbsTo({curpos.x, arg0 - 1});
 		return;
 	case 'h': /* SM -- Set terminal mode */
-		m_term.setMode(m_priv, true, m_args);
+		term.setMode(m_priv, true, m_args);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		m_term.setCursorAttrs(m_args);
+		term.setCursorAttrs(m_args);
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
@@ -262,15 +263,15 @@ void CSIEscape::handle() {
 		} else {
 			setDefault(arg0, 1);
 			ensureArg(1, trows);
-			m_term.setScrollArea(LineSpan{arg0 - 1, m_args[1] - 1});
-			m_term.moveCursorAbsTo({0, 0});
+			term.setScrollArea(LineSpan{arg0 - 1, m_args[1] - 1});
+			term.moveCursorAbsTo({0, 0});
 		}
 		return;
 	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
-		m_term.cursorControl(Term::TCursor::Control::SAVE);
+		term.cursorControl(Term::TCursor::Control::SAVE);
 		return;
 	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
-		m_term.cursorControl(Term::TCursor::Control::LOAD);
+		term.cursorControl(Term::TCursor::Control::LOAD);
 		return;
 	case ' ':
 		switch (m_mode[1]) {
@@ -289,9 +290,10 @@ void CSIEscape::handle() {
 }
 
 int CSIEscape::eschandle(unsigned char ascii) {
-	auto &esc = m_term.getEscapeState();
+	auto &term = m_nst.getTerm();
+	auto &esc = term.getEscapeState();
 	using Escape = Term::Escape;
-	auto &curpos = m_term.getCursor().getPos();
+	auto &curpos = term.getCursor().getPos();
 	auto &x11 = m_nst.getX11();
 
 	switch (ascii) {
@@ -310,45 +312,45 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	case ']': /* OSC -- Operating System Command */
 	case 'k': /* old title set compatibility */ {
 		const auto esc_type = static_cast<StringEscape::Type>(ascii);
-		m_term.initStrSequence(esc_type);
+		term.initStrSequence(esc_type);
 		return 0;
 	}
 	case 'n': /* LS2 -- Locking shift 2 */
 	case 'o': /* LS3 -- Locking shift 3 */
-		m_term.setCharset(2 + (ascii - 'n'));
+		term.setCharset(2 + (ascii - 'n'));
 		break;
 	case '(': /* GZD4 -- set primary charset G0 */
 	case ')': /* G1D4 -- set secondary charset G1 */
 	case '*': /* G2D4 -- set tertiary charset G2 */
 	case '+': /* G3D4 -- set quaternary charset G3 */
-		m_term.setEscCharset(ascii - '(');
+		term.setEscCharset(ascii - '(');
 		esc.set(Escape::ALTCHARSET);
 		return 0;
 	case 'D': /* IND -- Linefeed */
-		if (curpos.y == m_term.getScrollArea().bottom) {
-			m_term.scrollUp(1);
+		if (curpos.y == term.getScrollArea().bottom) {
+			term.scrollUp(1);
 		} else {
-			m_term.moveCursorTo(curpos.nextLine());
+			term.moveCursorTo(curpos.nextLine());
 		}
 		break;
 	case 'E': /* NEL -- Next line */
-		m_term.moveToNewline(); /* always go to first col */
+		term.moveToNewline(); /* always go to first col */
 		break;
 	case 'H': /* HTS -- Horizontal tab stop */
-		m_term.setTabAtCursor(true);
+		term.setTabAtCursor(true);
 		break;
 	case 'M': /* RI -- Reverse index */
-		if (curpos.y == m_term.getScrollArea().top) {
-			m_term.scrollDown(1);
+		if (curpos.y == term.getScrollArea().top) {
+			term.scrollDown(1);
 		} else {
-			m_term.moveCursorTo(curpos.prevLine());
+			term.moveCursorTo(curpos.prevLine());
 		}
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
 		m_nst.getTTY().write(config::VTIDEN, strlen(config::VTIDEN), 0);
 		break;
 	case 'c': /* RIS -- Reset to initial state */
-		m_term.reset();
+		term.reset();
 		x11.resetState();
 		break;
 	case '=': /* DECPAM -- Application keypad */
@@ -358,10 +360,10 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		x11.setMode(WinMode::APPKEYPAD, false);
 		break;
 	case '7': /* DECSC -- Save Cursor */
-		m_term.cursorControl(Term::TCursor::Control::SAVE);
+		term.cursorControl(Term::TCursor::Control::SAVE);
 		break;
 	case '8': /* DECRC -- Restore Cursor */
-		m_term.cursorControl(Term::TCursor::Control::LOAD);
+		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
 	case '\\': /* ST -- String Terminator */
 		if (esc.test(Escape::STR_END))

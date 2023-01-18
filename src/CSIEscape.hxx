@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+// cosmos
+#include "cosmos/algs.hxx"
+
 // nst
 #include "codecs.hxx"
 #include "helper.hxx"
@@ -15,7 +18,6 @@
 namespace nst {
 
 class Nst;
-class Term;
 struct StringEscape;
 
 /// Handles CSI escape sequences
@@ -28,28 +30,6 @@ struct StringEscape;
  * sequences.
  **/
 struct CSIEscape {
-protected: // data
-
-	bool m_priv = false;
-	char m_mode[2] = {0};
-	std::vector<int> m_args;
-	std::string m_str;
-	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
-	Nst &m_nst;
-	Term &m_term;
-	StringEscape &m_str_escape;
-
-protected: // functions
-
-	//! makes sure the given argument index exists in m_args and if zero
-	//! sets it to defval
-	void ensureArg(size_t index, int defval) {
-		while (m_args.size() < (index + 1))
-			m_args.push_back(0);
-
-		setDefault(m_args[index], defval);
-	}
-
 public: // functions
 
 	CSIEscape(Nst &nst, StringEscape &str_escape);
@@ -64,11 +44,12 @@ public: // functions
 
 	void dump(const char *prefix) const;
 
-	//! adds the given character to the sequence, returns whether the
-	//! maximum sequence length has been reached
+	/// adds the given character to the sequence, returns whether the sequence is complete
 	bool add(char ch) {
 		m_str.push_back(ch);
-		return m_str.length() >= MAX_STR_SIZE;
+		// signal complete either if the maximum sequence length has
+		// been reached or a terminating character appears
+		return m_str.length() >= MAX_STR_SIZE || cosmos::in_range(ch, 0x40, 0x7E);
 	}
 
 	void reset() {
@@ -77,6 +58,28 @@ public: // functions
 		m_args.clear();
 		m_str.clear();
 	}
+
+protected: // functions
+
+	//! makes sure the given argument index exists in m_args and if zero
+	//! sets it to defval
+	void ensureArg(size_t index, int defval) {
+		while (m_args.size() < (index + 1))
+			m_args.push_back(0);
+
+		setDefault(m_args[index], defval);
+	}
+
+protected: // data
+
+	std::string m_str; // the escape sequence collected so far
+	bool m_priv = false;
+	char m_mode[2] = {0};
+	std::vector<int> m_args;
+	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
+	Nst &m_nst;
+	StringEscape &m_str_escape;
+
 };
 
 } // end ns

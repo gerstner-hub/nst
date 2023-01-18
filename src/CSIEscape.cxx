@@ -368,7 +368,7 @@ int CSIEscape::eschandle(unsigned char ascii) {
 			m_str_escape.process();
 		break;
 	default:
-		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(static_cast<unsigned>(ascii), 2)
+		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ascii, 2)
 			<< " '" << (std::isprint(ascii) ? ascii : '.') << "'\n";
 		break;
 	}

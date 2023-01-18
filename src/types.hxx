@@ -112,6 +112,9 @@ struct DrawPos : public PosT<draw_pos_t> {
 };
 
 /// a rectangular range of characters between a begin and and end CharPos
+/**
+ * the begin and end coordinates are *inclusive*.
+ **/
 struct Range {
 public: // data
 	CharPos begin;
@@ -119,7 +122,9 @@ public: // data
 
 public: // types
 
+	/// strong type to represent widths
 	enum class Width : int {};
+	/// strong type to represent heights
 	enum class Height : int {};
 
 public: // functions
@@ -136,8 +141,8 @@ public: // functions
 	void invalidate() { begin.x = -1; }
 	bool isValid() const { return begin.x != -1; }
 
-	Width width() const { return static_cast<Width>(end.x - begin.x); }
-	Height height() const { return static_cast<Height>(end.y - begin.y); }
+	Width width() const { return static_cast<Width>(end.x - begin.x + 1); }
+	Height height() const { return static_cast<Height>(end.y - begin.y + 1); }
 
 	void clamp(const CharPos &max) {
 		begin.clampX(max.x);

@@ -549,6 +549,26 @@ void Term::insertBlankLinesBelowCursor(int count) {
 	}
 }
 
+void Term::doLineFeed() {
+	const auto &curpos = getCursor().getPos();
+
+	if (curpos.y == getScrollArea().bottom) {
+		scrollUp(1);
+	} else {
+		moveCursorTo(curpos.nextLine());
+	}
+}
+
+void Term::doReverseLineFeed() {
+	const auto &curpos = getCursor().getPos();
+
+	if (curpos.y == getScrollArea().top) {
+		scrollDown(1);
+	} else {
+		moveCursorTo(curpos.prevLine());
+	}
+}
+
 void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
 	const auto &area = m_scroll_area;
 	int origin = opt_origin ? *opt_origin : m_scroll_area.top;
@@ -869,7 +889,8 @@ void Term::setCharsetMapping(const char code) {
 }
 
 void Term::runDECTest(char code) {
-	if (code == '8') { /* DEC screen alignment test. */
+	/* DEC screen alignment test: fill screen with E's */
+	if (code == '8') {
 		for (int x = 0; x < m_size.cols; ++x) {
 			for (int y = 0; y < m_size.rows; ++y)
 				setChar('E', CharPos{x, y});
@@ -1021,11 +1042,11 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 		bool reset = true;
 
 		if (m_esc_state[Escape::CSI]) {
-			const bool finished = m_csi_escape.add(rune);
+			const bool finished = m_csi_escape.addCSI(rune);
 			if (finished) {
 				m_esc_state.reset();
 				m_csi_escape.parse();
-				m_csi_escape.handle();
+				m_csi_escape.process();
 			}
 			reset = false;
 		} else if (m_esc_state[Escape::UTF8]) {
@@ -1041,9 +1062,9 @@ Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
 			setCharsetMapping(rune);
 		} else if (m_esc_state[Escape::TEST]) {
 			runDECTest(rune);
-		} else if (!m_csi_escape.eschandle(rune)) {
+		} else if (!m_csi_escape.handleEscape(rune)) {
+			/* sequence not yet finished */
 			reset = false;
-			/* sequence already finished */
 		}
 
 		if (reset) {

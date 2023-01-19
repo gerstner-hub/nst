@@ -296,7 +296,7 @@ public:
 enum class WinMode {
 	VISIBLE     = 1 << 0,
 	FOCUSED     = 1 << 1,
-	APPKEYPAD   = 1 << 2,
+	APPKEYPAD   = 1 << 2, // keypad keys generate special events instead of numbers
 	MOUSEBTN    = 1 << 3,
 	MOUSEMOTION = 1 << 4,
 	REVERSE     = 1 << 5,

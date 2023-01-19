@@ -56,7 +56,7 @@ public: // types
 		ALTCHARSET = 1 << 3, /// requests setting an alternative character set
 		STR_END    = 1 << 4, /// a final string was encountered
 		TEST       = 1 << 5, /// Enter in test mode
-		UTF8       = 1 << 6, /// UTF8 mode setting requested
+		UTF8       = 1 << 6, /// UTF8 (character set change) requested
 	};
 
 	typedef cosmos::BitMask<Escape> EscapeState;
@@ -226,6 +226,11 @@ public: // functions
 		m_tabs[m_cursor.pos.x] = on_off;
 	}
 
+	/// perform a line feed operation (moving cursor down one line), possibly scrolling down one line
+	void doLineFeed();
+	/// perform a reverse line feed operation (moving cursor up one line), possibly scrolling up one line
+	void doReverseLineFeed();
+
 	/// scrolls terminal lines downwards, creating empty lines at the top
 	/**
 	 * The optional origin line can be used to scroll only part of the
@@ -285,10 +290,8 @@ public: // functions
 	size_t write(const std::string_view &data, const ShowCtrlChars &show_ctrl);
 
 	const TCursor& getCursor() const { return m_cursor; }
-	void setCursorAttrs(const std::vector<int> &attrs) {
-		if (!m_cursor.setAttrs(attrs)) {
-			m_csi_escape.dump("");
-		}
+	bool setCursorAttrs(const std::vector<int> &attrs) {
+		return m_cursor.setAttrs(attrs);
 	}
 
 	void setPrintMode(const bool on_off) {

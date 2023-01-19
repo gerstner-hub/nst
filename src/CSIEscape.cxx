@@ -80,7 +80,7 @@ void CSIEscape::dump(const char *prefix) const {
 	std::cerr << "\n";
 }
 
-void CSIEscape::handle() {
+void CSIEscape::process() {
 
 	ensureArg(0, 0);
 	auto &arg0 = m_args[0];
@@ -249,7 +249,9 @@ void CSIEscape::handle() {
 		term.setMode(m_priv, true, m_args);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		term.setCursorAttrs(m_args);
+		if (!term.setCursorAttrs(m_args)) {
+			dump("failed to set cursor attrs:");
+		}
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
@@ -289,49 +291,54 @@ void CSIEscape::handle() {
 	dump("erresc: unknown csi");
 }
 
-int CSIEscape::eschandle(unsigned char ascii) {
+bool CSIEscape::handleEscape(const char ch) {
 	auto &term = m_nst.getTerm();
-	auto &esc = term.getEscapeState();
+	auto &state = term.getEscapeState();
 	using Escape = Term::Escape;
-	auto &curpos = term.getCursor().getPos();
 	auto &x11 = m_nst.getX11();
 
-	switch (ascii) {
+	// TODO: separation of concerns regarding escape sequences parsing is
+	// not well done, Term does too much of this on its own
+	//
+	// also why are there non-CSI sequences here? what is the separation
+	// wrt StringEscape?
+
+	// for reference see `man 4 console_codes`
+
+	// these are, apart from '[', non-CSI escape sequences
+	switch (ch) {
 	case '[':
-		esc.set(Escape::CSI);
-		return 0;
+		state.set(Escape::CSI);
+		return false;
 	case '#':
-		esc.set(Escape::TEST);
-		return 0;
-	case '%':
-		esc.set(Escape::UTF8);
-		return 0;
+		state.set(Escape::TEST);
+		return false;
+	case '%': // character set selection
+		state.set(Escape::UTF8);
+		return false;
 	case 'P': /* DCS -- Device Control String */
 	case '_': /* APC -- Application Program Command */
 	case '^': /* PM -- Privacy Message */
 	case ']': /* OSC -- Operating System Command */
 	case 'k': /* old title set compatibility */ {
-		const auto esc_type = static_cast<StringEscape::Type>(ascii);
+		// hand over to StringEscape
+		const auto esc_type = static_cast<StringEscape::Type>(ch);
 		term.initStrSequence(esc_type);
-		return 0;
+		return false;
 	}
 	case 'n': /* LS2 -- Locking shift 2 */
 	case 'o': /* LS3 -- Locking shift 3 */
-		term.setCharset(2 + (ascii - 'n'));
+		term.setCharset(2 + (ch - 'n'));
 		break;
 	case '(': /* GZD4 -- set primary charset G0 */
 	case ')': /* G1D4 -- set secondary charset G1 */
 	case '*': /* G2D4 -- set tertiary charset G2 */
 	case '+': /* G3D4 -- set quaternary charset G3 */
-		term.setEscCharset(ascii - '(');
-		esc.set(Escape::ALTCHARSET);
-		return 0;
+		term.setEscCharset(ch - '(');
+		state.set(Escape::ALTCHARSET);
+		return false;
 	case 'D': /* IND -- Linefeed */
-		if (curpos.y == term.getScrollArea().bottom) {
-			term.scrollUp(1);
-		} else {
-			term.moveCursorTo(curpos.nextLine());
-		}
+		term.doLineFeed();
 		break;
 	case 'E': /* NEL -- Next line */
 		term.moveToNewline(); /* always go to first col */
@@ -339,12 +346,8 @@ int CSIEscape::eschandle(unsigned char ascii) {
 	case 'H': /* HTS -- Horizontal tab stop */
 		term.setTabAtCursor(true);
 		break;
-	case 'M': /* RI -- Reverse index */
-		if (curpos.y == term.getScrollArea().top) {
-			term.scrollDown(1);
-		} else {
-			term.moveCursorTo(curpos.prevLine());
-		}
+	case 'M': /* RI -- Reverse index / linefeed */
+		term.doReverseLineFeed();
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
 		m_nst.getTTY().write(config::VTIDEN, strlen(config::VTIDEN), 0);
@@ -366,15 +369,16 @@ int CSIEscape::eschandle(unsigned char ascii) {
 		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
 	case '\\': /* ST -- String Terminator */
-		if (esc.test(Escape::STR_END))
+		if (state.test(Escape::STR_END))
 			m_str_escape.process();
 		break;
 	default:
-		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ascii, 2)
-			<< " '" << (std::isprint(ascii) ? ascii : '.') << "'\n";
+		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ch, 2)
+			<< " '" << (std::isprint(ch) ? ch : '.') << "'\n";
 		break;
 	}
-	return 1;
+
+	return true;
 }
 
 } // end ns

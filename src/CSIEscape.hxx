@@ -34,18 +34,14 @@ public: // functions
 
 	CSIEscape(Nst &nst, StringEscape &str_escape);
 
-	void handle(void);
-	void parse(void);
-	/*
-	 * returns 1 when the sequence is finished and it hasn't to read
-	 * more characters for this sequence, otherwise 0
-	 */
-	int eschandle(unsigned char);
+	void process();
+	void parse();
 
-	void dump(const char *prefix) const;
+	/// returns true if the sequence is complete
+	bool handleEscape(const char ch);
 
 	/// adds the given character to the sequence, returns whether the sequence is complete
-	bool add(char ch) {
+	bool addCSI(const char ch) {
 		m_str.push_back(ch);
 		// signal complete either if the maximum sequence length has
 		// been reached or a terminating character appears
@@ -61,14 +57,15 @@ public: // functions
 
 protected: // functions
 
-	//! makes sure the given argument index exists in m_args and if zero
-	//! sets it to defval
+	/// makes sure the given argument index exists in m_args and if zero sets it to defval
 	void ensureArg(size_t index, int defval) {
 		while (m_args.size() < (index + 1))
 			m_args.push_back(0);
 
 		setDefault(m_args[index], defval);
 	}
+
+	void dump(const char *prefix) const;
 
 protected: // data
 

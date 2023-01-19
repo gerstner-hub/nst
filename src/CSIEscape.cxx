@@ -28,7 +28,7 @@ CSIEscape::CSIEscape(Nst &nst) : m_nst(nst)  {
 	m_str.reserve(MAX_STR_SIZE);
 }
 
-void CSIEscape::parse(void) {
+void CSIEscape::parse() {
 	m_args.clear();
 
 	auto it = m_str.begin();
@@ -63,19 +63,23 @@ void CSIEscape::parse(void) {
 void CSIEscape::dump(const char *prefix) const {
 	std::cerr << prefix << " ESC[";
 
+	auto get_repr = [](const char ch) -> std::string {
+		switch(ch) {
+			case '\n': return "\\n";
+			case '\r': return "\\r";
+			case 0x1b: return "\\e";
+			default: return static_cast<std::string>(cosmos::hexnum(ch, 2));
+		}
+	};
+
 	for (auto c: m_str) {
 		if (std::isprint(c)) {
 			std::cerr << c;
-		} else if (c == '\n') {
-			std::cerr << "(\\n)";
-		} else if (c == '\r') {
-			std::cerr << "(\\r)";
-		} else if (c == 0x1b) {
-			std::cerr << "(\\e)";
 		} else {
-			std::cerr << "(" << cosmos::hexnum(c, 2) << ")";
+			std::cerr << "(" << get_repr(c) << ")";
 		}
 	}
+
 	std::cerr << "\n";
 }
 
@@ -349,7 +353,7 @@ bool CSIEscape::handleEscape(const char ch) {
 		term.doReverseLineFeed();
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
-		m_nst.getTTY().write(config::VTIDEN, strlen(config::VTIDEN), 0);
+		m_nst.getTTY().write(config::VTIDEN, /*echo=*/false);
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();

@@ -33,7 +33,10 @@ public: // functions
 
 	explicit CSIEscape(Nst &nst);
 
+	/// processes parsed CSI parameters
 	void process();
+
+	/// parses the current CSI sequences
 	void parse();
 
 	/// returns true if the sequence is complete

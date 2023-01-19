@@ -18,7 +18,6 @@
 namespace nst {
 
 class Nst;
-struct StringEscape;
 
 /// Handles CSI escape sequences
 /**
@@ -32,7 +31,7 @@ struct StringEscape;
 struct CSIEscape {
 public: // functions
 
-	CSIEscape(Nst &nst, StringEscape &str_escape);
+	explicit CSIEscape(Nst &nst);
 
 	void process();
 	void parse();
@@ -75,7 +74,6 @@ protected: // data
 	std::vector<int> m_args;
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
 	Nst &m_nst;
-	StringEscape &m_str_escape;
 
 };
 

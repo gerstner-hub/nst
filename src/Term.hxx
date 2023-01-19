@@ -174,10 +174,6 @@ public: // functions
 
 	void reset();
 
-	void resetStringEscape() {
-		m_esc_state.reset({Escape::STR_END, Escape::STR});
-	}
-
 	EscapeState& getEscapeState() { return m_esc_state; }
 
 	void clearRegion(Range range);
@@ -283,6 +279,13 @@ public: // functions
 	/// initialize a newly starting terminal string escape sequence
 	void initStrSequence(const StringEscape::Type &type);
 
+	/// called when a string sequence terminating character has been encountered
+	/**
+	 * \return \c true if the terminator has been processed, otherwise the
+	 * character can be used for other purposes, if possible
+	 **/
+	bool handleCommandTerminator();
+
 	/// repeats the last input character the given number of times (if printable)
 	void repeatChar(int count);
 
@@ -323,6 +326,10 @@ protected: // functions
 
 	void resetScrollArea() {
 		m_scroll_area = {0, m_size.rows - 1};
+	}
+
+	void resetStringEscape() {
+		m_esc_state.reset({Escape::STR_END, Escape::STR});
 	}
 
 	/// draws the given rectangular screen region

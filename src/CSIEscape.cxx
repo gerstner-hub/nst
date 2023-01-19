@@ -23,8 +23,7 @@ namespace {
 constexpr size_t MAX_ARG_SIZE = 16;
 }
 
-CSIEscape::CSIEscape(Nst &nst, StringEscape &str_escape) :
-		m_nst(nst), m_str_escape(str_escape) {
+CSIEscape::CSIEscape(Nst &nst) : m_nst(nst)  {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -369,8 +368,7 @@ bool CSIEscape::handleEscape(const char ch) {
 		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
 	case '\\': /* ST -- String Terminator */
-		if (state.test(Escape::STR_END))
-			m_str_escape.process();
+		term.handleCommandTerminator();
 		break;
 	default:
 		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ch, 2)

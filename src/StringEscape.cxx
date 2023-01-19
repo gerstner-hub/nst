@@ -60,7 +60,6 @@ void StringEscape::setIconTitle(const char *s) {
 }
 
 void StringEscape::process() {
-	m_nst.getTerm().resetStringEscape();
 	parseArgs();
 
 	switch (m_esc_type) {

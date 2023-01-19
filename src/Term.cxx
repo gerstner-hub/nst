@@ -268,7 +268,7 @@ Term::Term(Nst &nst) :
 	m_x11(nst.getX11()),
 	m_allowaltscreen(config::ALLOWALTSCREEN),
 	m_str_escape(nst),
-	m_csi_escape(nst, m_str_escape) {}
+	m_csi_escape(nst) {}
 
 void Term::init(const Nst &nst) {
 
@@ -809,6 +809,16 @@ void Term::draw() {
 		m_x11.getInput().setSpot(new_pos);
 }
 
+bool Term::handleCommandTerminator() {
+	if (m_esc_state[Escape::STR_END]) {
+		resetStringEscape();
+		m_str_escape.process();
+		return true;
+	}
+
+	return false;
+}
+
 void Term::initStrSequence(const StringEscape::Type &type) {
 	m_str_escape.reset(type);
 	m_esc_state.set(Escape::STR);
@@ -917,15 +927,15 @@ void Term::handleControlCode(unsigned char code) {
 		moveToNewline(cr);
 		return;
 	}
-	case '\a':   /* BEL */
-		if (m_esc_state[Escape::STR_END]) {
-			/* backwards compatibility to xterm, which also
-			 * accepts BEL (instead of 'ST') as command terminator. */
-			m_str_escape.process();
-		} else {
+	case '\a':   /* BEL */ {
+		/* backwards compatibility to xterm, which also accepts BEL
+		 * (instead of 'ST') as command terminator. */
+		const auto handled = handleCommandTerminator();
+		if (!handled)
+			// otherwise process as a regular bell
 			m_x11.ringBell();
-		}
 		break;
+	}
 	case '\033': /* ESC */
 		m_csi_escape.reset();
 		m_esc_state.reset({Escape::CSI, Escape::ALTCHARSET, Escape::TEST});

@@ -21,43 +21,75 @@ namespace nst {
 
 namespace {
 constexpr size_t MAX_ARG_SIZE = 16;
+
+int setDefault(int &val, const int &_default) {
+	if (val <= 0)
+		val = _default;
+
+	return val;
 }
+
+} // end anon ns
 
 CSIEscape::CSIEscape(Nst &nst) : m_nst(nst)  {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
 
+int CSIEscape::ensureArg(size_t index, int defval) {
+	const auto req_size = index + 1;
+
+	if (m_args.size() < req_size)
+		m_args.resize(req_size);
+
+	return setDefault(m_args[index], defval);
+}
+
 void CSIEscape::parse() {
 	m_args.clear();
 
 	auto it = m_str.begin();
-	if (*it == '?') {
-		m_priv = true;
+	int arg;
+	size_t num_parsed;
+
+	if (m_str.empty()) {
+		return;
+	} else if (m_str.front() == '?') {
+		m_is_private_csi = true;
 		it++;
 	}
 
-	long int v;
-	size_t parsed;
+	// any missing numbers are usually defaulted to 0
+	//
+	// 0 is generally denoting a "default value" which can also be
+	// something different depending on the command.
 
 	while (it < m_str.end()) {
 		try {
-			v = std::stol(&(*it), &parsed);
-			it += parsed;
+			arg = std::stol(&(*it), &num_parsed);
+			it += num_parsed;
 		} catch(const std::invalid_argument &) {
-			v = 0;
+			arg = 0;
 		} catch(const std::out_of_range &) {
-			v = -1;
+			arg = -1;
 		}
 
-		m_args.push_back(v);
+		m_args.push_back(arg);
+
 		if (*it != ';' || m_args.size() == MAX_ARG_SIZE)
 			break;
 		it++;
 	}
 
-	m_mode[0] = *it++;
-	m_mode[1] = (it < m_str.end()) ? *it : '\0';
+	m_mode_suffix = std::string(it, m_str.end());
+	if (m_mode_suffix.empty())
+		// make sure there is always a zero terminator available
+		m_mode_suffix.push_back('\0');
+
+	// if no parameter is provided then a single zero default parameter is
+	// implied acc. to spec
+	if (m_args.empty())
+		m_args.push_back(0);
 }
 
 void CSIEscape::dump(const char *prefix) const {
@@ -83,75 +115,76 @@ void CSIEscape::dump(const char *prefix) const {
 	std::cerr << "\n";
 }
 
+void CSIEscape::setMode(const bool enable) const {
+	auto &term = m_nst.getTerm();
+
+	if (m_is_private_csi) {
+		term.setPrivateMode(enable, m_args);
+	} else {
+		term.setMode(       enable, m_args);
+	}
+}
+
 void CSIEscape::process() {
 
-	ensureArg(0, 0);
+	// spec reference: https://vt100.net/docs/vt510-rm/chapter4.html
+
 	auto &arg0 = m_args[0];
 	auto &term = m_nst.getTerm();
-	auto &curpos = term.getCursor().getPos();
-	const auto trows = term.getNumRows();
-	const auto tcols = term.getNumCols();
+	const auto &curpos = term.getCursor().getPos();
 
-	switch (m_mode[0]) {
+	switch (m_mode_suffix.front()) {
 	default:
-		/* cosmos_throw RuntimeError("bad CSIEscape"); */
+		// ignore unsupported sequences
 		break;
 	case '@': /* ICH -- Insert <n> blank char */
-		setDefault(arg0, 1);
-		term.insertBlanksAfterCursor(arg0);
+		term.insertBlanksAfterCursor(arg0 ? arg0 : 1);
 		return;
 	case 'A': /* CUU -- Cursor <n> Up */
-		setDefault(arg0, 1);
-		term.moveCursorTo(curpos.prevLine(arg0));
+		term.moveCursorUp(arg0 ? arg0 : 1);
 		return;
 	case 'B': /* CUD -- Cursor <n> Down */
 	case 'e': /* VPR --Cursor <n> Down */
-		setDefault(arg0, 1);
-		term.moveCursorTo(curpos.nextLine(arg0));
+		term.moveCursorDown(arg0 ? arg0 : 1);
 		return;
 	case 'i': /* MC -- Media Copy */
 		switch (arg0) {
-		case 0:
+		case 0: // print page
 			term.dump();
 			break;
-		case 1:
-			term.dumpLine(curpos);
+		case 1: // print cursor line
+			term.dumpCursorLine();
 			break;
 		case 2:
 			m_nst.getSelection().dump();
 			break;
-		case 4:
+		case 4: // reset autoprint mode
 			term.setPrintMode(false);
 			break;
-		case 5:
+		case 5: // set autoprint mode
 			term.setPrintMode(true);
 			break;
 		}
 		return;
 	case 'c': /* DA -- Device Attributes */
 		if (arg0 == 0)
-			m_nst.getTTY().write(config::VTIDEN, std::strlen(config::VTIDEN), 0);
+			m_nst.getTTY().write(config::VTIDEN, /*echo=*/false);
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
-		setDefault(arg0, 1);
-		term.repeatChar(arg0);
+		term.repeatChar(arg0 ? arg0 : 1);
 		return;
 	case 'C': /* CUF -- Cursor <n> Forward */
 	case 'a': /* HPR -- Cursor <n> Forward */
-		setDefault(arg0, 1);
-		term.moveCursorTo(curpos.nextCol(arg0));
+		term.moveCursorRight(arg0 ? arg0 : 1);
 		return;
 	case 'D': /* CUB -- Cursor <n> Backward */
-		setDefault(arg0, 1);
-		term.moveCursorTo(curpos.prevCol(arg0));
+		term.moveCursorLeft(arg0 ? arg0 : 1);
 		return;
 	case 'E': /* CNL -- Cursor <n> Down and first col */
-		setDefault(arg0, 1);
-		term.moveCursorTo({0, curpos.y + arg0});
+		term.moveCursorDown(arg0 ? arg0 : 1, Term::CarriageReturn(true));
 		return;
 	case 'F': /* CPL -- Cursor <n> Up and first col */
-		setDefault(arg0, 1);
-		term.moveCursorTo({0, curpos.y - arg0});
+		term.moveCursorUp(arg0 ? arg0 : 1, Term::CarriageReturn(true));
 		return;
 	case 'g': /* TBC -- Tabulation clear */
 		switch (arg0) {
@@ -167,34 +200,31 @@ void CSIEscape::process() {
 		break;
 	case 'G': /* CHA -- Move to <col> */
 	case '`': /* HPA */
-		setDefault(arg0, 1);
-		term.moveCursorTo({arg0 - 1, curpos.y});
+		term.moveCursorToCol(arg0 ? arg0 - 1 : 0);
 		return;
-	case 'H': /* CUP -- Move to <row> <col> */
-	case 'f': /* HVP */
-		setDefault(arg0, 1);
-		ensureArg(1, 1);
-		term.moveCursorAbsTo({m_args[1] - 1, arg0 - 1});
+	case 'H': /* CUP -- Move to absolute <row> <col> */
+	case 'f': /* HVP */ {
+		const auto row = arg0 ? arg0 - 1 : 0;
+		const auto col = ensureArg(1, 1) - 1;
+		term.moveCursorAbsTo({col, row});
 		return;
+	}
 	case 'I': /* CHT -- Cursor Forward Tabulation <n> tab stops */
-		setDefault(arg0, 1);
-		term.moveToNextTab(arg0);
+		term.moveToNextTab(arg0 ? arg0 : 1);
 		return;
 	case 'J': /* ED -- Clear screen */
 		switch (arg0) {
-		case 0: /* below */
-			term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
-			if (curpos.y < trows - 1) {
-				term.clearRegion({CharPos{0, curpos.y + 1}, CharPos{tcols - 1, trows - 1}});
-			}
+		case 0: /* below. from cursor to end of display */
+			term.clearLinesBelowCursor();
+			term.clearColsAfterCursor();
 			return;
-		case 1: /* above */
-			if (curpos.y > 1)
-				term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, curpos.y - 1}});
-			term.clearRegion({CharPos{0, curpos.y}, curpos});
+		case 1: /* above: from start to cursor */
+			term.clearLinesAboveCursor();
+			term.clearColsBeforeCursor();
 			return;
-		case 2: /* all */
-			term.clearRegion({CharPos{0, 0}, CharPos{tcols - 1, trows - 1}});
+		case 2: /* whole display */
+		case 3: /* including scroll-back buffer (which we don't have) */
+			term.clearScreen();
 			return;
 		default:
 			break;
@@ -202,54 +232,46 @@ void CSIEscape::process() {
 		break;
 	case 'K': /* EL -- Clear line */
 		switch (arg0) {
-		case 0: /* right */
-			term.clearRegion({curpos, CharPos{tcols - 1, curpos.y}});
+		case 0: /* right of cursor */
+			term.clearColsAfterCursor();
 			return;
-		case 1: /* left */
-			term.clearRegion({CharPos{0, curpos.y}, curpos});
+		case 1: /* left of cursor */
+			term.clearColsBeforeCursor();
 			return;
-		case 2: /* all */
-			term.clearRegion({CharPos{0, curpos.y}, CharPos{tcols - 1, curpos.y}});
+		case 2: /* complete cursor line */
+			term.clearCursorLine();
 			return;
 		}
 		return;
-	case 'S': /* SU -- Scroll <n> line up */
-		setDefault(arg0, 1);
-		term.scrollUp(arg0);
+	case 'S': /* SU -- Scroll <n> lines up */
+		term.scrollUp(arg0 ? arg0 : 1);
 		return;
 	case 'T': /* SD -- Scroll <n> line down */
-		setDefault(arg0, 1);
-		term.scrollDown(arg0);
+		term.scrollDown(arg0 ? arg0 : 1);
 		return;
 	case 'L': /* IL -- Insert <n> blank lines */
-		setDefault(arg0, 1);
-		term.insertBlankLinesBelowCursor(arg0);
+		term.insertBlankLinesBelowCursor(arg0 ? arg0 : 1);
 		return;
 	case 'l': /* RM -- Reset Mode */
-		term.setMode(m_priv, false, m_args);
+		setMode(/*enabled=*/false);
 		return;
 	case 'M': /* DL -- Delete <n> lines */
-		setDefault(arg0, 1);
-		term.deleteLinesBelowCursor(arg0);
+		term.deleteLinesBelowCursor(arg0 ? arg0 : 1);
 		return;
 	case 'X': /* ECH -- Erase <n> char */
-		setDefault(arg0, 1);
-		term.clearRegion({curpos, curpos.nextCol(arg0 -1)});
+		term.clearRegion({curpos, curpos.nextCol(arg0 ? arg0 - 1 : 0)});
 		return;
-	case 'P': /* DCH -- Delete <n> char */
-		setDefault(arg0, 1);
-		term.deleteColsAfterCursor(arg0);
+	case 'P': /* DCH -- Delete <n> char (backspace like, remaining cols are shifted left) */
+		term.deleteColsAfterCursor(arg0 ? arg0 : 1);
 		return;
 	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
-		setDefault(arg0, 1);
-		term.moveToPrevTab(arg0);
+		term.moveToPrevTab(arg0 ? arg0 : 1);
 		return;
 	case 'd': /* VPA -- Move to <row> */
-		setDefault(arg0, 1);
-		term.moveCursorAbsTo({curpos.x, arg0 - 1});
+		term.moveCursorAbsTo({curpos.x, arg0 ? arg0 - 1 : 0});
 		return;
 	case 'h': /* SM -- Set terminal mode */
-		term.setMode(m_priv, true, m_args);
+		setMode(/*enabled=*/true);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
 		if (!term.setCursorAttrs(m_args)) {
@@ -259,16 +281,16 @@ void CSIEscape::process() {
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
 			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
-			m_nst.getTTY().write(buf.c_str(), buf.size(), 0);
+			m_nst.getTTY().write(buf, /*echo=*/false);
 		}
 		return;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
-		if (m_priv) {
+		if (m_is_private_csi) {
 			break;
 		} else {
-			setDefault(arg0, 1);
-			ensureArg(1, trows);
-			term.setScrollArea(LineSpan{arg0 - 1, m_args[1] - 1});
+			const auto start_row = setDefault(arg0, 1);
+			const auto end_row = ensureArg(1, term.getNumRows());
+			term.setScrollArea(LineSpan{start_row - 1, end_row - 1});
 			term.moveCursorAbsTo({0, 0});
 		}
 		return;
@@ -279,9 +301,14 @@ void CSIEscape::process() {
 		term.cursorControl(Term::TCursor::Control::LOAD);
 		return;
 	case ' ':
-		switch (m_mode[1]) {
+		// this comes with an intermediate character
+		if (m_mode_suffix.size() < 2)
+			break;
+
+		switch (m_mode_suffix[1]) {
 		case 'q': /* DECSCUSR -- Set Cursor Style */
 			if (arg0 < 0 || static_cast<unsigned>(arg0) >= static_cast<unsigned>(CursorStyle::END))
+				// cursor style out of range
 				break;
 			m_nst.getX11().setCursorStyle(static_cast<CursorStyle>(arg0));
 			return;
@@ -301,7 +328,10 @@ bool CSIEscape::handleEscape(const char ch) {
 	auto &x11 = m_nst.getX11();
 
 	// TODO: separation of concerns regarding escape sequences parsing is
-	// not well done, Term does too much of this on its own
+	// not well done, Term does too much of this on its own: some
+	// functions even get passed in the raw m_args from us.
+	//
+	// Wrapping everything in enums is also not so great though ...
 	//
 	// also why are there non-CSI sequences here? what is the separation
 	// wrt StringEscape?

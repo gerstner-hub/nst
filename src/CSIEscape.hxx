@@ -33,12 +33,6 @@ public: // functions
 
 	explicit CSIEscape(Nst &nst);
 
-	/// processes parsed CSI parameters
-	void process();
-
-	/// parses the current CSI sequences
-	void parse();
-
 	/// returns true if the sequence is complete
 	bool handleEscape(const char ch);
 
@@ -46,13 +40,20 @@ public: // functions
 	bool addCSI(const char ch) {
 		m_str.push_back(ch);
 		// signal complete either if the maximum sequence length has
-		// been reached or a terminating character appears
-		return m_str.length() >= MAX_STR_SIZE || cosmos::in_range(ch, 0x40, 0x7E);
+		// been reached or a final byte appears
+		return m_str.length() >= MAX_STR_SIZE || isFinalByte(ch);
 	}
 
+	/// processes parsed CSI parameters
+	void process();
+
+	/// parses the current CSI sequence into member variables
+	void parse();
+
+	/// resets all parsing state and data
 	void reset() {
-		m_priv = false;
-		m_mode[0] = m_mode[1] = 0;
+		m_is_private_csi = false;
+		m_mode_suffix.clear();
 		m_args.clear();
 		m_str.clear();
 	}
@@ -60,21 +61,24 @@ public: // functions
 protected: // functions
 
 	/// makes sure the given argument index exists in m_args and if zero sets it to defval
-	void ensureArg(size_t index, int defval) {
-		while (m_args.size() < (index + 1))
-			m_args.push_back(0);
-
-		setDefault(m_args[index], defval);
-	}
+	int ensureArg(size_t index, int defval);
 
 	void dump(const char *prefix) const;
 
+	bool isFinalByte(const char ch) const {
+		// this range is coming from the CSI spec
+		return cosmos::in_range(ch, 0x40, 0x7E);
+	}
+
+	/// forwards a setMode() call to Term for the current parse context
+	void setMode(const bool enable) const;
+
 protected: // data
 
-	std::string m_str; // the escape sequence collected so far
-	bool m_priv = false;
-	char m_mode[2] = {0};
-	std::vector<int> m_args;
+	std::string m_str; /// the raw escape sequence bytes collected so far
+	bool m_is_private_csi = false; /// whether a private CSI control was parsed
+	std::vector<int> m_args; /// up to 16 integer parameter for the current CSI
+	std::string m_mode_suffix; /// the intermediate and final characters of the sequence
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
 	Nst &m_nst;
 

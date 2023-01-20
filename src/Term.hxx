@@ -179,6 +179,30 @@ public: // functions
 	void clearRegion(Range range);
 	/// clears the given span of lines completely
 	void clearRegion(const LineSpan &span);
+	void clearScreen() {
+		clearRegion({topLeft(), bottomRight()});
+	}
+
+	/// clears all rows and cols after the current cursor position
+	/**
+	 * columns on the current line before the current cursor column will remain
+	 **/
+	void clearLinesBelowCursor();
+
+	/// clears all rows and cols up to the current cursor position
+	/**
+	 * colums on the current line after the current cursor column will remain
+	 **/
+	void clearLinesAboveCursor();
+
+	/// clears the current line up to and including the current cursor position
+	void clearColsBeforeCursor();
+
+	/// clears the current line from and including the current cursor position
+	void clearColsAfterCursor();
+
+	/// clears the line the cursor is in completely
+	void clearCursorLine();
 
 	void setDirty(LineSpan span);
 
@@ -203,6 +227,36 @@ public: // functions
 
 	void moveCursorTo(CharPos pos);
 
+	void moveCursorUp(const size_t count, const CarriageReturn &cr = CarriageReturn(false)) {
+		auto curpos = getCursor().getPos();
+		if (cr)
+			curpos.moveToStartOfLine();
+		moveCursorTo(curpos.prevLine(count));
+	}
+
+	void moveCursorDown(const size_t count, const CarriageReturn &cr = CarriageReturn(false)) {
+		auto curpos = getCursor().getPos();
+		if (cr)
+			curpos.moveToStartOfLine();
+		moveCursorTo(curpos.nextLine(count));
+	}
+
+	void moveCursorLeft(const size_t count) {
+		const auto &curpos = getCursor().getPos();
+		moveCursorTo(curpos.prevCol(count));
+	}
+
+	void moveCursorRight(const size_t count) {
+		const auto &curpos = getCursor().getPos();
+		moveCursorTo(curpos.nextCol(count));
+	}
+
+	void moveCursorToCol(const int col) {
+		const auto &curpos = getCursor().getPos();
+		moveCursorTo(CharPos{col, curpos.y});
+	}
+
+	/// move cursor ignoring scroll limit (in ORIGIN cursor state)
 	void moveCursorAbsTo(CharPos pos);
 
 	void swapScreen();
@@ -245,21 +299,33 @@ public: // functions
 	int getLineLen(const CharPos &pos) const;
 
 	/// delete the given number of characters from the cursor position to the right
+	/**
+	 * this shifts remaining characters at the end of the line to the left
+	 **/
 	void deleteColsAfterCursor(int count);
 	void deleteLinesBelowCursor(int count);
+	/// insert blanks after the cursor, shifting remaining characters to the right
 	void insertBlanksAfterCursor(int count);
 	void insertBlankLinesBelowCursor(int count);
-	void setMode(bool priv, const bool set, const std::vector<int> &args);
+
+	/// forwarded CSI control command to change a mode setting
+	void setMode(       const bool set, const std::vector<int> &args);
+	/// forwarded CSI control command to change a private mode setting
+	void setPrivateMode(const bool set, const std::vector<int> &args);
 
 	/// write all current lines into the I/O file
 	void dump() const {
-		for (size_t i = 0; i < static_cast<size_t>(m_size.rows); ++i)
-			dumpLine(i);
+		for (int i = 0; i < m_size.rows; ++i)
+			dumpLine(CharPos{0, i});
+	}
+
+	/// write the line the cursor is on into the I/O file
+	void dumpCursorLine() const {
+		dumpLine(getCursor().getPos());
 	}
 
 	/// write the given line into the I/O file
 	void dumpLine(const CharPos &pos) const;
-	void dumpLine(int line) const { dumpLine(CharPos{0, line}); }
 
 	/// returns whether any glyph currently has this attribute set
 	bool existsBlinkingGlyph() const;
@@ -358,17 +424,23 @@ protected: // functions
 	/// handle the given input control code
 	void handleControlCode(unsigned char code);
 
-	void setPrivateMode(const bool set, const std::vector<int> &args);
-
 	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
 	const Line& getLine(const CharPos &pos) const { return m_screen[pos.y]; }
 
 	//// returns how many columns are left after the current cursor position
 	int colsLeft() const { return m_size.cols - m_cursor.pos.x; }
 
+	bool isCursorAtBottom() const;
+	bool isCursorAtTop() const;
+
+	/// returns a position based on \c p but at the end of the line
+	CharPos atEndOfLine(const CharPos &p) const {
+		return CharPos{m_size.cols - 1, p.y};
+	}
+
 	CharPos topLeft() const { return {0, 0}; }
 	CharPos bottomRight() const { return {m_size.cols - 1, m_size.rows - 1}; }
-	bool atEndOfLine(const CharPos &pos) {
+	bool isAtEndOfLine(const CharPos &pos) {
 		return pos.x >= m_size.cols - 1;
 	}
 	/// returns the number of Glyph position left in the current line with respect to the current cursor position

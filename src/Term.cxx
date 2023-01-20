@@ -300,7 +300,7 @@ void Term::reset(void) {
 	for (size_t i = 0; i < 2; i++) {
 		moveCursorTo(topLeft());
 		cursorControl(TCursor::Control::SAVE);
-		clearRegion({topLeft(), bottomRight()});
+		clearScreen();
 		swapScreen();
 	}
 }
@@ -405,6 +405,47 @@ void Term::clearRegion(const LineSpan &span) {
 	clearRegion({CharPos{0, span.top}, CharPos{m_size.cols - 1, span.bottom}});
 }
 
+void Term::clearLinesBelowCursor() {
+	if (isCursorAtBottom())
+		// nothing to do
+		return;
+
+	const auto &curpos = getCursor().getPos();
+	clearRegion(Range{curpos.nextLine().startOfLine(), bottomRight()});
+}
+
+void Term::clearLinesAboveCursor() {
+	if (isCursorAtTop())
+		// nothing to do
+		return;
+
+	const auto &curpos = getCursor().getPos();
+	clearRegion(Range{topLeft(), atEndOfLine(curpos.prevLine())});
+}
+
+void Term::clearCursorLine() {
+	const auto &curpos = getCursor().getPos();
+	clearRegion(LineSpan{curpos.y, curpos.y});
+}
+
+void Term::clearColsBeforeCursor() {
+	const auto &curpos = getCursor().getPos();
+	clearRegion({curpos.startOfLine(), curpos});
+}
+
+void Term::clearColsAfterCursor() {
+	const auto &curpos = getCursor().getPos();
+	clearRegion(Range{curpos, atEndOfLine(curpos)});
+}
+
+bool Term::isCursorAtBottom() const {
+	return getCursor().getPos().y == m_size.rows - 1;
+}
+
+bool Term::isCursorAtTop() const {
+	return getCursor().getPos().y == 0;
+}
+
 void Term::setScrollArea(const LineSpan &span) {
 	m_scroll_area = span;
 	clamp(m_scroll_area);
@@ -424,7 +465,6 @@ void Term::moveCursorTo(CharPos pos) {
 	m_cursor.pos = pos;
 }
 
-/* for absolute user moves, when decom is set */
 void Term::moveCursorAbsTo(CharPos pos) {
 	if (m_cursor.state[TCursor::State::ORIGIN])
 		pos.y += m_scroll_area.top;
@@ -536,6 +576,7 @@ void Term::insertBlanksAfterCursor(int count) {
 	const int left = m_size.cols - dst;
 	auto &line = getLine(cursor);
 
+	// slide remaining line content count characters to the right
 	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
 	clearRegion(Range{
 		CharPos{src, cursor.y},
@@ -601,12 +642,7 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 	m_selection.scroll(origin, -num_lines);
 }
 
-void Term::setMode(bool priv, const bool set, const std::vector<int> &args) {
-	if (priv) {
-		setPrivateMode(set, args);
-		return;
-	}
-
+void Term::setMode(const bool set, const std::vector<int> &args) {
 	for (const auto arg: args) {
 		switch (arg) {
 		case 0:  /* Error (IGNORED) */
@@ -867,7 +903,7 @@ void Term::setChar(Rune u, const CharPos &pos) {
 	// if we replace a WIDE/DUMMY position then correct the sibbling
 	// position
 	if (glyph.mode[Attr::WIDE]) {
-		if (!atEndOfLine(pos)) {
+		if (!isAtEndOfLine(pos)) {
 			auto &next_glyph = getGlyphAt(pos.nextCol());
 			next_glyph.u = ' ';
 			next_glyph.mode.reset(Attr::WDUMMY);

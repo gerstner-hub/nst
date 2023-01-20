@@ -175,11 +175,14 @@ size_t TTY::read() {
 	}
 }
 
-void TTY::write(const char *s, size_t n, bool may_echo) {
+void TTY::write(const std::string_view &sv, const MayEcho &echo) {
+
+	const char *s = sv.data();
+	auto n = sv.size();
 
 	auto &mode = m_term.getMode();
 
-	if (may_echo && mode[Term::Mode::TECHO])
+	if (echo && mode[Term::Mode::TECHO])
 		m_term.write({s, n}, Term::ShowCtrlChars(true));
 
 	if (!mode[Term::Mode::CRLF]) {
@@ -387,9 +390,9 @@ void TTY::doPrintToIoFile(const char *s, size_t len) {
 
 void TTY::reportFocus(bool in_focus) {
 	if (in_focus)
-		write("\033[I", 3, false);
+		write("\033[I", MayEcho(false));
 	else
-		write("\033[O", 3, false);
+		write("\033[O", MayEcho(false));
 }
 
 } // end ns

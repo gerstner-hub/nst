@@ -20,7 +20,7 @@ std::vector<MouseShortcut> getMouseShortcuts(Nst &nst) {
 
 	auto ttysend = [&](const char *s) {
 		auto &tty = nst.getTTY();
-		tty.write(s, strlen(s), /*may_echo =*/ true);
+		tty.write(s, TTY::MayEcho(true));
 	};
 
 	auto &x11 = nst.getX11();

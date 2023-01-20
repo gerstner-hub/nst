@@ -172,7 +172,7 @@ void CSIEscape::process() {
 		return;
 	case 'c': /* DA -- Device Attributes */
 		if (arg0 == 0)
-			m_nst.getTTY().write(config::VTIDEN, /*echo=*/false);
+			m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho(false));
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		term.repeatChar(arg0 ? arg0 : 1);
@@ -285,7 +285,7 @@ void CSIEscape::process() {
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
 			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
-			m_nst.getTTY().write(buf, /*echo=*/false);
+			m_nst.getTTY().write(buf, TTY::MayEcho(false));
 		}
 		return;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
@@ -387,7 +387,7 @@ bool CSIEscape::handleEscape(const char ch) {
 		term.doReverseLineFeed();
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
-		m_nst.getTTY().write(config::VTIDEN, /*echo=*/false);
+		m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho(false));
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();

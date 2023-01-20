@@ -1027,7 +1027,7 @@ void Term::handleControlCode(unsigned char code) {
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		m_tty.write(config::VTIDEN, /*may_echo=*/false);
+		m_tty.write(config::VTIDEN, TTY::MayEcho(false));
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */

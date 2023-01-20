@@ -40,7 +40,7 @@ void StringEscape::oscColorResponse(int index, int code) {
 		res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", code, r, r, g, g, b, b);
 	}
 
-	m_nst.getTTY().write(res, /*echo=*/true);
+	m_nst.getTTY().write(res, TTY::MayEcho(true));
 }
 
 void StringEscape::setTitle(const char *s) {

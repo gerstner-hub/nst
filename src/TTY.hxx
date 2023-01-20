@@ -26,18 +26,9 @@ class Cmdline;
  * It's job is mainly the raw I/O handling and handling low level TTY aspects.
  **/
 class TTY {
+public: // types
 
-protected: // data
-
-	Term &m_term;
-	cosmos::SubProc m_child_proc;
-	cosmos::StreamFile m_io_file;
-	/// master end of pty
-	cosmos::StreamFile m_cmd_file;
-	cosmos::Poller m_cmd_poller;
-	cosmos::Terminal m_pty;
-	char m_buf[BUFSIZ];
-	size_t m_buf_bytes = 0;
+	using MayEcho = cosmos::NamedBool<struct echo_t, true>;
 
 public: // functions
 
@@ -45,10 +36,7 @@ public: // functions
 	~TTY();
 	cosmos::FileDescriptor create(const Cmdline &cmdline);
 	size_t read();
-	void write(const std::string_view s, bool may_echo) {
-		write(s.data(), s.size(), may_echo);
-	}
-	void write(const char *s, size_t n, bool may_echo);
+	void write(const std::string_view &sv, const MayEcho &echo);
 	void resize(const Extent &size);
 	void hangup();
 	void printToIoFile(const char *s, size_t len) {
@@ -72,6 +60,18 @@ protected: // functions
 	void runStty(const Cmdline &cmdline);
 	void executeShell(const Cmdline &cmdline, cosmos::FileDescriptor slave);
 	void doPrintToIoFile(const char *s, size_t len);
+
+protected: // data
+
+	Term &m_term;
+	cosmos::SubProc m_child_proc;
+	cosmos::StreamFile m_io_file;
+	/// master end of pty
+	cosmos::StreamFile m_cmd_file;
+	cosmos::Poller m_cmd_poller;
+	cosmos::Terminal m_pty;
+	char m_buf[BUFSIZ];
+	size_t m_buf_bytes = 0;
 };
 
 } // end ns

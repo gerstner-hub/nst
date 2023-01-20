@@ -192,7 +192,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 		return;
 	}
 
-	m_nst.getTTY().write(report.c_str(), report.size(), false);
+	m_nst.getTTY().write(report, TTY::MayEcho(false));
 }
 
 void XEventHandler::handleMouseSelection(const XButtonEvent &ev, const bool done) {
@@ -254,7 +254,7 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 
 	/* 2. custom keys from nst_config.hxx */
 	if (auto seq = getCustomKeyMapping(ksym, ev.state); seq) {
-		m_nst.getTTY().write(seq->data(), seq->size(), /*may_echo=*/true);
+		m_nst.getTTY().write(*seq, TTY::MayEcho(true));
 		return;
 	}
 
@@ -276,7 +276,7 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 		}
 	}
 
-	m_nst.getTTY().write(buf.c_str(), buf.size(), /*may_echo=*/true);
+	m_nst.getTTY().write(buf, TTY::MayEcho(true));
 }
 
 void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
@@ -406,10 +406,10 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		const bool brcktpaste = m_x11.getTermWin().checkFlag(WinMode::BRCKTPASTE);
 
 		if (brcktpaste && prop.offset == 0)
-			tty.write("\033[200~", 6, false);
-		tty.write(reinterpret_cast<const char*>(ptr), prop.length, true);
+			tty.write("\033[200~", TTY::MayEcho(false));
+		tty.write(std::string_view{reinterpret_cast<const char*>(ptr), prop.length}, TTY::MayEcho(true));
 		if (brcktpaste && prop.left == 0)
-			tty.write("\033[201~", 6, false);
+			tty.write("\033[201~", TTY::MayEcho(false));
 		/* number of 32-bit chunks returned */
 		prop.offset += prop.length;
 	} while (prop.left > 0);

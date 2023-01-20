@@ -20,14 +20,9 @@
 namespace nst {
 
 namespace {
+
+/// maximum number of parameters for a CSI sequence
 constexpr size_t MAX_ARG_SIZE = 16;
-
-int setDefault(int &val, const int &_default) {
-	if (val <= 0)
-		val = _default;
-
-	return val;
-}
 
 } // end anon ns
 
@@ -42,7 +37,13 @@ int CSIEscape::ensureArg(size_t index, int defval) {
 	if (m_args.size() < req_size)
 		m_args.resize(req_size);
 
-	return setDefault(m_args[index], defval);
+	auto &val = m_args[index];
+
+	if (val <= 0) {
+		val = defval;
+	}
+
+	return val;
 }
 
 void CSIEscape::parse() {
@@ -59,10 +60,12 @@ void CSIEscape::parse() {
 		it++;
 	}
 
-	// any missing numbers are usually defaulted to 0
+	// any missing values are usually defaulted to 0
 	//
 	// 0 is generally denoting a "default value" which can also be
 	// something different depending on the command.
+	//
+	// a value generally cannot be negative from the spec's point of view.
 
 	while (it < m_str.end()) {
 		try {
@@ -83,7 +86,8 @@ void CSIEscape::parse() {
 
 	m_mode_suffix = std::string(it, m_str.end());
 	if (m_mode_suffix.empty())
-		// make sure there is always a zero terminator available
+		// make sure there is always a zero terminator available for
+		// index based access
 		m_mode_suffix.push_back('\0');
 
 	// if no parameter is provided then a single zero default parameter is
@@ -92,8 +96,8 @@ void CSIEscape::parse() {
 		m_args.push_back(0);
 }
 
-void CSIEscape::dump(const char *prefix) const {
-	std::cerr << prefix << " ESC[";
+void CSIEscape::dump(const std::string_view &prefix) const {
+	std::cerr << prefix << ": ESC[";
 
 	auto get_repr = [](const char ch) -> std::string {
 		switch(ch) {
@@ -129,8 +133,8 @@ void CSIEscape::process() {
 
 	// spec reference: https://vt100.net/docs/vt510-rm/chapter4.html
 
-	auto &arg0 = m_args[0];
 	auto &term = m_nst.getTerm();
+	const auto arg0 = m_args[0];
 	const auto &curpos = term.getCursor().getPos();
 
 	switch (m_mode_suffix.front()) {
@@ -275,7 +279,7 @@ void CSIEscape::process() {
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
 		if (!term.setCursorAttrs(m_args)) {
-			dump("failed to set cursor attrs:");
+			dump("failed to set cursor attrs");
 		}
 		return;
 	case 'n': /* DSR – Device Status Report (cursor position) */
@@ -288,7 +292,7 @@ void CSIEscape::process() {
 		if (m_is_private_csi) {
 			break;
 		} else {
-			const auto start_row = setDefault(arg0, 1);
+			const auto start_row = arg0 ? arg0 : 1;
 			const auto end_row = ensureArg(1, term.getNumRows());
 			term.setScrollArea(LineSpan{start_row - 1, end_row - 1});
 			term.moveCursorAbsTo({0, 0});

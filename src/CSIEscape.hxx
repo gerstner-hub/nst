@@ -6,6 +6,7 @@
 
 // stdlib
 #include <string>
+#include <string_view>
 #include <vector>
 
 // cosmos
@@ -60,10 +61,19 @@ public: // functions
 
 protected: // functions
 
-	/// makes sure the given argument index exists in m_args and if zero sets it to defval
+	/// makes sure the given argument index exists in m_args, possibly assigning defval
+	/**
+	 * If the given argument index is not available then m_args is
+	 * extended accordingly. Whether extended or not the function also
+	 * makes sure that if the value at the given index is <= 0 that \c
+	 * defval is assigned to it.
+	 *
+	 * \return The current value of the argument at index
+	 **/
 	int ensureArg(size_t index, int defval);
 
-	void dump(const char *prefix) const;
+	/// dumps the current sequence to stderr prefixed by \c prefix
+	void dump(const std::string_view &prefix) const;
 
 	bool isFinalByte(const char ch) const {
 		// this range is coming from the CSI spec

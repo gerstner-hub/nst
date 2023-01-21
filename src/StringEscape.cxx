@@ -192,7 +192,7 @@ void StringEscape::parseArgs() {
 	}
 }
 
-void StringEscape::dump(const char *prefix) const {
+void StringEscape::dump(const std::string_view &prefix) const {
 	std::cerr << prefix << " ESC" << static_cast<char>(m_esc_type);
 
 	for (const auto c: m_str) {

@@ -48,13 +48,13 @@ public: // types
 
 	typedef cosmos::BitMask<Mode> ModeBitMask;
 
-	/// escape sequence parsing status
+	/// escape sequence parsing status for both StringEscape and CSIEscape
 	enum class Escape {
 		START      = 1 << 0, /// \033 escape sequence started
-		CSI        = 1 << 1, /// CSI escape sequence is about to be parsed
-		STR        = 1 << 2, /// DCS, OSC, PM, APC
+		CSI        = 1 << 1, /// CSI escape sequence is about to be parsed (CSIEscape)
+		STR        = 1 << 2, /// DCS, OSC, PM, APC (StringEscape)
 		ALTCHARSET = 1 << 3, /// requests setting an alternative character set
-		STR_END    = 1 << 4, /// a final string was encountered
+		STR_END    = 1 << 4, /// a StringEscape sequence is complete, waiting for ST or BEL
 		TEST       = 1 << 5, /// Enter in test mode
 		UTF8       = 1 << 6, /// UTF8 (character set change) requested
 	};
@@ -422,6 +422,11 @@ protected: // functions
 	/// performs special DEC tests triggered by escape sequence code
 	void runDECTest(char code);
 	/// handle the given input control code
+	/**
+	 * This handles single byte control codes which may also start a
+	 * multi-byte sequence, which will then be handed over to m_str_escape
+	 * or m_csi_escape respectively.
+	 **/
 	void handleControlCode(unsigned char code);
 
 	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }

@@ -20,7 +20,7 @@ namespace nst {
 
 class Nst;
 
-/// Handles CSI escape sequences
+/// Handles CSI and some other types of escape sequences
 /**
  * CSI (Control Sequence Introducer) struct follow the following model:
  *
@@ -28,14 +28,18 @@ class Nst;
  *
  * This class parses such sequences and triggers actions that result from the
  * sequences.
+ *
+ * Beyond this it also parses some other types of escape sequences from within
+ * handleInitialEscape(). This is a certain duplication of what
+ * Term::handleControlCode() does for 8-bit C1 control codes.
  **/
 struct CSIEscape {
 public: // functions
 
 	explicit CSIEscape(Nst &nst);
 
-	/// returns true if the sequence is complete
-	bool handleEscape(const char ch);
+	/// returns true if the sequence is complete which can happen for non-CSI escapes
+	bool handleInitialEscape(const char ch);
 
 	/// adds the given character to the sequence, returns whether the sequence is complete
 	bool addCSI(const char ch) {

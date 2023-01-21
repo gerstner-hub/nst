@@ -325,7 +325,7 @@ void CSIEscape::process() {
 	dump("erresc: unknown csi");
 }
 
-bool CSIEscape::handleEscape(const char ch) {
+bool CSIEscape::handleInitialEscape(const char ch) {
 	auto &term = m_nst.getTerm();
 	auto &state = term.getEscapeState();
 	using Escape = Term::Escape;
@@ -405,7 +405,8 @@ bool CSIEscape::handleEscape(const char ch) {
 	case '8': /* DECRC -- Restore Cursor */
 		term.cursorControl(Term::TCursor::Control::LOAD);
 		break;
-	case '\\': /* ST -- String Terminator */
+	case '\\': /* ST -- String Terminator for StringEscape (!) */
+		/* this likely is the second byte of the ST := ESC \ */
 		term.handleCommandTerminator();
 		break;
 	default:

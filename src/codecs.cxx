@@ -10,7 +10,9 @@
 
 using cosmos::in_range;
 
-namespace nst::utf8 {
+namespace nst {
+
+namespace utf8 {
 
 typedef unsigned char utf8_t;
 
@@ -24,7 +26,7 @@ constexpr Rune UTF_MAX[UTF_SIZE + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF}
 
 constexpr Rune UTF_INVALID = 0xFFFD;
 
-}
+} // end anon ns
 
 static char encodebyte(Rune u, size_t which) {
 	return UTF_BYTE[which] | (u & ~UTF_MASK[which]);
@@ -108,9 +110,9 @@ size_t validate(Rune *u, size_t i) {
 	return i;
 }
 
-} // end ns
+} // end ns utf8
 
-namespace nst::base64 {
+namespace base64 {
 
 namespace {
 
@@ -129,7 +131,7 @@ constexpr char BASE64_DIGITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-}
+} // end anon ns
 
 std::string decode(const std::string_view &src) {
 	std::string result;
@@ -170,6 +172,30 @@ std::string decode(const std::string_view &src) {
 	}
 
 	return result;
+}
+
+} // end ns base64
+
+RuneInfo::RuneInfo(Rune r, const bool use_utf8) : m_rune(r) {
+	m_is_control = isControlChar(r);
+
+	if (r < 0x7f || !use_utf8) {
+		// ascii case: keep single byte width and encoding length
+		m_encoded[0] = r;
+		return;
+	}
+
+	/* unicode case */
+
+	// for non-control unicode characters check the display width
+	if (!m_is_control) {
+		// on error stick with a width of 1
+		if (int w = ::wcwidth(r); w != -1) {
+			m_width = w;
+		}
+	}
+
+	m_enc_len = utf8::encode(r, m_encoded);
 }
 
 } // end ns

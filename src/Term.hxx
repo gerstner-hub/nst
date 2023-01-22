@@ -11,9 +11,8 @@
 #include "cosmos/types.hxx"
 
 // nst
-#include "CSIEscape.hxx"
+#include "EscapeHandler.hxx"
 #include "Glyph.hxx"
-#include "StringEscape.hxx"
 #include "types.hxx"
 
 namespace nst {
@@ -47,19 +46,6 @@ public: // types
 	};
 
 	typedef cosmos::BitMask<Mode> ModeBitMask;
-
-	/// escape sequence parsing status for both StringEscape and CSIEscape
-	enum class Escape {
-		START      = 1 << 0, /// \033 escape sequence started
-		CSI        = 1 << 1, /// CSI escape sequence is about to be parsed (CSIEscape)
-		STR        = 1 << 2, /// DCS, OSC, PM, APC (StringEscape)
-		ALTCHARSET = 1 << 3, /// requests setting an alternative character set
-		STR_END    = 1 << 4, /// a StringEscape sequence is complete, waiting for ST or BEL
-		TEST       = 1 << 5, /// Enter in test mode
-		UTF8       = 1 << 6, /// UTF8 (character set change) requested
-	};
-
-	typedef cosmos::BitMask<Escape> EscapeState;
 
 	/// different terminal character sets (we don't support them all)
 	enum class Charset {
@@ -148,21 +134,17 @@ protected: // data
 
 	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
 	size_t m_active_charset = 0;       /// current charset used from m_charsets
-	size_t m_esc_charset = 0;          /// selected charset index for escape sequences
 
 	TCursor m_cursor;             /// current cursor position and attributes
 	TCursor m_cached_main_cursor; /// save/load cursor for main screen
 	TCursor m_cached_alt_cursor;  /// ... and for alt screen
 
 	bool m_allowaltscreen = false;  /// whether altscreen support is enabled
+	EscapeHandler m_esc_handler;
 	std::vector<Line> m_alt_screen; /// alt screen data
 	std::vector<Line> m_screen;     /// main screen data
 	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
 	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
-
-	EscapeState m_esc_state; /// escape state flags
-	StringEscape m_str_escape;  /// keeps track of string escape input sequences
-	CSIEscape m_csi_escape;  /// keeps track of CSI escape input sequences
 
 public: // functions
 
@@ -173,8 +155,6 @@ public: // functions
 	void resize(const TermSize &new_size);
 
 	void reset();
-
-	EscapeState& getEscapeState() { return m_esc_state; }
 
 	void clearRegion(Range range);
 	/// clears the given span of lines completely
@@ -216,11 +196,15 @@ public: // functions
 	}
 
 	void setCharset(size_t charset) {
-		m_active_charset = charset;
+		m_active_charset = std::clamp(charset, 0UL, m_charsets.size() - 1);
 	}
 
-	void setEscCharset(size_t charset) {
-		m_esc_charset = std::clamp(charset, 0UL, m_charsets.size() - 1);
+	/// sets the given charset index to the given charset selection
+	void setCharsetMapping(const size_t index, const Charset &cs) {
+		if(index >= m_charsets.size())
+			return;
+
+		m_charsets[index] = cs;
 	}
 
 	void setScrollArea(const LineSpan &span);
@@ -265,6 +249,9 @@ public: // functions
 
 	const auto& getMode() const { return m_mode; }
 
+	/// returns the current implicit carriage return setting as a typesafe boolean type
+	CarriageReturn getCarriageReturn() const { return CarriageReturn(m_mode[Mode::CRLF]); }
+
 	/// moves the cursor to the next `count` tab position(s)
 	void moveToNextTab(size_t count = 1);
 	/// moves the cursor to the previous `count` tab position(s)
@@ -274,6 +261,15 @@ public: // functions
 
 	void setTabAtCursor(const bool on_off) {
 		m_tabs[m_cursor.pos.x] = on_off;
+	}
+
+	/// inserts a marker at the current cursor position indicating a SUB control sequence
+	void showSubMarker() {
+		setChar('?', m_cursor.getPos());
+	}
+
+	void resetLastChar() {
+		m_last_char = 0;
 	}
 
 	/// perform a line feed operation (moving cursor down one line), possibly scrolling down one line
@@ -308,10 +304,16 @@ public: // functions
 	void insertBlanksAfterCursor(int count);
 	void insertBlankLinesBelowCursor(int count);
 
+	void setUTF8(const bool on_off) {
+		m_mode.set(Mode::UTF8, on_off);
+	}
 	/// forwarded CSI control command to change a mode setting
 	void setMode(       const bool set, const std::vector<int> &args);
 	/// forwarded CSI control command to change a private mode setting
 	void setPrivateMode(const bool set, const std::vector<int> &args);
+
+	/// performs special DEC tests triggered by escape sequence code
+	void runDECTest();
 
 	/// write all current lines into the I/O file
 	void dump() const {
@@ -342,16 +344,6 @@ public: // functions
 	/// draws only dirty lines
 	void draw();
 
-	/// initialize a newly starting terminal string escape sequence
-	void initStrSequence(const StringEscape::Type &type);
-
-	/// called when a string sequence terminating character has been encountered
-	/**
-	 * \return \c true if the terminator has been processed, otherwise the
-	 * character can be used for other purposes, if possible
-	 **/
-	bool handleCommandTerminator();
-
 	/// repeats the last input character the given number of times (if printable)
 	void repeatChar(int count);
 
@@ -377,10 +369,6 @@ public: // functions
 
 	auto& getScreen() const { return m_screen; }
 
-protected: // types
-
-	using ContinueProcessing = cosmos::NamedBool<struct continue_proc_t, true>;
-
 protected: // functions
 
 	/// feeds the given single input rune as input
@@ -394,10 +382,6 @@ protected: // functions
 		m_scroll_area = {0, m_size.rows - 1};
 	}
 
-	void resetStringEscape() {
-		m_esc_state.reset({Escape::STR_END, Escape::STR});
-	}
-
 	/// draws the given rectangular screen region
 	void drawRegion(const Range &range) const;
 
@@ -407,27 +391,6 @@ protected: // functions
 	void setChar(Rune u, const CharPos &pos);
 	/// checks whether the given input Rune needs to be translated and does so if necessary
 	Rune translateChar(Rune u);
-	/// on input checks whether the given Rune requires special processing
-	/**
-	 * \return Whether graphical processing of the input Rune should continue
-	 **/
-	ContinueProcessing preProcessChar(const RuneInfo &r);
-
-	/// sets the currently selected escape charset to the given mapping
-	/**
-	 * \param[in] code The escape code representing the character set to
-	 * map to.
-	 **/
-	void setCharsetMapping(const char code);
-	/// performs special DEC tests triggered by escape sequence code
-	void runDECTest(char code);
-	/// handle the given input control code
-	/**
-	 * This handles single byte control codes which may also start a
-	 * multi-byte sequence, which will then be handed over to m_str_escape
-	 * or m_csi_escape respectively.
-	 **/
-	void handleControlCode(unsigned char code);
 
 	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
 	const Line& getLine(const CharPos &pos) const { return m_screen[pos.y]; }

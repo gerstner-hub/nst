@@ -28,18 +28,11 @@ class Nst;
  *
  * This class parses such sequences and triggers actions that result from the
  * sequences.
- *
- * Beyond this it also parses some other types of escape sequences from within
- * handleInitialEscape(). This is a certain duplication of what
- * Term::handleControlCode() does for 8-bit C1 control codes.
  **/
 struct CSIEscape {
 public: // functions
 
 	explicit CSIEscape(Nst &nst);
-
-	/// returns true if the sequence is complete which can happen for non-CSI escapes
-	bool handleInitialEscape(const char ch);
 
 	/// adds the given character to the sequence, returns whether the sequence is complete
 	bool addCSI(const char ch) {
@@ -95,7 +88,6 @@ protected: // data
 	std::string m_mode_suffix; /// the intermediate and final characters of the sequence
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
 	Nst &m_nst;
-
 };
 
 } // end ns

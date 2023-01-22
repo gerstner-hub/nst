@@ -51,7 +51,7 @@ public: // functions
 	bool isControlC0() const { return isControlC0(m_rune); }
 	bool isControlC1() const { return isControlC1(m_rune); }
 
-	char asChar() const { return static_cast<char>(m_rune); }
+	unsigned char asChar() const { return static_cast<unsigned char>(m_rune); }
 
 	/// checks whether the given rune is an ASCII 7 bit control character (C0 class)
 	static bool isControlC0(const nst::Rune &r) {

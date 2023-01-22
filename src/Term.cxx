@@ -206,8 +206,8 @@ Term::Term(Nst &nst) :
 	m_tty(nst.getTTY()),
 	m_x11(nst.getX11()),
 	m_allowaltscreen(config::ALLOWALTSCREEN),
-	m_str_escape(nst),
-	m_csi_escape(nst) {}
+	m_esc_handler(nst)
+{}
 
 void Term::init(const Nst &nst) {
 
@@ -784,21 +784,6 @@ void Term::draw() {
 		m_x11.getInput().setSpot(new_pos);
 }
 
-bool Term::handleCommandTerminator() {
-	if (m_esc_state[Escape::STR_END]) {
-		resetStringEscape();
-		m_str_escape.process();
-		return true;
-	}
-
-	return false;
-}
-
-void Term::initStrSequence(const StringEscape::Type &type) {
-	m_str_escape.reset(type);
-	m_esc_state.set(Escape::STR);
-}
-
 Rune Term::translateChar(Rune u) {
 	// GRAPHIC0 translation table for VT100 "special graphics mode"
 	/*
@@ -858,219 +843,12 @@ void Term::setChar(Rune u, const CharPos &pos) {
 	glyph.u = translateChar(u);
 }
 
-void Term::setCharsetMapping(const char code) {
-	// this is DEC VT100 spec related
-	switch(code) {
-	default:
-		std::cerr << "esc unhandled charset: ESC ( " << code << "\n";
-		break;
-	case '0':
-		m_charsets[m_esc_charset] = Charset::GRAPHIC0;
-		break;
-	case 'B':
-		m_charsets[m_esc_charset] = Charset::USA;
-		break;
-	}
-}
-
-void Term::runDECTest(char code) {
+void Term::runDECTest() {
 	/* DEC screen alignment test: fill screen with E's */
-	if (code == '8') {
-		for (int x = 0; x < m_size.cols; ++x) {
-			for (int y = 0; y < m_size.rows; ++y)
-				setChar('E', CharPos{x, y});
-		}
+	for (int x = 0; x < m_size.cols; ++x) {
+		for (int y = 0; y < m_size.rows; ++y)
+			setChar('E', CharPos{x, y});
 	}
-}
-
-void Term::handleControlCode(unsigned char code) {
-	switch (code) {
-	case '\t':   /* HT */
-		moveToNextTab();
-		return;
-	case '\b':   /* BS */
-		moveCursorTo(m_cursor.pos.prevCol());
-		return;
-	case '\r':   /* CR */
-		moveCursorTo(m_cursor.pos.startOfLine());
-		return;
-	case '\f':   /* LF */
-	case '\v':   /* VT */
-	case '\n':   /* LF */ {
-		/* go also to first col if CRLF mode is set */
-		auto cr = CarriageReturn(m_mode[Mode::CRLF]);
-		moveToNewline(cr);
-		return;
-	}
-	case '\a':   /* BEL */ {
-		/* backwards compatibility to xterm, which also accepts BEL
-		 * (instead of 'ST') as command terminator. */
-		const auto handled = handleCommandTerminator();
-		if (!handled)
-			// otherwise process as a regular bell
-			m_x11.ringBell();
-		break;
-	}
-	case '\033': /* ESC */
-		m_csi_escape.reset();
-		m_esc_state.reset({Escape::CSI, Escape::ALTCHARSET, Escape::TEST});
-		m_esc_state.set(Escape::START);
-		return;
-	case '\016': /* SO (LS1 -- Locking shift 1) */
-	case '\017': /* SI (LS0 -- Locking shift 0) */
-		// switch between predefined character sets
-		m_active_charset = 1 - (code - '\016');
-		return;
-	case '\032': /* SUB */
-		setChar('?', m_cursor.pos);
-		/* FALLTHROUGH */
-	case '\030': /* CAN */
-		m_csi_escape.reset();
-		break;
-	case '\005': /* ENQ (IGNORED) */
-	case '\000': /* NUL (IGNORED) */
-	case '\021': /* XON (IGNORED) */
-	case '\023': /* XOFF (IGNORED) */
-	case 0177:   /* DEL (IGNORED) */
-		return;
-	case 0x80:   /* TODO: PAD */
-	case 0x81:   /* TODO: HOP */
-	case 0x82:   /* TODO: BPH */
-	case 0x83:   /* TODO: NBH */
-	case 0x84:   /* TODO: IND */
-		break;
-	case 0x85:   /* NEL -- Next line */
-		moveToNewline(); /* always go to first col */
-		break;
-	case 0x86:   /* TODO: SSA */
-	case 0x87:   /* TODO: ESA */
-		break;
-	case 0x88:   /* HTS -- Horizontal tab stop */
-		m_tabs[m_cursor.pos.x] = true;
-		break;
-	case 0x89:   /* TODO: HTJ */
-	case 0x8a:   /* TODO: VTS */
-	case 0x8b:   /* TODO: PLD */
-	case 0x8c:   /* TODO: PLU */
-	case 0x8d:   /* TODO: RI */
-	case 0x8e:   /* TODO: SS2 */
-	case 0x8f:   /* TODO: SS3 */
-	case 0x91:   /* TODO: PU1 */
-	case 0x92:   /* TODO: PU2 */
-	case 0x93:   /* TODO: STS */
-	case 0x94:   /* TODO: CCH */
-	case 0x95:   /* TODO: MW */
-	case 0x96:   /* TODO: SPA */
-	case 0x97:   /* TODO: EPA */
-	case 0x98:   /* TODO: SOS */
-	case 0x99:   /* TODO: SGCI */
-		break;
-	case 0x9a:   /* DECID -- Identify Terminal */
-		m_tty.write(config::VTIDEN, TTY::MayEcho(false));
-		break;
-	case 0x9b:   /* TODO: CSI */
-	case 0x9c:   /* TODO: ST */
-		break;
-	case 0x90:   /* DCS -- Device Control String */
-	case 0x9d:   /* OSC -- Operating System Command */
-	case 0x9e:   /* PM -- Privacy Message */
-	case 0x9f:   /* APC -- Application Program Command */ {
-		const auto esc_type = static_cast<StringEscape::Type>(code);
-		initStrSequence(esc_type);
-		return;
-	}
-	} // end switch
-
-	/* only CAN, SUB, \a and C1 chars interrupt a sequence */
-	resetStringEscape();
-}
-
-Term::ContinueProcessing Term::preProcessChar(const RuneInfo &rinfo) {
-
-	if (m_mode[Mode::PRINT]) {
-		m_tty.printToIoFile(rinfo.getEncoded());
-	}
-
-	/*
-	 * STR sequence must be checked before anything else because it uses
-	 * all following characters until it receives a ESC, a SUB, a ST or
-	 * any other C1 control character.
-	 */
-	if (m_esc_state[Escape::STR]) {
-		if (m_str_escape.isTerminator(rinfo)) {
-			// NOTE: this is a bit of weird spot here, we're not
-			// returning yet, but process the actual terminator
-			// further down below. Since ST consists of two bytes
-			// 'ESC \', the actual StringEscape completion can be
-			// parsed in CSIEscape (!). Alternatively a BEL
-			// character is also supported which is parsed in
-			// handleControlCode()
-			m_esc_state.reset({Escape::START, Escape::STR});
-			m_esc_state.set(Escape::STR_END);
-		} else {
-			m_str_escape.add(rinfo.getEncoded());
-			return ContinueProcessing(false);
-		}
-	}
-
-	const auto rune = rinfo.rune();
-
-	/*
-	 * Actions of control codes must be performed as soon they arrive
-	 * because they can be embedded inside a control sequence, and they
-	 * must not cause conflicts with sequences.
-	 */
-	if (rinfo.isControlChar()) {
-		handleControlCode(rune);
-		/*
-		 * control codes are not shown ever
-		 */
-		if (m_esc_state.none())
-			m_last_char = 0;
-
-		return ContinueProcessing(false);
-	} else if (m_esc_state[Escape::START]) {
-
-		bool reset = true;
-
-		if (m_esc_state[Escape::CSI]) {
-			const bool finished = m_csi_escape.addCSI(rune);
-			if (finished) {
-				m_esc_state.reset();
-				m_csi_escape.parse();
-				m_csi_escape.process();
-			}
-			reset = false;
-		} else if (m_esc_state[Escape::UTF8]) {
-			switch (rinfo.asChar()) {
-			case 'G':
-				m_mode.set(Mode::UTF8);
-				break;
-			case '@':
-				m_mode.reset(Mode::UTF8);
-				break;
-			}
-		} else if (m_esc_state[Escape::ALTCHARSET]) {
-			setCharsetMapping(rune);
-		} else if (m_esc_state[Escape::TEST]) {
-			runDECTest(rune);
-		} else if (!m_csi_escape.handleInitialEscape(rune)) {
-			/* sequence not yet finished */
-			reset = false;
-		}
-
-		if (reset) {
-			m_esc_state.reset();
-		}
-
-		/*
-		 * All characters which form part of a sequence are not
-		 * printed
-		 */
-		return ContinueProcessing(false);
-	}
-
-	return ContinueProcessing(true);
 }
 
 void Term::repeatChar(int count) {
@@ -1085,7 +863,11 @@ void Term::repeatChar(int count) {
 void Term::putChar(Rune rune) {
 	const auto rinfo = RuneInfo(rune, m_mode[Term::Mode::UTF8]);
 
-	if (preProcessChar(rinfo) == ContinueProcessing(false))
+	if (isPrintMode()) {
+		m_tty.printToIoFile(rinfo.getEncoded());
+	}
+
+	if (m_esc_handler.process(rinfo) == EscapeHandler::WasProcessed(true))
 		// input was part of a special control sequence
 		return;
 

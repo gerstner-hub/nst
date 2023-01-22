@@ -26,7 +26,7 @@ constexpr size_t MAX_ARG_SIZE = 16;
 
 } // end anon ns
 
-CSIEscape::CSIEscape(Nst &nst) : m_nst(nst)  {
+CSIEscape::CSIEscape(Nst &nst) : m_nst(nst) {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -323,99 +323,6 @@ void CSIEscape::process() {
 	}
 
 	dump("erresc: unknown csi");
-}
-
-bool CSIEscape::handleInitialEscape(const char ch) {
-	auto &term = m_nst.getTerm();
-	auto &state = term.getEscapeState();
-	using Escape = Term::Escape;
-	auto &x11 = m_nst.getX11();
-
-	// TODO: separation of concerns regarding escape sequences parsing is
-	// not well done, Term does too much of this on its own: some
-	// functions even get passed in the raw m_args from us.
-	//
-	// Wrapping everything in enums is also not so great though ...
-	//
-	// also why are there non-CSI sequences here? what is the separation
-	// wrt StringEscape?
-
-	// for reference see `man 4 console_codes`
-
-	// these are, apart from '[', non-CSI escape sequences
-	switch (ch) {
-	case '[':
-		state.set(Escape::CSI);
-		return false;
-	case '#':
-		state.set(Escape::TEST);
-		return false;
-	case '%': // character set selection
-		state.set(Escape::UTF8);
-		return false;
-	case 'P': /* DCS -- Device Control String */
-	case '_': /* APC -- Application Program Command */
-	case '^': /* PM -- Privacy Message */
-	case ']': /* OSC -- Operating System Command */
-	case 'k': /* old title set compatibility */ {
-		// hand over to StringEscape
-		const auto esc_type = static_cast<StringEscape::Type>(ch);
-		term.initStrSequence(esc_type);
-		return false;
-	}
-	case 'n': /* LS2 -- Locking shift 2 */
-	case 'o': /* LS3 -- Locking shift 3 */
-		term.setCharset(2 + (ch - 'n'));
-		break;
-	case '(': /* GZD4 -- set primary charset G0 */
-	case ')': /* G1D4 -- set secondary charset G1 */
-	case '*': /* G2D4 -- set tertiary charset G2 */
-	case '+': /* G3D4 -- set quaternary charset G3 */
-		term.setEscCharset(ch - '(');
-		state.set(Escape::ALTCHARSET);
-		return false;
-	case 'D': /* IND -- Linefeed */
-		term.doLineFeed();
-		break;
-	case 'E': /* NEL -- Next line */
-		term.moveToNewline(); /* always go to first col */
-		break;
-	case 'H': /* HTS -- Horizontal tab stop */
-		term.setTabAtCursor(true);
-		break;
-	case 'M': /* RI -- Reverse index / linefeed */
-		term.doReverseLineFeed();
-		break;
-	case 'Z': /* DECID -- Identify Terminal */
-		m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho(false));
-		break;
-	case 'c': /* RIS -- Reset to initial state */
-		term.reset();
-		x11.resetState();
-		break;
-	case '=': /* DECPAM -- Application keypad */
-		x11.setMode(WinMode::APPKEYPAD, true);
-		break;
-	case '>': /* DECPNM -- Normal keypad */
-		x11.setMode(WinMode::APPKEYPAD, false);
-		break;
-	case '7': /* DECSC -- Save Cursor */
-		term.cursorControl(Term::TCursor::Control::SAVE);
-		break;
-	case '8': /* DECRC -- Restore Cursor */
-		term.cursorControl(Term::TCursor::Control::LOAD);
-		break;
-	case '\\': /* ST -- String Terminator for StringEscape (!) */
-		/* this likely is the second byte of the ST := ESC \ */
-		term.handleCommandTerminator();
-		break;
-	default:
-		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ch, 2)
-			<< " '" << (std::isprint(ch) ? ch : '.') << "'\n";
-		break;
-	}
-
-	return true;
 }
 
 } // end ns

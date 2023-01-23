@@ -278,7 +278,7 @@ void CSIEscape::process() {
 		setMode(/*enabled=*/true);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
-		if (!term.setCursorAttrs(m_args)) {
+		if (!setCursorAttrs()) {
 			dump("failed to set cursor attrs");
 		}
 		return;
@@ -323,6 +323,174 @@ void CSIEscape::process() {
 	}
 
 	dump("erresc: unknown csi");
+}
+
+bool CSIEscape::setCursorAttrs() const {
+	bool ret = true;
+	auto &term = m_nst.getTerm();
+
+	for (auto it = m_args.begin(); it < m_args.end(); it++) {
+		const auto &attr = *it;
+		switch (attr) {
+		case 0:
+			term.resetCursorAttrs();
+			break;
+		case 1:
+			term.setCursorAttr(Attr::BOLD);
+			break;
+		case 2:
+			term.setCursorAttr(Attr::FAINT);
+			break;
+		case 3:
+			term.setCursorAttr(Attr::ITALIC);
+			break;
+		case 4:
+			term.setCursorAttr(Attr::UNDERLINE);
+			break;
+		case 5: /* slow blink */
+			/* FALLTHROUGH */
+		case 6: /* rapid blink */
+			term.setCursorAttr(Attr::BLINK);
+			break;
+		case 7:
+			term.setCursorAttr(Attr::REVERSE);
+			break;
+		case 8:
+			term.setCursorAttr(Attr::INVISIBLE);
+			break;
+		case 9:
+			term.setCursorAttr(Attr::STRUCK);
+			break;
+		case 22:
+			term.resetCursorAttr(Attr::BOLD);
+			term.resetCursorAttr(Attr::FAINT);
+			break;
+		case 23:
+			term.resetCursorAttr(Attr::ITALIC);
+			break;
+		case 24:
+			term.resetCursorAttr(Attr::UNDERLINE);
+			break;
+		case 25:
+			term.resetCursorAttr(Attr::BLINK);
+			break;
+		case 27:
+			term.resetCursorAttr(Attr::REVERSE);
+			break;
+		case 28:
+			term.resetCursorAttr(Attr::INVISIBLE);
+			break;
+		case 29:
+			term.resetCursorAttr(Attr::STRUCK);
+			break;
+		case 38: {
+			if (auto colidx = parseColor(++it); colidx != -1)
+				term.setCursorFgColor(colidx);
+			break;
+		}
+		case 39:
+			term.setCursorFgColor(config::DEFAULTFG);
+			break;
+		case 48: {
+			if (auto colidx = parseColor(++it); colidx != -1)
+				term.setCursorBgColor(colidx);
+			break;
+		}
+		case 49:
+			term.setCursorBgColor(config::DEFAULTBG);
+			break;
+		default:
+			if (!handleCursorColorSet(attr)) {
+				std::cerr << "erresc(default): gfx attr " << attr << " unknown\n",
+				ret = false;
+			}
+			break;
+		} // end switch
+	}
+
+	return ret;
+}
+
+bool CSIEscape::handleCursorColorSet(const int attr) const {
+	constexpr std::array<std::tuple<int, int, bool, int>, 4> RANGES{
+		std::tuple{ 30,  37, true,  0}, // dim foreground colors
+		          { 40,  47, false, 0}, // dim background colors
+		          { 90,  97, true,  8}, // bright foreground colors
+		          {100, 107, false, 8}  // bright background colors
+	};
+
+	auto &term = m_nst.getTerm();
+
+	for (const auto &range: RANGES) {
+		const auto &[start, end, is_fg, offset] = range;
+		if (!cosmos::in_range(attr, start, end))
+			continue;
+
+		const auto val = attr - start + offset;
+
+		if (is_fg)
+			term.setCursorFgColor(val);
+		else
+			term.setCursorBgColor(val);
+
+		return true;
+	}
+
+	return false;
+}
+
+int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
+
+	const size_t num_pars = m_args.end() - it;
+
+	auto badPars = [&]() {
+		std::cerr << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
+		return -1;
+	};
+
+	if (num_pars == 0)
+		return badPars();
+
+	const auto color_type = *it++;
+	const auto left = num_pars - 1;
+
+	switch (color_type) {
+	case 2: /* direct color in RGB space */ {
+		if (left < 3)
+			return badPars();
+
+		const auto r = *it++;
+		const auto g = *it++;
+		const auto b = *it;
+
+		if (r <= 255 && g <= 255 && b <= 255) {
+			return toTrueColor(r, g, b);
+		} else {
+			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
+			return -1;
+		}
+	}
+	case 5: /* indexed color */ {
+		if (left < 1)
+			return badPars();
+
+		const auto col = *it;
+
+		if (cosmos::in_range(col, 0, 255)) {
+			return col;
+		} else {
+			std::cerr << "erresc: bad fg/bgcolor " << col << std::endl;
+			return -1;
+		}
+	}
+	case 0: /* implementation defined (only foreground) */
+	case 1: /* transparent */
+	case 3: /* direct color in CMY space */
+	case 4: /* direct color in CMYK space */
+	default:
+		std::cerr << "erresc(38): gfx attr " << color_type << " unknown" << std::endl;
+		return -1;
+	}
 }
 
 } // end ns

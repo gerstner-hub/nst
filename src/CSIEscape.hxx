@@ -80,6 +80,18 @@ protected: // functions
 	/// forwards a setMode() call to Term for the current parse context
 	void setMode(const bool enable) const;
 
+	/// forwards a setCursorAttrs() call to Term
+	bool setCursorAttrs() const;
+
+	int32_t parseColor(std::vector<int>::const_iterator &it) const;
+
+	static int32_t toTrueColor(unsigned int r, unsigned int g, unsigned int b) {
+		return (1 << 24) | (r << 16) | (g << 8) | b;
+	}
+
+	/// handle fb/bg cursor color settings from dim/bright color ranges
+	bool handleCursorColorSet(const int attr) const;
+
 protected: // data
 
 	std::string m_str; /// the raw escape sequence bytes collected so far

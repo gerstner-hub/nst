@@ -94,15 +94,17 @@ public: // types
 
 		TCursor();
 
-		/// sets new attributes like font properties or colors
-		/**
-		 * \param[in] attrs contains the individual sequence codes of the
-		 * attribute change request.
-		 **/
-		bool setAttrs(const std::vector<int> &attrs);
 		const auto& getAttr() const { return m_attr; }
 
 		const auto& getPos() const { return pos; }
+
+		void setFgColor(int32_t colindex) {
+			m_attr.fg = colindex;
+		}
+
+		void setBgColor(int32_t colindex) {
+			m_attr.bg = colindex;
+		}
 
 		/// resets all rendering related attributes (colors, markup)
 		void resetAttrs();
@@ -117,20 +119,6 @@ public: // types
 
 		void setUseOrigin(const bool on_off) {
 			m_state.set(State::ORIGIN, on_off);
-		}
-
-	protected: // functions
-
-		/// parses the given escape sequence and returns the resulting color index to use
-		/**
-		 * \param[in] pos the current parse position in attrs
-		 * \param[out] colidx receives the parsed color index
-		 * \return the number of parsed elements in attrs at pos
-		 **/
-		size_t parseColor(const std::vector<int> &attrs, size_t pos, int32_t &colidx);
-
-		int32_t toTrueColor(unsigned int r, unsigned int g, unsigned int b) const {
-			return (1 << 24) | (r << 16) | (g << 8) | b;
 		}
 	};
 
@@ -366,8 +354,28 @@ public: // functions
 	size_t write(const std::string_view &data, const ShowCtrlChars &show_ctrl);
 
 	const TCursor& getCursor() const { return m_cursor; }
-	bool setCursorAttrs(const std::vector<int> &attrs) {
-		return m_cursor.setAttrs(attrs);
+
+	/// reset all cursor attrs to default
+	void resetCursorAttrs() {
+		m_cursor.resetAttrs();
+	}
+
+	/// turn on the given cursor attribute
+	void setCursorAttr(const Glyph::Attr &attr) {
+		m_cursor.m_attr.mode.set(attr);
+	}
+
+	/// turn off the given cursor attribute
+	void resetCursorAttr(const Glyph::Attr &attr) {
+		m_cursor.m_attr.mode.reset(attr);
+	}
+
+	void setCursorFgColor(int32_t colindex) {
+		m_cursor.setFgColor(colindex);
+	}
+
+	void setCursorBgColor(int32_t colindex) {
+		m_cursor.setBgColor(colindex);
 	}
 
 	void setPrintMode(const bool on_off) {

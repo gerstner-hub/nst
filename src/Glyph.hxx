@@ -34,15 +34,15 @@ public: // types
 
 	typedef cosmos::BitMask<Attr> AttrBitMask;
 
-	/// primitive integer to store Glyph color information
+	/// primitive integer type to store Glyph color information
 	typedef uint32_t color_t;
 
 public: // data
 
-	Rune u = 0;       /* character code */
-	AttrBitMask mode; /* attribute flags */
-	color_t fg = 0;  /* foreground  */
-	color_t bg = 0;  /* background  */
+	Rune u = 0;       /// character code
+	AttrBitMask mode; /// attribute flags
+	color_t fg = 0;   /// foreground color
+	color_t bg = 0;   /// background color
 
 public: // functions
 

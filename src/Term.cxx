@@ -46,18 +46,7 @@ bool Term::TCursor::setAttrs(const std::vector<int> &attrs) {
 		const auto &attr = attrs[i];
 		switch (attr) {
 		case 0:
-			m_attr.mode.reset({
-				Attr::BOLD,
-				Attr::FAINT,
-				Attr::ITALIC,
-				Attr::UNDERLINE,
-				Attr::BLINK,
-				Attr::REVERSE,
-				Attr::INVISIBLE,
-				Attr::STRUCK
-			});
-			m_attr.fg = config::DEFAULTFG;
-			m_attr.bg = config::DEFAULTBG;
+			resetAttrs();
 			break;
 		case 1:
 			mode.set(Attr::BOLD);
@@ -146,6 +135,21 @@ bool Term::TCursor::setAttrs(const std::vector<int> &attrs) {
 	}
 
 	return ret;
+}
+
+void Term::TCursor::resetAttrs() {
+	m_attr.mode.reset({
+		Attr::BOLD,
+		Attr::FAINT,
+		Attr::ITALIC,
+		Attr::UNDERLINE,
+		Attr::BLINK,
+		Attr::REVERSE,
+		Attr::INVISIBLE,
+		Attr::STRUCK
+	});
+	m_attr.fg = config::DEFAULTFG;
+	m_attr.bg = config::DEFAULTBG;
 }
 
 size_t Term::TCursor::parseColor(const std::vector<int> &attrs, size_t idx, int32_t &colidx) {
@@ -394,18 +398,18 @@ void Term::setScrollArea(const LineSpan &span) {
 void Term::moveCursorTo(CharPos pos) {
 	LineSpan limit{0, m_size.rows - 1};
 
-	if (m_cursor.state[TCursor::State::ORIGIN]) {
+	if (m_cursor.useOrigin()) {
 		limit = m_scroll_area;
 	}
 
-	m_cursor.state.reset(TCursor::State::WRAPNEXT);
+	m_cursor.setWrapNext(false);
 	clampCol(pos.x);
 	pos.clampY(limit.top, limit.bottom);
 	m_cursor.pos = pos;
 }
 
 void Term::moveCursorAbsTo(CharPos pos) {
-	if (m_cursor.state[TCursor::State::ORIGIN])
+	if (m_cursor.useOrigin())
 		pos.y += m_scroll_area.top;
 	moveCursorTo(pos);
 }
@@ -615,7 +619,7 @@ void Term::setPrivateMode(const bool set, const std::vector<int> &args) {
 			m_x11.setMode(WinMode::REVERSE, set);
 			break;
 		case 6: /* DECOM -- Origin */
-			m_cursor.state.set(TCursor::State::ORIGIN, set);
+			m_cursor.setUseOrigin(set);
 			moveCursorAbsTo(topLeft());
 			break;
 		case 7: /* DECAWM -- Auto wrap */
@@ -877,7 +881,7 @@ void Term::putChar(Rune rune) {
 	Glyph *gp = getCurGlyph();
 
 	// perform automatic line wrap, if necessary
-	if (m_mode[Mode::WRAP] && m_cursor.state[TCursor::State::WRAPNEXT]) {
+	if (m_mode[Mode::WRAP] && m_cursor.needWrapNext()) {
 		gp->mode.set(Attr::WRAP);
 		moveToNewline();
 		gp = getCurGlyph();
@@ -924,7 +928,7 @@ void Term::putChar(Rune rune) {
 	if (left_chars > req_width) {
 		moveCursorTo(m_cursor.pos.nextCol(req_width));
 	} else {
-		m_cursor.state.set(TCursor::State::WRAPNEXT);
+		m_cursor.setWrapNext(true);
 	}
 }
 

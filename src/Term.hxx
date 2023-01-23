@@ -88,7 +88,7 @@ public: // types
 
 		CharPos pos; /// current cursor position (not yet rendered)
 		Glyph m_attr; /// contains the currently active font attributes for newly input characters
-		StateBitMask state;
+		StateBitMask m_state;
 
 	public: // functions
 
@@ -103,6 +103,21 @@ public: // types
 		const auto& getAttr() const { return m_attr; }
 
 		const auto& getPos() const { return pos; }
+
+		/// resets all rendering related attributes (colors, markup)
+		void resetAttrs();
+
+		bool needWrapNext() const { return m_state[State::WRAPNEXT]; }
+
+		void setWrapNext(const bool on_off) {
+			m_state.set(State::WRAPNEXT, on_off);
+		}
+
+		bool useOrigin() const { return m_state[State::ORIGIN]; }
+
+		void setUseOrigin(const bool on_off) {
+			m_state.set(State::ORIGIN, on_off);
+		}
 
 	protected: // functions
 

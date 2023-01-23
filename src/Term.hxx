@@ -28,7 +28,7 @@ class RuneInfo;
  * containing the actual X11 drawing logic.
  *
  * It manages the dimensions of the terminal, each line and its contents,
- * processes input data and therefore also escape sequences.
+ * processes input data and passes on escape sequence to EscapeHandler
  **/
 class Term {
 
@@ -40,7 +40,7 @@ public: // types
 		INSERT      = 1 << 1, /// if set, on input, shift existing characters in a line to the right
 		ALTSCREEN   = 1 << 2, /// if set then the alternative screen is shown
 		CRLF        = 1 << 3, /// implicit carriage return on newline
-		TECHO       = 1 << 4, /* ECHO conflicts with termios.h */
+		TECHO       = 1 << 4, /// whether input data should be echoed on the terminal screen (ECHO identifier conflicts with X headers)
 		PRINT       = 1 << 5, /// duplicate all input into I/O file
 		UTF8        = 1 << 6, /// UTF8 input support
 	};
@@ -61,10 +61,11 @@ public: // types
 	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
 	using ShowCtrlChars = cosmos::NamedBool<struct show_ctrl_t, true>;
 
-	/// cursor position related data
+	/// cursor related data
 	/**
 	 * This contains the current logical cursor position as well as cursor
-	 * attributes and cursor specific control settings.
+	 * attributes for newly inpurt characters and cursor specific control
+	 * settings.
 	 **/
 	struct TCursor { /* "Cursor" identifier conflicts with X headers */
 		friend class Term;
@@ -133,7 +134,7 @@ protected: // data
 
 	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
 	LineSpan m_scroll_area;    /// region of lines that will be affected by scroll operations
-	Rune m_last_char = 0;      /// last printed char outside of sequence, 0 if control
+	Rune m_last_char = 0;      /// last printed char outside of sequence, 0 if control or otherwise unassigned
 
 	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
 	size_t m_active_charset = 0;       /// current charset used from m_charsets
@@ -246,11 +247,25 @@ public: // functions
 	/// move cursor ignoring scroll limit (in ORIGIN cursor state)
 	void moveCursorAbsTo(CharPos pos);
 
-	void swapScreen();
+	void setAltScreen(const bool enable, const bool with_cursor);
 
 	void cursorControl(const TCursor::Control &ctrl);
 
 	const auto& getMode() const { return m_mode; }
+
+	void setCarriageReturn(const bool enable) { m_mode.set(Mode::CRLF, enable); }
+
+	void setEcho(const bool enable) { m_mode.set(Mode::TECHO, enable); }
+
+	void setInsertMode(const bool enable) { m_mode.set(Mode::INSERT, enable); }
+
+	void setCursorOriginMode(const bool enable) {
+		m_cursor.setUseOrigin(enable);
+		// reposition cursor respective to new origin mode
+		moveCursorAbsTo(topLeft());
+	}
+
+	void setAutoWrap(const bool enable) { m_mode.set(Mode::WRAP, enable); }
 
 	/// returns the current implicit carriage return setting as a typesafe boolean type
 	CarriageReturn getCarriageReturn() const { return CarriageReturn(m_mode[Mode::CRLF]); }
@@ -310,10 +325,6 @@ public: // functions
 	void setUTF8(const bool on_off) {
 		m_mode.set(Mode::UTF8, on_off);
 	}
-	/// forwarded CSI control command to change a mode setting
-	void setMode(       const bool set, const std::vector<int> &args);
-	/// forwarded CSI control command to change a private mode setting
-	void setPrivateMode(const bool set, const std::vector<int> &args);
 
 	/// performs special DEC tests triggered by escape sequence code
 	void runDECTest();
@@ -409,6 +420,8 @@ protected: // functions
 	void drawRegion(const Range &range) const;
 
 	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
+
+	void swapScreen();
 
 	/// place the given Rune at the given terminal position
 	void setChar(Rune u, const CharPos &pos);

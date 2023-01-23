@@ -258,6 +258,28 @@ void Term::moveCursorAbsTo(CharPos pos) {
 	moveCursorTo(pos);
 }
 
+void Term::setAltScreen(const bool enable, const bool with_cursor) {
+	if (!m_allowaltscreen)
+		return;
+
+	const auto cursor_ctrl = enable ? TCursor::Control::SAVE : TCursor::Control::LOAD;
+
+	if (with_cursor)
+		cursorControl(cursor_ctrl);
+
+	const auto is_alt = m_mode[Mode::ALTSCREEN];
+
+	if (is_alt) {
+		clearRegion({topLeft(), bottomRight()});
+	}
+
+	if (enable ^ is_alt) // if the mode actually changed
+		swapScreen();
+
+	if (with_cursor)
+		cursorControl(cursor_ctrl);
+}
+
 void Term::swapScreen() {
 	std::swap(m_screen, m_alt_screen);
 	m_mode.flip(Mode::ALTSCREEN);
@@ -427,130 +449,6 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 	}
 
 	m_selection.scroll(origin, -num_lines);
-}
-
-void Term::setMode(const bool set, const std::vector<int> &args) {
-	for (const auto arg: args) {
-		switch (arg) {
-		case 0:  /* Error (IGNORED) */
-			break;
-		case 2:
-			m_x11.setMode(WinMode::KBDLOCK, set);
-			break;
-		case 4:  /* IRM -- Insertion-replacement */
-			m_mode.set(Mode::INSERT, set);
-			break;
-		case 12: /* SRM -- Send/Receive */
-			m_mode.set(Mode::TECHO, !set);
-			break;
-		case 20: /* LNM -- Linefeed/new line */
-			m_mode.set(Mode::CRLF, set);
-			break;
-		default:
-			std::cerr << "erresc: unknown set/reset mode " << arg << "\n";
-			break;
-		}
-	}
-}
-
-void Term::setPrivateMode(const bool set, const std::vector<int> &args) {
-	for (const auto arg: args) {
-		switch (arg) {
-		case 1: /* DECCKM -- Cursor key */
-			m_x11.setMode(WinMode::APPCURSOR, set);
-			break;
-		case 5: /* DECSCNM -- Reverse video */
-			m_x11.setMode(WinMode::REVERSE, set);
-			break;
-		case 6: /* DECOM -- Origin */
-			m_cursor.setUseOrigin(set);
-			moveCursorAbsTo(topLeft());
-			break;
-		case 7: /* DECAWM -- Auto wrap */
-			m_mode.set(Mode::WRAP, set);
-			break;
-		case 0:  /* Error (IGNORED) */
-		case 2:  /* DECANM -- ANSI/VT52 (IGNORED) */
-		case 3:  /* DECCOLM -- Column  (IGNORED) */
-		case 4:  /* DECSCLM -- Scroll (IGNORED) */
-		case 8:  /* DECARM -- Auto repeat (IGNORED) */
-		case 18: /* DECPFF -- Printer feed (IGNORED) */
-		case 19: /* DECPEX -- Printer extent (IGNORED) */
-		case 42: /* DECNRCM -- National characters (IGNORED) */
-		case 12: /* att610 -- Start blinking cursor (IGNORED) */
-			break;
-		case 25: /* DECTCEM -- Text Cursor Enable Mode */
-			m_x11.setMode(WinMode::HIDE, !set);
-			break;
-		case 9:    /* X10 mouse compatibility mode */
-			m_x11.setPointerMotion(false);
-			m_x11.setMode(WinMode::MOUSE, false);
-			m_x11.setMode(WinMode::MOUSEX10, set);
-			break;
-		case 1000: /* 1000: report button press */
-			m_x11.setPointerMotion(false);
-			m_x11.setMode(WinMode::MOUSE, false);
-			m_x11.setMode(WinMode::MOUSEBTN, set);
-			break;
-		case 1002: /* 1002: report motion on button press */
-			m_x11.setPointerMotion(false);
-			m_x11.setMode(WinMode::MOUSE, false);
-			m_x11.setMode(WinMode::MOUSEMOTION, set);
-			break;
-		case 1003: /* 1003: enable all mouse motions */
-			m_x11.setPointerMotion(set);
-			m_x11.setMode(WinMode::MOUSE, false);
-			m_x11.setMode(WinMode::MOUSEMANY, set);
-			break;
-		case 1004: /* 1004: send focus events to tty */
-			m_x11.setMode(WinMode::FOCUS, set);
-			break;
-		case 1006: /* 1006: extended reporting mode */
-			m_x11.setMode(WinMode::MOUSESGR, set);
-			break;
-		case 1034:
-			m_x11.setMode(WinMode::EIGHT_BIT, set);
-			break;
-		case 1049: /* swap screen & set/restore cursor as xterm */
-			if (!m_allowaltscreen)
-				break;
-			cursorControl((set) ? TCursor::Control::SAVE : TCursor::Control::LOAD);
-			/* FALLTHROUGH */
-		case 47: /* swap screen */
-		case 1047: {
-			if (!m_allowaltscreen)
-				break;
-			const auto is_alt = m_mode[Mode::ALTSCREEN];
-			if (is_alt) {
-				clearRegion({topLeft(), bottomRight()});
-			}
-			if (set ^ is_alt) /* set is always 1 or 0 */
-				swapScreen();
-			if (arg != 1049)
-				break;
-		}
-			/* FALLTHROUGH */
-		case 1048:
-			cursorControl(set ? TCursor::Control::SAVE : TCursor::Control::LOAD);
-			break;
-		case 2004: /* 2004: bracketed paste mode */
-			m_x11.setMode(WinMode::BRCKTPASTE, set);
-			break;
-		/* Not implemented mouse modes. See comments there. */
-		case 1001: /* mouse highlight mode; can hang the
-			      terminal by design when implemented. */
-		case 1005: /* UTF-8 mouse mode; will confuse
-			      applications not supporting UTF-8
-			      and luit. */
-		case 1015: /* urxvt mangled mouse mode; incompatible
-			      and can be mistaken for other control
-			      codes. */
-			break;
-		default:
-			std::cerr << "erresc: unknown private set/reset mode " << arg << "\n";
-			break;
-		}
-	}
 }
 
 void Term::dumpLine(const CharPos &pos) const {

@@ -77,8 +77,14 @@ protected: // functions
 		return cosmos::in_range(ch, 0x40, 0x7E);
 	}
 
-	/// forwards a setMode() call to Term for the current parse context
-	void setMode(const bool enable) const;
+	/// calls setMode() or setPrivateMode() depending on current context
+	void setModeGeneric(const bool enable);
+
+	/// process a set terminal mode request
+	void setMode(const bool set);
+
+	/// process a private set terminal mode request
+	void setPrivateMode(const bool set);
 
 	/// forwards a setCursorAttrs() call to Term
 	bool setCursorAttrs() const;

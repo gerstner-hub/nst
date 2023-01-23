@@ -119,13 +119,129 @@ void CSIEscape::dump(const std::string_view &prefix) const {
 	std::cerr << "\n";
 }
 
-void CSIEscape::setMode(const bool enable) const {
+void CSIEscape::setModeGeneric(const bool enable) {
+	if (m_is_private_csi) {
+		setPrivateMode(enable);
+	} else {
+		setMode(enable);
+	}
+}
+
+void CSIEscape::setMode(const bool set) {
+
 	auto &term = m_nst.getTerm();
 
-	if (m_is_private_csi) {
-		term.setPrivateMode(enable, m_args);
-	} else {
-		term.setMode(       enable, m_args);
+	for (const auto arg: m_args) {
+		switch (arg) {
+		case 0:  /* Error (IGNORED) */
+			break;
+		case 2:
+			m_nst.getX11().setMode(WinMode::KBDLOCK, set);
+			break;
+		case 4:  /* IRM -- Insertion-replacement */
+			term.setInsertMode(set);
+			break;
+		case 12: /* SRM -- Send/Receive */
+			term.setEcho(!set);
+			break;
+		case 20: /* LNM -- Linefeed/new line */
+			term.setCarriageReturn(set);
+			break;
+		default:
+			std::cerr << "erresc: unknown set/reset mode " << arg << "\n";
+			break;
+		}
+	}
+}
+
+void CSIEscape::setPrivateMode(const bool set) {
+
+	auto &x11 = m_nst.getX11();
+	auto &term = m_nst.getTerm();
+
+	for (const auto arg: m_args) {
+		switch (arg) {
+		case 1: /* DECCKM -- Cursor key */
+			x11.setMode(WinMode::APPCURSOR, set);
+			break;
+		case 5: /* DECSCNM -- Reverse video */
+			x11.setMode(WinMode::REVERSE, set);
+			break;
+		case 6: /* DECOM -- Origin */
+			term.setCursorOriginMode(set);
+			break;
+		case 7: /* DECAWM -- Auto wrap */
+			term.setAutoWrap(set);
+			break;
+		case 0:  /* Error (IGNORED) */
+		case 2:  /* DECANM -- ANSI/VT52 (IGNORED) */
+		case 3:  /* DECCOLM -- Column  (IGNORED) */
+		case 4:  /* DECSCLM -- Scroll (IGNORED) */
+		case 8:  /* DECARM -- Auto repeat (IGNORED) */
+		case 18: /* DECPFF -- Printer feed (IGNORED) */
+		case 19: /* DECPEX -- Printer extent (IGNORED) */
+		case 42: /* DECNRCM -- National characters (IGNORED) */
+		case 12: /* att610 -- Start blinking cursor (IGNORED) */
+			break;
+		case 25: /* DECTCEM -- Text Cursor Enable Mode */
+			x11.setMode(WinMode::HIDE, !set);
+			break;
+		case 9:    /* X10 mouse compatibility mode */
+			x11.setPointerMotion(false);
+			x11.setMode(WinMode::MOUSE, false);
+			x11.setMode(WinMode::MOUSEX10, set);
+			break;
+		case 1000: /* 1000: report button press */
+			x11.setPointerMotion(false);
+			x11.setMode(WinMode::MOUSE, false);
+			x11.setMode(WinMode::MOUSEBTN, set);
+			break;
+		case 1002: /* 1002: report motion on button press */
+			x11.setPointerMotion(false);
+			x11.setMode(WinMode::MOUSE, false);
+			x11.setMode(WinMode::MOUSEMOTION, set);
+			break;
+		case 1003: /* 1003: enable all mouse motions */
+			x11.setPointerMotion(set);
+			x11.setMode(WinMode::MOUSE, false);
+			x11.setMode(WinMode::MOUSEMANY, set);
+			break;
+		case 1004: /* 1004: send focus events to tty */
+			x11.setMode(WinMode::FOCUS, set);
+			break;
+		case 1006: /* 1006: extended reporting mode */
+			x11.setMode(WinMode::MOUSESGR, set);
+			break;
+		case 1034:
+			x11.setMode(WinMode::EIGHT_BIT, set);
+			break;
+		case 1049: /* swap screen & set/restore cursor as xterm */
+			/* FALLTHROUGH */
+		case 47: /* both stand for swap screen (XTerm), clearing it first */
+			/* FALLTHROUGH */
+		case 1047:
+			term.setAltScreen(set, /*with_cursor=*/arg == 1049);
+			break;
+		case 1048: // save/load cursor
+			term.cursorControl(set ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
+			break;
+		case 2004: /* 2004: bracketed paste mode */
+			x11.setMode(WinMode::BRCKTPASTE, set);
+			break;
+		/* Not implemented mouse modes. See comments there. */
+		case 1001: /* mouse highlight mode; can hang the
+			      terminal by design when implemented. */
+		case 1005: /* UTF-8 mouse mode; will confuse
+			      applications not supporting UTF-8
+			      and luit. */
+		case 1015: /* urxvt mangled mouse mode; incompatible
+			      and can be mistaken for other control
+			      codes. */
+			break;
+		default:
+			std::cerr << "erresc: unknown private set/reset mode " << arg << "\n";
+			break;
+		}
 	}
 }
 
@@ -257,7 +373,7 @@ void CSIEscape::process() {
 		term.insertBlankLinesBelowCursor(arg0 ? arg0 : 1);
 		return;
 	case 'l': /* RM -- Reset Mode */
-		setMode(/*enabled=*/false);
+		setModeGeneric(/*enabled=*/false);
 		return;
 	case 'M': /* DL -- Delete <n> lines */
 		term.deleteLinesBelowCursor(arg0 ? arg0 : 1);
@@ -275,7 +391,7 @@ void CSIEscape::process() {
 		term.moveCursorAbsTo({curpos.x, arg0 ? arg0 - 1 : 0});
 		return;
 	case 'h': /* SM -- Set terminal mode */
-		setMode(/*enabled=*/true);
+		setModeGeneric(/*enabled=*/true);
 		return;
 	case 'm': /* SGR -- Terminal attribute (color) */
 		if (!setCursorAttrs()) {

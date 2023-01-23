@@ -69,18 +69,16 @@ void Term::init(const Nst &nst) {
 	reset();
 }
 
-void Term::reset(void) {
+void Term::reset() {
 	m_cursor = TCursor();
 
 	clearAllTabs();
 	for (auto i = config::TABSPACES; i < m_size.cols; i += config::TABSPACES)
 		m_tabs[i] = true;
 	resetScrollArea();
-	// TODO: there currently seems not to exist a way to disable WRAP mode
-	// neither during runtime nor via the config header. A test without
-	// WRAP mode showed that the screen kind of scrolls right and back
-	// left again (when deleting characters) but the original screen
-	// content does not appear again.
+	// TODO: A test with disabled WRAP mode showed that the screen kind of
+	// scrolls right and back left again (when deleting characters) but
+	// the original screen content does not appear again.
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	m_charsets.fill(Charset::USA);
 	m_active_charset = 0;

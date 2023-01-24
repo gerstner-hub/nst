@@ -121,7 +121,7 @@ void TTY::configureTTY() {
 		stty.run();
 		auto res = stty.wait();
 
-		if (res.exited() || res.exitStatus() != 0) {
+		if (!res.exited() || res.exitStatus() != 0) {
 			cosmos_throw (cosmos::RuntimeError("stty returned non-zero"));
 		}
 	} catch (const std::exception &ex) {

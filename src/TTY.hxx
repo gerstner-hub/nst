@@ -4,20 +4,16 @@
 // C++
 #include <string_view>
 
-// nst
-#include "Term.hxx"
-
 // cosmos
 #include "cosmos/fs/StreamFile.hxx"
 #include "cosmos/io/Poller.hxx"
 #include "cosmos/io/Terminal.hxx"
-#include "cosmos/proc/SignalFD.hxx"
 #include "cosmos/proc/SubProc.hxx"
 #include "cosmos/types.hxx"
 
 namespace nst {
 
-class NSt;
+class Nst;
 
 /// Pseudo Terminal I/O
 /**
@@ -25,7 +21,9 @@ class NSt;
  * It's job is mainly the raw I/O handling and handling of low level TTY
  * aspects.
  *
- * It also holds the sub-process that is running in the terminal.
+ * It holds the sub process that is running in the terminal. It sends
+ * keyboard input and out-of-band data to the child process and receives data
+ * from it to display on the terminal.
  **/
 class TTY {
 public: // types
@@ -45,18 +43,28 @@ public: // functions
 	 * performed by this class.
 	 **/
 	cosmos::FileDescriptor create();
+
+	/// reads data from the TTY and forwards it to the active Term instance
+	/**
+	 * \return The number of bytes that have been read, 0 on EOF or other
+	 * I/O error conditions.
+	 **/
 	size_t read();
+
 	/// provide input to the child process e.g. character input from key presses
 	/**
 	 * \param[in] echo If set then the input will also be forwarded to the
 	 * Term class to display on the window.
 	 **/
-	void write(const std::string_view &sv, const MayEcho &echo);
+	void write(const std::string_view &sv, const MayEcho echo);
+
 	/// inform the TTY device (and thus the child process) about a size change
 	void resize(const Extent &size);
+
 	/// sends SIGHUP to the child process, informing it that we're quitting
 	void hangup();
 
+	/// prints the given data into the raw I/O file, if configured
 	void printToIoFile(const std::string_view &s) {
 		if (!m_io_file.isOpen())
 			return;
@@ -73,9 +81,9 @@ public: // functions
 	 * cleanly
 	 **/
 	void handleSigChildEvent();
+
 	/// sends a stream of zero bits to the peer for a given duration
 	void sendBreak();
-	void reportFocus(bool in_focus);
 
 protected: // functions
 
@@ -83,8 +91,10 @@ protected: // functions
 	void openTTY(const std::string &line);
 	/// runs stty to configure a real TTY device if specified on the cmdline
 	void configureTTY();
-
+	/// create a PTY to operate on
 	void createPTY();
+	/// setup m_cmd_poller to listen on m_cmd_file
+	void setupPoller();
 	/// opens a I/O file where all TTY I/O is printed to, raw
 	void setupIOFile(const std::string &path);
 	/// forward data unmodified to the child process
@@ -97,12 +107,12 @@ protected: // data
 
 	Nst &m_nst;
 	cosmos::SubProc m_child_proc; /// the actual child process running in the terminal
-	cosmos::StreamFile m_io_file;
+	cosmos::StreamFile m_io_file; /// I/O file which receives all data displayed on the terminal
 	cosmos::StreamFile m_cmd_file; /// master end of pty or real TTY device
-	cosmos::Poller m_cmd_poller;
-	cosmos::Terminal m_terminal;
-	char m_buf[BUFSIZ];
-	size_t m_buf_bytes = 0;
+	cosmos::Poller m_cmd_poller; /// event driven I/O for m_cmd_file
+	cosmos::Terminal m_terminal; /// wrapper around m_cmd_file for TTY ioctls
+	char m_buf[BUFSIZ]; /// holds data read from the TTY not yet forwarded to Term
+	size_t m_buf_bytes = 0; /// number of unprocessed bytes in m_buf
 };
 
 } // end ns

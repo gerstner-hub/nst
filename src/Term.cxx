@@ -458,7 +458,8 @@ void Term::dumpLine(const CharPos &pos) const {
 	const auto line = getLine(pos);
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
-		m_tty.printToIoFile(buf, utf8::encode(it->u, buf));
+		auto len = utf8::encode(it->u, buf);
+		m_tty.printToIoFile({buf, len});
 	}
 	m_tty.printToIoFile("\n");
 }

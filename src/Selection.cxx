@@ -262,7 +262,7 @@ void Selection::dump() const {
 	if (selection.empty())
 		return;
 
-	m_nst.getTTY().printToIoFile(selection.c_str(), selection.length());
+	m_nst.getTTY().printToIoFile(selection);
 }
 
 } // end ns

@@ -8,6 +8,7 @@
 #include <array>
 #include <chrono>
 #include <set>
+#include <string_view>
 
 // Xlib
 #include <X11/cursorfont.h>
@@ -55,10 +56,10 @@ constexpr std::array<const char*, 8> STTY_ARGS({"stty", "raw", "pass8", "nl", "-
  * 4: value of shell in /etc/passwd
  * 5: value of shell in config.h
  */
-constexpr const char *SHELL = "/bin/sh";
-constexpr const char *UTMP = nullptr;
+constexpr std::string_view SHELL{"/bin/sh"};
+constexpr std::string_view UTMP{};
 /* scroll program: to enable use a string like "scroll" */
-constexpr const char *SCROLL = nullptr;
+constexpr std::string_view SCROLL{};
 /* default TERM value */
 constexpr const char *TERMNAME = "st-256color";
 

@@ -10,7 +10,7 @@ namespace nst {
 Nst::Nst() :
 		m_x11(*this),
 		m_term(*this),
-		m_tty(m_term),
+		m_tty(*this),
 		m_selection(*this),
 		m_event_handler(*this)
 {}
@@ -56,7 +56,7 @@ void Nst::setEnv() {
 
 
 void Nst::mainLoop() {
-	auto ttyfd = m_tty.create(m_cmdline);
+	auto ttyfd = m_tty.create();
 	auto childfd = m_tty.getChildFD();
 	auto &display = m_x11.getDisplay();
 	auto xfd = display.getConnectionNumber();
@@ -87,7 +87,7 @@ void Nst::mainLoop() {
 
 		for (const auto &event: events) {
 			if (event.fd() == childfd) {
-				m_tty.sigChildEvent();
+				m_tty.handleSigChildEvent();
 			} else if (event.fd() == ttyfd) {
 				if (m_tty.read() == 0)
 					// EOF condition

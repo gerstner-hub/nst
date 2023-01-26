@@ -11,6 +11,7 @@
 
 // stdlib
 #include <cstring>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 
@@ -28,23 +29,11 @@
 #include "cosmos/formatting.hxx"
 #include "cosmos/proc/Process.hxx"
 #include "cosmos/proc/SubProc.hxx"
+#include "cosmos/PasswdInfo.hxx"
 
 namespace nst {
 
 using cosmos::ApiError;
-
-namespace {
-
-	std::pair<cosmos::FileDescriptor, cosmos::FileDescriptor> openPTY() {
-		int master, slave;
-		/* seems to work fine on linux, openbsd and freebsd */
-		if (openpty(&master, &slave, nullptr, nullptr, nullptr) < 0) {
-			cosmos_throw (ApiError("openpty failed"));
-		}
-
-		return {cosmos::FileDescriptor(master), cosmos::FileDescriptor(slave)};
-	}
-}
 
 TTY::~TTY() {
 	if (m_child_proc.running()) {
@@ -54,74 +43,79 @@ TTY::~TTY() {
 	}
 }
 
-cosmos::FileDescriptor TTY::create(const Cmdline &cmdline) {
+cosmos::FileDescriptor TTY::create() {
+	const auto &cmdline = m_nst.getCmdline();
 
 	setupIOFile(cmdline.iofile.getValue());
 
-	// operate an a real TTY line, running stty on it
-	if (!cmdline.tty_line.getValue().empty()) {
-		auto &line = cmdline.tty_line.getValue();
-		try {
-			m_cmd_file.open(line, cosmos::OpenMode::READ_WRITE);
-		} catch (const std::exception &ex) {
-			cosmos_throw (ApiError(cosmos::sprintf("open line '%s' failed: %s", line.c_str(), ex.what())));
-		}
-		m_pty.setFD(m_cmd_file);
-		m_cmd_file.getFD().duplicate(cosmos::stdin, /*cloexec=*/false);
-		runStty(cmdline);
-		return m_cmd_file.getFD();
+	if (auto &line = cmdline.tty_line.getValue(); !line.empty()) {
+		// operate on a real TTY line, running stty on it
+		openTTY(line);
+	} else {
+		createPTY();
 	}
 
-	// create a pseudo TTY
-	auto [master, slave] = openPTY();
+	return m_cmd_file.getFD();
+}
 
-	m_cmd_file.open(master, /*closefd=*/true);
-	m_pty.setFD(m_cmd_file);
+void TTY::openTTY(const std::string &line) {
+	try {
+		m_cmd_file.open(line, cosmos::OpenMode::READ_WRITE);
+	} catch (const std::exception &ex) {
+		cosmos_throw (ApiError(cosmos::sprintf("open line '%s' failed: %s", line.c_str(), ex.what())));
+	}
+	m_terminal.setFD(m_cmd_file);
+	m_cmd_file.getFD().duplicate(cosmos::stdin, cosmos::CloseOnExec(false));
+	configureTTY();
+}
+
+void TTY::createPTY() {
+	// create a pseudo TTY
+	auto [master, slave] = cosmos::openPTY();
+
+	m_cmd_file.open(master, cosmos::StreamFile::CloseFile(true));
+	m_terminal.setFD(m_cmd_file);
 
 	try {
-		executeShell(cmdline, slave);
+		executeShell(slave);
 		slave.close();
 	} catch(...) {
 		m_cmd_file.close();
 		slave.close();
 		throw;
 	}
-
-	return m_cmd_file.getFD();
 }
 
 void TTY::setupIOFile(const std::string &path) {
-	if (path.empty()) {
-		m_io_file.close();
-		return;
-	}
-
-	m_term.setPrintMode(true);
+	m_io_file.close();
 
 	if (path == "-") {
-		m_io_file = cosmos::StreamFile(cosmos::stdout, false);
-		return;
+		m_io_file = cosmos::StreamFile(cosmos::stdout, cosmos::StreamFile::CloseFile(false));
+	} else if (!path.empty()) {
+		try {
+			m_io_file.open(
+				path,
+				cosmos::OpenMode::WRITE_ONLY,
+				cosmos::OpenFlags({cosmos::OpenSettings::CREATE, cosmos::OpenSettings::TRUNCATE}),
+				cosmos::FileMode(0640)
+			);
+		} catch (const std::exception &ex) {
+			std::cerr << "Error opening " << path << ": " << ex.what() << std::endl;
+		}
 	}
 
-	try {
-		m_io_file.open(
-			path,
-			cosmos::OpenMode::WRITE_ONLY,
-			cosmos::OpenFlags({cosmos::OpenSettings::CREATE, cosmos::OpenSettings::TRUNCATE}),
-			cosmos::FileMode(0640)
-		);
-	} catch (const std::exception &ex) {
-		std::cerr << "Error opening " << path << ": " << ex.what() << std::endl;
-	}
+	m_nst.getTerm().setPrintMode(m_io_file.isOpen());
 }
 
-void TTY::runStty(const Cmdline &cmdline) {
+void TTY::configureTTY() {
 	cosmos::SubProc stty;
-	auto &args = stty.args();
-	// append fixed config strings
-	cosmos::append(args, config::STTY_ARGS);
-	// append command line strings
-	cosmos::append(args, cmdline.rest.getValue());
+	{
+		auto &args = stty.args();
+		// append fixed config strings
+		cosmos::append(args, config::STTY_ARGS);
+		// append command line strings
+		cosmos::append(args, m_nst.getCmdline().rest.getValue());
+	}
 
 	try {
 		stty.run();
@@ -136,12 +130,14 @@ void TTY::runStty(const Cmdline &cmdline) {
 }
 
 size_t TTY::read() {
+	auto &term = m_nst.getTerm();
+
 	try {
 		size_t read_bytes;
 
 		try {
 			read_bytes = m_cmd_file.read(m_buf + m_buf_bytes, sizeof(m_buf) - m_buf_bytes);
-		} catch (const cosmos::ApiError &ex) {
+		} catch (const ApiError &ex) {
 			if (ex.errnum() == EIO) {
 				// the way the PTY is operated currently
 				// causes no EOF condition to be signaled but
@@ -162,7 +158,7 @@ size_t TTY::read() {
 			exit(0);
 		default:
 			m_buf_bytes += read_bytes;
-			auto written = m_term.write({m_buf, m_buf_bytes}, Term::ShowCtrlChars(false));
+			auto written = term.write({m_buf, m_buf_bytes}, Term::ShowCtrlChars(false));
 			m_buf_bytes -= written;
 			/* keep any incomplete UTF-8 byte sequence for the next call */
 			if (m_buf_bytes > 0)
@@ -177,36 +173,36 @@ size_t TTY::read() {
 
 void TTY::write(const std::string_view &sv, const MayEcho &echo) {
 
-	const char *s = sv.data();
-	auto n = sv.size();
-
-	auto &mode = m_term.getMode();
+	auto &term = m_nst.getTerm();
+	const auto &mode = term.getMode();
 
 	if (echo && mode[Term::Mode::TECHO])
-		m_term.write({s, n}, Term::ShowCtrlChars(true));
+		// display data on screen
+		term.write(sv, Term::ShowCtrlChars(true));
 
 	if (!mode[Term::Mode::CRLF]) {
-		writeRaw(s, n);
+		// forward unmodified data to child
+		writeRaw(sv);
 		return;
 	}
 
+	// otherwise we need to translate newlines
+
 	/* This is similar to how the kernel handles ONLCR for ttys */
-	for (const char *next; n > 0;) {
-		if (*s == '\r') {
-			next = s + 1;
-			writeRaw("\r\n", 2);
+	for (auto it = sv.begin(); it < sv.end();) {
+		if (*it == '\r') {
+			it++;
+			writeRaw("\r\n");
 		} else {
-			next = (const char*)memchr(s, '\r', n);
-			if (!next)
-				next = s + n;
-			writeRaw(s, next - s);
+			// write the segment up to the next CR
+			auto next = std::find(it, sv.end(), '\r');
+			writeRaw({&(*it), static_cast<size_t>(next - it)});
+			it = next;
 		}
-		n -= next - s;
-		s = next;
 	}
 }
 
-void TTY::writeRaw(const char *s, size_t n) {
+void TTY::writeRaw(const std::string_view &sv) {
 	if (!m_cmd_poller.isValid()) {
 		m_cmd_poller.create();
 		m_cmd_poller.addFD(
@@ -225,9 +221,10 @@ void TTY::writeRaw(const char *s, size_t n) {
 	 * FIXME: Migrate the world to Plan 9.
 	 */
 	using Event = cosmos::Poller::Event;
-	size_t r;
+	const char *data = sv.data();
+	size_t written;
 
-	for (size_t lim = 256; n > 0; ) {
+	for (size_t limit = 256, left = sv.size(); left > 0; ) {
 		for (const auto &event: m_cmd_poller.wait()) {
 
 			const auto events = event.getEvents();
@@ -238,44 +235,43 @@ void TTY::writeRaw(const char *s, size_t n) {
 				 * default of 256. This seems to be a reasonable value
 				 * for a serial line. Bigger values might clog the I/O.
 				 */
-				r = m_cmd_file.write(s, std::min(n, lim));
-				if (r < n) {
-					/*
-					 * We weren't able to write out everything.
-					 * This means the buffer is getting full
-					 * again. Empty it.
-					 */
-					if (n < lim)
-						lim = this->read();
-					n -= r;
-					s += r;
-				} else {
+				written = m_cmd_file.write(data, std::min(left, limit));
+				if (written == left)
 					/* All bytes have been written. */
 					return;
-				}
+
+				/*
+				 * We weren't able to write out everything.
+				 * This means the buffer is getting full
+				 * again. Empty it.
+				 */
+				if (left < limit)
+					limit = this->read();
+				left -= written;
+				data += written;
 			}
 
 			// NOTE: the order of output/input is important, we
 			// need to prefer writes, otherwise we clog our own
-			// input buffer until it's full, and nothing is every
+			// input buffer until it's full, and nothing is ever
 			// written out.
 			if (events.test(Event::INPUT_READY)) {
-				lim = this->read();
+				limit = this->read();
 			}
-
 		}
 	}
 }
 
 void TTY::resize(const Extent &size) {
-	cosmos::TermDimension dim(m_term.getNumCols(), m_term.getNumRows());
-	// according to the man page these fields are unused, but it seems nst
-	// wants to use them anyway
+	const auto &term = m_nst.getTerm();
+	cosmos::TermDimension dim(term.getNumCols(), term.getNumRows());
+	// according to the man page these fields are unused on Linux, but it
+	// seems nst wants to use them anyway
 	dim.ws_xpixel = size.width;
 	dim.ws_ypixel = size.height;
 
 	try {
-		m_pty.setSize(dim);
+		m_terminal.setSize(dim);
 	} catch (const std::exception &ex) {
 		std::cerr << "Couldn't set window size: " << ex.what() << "\n";
 	}
@@ -286,46 +282,51 @@ void TTY::hangup() {
 	m_child_proc.kill(cosmos::Signal(SIGHUP));
 }
 
-void TTY::executeShell(const Cmdline &cmdline, cosmos::FileDescriptor slave)
-{
-	const struct passwd *pw = nullptr;
+void TTY::executeShell(cosmos::FileDescriptor slave) {
+	auto &process = cosmos::g_process;
 
-	cosmos::g_process.blockSignals({cosmos::Signal(SIGCHLD)});
+	// we want to receive SIGCHLD synchronously via a signal FD, so block
+	// it
+	process.blockSignals({cosmos::Signal(SIGCHLD)});
 
-	errno = 0;
-	if ((pw = getpwuid(getuid())) == NULL) {
-		if (errno)
-			cosmos_throw (ApiError(("getpwuid failed")));
-		else
-			cosmos_throw (cosmos::InternalError("who are you?"));
+	cosmos::PasswdInfo pw_info(process.getRealUserID());
+	if (!pw_info.isValid()) {
+		cosmos_throw (cosmos::InternalError("who are you?"));
 	}
 
-	const char *sh = getenv("SHELL");
-	if (!sh) {
-		if (pw->pw_shell[0])
-			sh = pw->pw_shell;
-		else
-			sh = nst::config::SHELL;
+	std::string_view shell;
+	if (auto sh = std::getenv("SHELL"); sh != nullptr)
+		shell = sh;
+	else
+		// try the shell from passwd
+		shell = pw_info.getShell();
+
+	// if still empty then use compile time default
+	if (shell.empty()) {
+		shell = nst::config::SHELL;
 	}
 
-	m_child_proc.setPostForkCB([this, &slave, pw, sh](const cosmos::SubProc &) {
+	// code executed in the child before we execute the new program
+	m_child_proc.setPostForkCB([this, &slave, pw_info, shell](const cosmos::SubProc &) {
 		m_io_file.close();
 		m_cmd_file.close();
 
 		setsid(); /* create a new process group */
 
+		// make the slave end of the TTY the new default file
+		// descriptors for the child
 		for (auto stdfd: {cosmos::stdin, cosmos::stdout, cosmos::stderr}) {
-			slave.duplicate(stdfd, /*cloexec=*/false);
+			slave.duplicate(stdfd, cosmos::CloseOnExec(false));
 		}
 
-		if (ioctl(slave.raw(), TIOCSCTTY, nullptr) < 0) {
-			cosmos_throw (ApiError("ioctl TIOCSCTTY failed"));
-		}
+		// make our new TTY the controlling terminal of the child
+		cosmos::Terminal(slave).makeControllingTerminal();
 
-		if (slave.raw() > 2) {
+		// make sure no unnecessary duplicate of the slave TTY exists
+		if (slave.raw() > 2)
 			slave.close();
-		}
 
+		// setup default signal handlers again
 		for (auto sig: {SIGCHLD, SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGALRM}) {
 			::signal(sig, SIG_DFL);
 		}
@@ -333,33 +334,31 @@ void TTY::executeShell(const Cmdline &cmdline, cosmos::FileDescriptor slave)
 		unsetenv("COLUMNS");
 		unsetenv("LINES");
 		unsetenv("TERMCAP");
-		setenv("LOGNAME", pw->pw_name, 1);
-		setenv("USER", pw->pw_name, 1);
-		setenv("SHELL", sh, 1);
-		setenv("HOME", pw->pw_dir, 1);
+		setenv("LOGNAME", pw_info.getName().data(), 1);
+		setenv("USER", pw_info.getName().data(), 1);
+		setenv("SHELL", shell.data(), 1);
+		setenv("HOME", pw_info.getHomeDir().data(), 1);
 		setenv("TERM", config::TERMNAME, 1);
 	});
 
-	auto &args = cmdline.rest.getValue();
-
-	if (args.empty()) {
-		// use default configuration
-		if (config::SCROLL) {
-			m_child_proc.setArgs({config::SCROLL, config::UTMP ? config::UTMP : sh});
-		} else if (config::UTMP) {
-			m_child_proc.setExe(std::string(config::UTMP));
-		} else {
-			m_child_proc.setExe(sh);
-		}
-	} else {
+	if (auto &args = m_nst.getCmdline().rest.getValue(); !args.empty()) {
 		m_child_proc.setArgs(args);
+	} else {
+		// use default configuration
+		if (!config::SCROLL.empty()) {
+			m_child_proc.setArgsFromView({config::SCROLL, config::UTMP.empty() ? shell : config::UTMP});
+		} else if (!config::UTMP.empty()) {
+			m_child_proc.setExe(config::UTMP);
+		} else {
+			m_child_proc.setExe(shell);
+		}
 	}
 
 	// this may throw, we'll let it pass through to the caller
 	m_child_proc.run();
 }
 
-void TTY::sigChildEvent() {
+void TTY::handleSigChildEvent() {
 	auto res = m_child_proc.wait();
 
 	if (res.exited() && res.exitStatus() != 0) {
@@ -367,21 +366,19 @@ void TTY::sigChildEvent() {
 	} else if (res.signaled()) {
 		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child terminated due to signal %d", res.termSignal().raw())));
 	}
-
-	_exit(0);
 }
 
 void TTY::sendBreak() {
 	try {
-		m_pty.sendBreak(0);
+		m_terminal.sendBreak(0);
 	} catch (const std::exception &ex) {
 		std::cerr << "failed to send break: " << ex.what() << std::endl;
 	}
 }
 
-void TTY::doPrintToIoFile(const char *s, size_t len) {
+void TTY::doPrintToIoFile(const std::string_view &s) {
 	try {
-		m_io_file.writeAll(s, len);
+		m_io_file.writeAll(s.data(), s.size());
 	} catch (const std::exception &ex) {
 		std::cerr << "error writing to output file: " << ex.what() << std::endl;
 		m_io_file.close();

@@ -1145,20 +1145,18 @@ void X11::embeddedFocusChange(const bool in_focus) {
 }
 
 void X11::focusChange(const bool in_focus) {
-	// called when focus changes and we run in our own window
-	auto &tty = m_nst.getTTY();
-
 	if (in_focus) {
 		m_input.setFocus();
 		m_twin.setFlag(WinMode::FOCUSED);
 		setUrgency(0);
-		if (m_twin.checkFlag(WinMode::FOCUS))
-			tty.reportFocus(in_focus);
 	} else {
 		m_input.unsetFocus();
 		m_twin.resetFlag(WinMode::FOCUSED);
-		if (m_twin.checkFlag(WinMode::FOCUS))
-			tty.reportFocus(in_focus);
+	}
+
+	if (m_twin.checkFlag(WinMode::FOCUS)) {
+		// called when focus changes and we run in our own window
+		m_nst.getTerm().reportFocus(in_focus);
 	}
 }
 

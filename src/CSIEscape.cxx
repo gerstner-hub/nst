@@ -609,4 +609,12 @@ int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	}
 }
 
+void CSIEscape::reportFocus(bool in_focus) {
+	auto &tty = m_nst.getTTY();
+	if (in_focus)
+		tty.write("\033[I", TTY::MayEcho(false));
+	else
+		tty.write("\033[O", TTY::MayEcho(false));
+}
+
 } // end ns

@@ -403,6 +403,8 @@ public: // functions
 
 	auto& getScreen() const { return m_screen; }
 
+	void reportFocus(bool in_focus) { m_esc_handler.reportFocus(in_focus); }
+
 protected: // functions
 
 	/// feeds the given single input rune as input

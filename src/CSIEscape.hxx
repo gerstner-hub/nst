@@ -56,6 +56,9 @@ public: // functions
 		m_str.clear();
 	}
 
+	/// if focus reporting was enabled, report focus state change on TTY
+	void reportFocus(bool in_focus);
+
 protected: // functions
 
 	/// makes sure the given argument index exists in m_args, possibly assigning defval

@@ -53,6 +53,10 @@ public: // functions
 	 **/
 	WasProcessed process(const RuneInfo &r);
 
+	void reportFocus(bool in_focus) {
+		m_csi_escape.reportFocus(in_focus);
+	}
+
 protected: // functions
 
 	/// returns whether we're currently passing a StringEscape sequence

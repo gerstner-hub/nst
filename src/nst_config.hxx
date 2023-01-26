@@ -36,7 +36,7 @@ namespace config {
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-constexpr const char *FONT = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+constexpr std::string_view FONT{"Liberation Mono:pixelsize=12:antialias=true:autohint=true"};
 constexpr double FONT_DEFAULT_SIZE_PX = 12;
 
 /*
@@ -44,9 +44,9 @@ constexpr double FONT_DEFAULT_SIZE_PX = 12;
  *
  * More advanced example: L" `'\"()[]{}"
  */
-constexpr const wchar_t *WORDDELIMITERS = L" ";
+constexpr const std::wstring_view WORDDELIMITERS{L" "};
 
-constexpr std::array<const char*, 8> STTY_ARGS({"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"});
+constexpr std::array<std::string_view, 8> STTY_ARGS({"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"});
 
 /*
  * What program is execed by st depends on these precedence rules:
@@ -61,10 +61,10 @@ constexpr std::string_view UTMP{};
 /* scroll program: to enable use a string like "scroll" */
 constexpr std::string_view SCROLL{};
 /* default TERM value */
-constexpr const char *TERMNAME = "st-256color";
+constexpr std::string_view TERMNAME{"st-256color"};
 
 /* identification sequence returned in DA and DECID */
-constexpr const char *VTIDEN = "\033[?6c";
+constexpr std::string_view VTIDEN{"\033[?6c"};
 
 /* allow certain non-interactive (insecure) window operations such as:
    setting the clipboard text */
@@ -141,7 +141,7 @@ const unsigned int CURSORTHICKNESS = 2;
  */
 const int BELLVOLUME = 0;
 
-constexpr std::array<const char*, 4> EXTENDED_COLORS({
+constexpr std::array<std::string_view, 4> EXTENDED_COLORS({
 	/* more colors can be added after 255 to use with DefaultXX */
 	"#cccccc",
 	"#555555",
@@ -150,7 +150,7 @@ constexpr std::array<const char*, 4> EXTENDED_COLORS({
 });
 
 /* Terminal colors (16 first used in escape sequence) */
-constexpr std::array<const char*, 16> COLORNAMES({
+constexpr std::array<std::string_view, 16> COLORNAMES({
 	/* 8 normal colors */
 	"black",
 	"red3",
@@ -176,7 +176,7 @@ constexpr std::array<const char*, 16> COLORNAMES({
 /**
  * \return The according color name or nullptr if none is configured for the number
  **/
-const char* getColorName(size_t nr);
+const std::string_view getColorName(size_t nr);
 
 /// Default shape of cursor
 static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;

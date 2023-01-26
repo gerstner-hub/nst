@@ -26,7 +26,8 @@ Selection::Selection(Nst &nst) : m_nst(nst), m_term(nst.getTerm()) {
 }
 
 bool Selection::isDelim(const Glyph &g) const {
-	return g.u && wcschr(config::WORDDELIMITERS, g.u);
+	auto DELIMITERS = config::WORDDELIMITERS.data();
+	return g.u && wcschr(DELIMITERS, g.u);
 }
 
 void Selection::clear() {

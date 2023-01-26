@@ -66,7 +66,7 @@ std::vector<KbdShortcut> getKbdShortcuts(Nst &nst) {
 	};
 }
 
-const char* getColorName(size_t nr) {
+const std::string_view getColorName(size_t nr) {
 	if (nr < COLORNAMES.size())
 		return COLORNAMES[nr];
 	else if (nr >= 256) {
@@ -79,7 +79,7 @@ const char* getColorName(size_t nr) {
 	// unassigned
 	// NOTE: the libX functions that consume this are tolerant against
 	// null pointers
-	return nullptr;
+	return {};
 }
 
 } // ns nst::config

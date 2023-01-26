@@ -190,8 +190,10 @@ int X11::loadColor(size_t i, const char *name, FontColor *ncolor) {
 			}
 			return XftColorAllocValue(*m_display, m_visual,
 			                          m_color_map, &color, ncolor);
-		} else
-			name = config::getColorName(i);
+		} else {
+			auto cname = config::getColorName(i);
+			name = cname.empty() ? nullptr : cname.data();
+		}
 	}
 
 	return XftColorAllocName(*m_display, m_visual, m_color_map, name, ncolor);
@@ -210,9 +212,8 @@ void X11::loadColors() {
 
 	for (size_t i = 0; i < m_draw_ctx.col.size(); i++) {
 		if (!loadColor(i, nullptr, &m_draw_ctx.col[i])) {
-			auto colorname = config::getColorName(i);
-			if (colorname)
-				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname)));
+			if (auto colorname = config::getColorName(i); !colorname.empty())
+				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname.data())));
 			else
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
@@ -615,7 +616,8 @@ void X11::setupCursor() {
 	XColor xmousefg, xmousebg;
 
 	auto parseColor = [this](size_t colnr, XColor &out) {
-		auto res = XParseColor(*m_display, m_color_map, config::getColorName(colnr), &out);
+		auto cname = config::getColorName(colnr);
+		auto res = XParseColor(*m_display, m_color_map, cname.empty() ? nullptr : cname.data(), &out);
 		return res != 0;
 	};
 

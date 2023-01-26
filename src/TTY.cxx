@@ -338,7 +338,7 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 		setenv("USER", pw_info.getName().data(), 1);
 		setenv("SHELL", shell.data(), 1);
 		setenv("HOME", pw_info.getHomeDir().data(), 1);
-		setenv("TERM", config::TERMNAME, 1);
+		setenv("TERM", config::TERMNAME.data(), 1);
 	});
 
 	if (auto &args = m_nst.getCmdline().rest.getValue(); !args.empty()) {

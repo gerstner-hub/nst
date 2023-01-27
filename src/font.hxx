@@ -93,9 +93,9 @@ struct Font {
 	int badweight;
 	short lbearing;
 	short rbearing;
-	XftFont *match;
-	FcFontSet *set;
-	FcPattern *pattern;
+	XftFont *match = nullptr;
+	FcFontSet *set = nullptr;
+	FcPattern *pattern = nullptr;
 };
 
 struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {

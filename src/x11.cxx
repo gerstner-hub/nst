@@ -111,7 +111,19 @@ X11::X11(Nst &nst) : m_nst(nst), m_input(*this), m_xsel(nst), m_tsize{config::CO
 }
 
 X11::~X11() {
+	if (m_font_draw) {
+		XftDrawDestroy(m_font_draw);
+	}
 	m_draw_ctx.freeGC();
+	unloadFonts();
+#if 0
+	// TODO: enabling this fixed a leak but also causes an assertion on
+	// shutdown, because something else withing fontconfig was not
+	// properly freed. Hard to hunt this down in the current state of font
+	// handling code. Fix this together with font refactoring.
+	if (m_fc_inited)
+		FcFini();
+#endif
 }
 
 void X11::copyToClipboard() {
@@ -341,6 +353,7 @@ int X11::loadFont(Font *f, FcPattern *pattern) {
 
 	// ownership will be transferred now
 	configured_guard.disarm();
+	// TODO: memory leak? Is this match pattern really transferred?
 	match_guard.disarm();
 
 	if (int wantattr; (XftPatternGetInteger(pattern, "slant", 0, &wantattr) == XftResultMatch)) {
@@ -443,10 +456,18 @@ void X11::loadFontsOrThrow(const std::string &fontstr, double fontsize) {
 }
 
 void X11::unloadFont(Font *f) {
-	XftFontClose(*m_display, f->match);
-	FcPatternDestroy(f->pattern);
-	if (f->set)
+	if (f->match) {
+		XftFontClose(*m_display, f->match);
+		f->match = nullptr;
+	}
+	if (f->pattern) {
+		FcPatternDestroy(f->pattern);
+		f->pattern = nullptr;
+	}
+	if (f->set) {
 		FcFontSetDestroy(f->set);
+		f->set = nullptr;
+	}
 }
 
 void X11::unloadFonts() {
@@ -467,6 +488,11 @@ bool X11::ximOpen() {
 
 	m_input.installCallback();
 	return false;
+}
+
+X11::Input::~Input() {
+	if (m_spotlist)
+		XFree(m_spotlist);
 }
 
 void X11::Input::installCallback() {
@@ -659,6 +685,8 @@ void X11::init() {
 	/* font */
 	if (!FcInit())
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
+
+	m_fc_inited = true;
 
 	loadFontsOrThrow(m_cmdline->font.getValue());
 

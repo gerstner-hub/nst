@@ -14,7 +14,6 @@
 
 // nst
 #include "codecs.hxx"
-#include "helper.hxx"
 
 namespace nst {
 

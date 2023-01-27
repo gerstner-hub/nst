@@ -30,7 +30,6 @@
 
 // nst
 #include "codecs.hxx"
-#include "helper.hxx"
 /* nst_config.h for applying patches and the configuration. */
 #include "nst_config.hxx"
 #include "nst.hxx"
@@ -40,6 +39,18 @@
 #include "types.hxx"
 #include "x11.hxx"
 #include "XSelection.hxx"
+
+namespace {
+
+template <typename T, typename V>
+inline void modifyBit(T &mask, const bool set, const V &bit) {
+	if (set)
+		mask |= bit;
+	else
+		mask &= ~bit;
+}
+
+} // end anon ns
 
 namespace nst {
 

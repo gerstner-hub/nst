@@ -74,10 +74,8 @@ struct PosT {
 	}
 };
 
-class char_pos_t;
-
 /// represents a character position on the terminal in col/row units
-struct CharPos : public PosT<char_pos_t> {
+struct CharPos : public PosT<class char_pos_t> {
 	CharPos nextCol(const int n=1)  const { return CharPos{x + n, y    }; }
 	CharPos prevCol(const int n=1)  const { return CharPos{x - n, y    }; }
 	CharPos nextLine(const int n=1) const { return CharPos{x,     y + n}; }
@@ -92,10 +90,8 @@ struct CharPos : public PosT<char_pos_t> {
 	CharPos& moveToStartOfLine() { x = 0; return *this; }
 };
 
-class draw_pos_t;
-
 /// represents a drawing position in a window in pixel units
-struct DrawPos : public PosT<draw_pos_t> {
+struct DrawPos : public PosT<class draw_pos_t> {
 	auto& moveDown( int px) { y += px; return *this; }
 	auto& moveUp(   int px) { y -= px; return *this; }
 	auto& moveLeft( int px) { x -= px; return *this; }

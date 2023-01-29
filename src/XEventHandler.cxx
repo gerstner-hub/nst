@@ -453,20 +453,21 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 		 * with XA_STRING non ascii characters may be incorrect in the
 		 * requestor. It is not our problem, use utf8.
 		 */
-		auto seltext = m_xsel.getSelection(req.selection);
-
-		if (!seltext) {
-			std::cerr << "Unhandled clipboard selection " << cosmos::hexnum(req.selection, 0) << std::endl;
+		try {
+			auto seltext = m_xsel.getSelection(xpp::XAtom(req.selection));
+			if (!seltext.empty()) {
+				// TODO: this potentially needlessly copies the
+				// selection string, because we need to turn it into
+				// an utf8_string wrapper object.
+				// either keep utf8_string within XSelection right
+				// away or use string_view in utf8_string to avoid
+				// this.
+				xpp::Property<xpp::utf8_string> sel_utf8{xpp::utf8_string(seltext)};
+				requestor.setProperty(req_prop, sel_utf8);
+			}
+		} catch (const std::exception &ex) {
+			std::cerr << "Failed to handle clipboard selection " << cosmos::hexnum(req.selection, 0) << ": " << ex.what() << std::endl;
 			return;
-		} else if (!seltext->empty()) {
-			// TODO: this potentially needlessly copies the
-			// selection string, because we need to turn it into
-			// an utf8_string wrapper object.
-			// either keep utf8_string within XSelection right
-			// away or use string_view in utf8_string to avoid
-			// this.
-			xpp::Property<xpp::utf8_string> sel_utf8{xpp::utf8_string(*seltext)};
-			requestor.setProperty(req_prop, sel_utf8);
 		}
 
 		xev.property = req_prop;

@@ -7,25 +7,9 @@ namespace nst {
 
 XSelection::XSelection(Nst &nst) : m_nst(nst), m_x11(nst.getX11()) {}
 
-void XSelection::copyPrimaryToClipboard() {
-	m_clipboard = m_primary;
-}
-
-void XSelection::setSelection(const std::string_view &str, Time t) {
-	if (str.empty())
-		return;
-
-	m_primary = str;
-	auto& display = m_x11.getDisplay();
-
-	m_x11.getWindow().makeSelectionOwner(xpp::XAtom(XA_PRIMARY), t);
-	if (XGetSelectionOwner(display, XA_PRIMARY) != m_x11.getWindow())
-		m_nst.getSelection().clear();
-}
-
 void XSelection::init() {
-	m_tclick1.mark();
-	m_tclick2.mark();
+	m_last_click.mark();
+	m_penultimate_click.mark();
 	m_primary.clear();
 	m_clipboard.clear();
 	try {
@@ -35,6 +19,42 @@ void XSelection::init() {
 	}
 }
 
+void XSelection::setSelection(const std::string_view &str, Time t) {
+	if (str.empty())
+		return;
+
+	m_primary = str;
+
+	const auto &display = m_x11.getDisplay();
+	const auto primary = xpp::XAtom(XA_PRIMARY);
+	auto &our_window = m_x11.getWindow();
+
+	our_window.makeSelectionOwner(primary, t);
+	if (auto owner = display.getSelectionOwner(primary); !owner || *owner != our_window)
+		// we could not become the new selection owner
+		m_nst.getSelection().clear();
+}
+
+void XSelection::copyPrimaryToClipboard() {
+	m_clipboard = m_primary;
+
+	if (m_primary.empty())
+		return;
+
+	const auto clipboard = m_x11.getXAtom("CLIPBOARD");
+	m_x11.getWindow().makeSelectionOwner(clipboard);
+}
+
+const std::string& XSelection::getSelection(const xpp::XAtom which) const {
+	if (which == XA_PRIMARY) {
+		return m_primary;
+	} else if (which == m_x11.getAtom("CLIPBOARD")) {
+		return m_clipboard;
+	}
+
+	throw std::runtime_error("invalid selection requested");
+}
+
 Selection::Snap XSelection::handleClick() {
 	/*
 	 * If the user left-clicks below predefined timeouts specific snapping
@@ -42,28 +62,16 @@ Selection::Snap XSelection::handleClick() {
 	 */
 	auto ret = Selection::Snap::NONE;
 
-	if (m_tclick2.elapsed() <= config::TRIPLECLICKTIMEOUT) {
+	if (m_penultimate_click.elapsed() <= config::TRIPLECLICKTIMEOUT) {
 		ret = Selection::Snap::LINE;
-	} else if (m_tclick1.elapsed() <= config::DOUBLECLICKTIMEOUT) {
+	} else if (m_last_click.elapsed() <= config::DOUBLECLICKTIMEOUT) {
 		ret = Selection::Snap::WORD;
 	}
 
-	m_tclick2 = m_tclick1;
-	m_tclick1.mark();
+	m_penultimate_click = m_last_click;
+	m_last_click.mark();
 
 	return ret;
-}
-
-const std::string* XSelection::getSelection(Atom which) const {
-	auto clipboard = m_x11.getAtom("CLIPBOARD");
-
-	if (which == XA_PRIMARY) {
-		return &m_primary;
-	} else if (which == clipboard) {
-		return &m_clipboard;
-	}
-
-	return nullptr;
 }
 
 } // end ns

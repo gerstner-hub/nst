@@ -128,11 +128,6 @@ X11::~X11() {
 
 void X11::copyToClipboard() {
 	m_xsel.copyPrimaryToClipboard();
-
-	if (m_xsel.havePrimarySelection()) {
-		auto clipboard = getXAtom("CLIPBOARD");
-		m_window.makeSelectionOwner(clipboard);
-	}
 }
 
 void X11::pasteClipboard() {

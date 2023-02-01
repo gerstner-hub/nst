@@ -35,13 +35,13 @@ void Selection::clear() {
 	if (!m_orig.isValid())
 		return;
 
-	m_mode = Mode::IDLE;
+	m_state = State::IDLE;
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_normal});
 }
 
 bool Selection::isSelected(const CharPos &pos) const {
-	if (inEmptyMode() || !m_orig.isValid() || m_alt_screen != m_term.getMode().test(Term::Mode::ALTSCREEN))
+	if (inEmptyState() || !m_orig.isValid() || m_alt_screen != m_term.getMode().test(Term::Mode::ALTSCREEN))
 		return false;
 	else if (isRectType())
 		return m_normal.inRange(pos);
@@ -53,7 +53,7 @@ bool Selection::isSelected(const CharPos &pos) const {
 
 void Selection::start(const CharPos &pos, Snap snap) {
 	clear();
-	m_mode = Mode::EMPTY;
+	m_state = State::EMPTY;
 	m_type = Type::REGULAR;
 	m_alt_screen = m_term.getMode().test(Term::Mode::ALTSCREEN);
 	m_snap = snap;
@@ -62,7 +62,7 @@ void Selection::start(const CharPos &pos, Snap snap) {
 	normalize();
 
 	if (m_snap != Snap::NONE)
-		m_mode = Mode::READY;
+		m_state = State::READY;
 
 	m_term.setDirty(LineSpan{m_normal});
 }
@@ -180,9 +180,9 @@ void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 }
 
 void Selection::extend(const CharPos &pos, const Type type, const bool done) {
-	if (inIdleMode()) {
+	if (inIdleState()) {
 		return;
-	} else if (done && inEmptyMode()) {
+	} else if (done && inEmptyState()) {
 		clear();
 		return;
 	}
@@ -195,7 +195,7 @@ void Selection::extend(const CharPos &pos, const Type type, const bool done) {
 	normalize();
 	m_type = type;
 
-	if (old_end != m_orig.end || oldtype != m_type || inEmptyMode()) {
+	if (old_end != m_orig.end || oldtype != m_type || inEmptyState()) {
 		const LineSpan new_normal_span{m_normal};
 		LineSpan dirty_span;
 		dirty_span.top = std::min(new_normal_span.top, old_normal_span.top);
@@ -203,7 +203,7 @@ void Selection::extend(const CharPos &pos, const Type type, const bool done) {
 		m_term.setDirty(dirty_span);
 	}
 
-	m_mode = done ? Mode::IDLE : Mode::READY;
+	m_state = done ? State::IDLE : State::READY;
 }
 
 void Selection::scroll(const int origin_y, const int num_lines) {

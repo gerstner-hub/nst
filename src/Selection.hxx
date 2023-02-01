@@ -31,7 +31,7 @@ public: // types
 
 protected: // types
 
-	enum class Mode {
+	enum class State {
 		IDLE, /// no selection process active
 		EMPTY, /// selection was started but nothing is selected yet
 		READY /// selection data is available
@@ -87,9 +87,9 @@ protected: // functions
 
 	bool isRegularType() const { return m_type == Type::REGULAR; }
 	bool isRectType()    const { return m_type == Type::RECTANGULAR; }
-	bool inIdleMode()    const { return m_mode == Mode::IDLE; }
-	bool inEmptyMode()   const { return m_mode == Mode::EMPTY; }
-	bool inReadyMode()   const { return m_mode == Mode::READY; }
+	bool inIdleState()   const { return m_state == State::IDLE; }
+	bool inEmptyState()  const { return m_state == State::EMPTY; }
+	bool inReadyState()  const { return m_state == State::READY; }
 
 	void normalize();
 	/// attempt to extend the selection in the given direction corresponding to the current snap setting
@@ -111,7 +111,7 @@ protected: // data
 	bool m_alt_screen = false; /// alt screen setting when start() was invoked
 	Snap m_snap = Snap::WORD;
 	Type m_type = Type::REGULAR;
-	Mode m_mode = Mode::IDLE;
+	State m_state = State::IDLE;
 
 	/*
 	 * Selection ranges:

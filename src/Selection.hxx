@@ -18,8 +18,8 @@ class Selection {
 public: // types
 
 	enum class Type {
-		REGULAR,
-		RECTANGULAR
+		REGULAR, /// select a range of continuous lines from start to end coordinate
+		RECTANGULAR /// select a rectangular area from start to end coordinate
 	};
 
 	/// automatic selection or surrounding text
@@ -78,6 +78,10 @@ public: // functions
 	 **/
 	void scroll(const int origin_y, const int num_lines);
 
+	/// retrieves the content of the current selection
+	/**
+	 * If nothing is currently selected then an empty string is returned.
+	 **/
 	std::string getSelection() const;
 
 	/// dump current selection into I/O file
@@ -91,7 +95,23 @@ protected: // functions
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }
 
-	void normalize();
+	/// updates the current selection after a change of m_orig
+	void update();
+
+	/// normalize the current selection range coordinates
+	/**
+	 * This function makes sure that the begin of the selection is
+	 * actually a logically smaller coordinate than the end of the
+	 * selection. This simplifies the rest of the selection logic which
+	 * doesn't have to worry about going backwards from the start
+	 * coordinate.
+	 **/
+	void normalizeRange();
+
+	void extendSnap() {
+		extendSnap(m_range.begin, Direction::BACKWARD);
+		extendSnap(m_range.end,   Direction::FORWARD);
+	}
 	/// attempt to extend the selection in the given direction corresponding to the current snap setting
 	/**
 	 * \param[in-out] pos The position from which to start extending. Will
@@ -101,8 +121,14 @@ protected: // functions
 	void extendWordSnap(CharPos &pos, const Direction direction) const;
 	void extendLineSnap(CharPos &pos, const Direction direction) const;
 
+	/// extends the selection over line breaks for the regular selection type
+	void extendLineBreaks();
+
 	/// returns whether the given Glyph is a word delimiting character
 	bool isDelim(const Glyph &g) const;
+
+	/// returns whether the alt/screen was switched since start()
+	bool hasScreenChanged() const;
 
 protected: // data
 
@@ -113,13 +139,8 @@ protected: // data
 	Type m_type = Type::REGULAR;
 	State m_state = State::IDLE;
 
-	/*
-	 * Selection ranges:
-	 * normal: normalized coordinates of the beginning and end of the selection
-	 * orig: original coordinates of the beginning and end of the selection
-	 */
-	Range m_normal;
-	Range m_orig;
+	Range m_range; /// selection range with normalized coordinates
+	Range m_orig; /// selection range with original cooridinates
 };
 
 } // end ns

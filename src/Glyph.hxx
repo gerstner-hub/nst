@@ -82,24 +82,32 @@ public: // functions
 		u = ' ';
 	}
 
+	bool isSameRune(const Glyph &other) const {
+		return u == other.u;
+	}
+
 	/// returns whether the Glyph is "empty", currently meaning "space"
 	bool isEmpty() const { return u == ' '; }
 	bool hasValue() const { return !isEmpty(); }
 	bool isDummy() const { return mode[Attr::WDUMMY]; }
 	bool isWide() const { return mode[Attr::WIDE]; }
+	bool isWrapped() const { return mode[Attr::WRAP]; }
 };
 
 /// a series of Glyphs forming a line on the terminal
 using Line = std::vector<Glyph>;
 
 /// a terminal screen consisting of lines of Glyphs
-struct Screen : public std::vector<Line> {
+class Screen : public std::vector<Line> {
+protected: // functions
 
-	Glyph& getGlyphAt(const CharPos &c) { return (*this)[c.y][c.x]; }
-	const Glyph& getGlyphAt(const CharPos &c) const { return (*this)[c.y][c.x]; }
+	auto& getBase() { return static_cast<std::vector<Line>&>(*this); }
+	auto& getBase() const { return static_cast<const std::vector<Line>&>(*this); }
 
-	Line& getLine(const CharPos &pos) { return (*this)[pos.y]; }
-	const Line& getLine(const CharPos &pos) const { return (*this)[pos.y]; }
+public: // functions
+
+	Line& getLine(const CharPos &pos) { return getBase()[pos.y]; }
+	const Line& getLine(const CharPos &pos) const { return getBase()[pos.y]; }
 
 	void setDimension(const TermSize &size) {
 		resize(size.rows);
@@ -109,6 +117,27 @@ struct Screen : public std::vector<Line> {
 			row.resize(size.cols);
 		}
 	}
+
+	size_type numCols() const { return empty() ? 0 : front().size(); }
+	size_type numLines() const { return size(); }
+
+	bool validLine(const CharPos &p) const {
+		return p.y >= 0 && static_cast<size_t>(p.y) < numLines();
+	}
+
+	bool validColumn(const CharPos &p) const {
+		return p.x >= 0 && static_cast<size_t>(p.x) < numCols();
+	}
+
+	bool validPos(const CharPos &p) const {
+		return validLine(p) && validColumn(p);
+	}
+
+	Glyph& operator[](const CharPos &p) { return getBase()[p.y][p.x]; }
+	const Glyph& operator[](const CharPos &p) const { return getBase()[p.y][p.x]; }
+
+	Line& operator[](size_type pos) { return getBase()[pos]; }
+	const Line& operator[](size_type pos) const { return getBase()[pos]; }
 };
 
 } // end ns

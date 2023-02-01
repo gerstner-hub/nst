@@ -177,7 +177,7 @@ void Term::clearRegion(Range range) {
 			const auto pos = CharPos{x, y};
 			if (m_selection.isSelected(pos))
 				m_selection.clear();
-			auto &gp = m_screen.getGlyphAt(pos);
+			auto &gp = m_screen[pos];
 			gp.clear(m_cursor.getAttr());
 		}
 	}
@@ -509,14 +509,14 @@ void Term::draw() {
 
 	// in case we point to a wide character dummy position, move one
 	// character to the left to point to the actual character
-	if (m_screen.getGlyphAt(m_last_cursor_pos).isDummy())
+	if (m_screen[m_last_cursor_pos].isDummy())
 		m_last_cursor_pos.moveLeft();
-	if (m_screen.getGlyphAt(new_pos).isDummy())
+	if (m_screen[new_pos].isDummy())
 		new_pos.moveLeft();
 
 	drawScreen();
-	m_x11.clearCursor(m_last_cursor_pos, m_screen.getGlyphAt(m_last_cursor_pos));
-	m_x11.drawCursor(new_pos, m_screen.getGlyphAt(new_pos));
+	m_x11.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
+	m_x11.drawCursor(new_pos, m_screen[new_pos]);
 
 	const bool cursor_pos_changed = orig_last_pos != new_pos;
 	m_last_cursor_pos = new_pos;
@@ -564,18 +564,18 @@ Rune Term::translateChar(Rune u) {
 }
 
 void Term::setChar(Rune u, const CharPos &pos) {
-	auto &glyph = m_screen.getGlyphAt(pos);
+	auto &glyph = m_screen[pos];
 
 	// if we replace a WIDE/DUMMY position then correct the sibbling
 	// position
 	if (glyph.mode[Attr::WIDE]) {
 		if (!isAtEndOfLine(pos)) {
-			auto &next_glyph = m_screen.getGlyphAt(pos.nextCol());
+			auto &next_glyph = m_screen[pos.nextCol()];
 			next_glyph.u = ' ';
 			next_glyph.mode.reset(Attr::WDUMMY);
 		}
 	} else if (glyph.mode[Attr::WDUMMY]) {
-		auto &prev_glyph = m_screen.getGlyphAt(pos.prevCol());
+		auto &prev_glyph = m_screen[pos.prevCol()];
 		prev_glyph.u = ' ';
 		prev_glyph.mode.reset(Attr::WIDE);
 	}

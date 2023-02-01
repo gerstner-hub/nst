@@ -464,7 +464,7 @@ protected: // functions
 		clampRow(span.bottom);
 	}
 
-	Glyph* getCurGlyph() { return &m_screen.getGlyphAt(m_cursor.pos); }
+	Glyph* getCurGlyph() { return &m_screen[m_cursor.pos]; }
 };
 
 } // end ns

@@ -329,7 +329,7 @@ void XEventHandler::buttonPress(const XButtonEvent &ev) {
 
 	const auto snap = m_xsel.handleClick();
 	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
-	m_nst.getSelection().start(pos.x, pos.y, snap);
+	m_nst.getSelection().start(pos, snap);
 }
 
 void XEventHandler::propertyNotify(const xpp::Event &ev) {

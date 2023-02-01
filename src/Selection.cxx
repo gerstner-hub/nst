@@ -8,12 +8,13 @@
 #include "cosmos/algs.hxx"
 
 // nst
+#include "codecs.hxx"
+#include "Glyph.hxx"
+#include "nst_config.hxx"
+#include "nst.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
-#include "codecs.hxx"
-#include "nst.hxx"
-#include "nst_config.hxx"
 
 using cosmos::in_range;
 
@@ -26,8 +27,8 @@ Selection::Selection(Nst &nst) : m_nst(nst), m_term(nst.getTerm()) {
 }
 
 bool Selection::isDelim(const Glyph &g) const {
-	auto DELIMITERS = config::WORDDELIMITERS.data();
-	return g.u && wcschr(DELIMITERS, g.u);
+	auto &DELIMITERS = config::WORDDELIMITERS;
+	return g.u && DELIMITERS.find_first_of(g.u) != DELIMITERS.npos;
 }
 
 void Selection::clear() {
@@ -41,23 +42,23 @@ void Selection::clear() {
 
 bool Selection::isSelected(const CharPos &pos) const {
 	if (inEmptyMode() || !m_orig.isValid() || m_alt_screen != m_term.getMode().test(Term::Mode::ALTSCREEN))
-		return 0;
+		return false;
 	else if (isRectType())
-		return in_range(pos.y, m_normal.begin.y, m_normal.end.y) && in_range(pos.x, m_normal.begin.x, m_normal.end.x);
+		return m_normal.inRange(pos);
 	else
 		return in_range(pos.y, m_normal.begin.y, m_normal.end.y) &&
 			(pos.y != m_normal.begin.y || pos.x >= m_normal.begin.x) &&
 			(pos.y != m_normal.end.y || pos.x <= m_normal.end.x);
 }
 
-void Selection::start(int col, int row, Snap snap) {
+void Selection::start(const CharPos &pos, Snap snap) {
 	clear();
 	m_mode = Mode::EMPTY;
 	m_type = Type::REGULAR;
 	m_alt_screen = m_term.getMode().test(Term::Mode::ALTSCREEN);
 	m_snap = snap;
-	m_orig.begin.set(col, row);
-	m_orig.end.set(col, row);
+	m_orig.begin = pos;
+	m_orig.end = pos;
 	normalize();
 
 	if (m_snap != Snap::NONE)
@@ -78,8 +79,8 @@ void Selection::normalize(void) {
 	m_normal.begin.y = std::min(m_orig.begin.y, m_orig.end.y);
 	m_normal.end.y   = std::max(m_orig.begin.y, m_orig.end.y);
 
-	checkSnap(m_normal.begin, -1);
-	checkSnap(m_normal.end,   +1);
+	extendSnap(m_normal.begin, Direction::BACKWARD);
+	extendSnap(m_normal.end,   Direction::FORWARD);
 
 	/* expand selection over line breaks */
 	if (isRectType())
@@ -90,75 +91,92 @@ void Selection::normalize(void) {
 		m_normal.end.x = m_term.getNumCols() - 1;
 }
 
-void Selection::checkSnap(CharPos &c, const int direction) const {
+void Selection::extendSnap(CharPos &pos, const Direction direction) const {
+	switch (m_snap) {
+		case Snap::NONE: return;
+		case Snap::WORD: return extendWordSnap(pos, direction);
+		case Snap::LINE: return extendLineSnap(pos, direction);
+	}
+}
+
+void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
+	const auto &screen = m_term.getScreen();
+	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
+
+	const Glyph *prevgp = &screen[pos];
+	bool prev_delim = isDelim(*prevgp);
+	CharPos next;
+	while(true) {
+		next = pos.nextCol(move_offset);
+		// Snap around if the word wraps around at the end or beginning of a line.
+		if (!screen.validColumn(next)) {
+			next.moveDown(move_offset);
+			// move to end of previous line of beginning of next line
+			next.x = next.x < 0 ? screen.numCols() - 1 : 0;
+
+			if (!screen.validLine(next))
+				// top or bottom of screen
+				break;
+
+			// inspect the final column if it wraps around
+			const auto &end_of_line = direction == Direction::FORWARD ? pos : next;
+			if (!screen[end_of_line].mode[Attr::WRAP])
+				// no need to wrap the selection around
+				break;
+		}
+
+		if (next.x >= m_term.getLineLen(next))
+			// valid position but no valid character
+			break;
+
+		const Glyph &gp = screen[next];
+		const bool delim = isDelim(gp);
+		// if this is just a dummy position then we need to move on to the next
+		if (!gp.isDummy()) {
+			// we support selecting not only words but also
+			// sequences of the same delimiter.
+			if (delim != prev_delim || (delim && !gp.isSameRune(*prevgp)))
+				break;
+		}
+
+		pos = next;
+		prevgp = &gp;
+		// TODO: this assignment should be unnecessary, since at this
+		// point `delim` will never be distinct from `prev_delim`
+		prev_delim = delim;
+	}
+}
+
+void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 	const auto &screen = m_term.getScreen();
 
-	switch (m_snap) {
+	const auto last_col = m_term.getNumCols() - 1;
+	const auto last_row = m_term.getNumRows() - 1;
+
+	/*
+	 * Snap around if the the previous line or the current one
+	 * has set WRAP at its end. Then the whole next or previous
+	 * line will be selected.
+	 */
+	switch (direction) {
 	default: break;
-	case Snap::WORD: {
-		/*
-		 * Snap around if the word wraps around at the end or beginning of a line.
-		 */
-		const Glyph *prevgp = &screen[c.y][c.x];
-		int prevdelim = isDelim(*prevgp);
-		CharPos newc;
-		CharPos t;
-		int delim;
-		while(true) {
-			newc.set(c.x + direction, c.y);
-			const auto tcols = m_term.getNumCols();
-			if (!in_range(newc.x, 0, tcols - 1)) {
-				newc.y += direction;
-				newc.x = (newc.x + tcols) % tcols;
-				if (!in_range(newc.y, 0, m_term.getNumRows() - 1))
-					break;
-
-				if (direction > 0)
-					t = c;
-				else
-					t = newc;
-				if (!(screen[t.y][t.x].mode[Attr::WRAP]))
-					break;
-			}
-
-			if (newc.x >= m_term.getLineLen(newc))
-				break;
-
-			const Glyph *gp = &screen[newc.y][newc.x];
-			delim = isDelim(*gp);
-			if (!(gp->mode[Attr::WDUMMY]) &&
-				(delim != prevdelim || (delim && gp->u != prevgp->u)))
-				break;
-
-			c = newc;
-			prevgp = gp;
-			prevdelim = delim;
-		}
-		break;
-	} case Snap::LINE: {
-		const auto tcols = m_term.getNumCols();
-		/*
-		 * Snap around if the the previous line or the current one
-		 * has set WRAP at its end. Then the whole next or previous
-		 * line will be selected.
-		 */
-		c.x = (direction < 0) ? 0 : tcols - 1;
-		if (direction < 0) {
-			for (; c.y > 0; c.y += direction) {
-				if (!(screen[c.y-1][tcols-1].mode[Attr::WRAP])) {
-					break;
-				}
-			}
-		} else if (direction > 0) {
-			for (; c.y < m_term.getNumRows()-1; c.y += direction) {
-				if (!(screen[c.y][tcols-1].mode[Attr::WRAP])) {
-					break;
-				}
-			}
-		}
-		break;
-	} // case
-	} // switch
+	case Direction::FORWARD:
+		 // move to the end of the line, following wraps
+		 pos.x = last_col;
+		 for (; pos.y < last_row; pos.moveDown()) {
+			 if (!screen[pos].isWrapped())
+				 break;
+		 }
+		 break;
+	case Direction::BACKWARD:
+		 // move to the beginning of the line, following wraps
+		 pos.x = 0;
+		 for (; pos.y > 0; pos.moveUp()) {
+			 if (!screen[pos.y-1][last_col].isWrapped())
+				 break;
+		 }
+		 break;
+	};
 }
 
 void Selection::extend(int col, int row, const Type &type, const bool &done) {

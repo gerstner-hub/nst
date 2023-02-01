@@ -12,6 +12,7 @@
 #include <X11/X.h>
 
 // cosmos
+#include "cosmos/algs.hxx"
 #include "cosmos/BitMask.hxx"
 
 // X++
@@ -153,6 +154,13 @@ public: // functions
 			std::swap(begin.x, end.x);
 		if (begin.y > end.y)
 			std::swap(begin.y, end.y);
+	}
+
+	/// returns whether the given coordinate is within the current range setting
+	bool inRange(const CharPos &pos) const {
+		return
+			cosmos::in_range(pos.y, begin.y, end.y) &&
+			cosmos::in_range(pos.x, begin.x, end.x);
 	}
 };
 

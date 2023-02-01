@@ -145,8 +145,8 @@ protected: // data
 
 	bool m_allowaltscreen = false;  /// whether altscreen support is enabled
 	EscapeHandler m_esc_handler;
-	std::vector<Line> m_alt_screen; /// alt screen data
-	std::vector<Line> m_screen;     /// main screen data
+	Screen m_alt_screen; /// alt screen data
+	Screen m_screen; /// all the glyphs that make up the terminal screen
 	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
 	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 
@@ -430,9 +430,6 @@ protected: // functions
 	/// checks whether the given input Rune needs to be translated and does so if necessary
 	Rune translateChar(Rune u);
 
-	Line& getLine(const CharPos &pos) { return m_screen[pos.y]; }
-	const Line& getLine(const CharPos &pos) const { return m_screen[pos.y]; }
-
 	//// returns how many columns are left after the current cursor position
 	int colsLeft() const { return m_size.cols - m_cursor.pos.x; }
 
@@ -467,8 +464,7 @@ protected: // functions
 		clampRow(span.bottom);
 	}
 
-	Glyph& getGlyphAt(const CharPos &c) { return m_screen[c.y][c.x]; }
-	Glyph* getCurGlyph() { return &getGlyphAt(m_cursor.pos); }
+	Glyph* getCurGlyph() { return &m_screen.getGlyphAt(m_cursor.pos); }
 };
 
 } // end ns

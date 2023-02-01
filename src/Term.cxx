@@ -126,12 +126,7 @@ void Term::resize(const TermSize &new_size) {
 	m_tabs.resize(new_size.cols);
 
 	for (auto screen: {&m_screen, &m_alt_screen}) {
-		screen->resize(new_size.rows);
-
-		/* resize each row to new width */
-		for (auto &row: *screen) {
-			row.resize(new_size.cols);
-		}
+		screen->setDimension(new_size);
 	}
 
 	// extend tab markers if we have more columns now
@@ -182,7 +177,7 @@ void Term::clearRegion(Range range) {
 			const auto pos = CharPos{x, y};
 			if (m_selection.isSelected(pos))
 				m_selection.clear();
-			auto &gp = getGlyphAt(pos);
+			auto &gp = m_screen.getGlyphAt(pos);
 			gp.clear(m_cursor.getAttr());
 		}
 	}
@@ -359,7 +354,7 @@ void Term::deleteColsAfterCursor(int count) {
 	const int dst = cursor.x;
 	const int src = cursor.x + count;
 	const int left = m_size.cols - src;
-	auto &line = getLine(cursor);
+	auto &line = m_screen.getLine(cursor);
 
 	// slide remaining line content count characters to the left
 	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
@@ -383,7 +378,7 @@ void Term::insertBlanksAfterCursor(int count) {
 	const int dst = cursor.x + count;
 	const int src = cursor.x;
 	const int left = m_size.cols - dst;
-	auto &line = getLine(cursor);
+	auto &line = m_screen.getLine(cursor);
 
 	// slide remaining line content count characters to the right
 	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
@@ -455,7 +450,7 @@ void Term::dumpLine(const CharPos &pos) const {
 	char buf[utf8::UTF_SIZE];
 
 	auto left = getLineLen(pos);
-	const auto line = getLine(pos);
+	const auto line = m_screen.getLine(pos);
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
 		auto len = utf8::encode(it->u, buf);
@@ -514,14 +509,14 @@ void Term::draw() {
 
 	// in case we point to a wide character dummy position, move one
 	// character to the left to point to the actual character
-	if (getGlyphAt(m_last_cursor_pos).isDummy())
+	if (m_screen.getGlyphAt(m_last_cursor_pos).isDummy())
 		m_last_cursor_pos.moveLeft();
-	if (getGlyphAt(new_pos).isDummy())
+	if (m_screen.getGlyphAt(new_pos).isDummy())
 		new_pos.moveLeft();
 
 	drawScreen();
-	m_x11.clearCursor(m_last_cursor_pos, getGlyphAt(m_last_cursor_pos));
-	m_x11.drawCursor(new_pos, getGlyphAt(new_pos));
+	m_x11.clearCursor(m_last_cursor_pos, m_screen.getGlyphAt(m_last_cursor_pos));
+	m_x11.drawCursor(new_pos, m_screen.getGlyphAt(new_pos));
 
 	const bool cursor_pos_changed = orig_last_pos != new_pos;
 	m_last_cursor_pos = new_pos;
@@ -569,18 +564,18 @@ Rune Term::translateChar(Rune u) {
 }
 
 void Term::setChar(Rune u, const CharPos &pos) {
-	auto &glyph = getGlyphAt(pos);
+	auto &glyph = m_screen.getGlyphAt(pos);
 
 	// if we replace a WIDE/DUMMY position then correct the sibbling
 	// position
 	if (glyph.mode[Attr::WIDE]) {
 		if (!isAtEndOfLine(pos)) {
-			auto &next_glyph = getGlyphAt(pos.nextCol());
+			auto &next_glyph = m_screen.getGlyphAt(pos.nextCol());
 			next_glyph.u = ' ';
 			next_glyph.mode.reset(Attr::WDUMMY);
 		}
 	} else if (glyph.mode[Attr::WDUMMY]) {
-		auto &prev_glyph = getGlyphAt(pos.prevCol());
+		auto &prev_glyph = m_screen.getGlyphAt(pos.prevCol());
 		prev_glyph.u = ' ';
 		prev_glyph.mode.reset(Attr::WIDE);
 	}

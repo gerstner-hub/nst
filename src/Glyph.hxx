@@ -7,6 +7,9 @@
 // libcosmos
 #include "cosmos/BitMask.hxx"
 
+// nst
+#include "types.hxx"
+
 namespace nst {
 
 /// primitive integer type to store character codes to be displayed on the terminal
@@ -88,6 +91,25 @@ public: // functions
 
 /// a series of Glyphs forming a line on the terminal
 using Line = std::vector<Glyph>;
+
+/// a terminal screen consisting of lines of Glyphs
+struct Screen : public std::vector<Line> {
+
+	Glyph& getGlyphAt(const CharPos &c) { return (*this)[c.y][c.x]; }
+	const Glyph& getGlyphAt(const CharPos &c) const { return (*this)[c.y][c.x]; }
+
+	Line& getLine(const CharPos &pos) { return (*this)[pos.y]; }
+	const Line& getLine(const CharPos &pos) const { return (*this)[pos.y]; }
+
+	void setDimension(const TermSize &size) {
+		resize(size.rows);
+
+		/* resize each row to new width */
+		for (auto &row: *this) {
+			row.resize(size.cols);
+		}
+	}
+};
 
 } // end ns
 

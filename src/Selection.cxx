@@ -67,7 +67,7 @@ void Selection::start(const CharPos &pos, Snap snap) {
 	m_term.setDirty(LineSpan{m_normal});
 }
 
-void Selection::normalize(void) {
+void Selection::normalize() {
 	if (isRegularType() && m_orig.begin.y != m_orig.end.y) {
 		m_normal.begin.x = m_orig.begin.y < m_orig.end.y ? m_orig.begin.x : m_orig.end.x;
 		m_normal.end.x   = m_orig.begin.y < m_orig.end.y ? m_orig.end.x   : m_orig.begin.x;
@@ -179,45 +179,56 @@ void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 	};
 }
 
-void Selection::extend(int col, int row, const Type &type, const bool &done) {
-	if (inIdleMode())
+void Selection::extend(const CharPos &pos, const Type type, const bool done) {
+	if (inIdleMode()) {
 		return;
-	else if (done && inEmptyMode()) {
+	} else if (done && inEmptyMode()) {
 		clear();
 		return;
 	}
 
-	const CharPos old_end = m_orig.end;
-	const auto oldsby = m_normal.begin.y;
-	const auto oldsey = m_normal.end.y;
+	const auto old_end = m_orig.end;
+	const LineSpan old_normal_span{m_normal};
 	const auto oldtype = m_type;
 
-	m_orig.end.set(col, row);
+	m_orig.end = pos;
 	normalize();
 	m_type = type;
 
-	if (old_end.y != m_orig.end.y || old_end.x != m_orig.end.x || oldtype != m_type || inEmptyMode())
-		m_term.setDirty(LineSpan{std::min(m_normal.begin.y, oldsby), std::max(m_normal.end.y, oldsey)});
+	if (old_end != m_orig.end || oldtype != m_type || inEmptyMode()) {
+		const LineSpan new_normal_span{m_normal};
+		LineSpan dirty_span;
+		dirty_span.top = std::min(new_normal_span.top, old_normal_span.top);
+		dirty_span.bottom = std::max(new_normal_span.bottom, old_normal_span.bottom);
+		m_term.setDirty(dirty_span);
+	}
 
 	m_mode = done ? Mode::IDLE : Mode::READY;
 }
 
-void Selection::scroll(int orig, int n) {
+void Selection::scroll(const int origin_y, const int num_lines) {
 	if (!m_orig.isValid())
 		return;
 
 	const auto scroll_area = m_term.getScrollArea();
 
-	if (in_range(m_normal.begin.y, orig, scroll_area.bottom) != in_range(m_normal.end.y, orig, scroll_area.bottom)) {
+	// not fully clear what this condition is for:
+	// - either the selection range is completely within the scroll area
+	// - or the selection range fully covers the scroll area and possibly more
+	// but if only the top or end of our selection is outside the scroll
+	// area we clear the selection
+	if (
+			in_range(m_normal.begin.y, origin_y, scroll_area.bottom) !=
+			in_range(  m_normal.end.y, origin_y, scroll_area.bottom)) {
 		clear();
-	} else if (in_range(m_normal.begin.y, orig, scroll_area.bottom)) {
-		m_orig.begin.y += n;
-		m_orig.end.y += n;
-		if (m_orig.begin.y < scroll_area.top || m_orig.begin.y > scroll_area.bottom ||
-		    m_orig.end.y < scroll_area.top || m_orig.end.y > scroll_area.bottom) {
-			clear();
-		} else {
+	} else if (in_range(m_normal.begin.y, origin_y, scroll_area.bottom)) {
+		m_orig.scroll(num_lines);
+		// if our selection is completely within the scroll area
+		if (scroll_area.inRange(m_orig.begin) && scroll_area.inRange(m_orig.end)) {
+			// adjust selection to new coordinates
 			normalize();
+		} else {
+			clear();
 		}
 	}
 }

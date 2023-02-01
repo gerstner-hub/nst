@@ -162,6 +162,11 @@ public: // functions
 			cosmos::in_range(pos.y, begin.y, end.y) &&
 			cosmos::in_range(pos.x, begin.x, end.x);
 	}
+
+	void scroll(int nlines) {
+		begin.y += nlines;
+		end.y += nlines;
+	}
 };
 
 /// represents the terminal size in character elements

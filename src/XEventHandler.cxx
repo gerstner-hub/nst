@@ -208,7 +208,7 @@ void XEventHandler::handleMouseSelection(const XButtonEvent &ev, const bool done
 
 	auto &sel = m_nst.getSelection();
 	const auto pos = m_x11.getTermWin().getCharPos(DrawPos{ev.x, ev.y});
-	sel.extend(pos.x, pos.y, seltype, done);
+	sel.extend(pos, seltype, done);
 
 	if (done) {
 		auto selection = sel.getSelection();

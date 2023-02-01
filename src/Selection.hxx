@@ -32,9 +32,9 @@ public: // types
 protected: // types
 
 	enum class Mode {
-		IDLE,
-		EMPTY,
-		READY
+		IDLE, /// no selection process active
+		EMPTY, /// selection was started but nothing is selected yet
+		READY /// selection data is available
 	};
 
 	/// for the snap algorithm this determines the direction in which to check
@@ -55,9 +55,31 @@ public: // functions
 	/// returns whether the given position is part of the current selection
 	bool isSelected(const CharPos &pos) const;
 
-	void extend(int col, int row, const Type &type, const bool &done);
-	void scroll(int orig, int n);
+	/// extends the current selection to the given position
+	/**
+	 * The current selection range is changed towards the new end position
+	 * \c pos. The passed in selection \c type specifies how the new
+	 * selection will be caculated.
+	 *
+	 * \param[in] done Whether the select operation is finished with this
+	 * call (e.g. due to button release).
+	 **/
+	void extend(const CharPos &pos, const Type type, const bool done);
+
+	/// adjust the current selection to a scroll operation if possible
+	/**
+	 * This scrolls num_lines beginning at origin_y. If possible the
+	 * current selection will be adjusted accordingly, otherwise the
+	 * selection will be cleared.
+	 *
+	 * \param[in] origin_y the start line to be scrolled. This is either
+	 * equivalent to the current scroll area top or another line within
+	 * the scroll area for scrolling only parts of the screen.
+	 **/
+	void scroll(const int origin_y, const int num_lines);
+
 	std::string getSelection() const;
+
 	/// dump current selection into I/O file
 	void dump() const;
 

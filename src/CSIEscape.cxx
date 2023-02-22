@@ -184,7 +184,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 		case 12: /* att610 -- Start blinking cursor (IGNORED) */
 			break;
 		case 25: /* DECTCEM -- Text Cursor Enable Mode */
-			x11.setMode(WinMode::HIDE, !set);
+			x11.setMode(WinMode::HIDE_CURSOR, !set);
 			break;
 		case 9:    /* X10 mouse compatibility mode */
 			x11.setPointerMotion(false);
@@ -210,7 +210,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 			x11.setMode(WinMode::FOCUS, set);
 			break;
 		case 1006: /* 1006: extended reporting mode */
-			x11.setMode(WinMode::MOUSESGR, set);
+			x11.setMode(WinMode::MOUSE_SGR, set);
 			break;
 		case 1034:
 			x11.setMode(WinMode::EIGHT_BIT, set);
@@ -226,7 +226,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 			term.cursorControl(set ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
 			break;
 		case 2004: /* 2004: bracketed paste mode */
-			x11.setMode(WinMode::BRCKTPASTE, set);
+			x11.setMode(WinMode::BRKT_PASTE, set);
 			break;
 		/* Not implemented mouse modes. See comments there. */
 		case 1001: /* mouse highlight mode; can hang the

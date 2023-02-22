@@ -136,7 +136,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 			return;
 		else if (!tmode[WinMode::MOUSEMOTION] && !tmode[WinMode::MOUSEMANY])
 			return;
-		/* MODE_MOUSEMOTION: no reporting if no button is pressed */
+		/* WinMode::MOUSEMOTION: no reporting if no button is pressed */
 		else if (tmode[WinMode::MOUSEMOTION] && m_buttons.none())
 			return;
 		btn = m_buttons.getFirstButton();
@@ -160,8 +160,8 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	m_old_mouse_pos = pos;
 
 	/* Encode btn into code. If no button is pressed for a motion event in
-	 * MODE_MOUSEMANY, then encode it as a release. */
-	if ((!tmode[WinMode::MOUSESGR] && ev.type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
+	 * WinMode::MOUSEMANY, then encode it as a release. */
+	if ((!tmode[WinMode::MOUSE_SGR] && ev.type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
 		code += 3;
 	else if (btn >= 8)
 		code += 128 + btn - 8;
@@ -179,7 +179,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 
 	std::string report;
 
-	if (tmode[WinMode::MOUSESGR]) {
+	if (tmode[WinMode::MOUSE_SGR]) {
 		const auto ch = ev.type == ButtonRelease ? 'm' : 'M';
 		report = cosmos::sprintf(
 				"\033[<%d;%d;%d%c",
@@ -403,7 +403,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		auto ptr = prop.data.get();
 		std::replace(ptr, ptr + prop.length, '\n', '\r');
 
-		const bool brcktpaste = m_x11.getTermWin().checkFlag(WinMode::BRCKTPASTE);
+		const bool brcktpaste = m_x11.getTermWin().checkFlag(WinMode::BRKT_PASTE);
 
 		if (brcktpaste && prop.offset == 0)
 			tty.write("\033[200~", TTY::MayEcho(false));

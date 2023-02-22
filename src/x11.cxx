@@ -1027,7 +1027,7 @@ const FontColor& X11::getCursorColor(const CharPos &pos, Glyph &glyph) const {
 
 void X11::drawCursor(const CharPos &pos, Glyph glyph) {
 
-	if (m_twin.checkFlag(WinMode::HIDE))
+	if (m_twin.checkFlag(WinMode::HIDE_CURSOR))
 		return;
 
 	auto &drawcol = getCursorColor(pos, glyph);

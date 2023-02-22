@@ -2,7 +2,7 @@
 #define NST_HXX
 
 // cosmos
-#include "cosmos/Init.hxx"
+#include "cosmos/cosmos.hxx"
 
 // X++
 #include "X++/Xpp.hxx"

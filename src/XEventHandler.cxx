@@ -466,7 +466,7 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 				requestor.setProperty(req_prop, sel_utf8);
 			}
 		} catch (const std::exception &ex) {
-			std::cerr << "Failed to handle clipboard selection " << cosmos::hexnum(req.selection, 0) << ": " << ex.what() << std::endl;
+			std::cerr << "Failed to handle clipboard selection " << cosmos::HexNum{req.selection, 0} << ": " << ex.what() << std::endl;
 			return;
 		}
 

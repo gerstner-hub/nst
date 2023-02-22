@@ -104,7 +104,7 @@ void CSIEscape::dump(const std::string_view &prefix) const {
 			case '\n': return "\\n";
 			case '\r': return "\\r";
 			case 0x1b: return "\\e";
-			default: return static_cast<std::string>(cosmos::hexnum(ch, 2));
+			default: return static_cast<std::string>(cosmos::HexNum(ch, 2));
 		}
 	};
 

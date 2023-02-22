@@ -208,7 +208,7 @@ void StringEscape::dump(const std::string_view &prefix) const {
 		} else if (c == 0x1b) {
 			std::cerr << "(\\e)";
 		} else {
-			std::cerr << "(" << cosmos::hexnum(static_cast<unsigned>(c), 2).showBase(false) << ")";
+			std::cerr << "(" << cosmos::HexNum(static_cast<unsigned>(c), 2).showBase(false) << ")";
 		}
 	}
 	std::cerr << "ESC\\\n";

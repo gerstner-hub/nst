@@ -5,11 +5,12 @@
 
 // libcosmos
 #include "cosmos/algs.hxx"
-#include "cosmos/errors/ApiError.hxx"
-#include "cosmos/errors/InternalError.hxx"
-#include "cosmos/errors/RuntimeError.hxx"
-#include "cosmos/errors/UsageError.hxx"
+#include "cosmos/error/ApiError.hxx"
+#include "cosmos/error/InternalError.hxx"
+#include "cosmos/error/RuntimeError.hxx"
+#include "cosmos/error/UsageError.hxx"
 #include "cosmos/formatting.hxx"
+#include "cosmos/proc/ChildCloner.hxx"
 #include "cosmos/proc/Process.hxx"
 #include "cosmos/proc/Signal.hxx"
 #include "cosmos/proc/SignalFD.hxx"
@@ -51,7 +52,7 @@ cosmos::FileDescriptor TTY::create() {
 	m_terminal.setFD(m_cmd_file);
 	setupPoller();
 
-	return m_cmd_file.getFD();
+	return m_cmd_file.fd();
 }
 
 void TTY::openTTY(const std::string &line) {
@@ -60,7 +61,7 @@ void TTY::openTTY(const std::string &line) {
 	} catch (const std::exception &ex) {
 		cosmos_throw (cosmos::ApiError(cosmos::sprintf("open line '%s' failed: %s", line.c_str(), ex.what())));
 	}
-	m_cmd_file.getFD().duplicate(cosmos::stdin, cosmos::CloseOnExec(false));
+	m_cmd_file.fd().duplicate(cosmos::stdin, cosmos::CloseOnExec(false));
 	configureTTY();
 }
 
@@ -68,7 +69,7 @@ void TTY::createPTY() {
 	// create a pseudo TTY
 	auto [master, slave] = cosmos::openPTY();
 
-	m_cmd_file.open(master, cosmos::StreamFile::CloseFile(true));
+	m_cmd_file.open(master, cosmos::StreamFile::AutoClose{true});
 
 	try {
 		executeShell(slave);
@@ -81,10 +82,10 @@ void TTY::createPTY() {
 }
 
 void TTY::setupPoller() {
-	if (!m_cmd_poller.isValid()) {
+	if (!m_cmd_poller.valid()) {
 		m_cmd_poller.create();
 		m_cmd_poller.addFD(
-			m_cmd_file.getFD(),
+			m_cmd_file.fd(),
 			cosmos::Poller::MonitorMask({
 				cosmos::Poller::MonitorSetting::INPUT,
 				cosmos::Poller::MonitorSetting::OUTPUT
@@ -97,14 +98,14 @@ void TTY::setupIOFile(const std::string &path) {
 	m_io_file.close();
 
 	if (path == "-") {
-		m_io_file = cosmos::StreamFile(cosmos::stdout, cosmos::StreamFile::CloseFile(false));
+		m_io_file.open(cosmos::stdout, cosmos::StreamFile::AutoClose{false});
 	} else if (!path.empty()) {
 		try {
 			m_io_file.open(
 				path,
 				cosmos::OpenMode::WRITE_ONLY,
 				cosmos::OpenFlags({cosmos::OpenSettings::CREATE, cosmos::OpenSettings::TRUNCATE}),
-				cosmos::FileMode(0640)
+				cosmos::FileMode(cosmos::ModeT{0640})
 			);
 		} catch (const std::exception &ex) {
 			std::cerr << "Error opening " << path << ": " << ex.what() << std::endl;
@@ -115,9 +116,10 @@ void TTY::setupIOFile(const std::string &path) {
 }
 
 void TTY::configureTTY() {
-	cosmos::SubProc stty;
+
+	cosmos::ChildCloner cloner;
 	{
-		auto &args = stty.args();
+		auto &args = cloner.getArgs();
 		// append fixed config strings
 		cosmos::append(args, config::STTY_ARGS);
 		// append command line strings
@@ -125,10 +127,10 @@ void TTY::configureTTY() {
 	}
 
 	try {
-		stty.run();
+		auto stty = cloner.run();
 		auto res = stty.wait();
 
-		if (!res.exited() || res.exitStatus() != 0) {
+		if (!res.exitedSuccessfully()) {
 			cosmos_throw (cosmos::RuntimeError("stty returned non-zero"));
 		}
 	} catch (const std::exception &ex) {
@@ -143,7 +145,7 @@ size_t TTY::read() {
 		try {
 			read_bytes = m_cmd_file.read(m_buf + m_buf_bytes, sizeof(m_buf) - m_buf_bytes);
 		} catch (const cosmos::ApiError &ex) {
-			if (ex.errnum() == EIO) {
+			if (ex.errnum() == cosmos::Errno::IO_ERROR) {
 				// the way the PTY is operated currently
 				// causes no EOF condition to be signaled but
 				// an EIO is returned. There are different
@@ -278,17 +280,16 @@ void TTY::resize(const Extent &size) {
 
 void TTY::hangup() {
 	/* Send SIGHUP to shell */
-	m_child_proc.kill(cosmos::Signal(SIGHUP));
+	m_child_proc.kill(cosmos::signal::HANGUP);
 }
 
 void TTY::executeShell(cosmos::FileDescriptor slave) {
-	auto &process = cosmos::g_process;
 
 	// we want to receive SIGCHLD synchronously via a signal FD, so block it
-	process.blockSignals({cosmos::Signal(SIGCHLD)});
+	cosmos::signal::block(cosmos::SigSet{cosmos::signal::CHILD});
 
-	cosmos::PasswdInfo pw_info(process.getRealUserID());
-	if (!pw_info.isValid()) {
+	cosmos::PasswdInfo pw_info(cosmos::proc::get_real_user_id());
+	if (!pw_info.valid()) {
 		cosmos_throw (cosmos::InternalError("who are you?"));
 	}
 
@@ -297,21 +298,23 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 		shell = sh;
 	else
 		// try the shell from passwd
-		shell = pw_info.getShell();
+		shell = pw_info.shell();
 
 	// if still empty then use compile time default
 	if (shell.empty()) {
 		shell = nst::config::SHELL;
 	}
 
+	cosmos::ChildCloner cloner;
+
 	// code executed in the child before we execute the new program
-	m_child_proc.setPostForkCB([this, &slave, pw_info, shell](const cosmos::SubProc &) {
+	cloner.setPostForkCB([this, &slave, pw_info, shell](const cosmos::ChildCloner &) {
 		// close file descriptors unnecessary in the child
 		m_io_file.close();
 		m_cmd_file.close();
 
 		// create a new process group
-		process.createNewSession();
+		cosmos::proc::create_new_session();
 
 		// make the slave end of the TTY the new default file
 		// descriptors for the child
@@ -323,55 +326,63 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 		cosmos::Terminal(slave).makeControllingTerminal();
 
 		// make sure no unnecessary duplicate of the slave TTY exists
-		if (slave.raw() > 2)
+		if (slave.raw() > cosmos::FileNum{2})
 			slave.close();
 
+		using namespace cosmos;
+
 		// setup default signal handlers again
-		for (auto sig: {SIGCHLD, SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGALRM}) {
-			process.restoreSignal(cosmos::Signal(sig));
+		for (auto sig: {
+				signal::CHILD, signal::HANGUP, signal::INTERRUPT,
+				signal::QUIT, signal::TERMINATE, signal::ALARM}) {
+			cosmos::signal::restore(cosmos::Signal{sig});
 		}
 
 		for (const auto &var: {"COLUMNS", "LINES", "TERMCAP"}) {
 			unsetenv(var);
 		}
 
-		setenv("LOGNAME", pw_info.getName().data(), 1);
-		setenv("USER",    pw_info.getName().data(), 1);
+		setenv("LOGNAME", pw_info.name().data(), 1);
+		setenv("USER",    pw_info.name().data(), 1);
 		setenv("SHELL",   shell.data(), 1);
-		setenv("HOME",    pw_info.getHomeDir().data(), 1);
+		setenv("HOME",    pw_info.homeDir().data(), 1);
 		setenv("TERM",    config::TERMNAME.data(), 1);
 	});
 
 	if (auto &args = m_nst.getCmdline().rest.getValue(); !args.empty()) {
-		m_child_proc.setArgs(args);
+		cloner.setArgs(args);
 	} else {
 		// use default configuration
 		if (!config::SCROLL.empty()) {
-			m_child_proc.setArgsFromView({config::SCROLL, config::UTMP.empty() ? shell : config::UTMP});
+			cloner.setArgsFromView({config::SCROLL, config::UTMP.empty() ? shell : config::UTMP});
 		} else if (!config::UTMP.empty()) {
-			m_child_proc.setExe(config::UTMP);
+			cloner.setExe(config::UTMP);
 		} else {
-			m_child_proc.setExe(shell);
+			cloner.setExe(shell);
 		}
 	}
 
 	// this may throw, we'll let it pass through to the caller
-	m_child_proc.run();
+	m_child_proc = cloner.run();
 }
 
 void TTY::handleSigChildEvent() {
 	auto res = m_child_proc.wait();
 
-	if (res.exited() && res.exitStatus() != 0) {
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child exited with status %d", res.exitStatus())));
+	if (res.exitedSuccessfully()) {
+		cosmos_throw (cosmos::RuntimeError(
+			cosmos::sprintf("child exited with status %d",
+				cosmos::to_integral(res.exitStatus()))));
 	} else if (res.signaled()) {
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("child terminated due to signal %d", res.termSignal().raw())));
+		cosmos_throw (cosmos::RuntimeError(
+			cosmos::sprintf("child terminated due to signal %d",
+				cosmos::to_integral(res.termSignal().raw()))));
 	}
 }
 
 void TTY::sendBreak() {
 	try {
-		m_terminal.sendBreak(0);
+		m_terminal.sendBreak(std::chrono::milliseconds{0});
 	} catch (const std::exception &ex) {
 		std::cerr << "failed to send break: " << ex.what() << std::endl;
 	}

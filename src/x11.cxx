@@ -16,8 +16,8 @@
 // cosmos
 #include "cosmos/algs.hxx"
 #include "cosmos/types.hxx"
-#include "cosmos/errors/ApiError.hxx"
-#include "cosmos/errors/RuntimeError.hxx"
+#include "cosmos/error/ApiError.hxx"
+#include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
 #include "cosmos/proc/Process.hxx"
 
@@ -741,7 +741,9 @@ void X11::init() {
 	m_window.setProtocols(xpp::XAtomVector{m_wmdeletewin});
 
 	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
-	xpp::Property<int> pid_prop(cosmos::g_process.getPid());
+	xpp::Property<int> pid_prop(
+			cosmos::to_integral(cosmos::proc::cached_pids.own_pid)
+	);
 	m_window.setProperty(getXAtom("_NET_WM_PID"), pid_prop);
 
 	setDefaultTitle();
@@ -1082,7 +1084,7 @@ void X11::setDefaultIconTitle() {
 
 void X11::setIconTitle(const std::string &title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
-	m_window.setProperty(XA_WM_ICON_NAME, data);
+	m_window.setProperty(xpp::XAtom{XA_WM_ICON_NAME}, data);
 	m_window.setProperty(m_netwmiconname, data);
 }
 

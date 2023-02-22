@@ -4,8 +4,10 @@
 // C++
 #include <string>
 #include <string_view>
+
 // cosmos
-#include "cosmos/time/Clock.hxx"
+#include "cosmos/time/StopWatch.hxx"
+
 // nst
 #include "Selection.hxx"
 

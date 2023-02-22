@@ -1,6 +1,6 @@
 // cosmos
 #include "cosmos/io/Poller.hxx"
-#include "cosmos/time/TimeSpec.hxx"
+#include "cosmos/time/time.hxx"
 
 // nst
 #include "nst.hxx"

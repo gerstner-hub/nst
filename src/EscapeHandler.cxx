@@ -300,7 +300,7 @@ EscapeHandler::Escape EscapeHandler::handleInitialEscape(const char ch) {
 		handleCommandTerminator();
 		break;
 	default:
-		std::cerr << "erresc: unknown sequence ESC " << cosmos::hexnum(ch, 2)
+		std::cerr << "erresc: unknown sequence ESC " << cosmos::HexNum(ch, 2)
 			<< " '" << (std::isprint(ch) ? ch : '.') << "'\n";
 		break;
 	}

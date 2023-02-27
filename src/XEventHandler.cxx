@@ -6,6 +6,7 @@
 #include "cosmos/formatting.hxx"
 
 // nst
+#include "atoms.hxx"
 #include "nst.hxx"
 #include "nst_config.hxx"
 #include "XEventHandler.hxx"
@@ -30,32 +31,30 @@ XEventHandler::XEventHandler(Nst &nst) :
 	m_kbd_shortcuts(config::getKbdShortcuts(nst))
 {}
 
-void XEventHandler::init() {
-	m_xembed_atom = m_x11.getXAtom("_XEMBED");
-	m_incr_atom = m_x11.getXAtom("INCR");
-}
-
 void XEventHandler::process(xpp::Event &ev) {
-	switch(ev.getType()) {
-		case KeyPress:         return keyPress(ev.toKeyEvent());
-		case ClientMessage:    return clientMessage(ev.toClientMessage());
-		case ConfigureNotify:  return resize(ev.toConfigureNotify());
-		case VisibilityNotify: return visibilityChange(ev.toVisibilityNotify());
-		case UnmapNotify:      return unmap();
-		case Expose:           return expose();
-		case FocusIn:          /* fallthrough */
-		case FocusOut:         return focus(ev);
-		case MotionNotify:     return motionEvent(ev);
-		case ButtonPress:      return buttonPress(ev.toButtonEvent());
-		case ButtonRelease:    return buttonRelease(ev.toButtonEvent());
-		case SelectionNotify:  return selectionNotify(ev);
+	using Event = xpp::EventType;
+
+	switch(ev.type()) {
+		default: return;
+		case Event::Ev_KeyPress: return keyPress(ev.toKeyEvent());
+		case Event::Ev_ClientMessage:    return clientMessage(ev.toClientMessage());
+		case Event::Ev_ConfigureNotify:  return resize(ev.toConfigureNotify());
+		case Event::Ev_VisibilityNotify: return visibilityChange(ev.toVisibilityNotify());
+		case Event::Ev_UnmapNotify:      return unmap();
+		case Event::Ev_Expose:           return expose();
+		case Event::Ev_FocusIn:          /* fallthrough */
+		case Event::Ev_FocusOut:         return focus(ev);
+		case Event::Ev_MotionNotify:     return motionEvent(ev);
+		case Event::Ev_ButtonPress:      return buttonPress(ev.toButtonEvent());
+		case Event::Ev_ButtonRelease:    return buttonRelease(ev.toButtonEvent());
+		case Event::Ev_SelectionNotify:  return selectionNotify(ev);
 		/*
 		 * PropertyNotify is only turned on when there is some
 		 * INCR transfer happening for the selection retrieval.
 		 */
-		case PropertyNotify:   return propertyNotify(ev);
-		case SelectionClear:   return selectionClear();
-		case SelectionRequest: return selectionRequest(ev.toSelectionRequest());
+		case Event::Ev_PropertyNotify:   return propertyNotify(ev);
+		case Event::Ev_SelectionClear:   return selectionClear();
+		case Event::Ev_SelectionRequest: return selectionRequest(ev.toSelectionRequest());
 	}
 }
 
@@ -232,7 +231,7 @@ void XEventHandler::focus(const xpp::Event &ev) {
 	if (ev.toFocusChangeEvent().mode == NotifyGrab)
 		return;
 
-	m_x11.focusChange(/*in_focus=*/ev.getType() == FocusIn);
+	m_x11.focusChange(/*in_focus=*/ev.type() == xpp::EventType::Ev_FocusIn);
 }
 
 void XEventHandler::keyPress(const XKeyEvent &ev) {
@@ -284,7 +283,7 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 	 * See xembed specs
 	 *  http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
 	 */
-	if (msg.message_type == m_xembed_atom && msg.format == 32) {
+	if (xpp::AtomID{msg.message_type} == atoms::xembed && msg.format == 32) {
 		switch (msg.data.l[1]) {
 			case XEMBED_FOCUS_IN: {
 				m_x11.embeddedFocusChange(true);
@@ -295,7 +294,7 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 				break;
 			}
 		}
-	} else if (xpp::XAtom(msg.data.l[0]) == m_x11.getWmDeleteWin()) {
+	} else if (xpp::AtomID(msg.data.l[0]) == xpp::atoms::icccm_wm_delete_window) {
 		m_nst.getTTY().hangup();
 		exit(0);
 	}
@@ -334,19 +333,26 @@ void XEventHandler::buttonPress(const XButtonEvent &ev) {
 
 void XEventHandler::propertyNotify(const xpp::Event &ev) {
 	const auto &prop = ev.toProperty();
-	Atom clipboard = m_x11.getAtom("CLIPBOARD");
 
-	if (prop.state == PropertyNewValue && cosmos::in_list(prop.atom, {XA_PRIMARY, clipboard})) {
+	if (prop.state != PropertyNewValue)
+	       return;
+
+	const auto prop_id = xpp::AtomID{prop.atom};
+
+	if (prop_id == xpp::atoms::primary_selection || prop_id == xpp::atoms::clipboard) {
 		selectionNotify(ev);
 	}
 }
 
 void XEventHandler::selectionNotify(const xpp::Event &ev) {
-	const xpp::XAtom atom = [&ev]() {
-		switch (ev.getType()) {
-			case SelectionNotify: return xpp::XAtom(ev.toSelectionNotify().property);
-			case PropertyNotify: return xpp::XAtom(ev.toProperty().atom);
-			default: return xpp::XAtom();
+	const xpp::AtomID atom = [&ev]() {
+		switch (ev.type()) {
+			case xpp::EventType::Ev_SelectionNotify:
+				return xpp::AtomID{ev.toSelectionNotify().property};
+			case xpp::EventType::Ev_PropertyNotify:
+				return xpp::AtomID{ev.toProperty().atom};
+			default:
+				return xpp::AtomID::INVALID;
 		}
 	}();
 
@@ -355,7 +361,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 	xpp::XWindow::PropertyInfo info;
 	xpp::RawProperty prop;
 
-	if (!atom.valid())
+	if (atom == xpp::AtomID::INVALID)
 		return;
 
 	prop.length = BUFSIZ;
@@ -378,7 +384,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			m_x11.changeEventMask(PropertyChangeMask, false);
 		}
 
-		if (info.type == m_incr_atom) {
+		if (info.type == atoms::incr) {
 			/*
 			 * Activate the PropertyNotify events so we receive
 			 * when the selection owner does send us the next
@@ -438,23 +444,24 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 	/* reject by default, if nothing matches below */
 	xev.property = None;
 
-	xpp::XWindow requestor(req.requestor);
-	const xpp::XAtom target = xpp::XAtom(req.target);
-	const xpp::XAtom req_prop = req.property == None ? target : xpp::XAtom(req.property);
+	xpp::XWindow requestor{xpp::WinID{req.requestor}};
+	const xpp::AtomID target{xpp::AtomID{req.target}};
+	const xpp::AtomID req_prop = req.property == None ? target : xpp::AtomID{req.property};
 
-	if (target == m_x11.getXAtom("TARGETS")) {
+	if (target == atoms::targets) {
 		/* respond with the supported type */
-		xpp::Property<xpp::XAtom> tgt_format(m_xsel.getTargetFormat());
+		xpp::Property<xpp::AtomID> tgt_format(m_xsel.getTargetFormat());
 
 		requestor.setProperty(req_prop, tgt_format);
-		xev.property = req_prop;
-	} else if (target == m_xsel.getTargetFormat() || target == XA_STRING) {
+		xev.property = xpp::raw_atom(req_prop);
+	} else if (target == m_xsel.getTargetFormat() || target == xpp::atoms::string_type) {
 		/*
-		 * with XA_STRING non ascii characters may be incorrect in the
-		 * requestor. It is not our problem, use utf8.
+		 * with XA_STRING (string_type) non ascii characters may be
+		 * incorrect in the requestor. It is not our problem, use
+		 * utf8.
 		 */
 		try {
-			auto seltext = m_xsel.getSelection(xpp::XAtom(req.selection));
+			auto seltext = m_xsel.getSelection(xpp::AtomID{req.selection});
 			if (!seltext.empty()) {
 				// TODO: this potentially needlessly copies the
 				// selection string, because we need to turn it into
@@ -470,9 +477,8 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 			return;
 		}
 
-		xev.property = req_prop;
+		xev.property = xpp::raw_atom(req_prop);
 	}
-
 
 	try {
 		/* all done, send a notification to the listener */

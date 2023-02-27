@@ -1,4 +1,5 @@
 // cosmos
+#include "cosmos/algs.hxx"
 #include "cosmos/io/Poller.hxx"
 #include "cosmos/time/time.hxx"
 
@@ -21,7 +22,7 @@ void Nst::waitForWindowMapping() {
 
 	/* Waiting for window mapping */
 	do {
-		display.getNextEvent(ev);
+		display.nextEvent(ev);
 		/*
 		 * This XFilterEvent call is required because of XOpenIM. It
 		 * does filter out the key event and some client message for
@@ -45,13 +46,13 @@ void Nst::run(int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
 	m_term.init(*this);
 	m_x11.init();
-	m_event_handler.init();
 	setEnv();
 	mainLoop();
 }
 
 void Nst::setEnv() {
-	::setenv("WINDOWID", std::to_string(m_x11.getWindow()).c_str(), 1);
+	auto win = m_x11.getWindow().id();
+	::setenv("WINDOWID", std::to_string(cosmos::to_integral(win)).c_str(), 1);
 }
 
 
@@ -59,7 +60,7 @@ void Nst::mainLoop() {
 	auto ttyfd = m_tty.create();
 	auto childfd = m_tty.getChildFD();
 	auto &display = m_x11.getDisplay();
-	auto xfd = display.getConnectionNumber();
+	auto xfd = display.connectionNumber();
 
 	cosmos::Poller poller;
 	poller.create();
@@ -98,7 +99,7 @@ void Nst::mainLoop() {
 
 		while (display.hasPendingEvents()) {
 			draw_event = true;
-			display.getNextEvent(ev);
+			display.nextEvent(ev);
 			if (ev.filterEvent())
 				continue;
 			m_event_handler.process(ev);

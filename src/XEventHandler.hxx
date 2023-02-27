@@ -7,7 +7,7 @@
 
 // X++
 #include "X++/Event.hxx"
-#include "X++/XAtom.hxx"
+#include "X++/types.hxx"
 
 // nst
 #include "types.hxx"
@@ -28,9 +28,6 @@ class XEventHandler {
 public: // functions
 
 	explicit XEventHandler(Nst &nst);
-
-	/// basic runtime initialization of the event handler
-	void init();
 
 	/// processes the given single X11 event
 	void process(xpp::Event &ev);
@@ -73,8 +70,6 @@ protected: // data
 	XSelection &m_xsel;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
-	xpp::XAtom m_xembed_atom;
-	xpp::XAtom m_incr_atom;
 	PressedButtons m_buttons; /* bit field of pressed buttons */
 	CharPos m_old_mouse_pos;
 };

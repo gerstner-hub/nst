@@ -9,8 +9,9 @@
 #include <X11/Xft/Xft.h>
 #include <X11/cursorfont.h>
 // X++
+#include "X++/AtomMapper.hxx"
+#include "X++/types.hxx"
 #include "X++/XDisplay.hxx"
-#include "X++/XAtom.hxx"
 #include "X++/XWindow.hxx"
 // nst
 #include "font.hxx"
@@ -31,7 +32,7 @@ public: // functions
 	void setRawGC(xpp::GcSharedPtr gc) { m_gc = gc; }
 	auto getRawGC() { return m_gc.get(); }
 	auto getGC() { return m_gc; }
-	void setPixmap(xpp::PixMap &pm) { m_pixmap = pm; }
+	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
 	std::tuple<Font*, FontFlags> getFontForMode(const Glyph::AttrBitMask &mode);
 	void setForeground(const FontColor &color);
 	void setForeground(size_t colidx) {
@@ -45,7 +46,7 @@ public: // functions
 
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
-	xpp::PixMap m_pixmap;
+	xpp::PixMapID m_pixmap;
 	xpp::GcSharedPtr m_gc;
 };
 
@@ -106,16 +107,11 @@ protected: // data
 	int m_screen = -1;
 	Visual *m_visual = nullptr;
 	xpp::XWindow m_window; // the main (and only) terminal window
-	xpp::XAtomMapper *m_mapper = nullptr;
 	int m_geometry = 0; /* geometry mask */
 	bool m_fixed_geometry = false;
 	DrawPos m_win_offset;
 	XSetWindowAttributes m_win_attrs;
-	xpp::PixMap m_pixmap;
-	xpp::XAtom m_netwmname;
-	xpp::XAtom m_wmname;
-	xpp::XAtom m_netwmiconname;
-	xpp::XAtom m_wmdeletewin;
+	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
 	bool m_fc_inited = false;
@@ -184,11 +180,8 @@ public: // functions
 	}
 
 	auto& getDisplay() { return *(m_display); }
-	Atom getAtom(const char *name) const { return getXAtom(name).get(); }
-	xpp::XAtom getXAtom(const char *name) const { return m_mapper->getAtom(name); }
 	const xpp::XWindow& getWindow() const { return m_window; }
 	xpp::XWindow& getWindow() { return m_window; }
-	auto& getWmDeleteWin() const { return m_wmdeletewin; }
 	auto& getXSelection() { return m_xsel; }
 	auto& getTermWin() const { return m_twin; }
 	auto& getTermSize() const { return m_tsize; }

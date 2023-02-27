@@ -1,3 +1,6 @@
+// X++
+#include "X++/atoms.hxx"
+
 // nst
 #include "nst.hxx"
 #include "XSelection.hxx"
@@ -13,9 +16,9 @@ void XSelection::init() {
 	m_primary.clear();
 	m_clipboard.clear();
 	try {
-		m_target_fmt = m_x11.getXAtom("UTF8_STRING");
+		m_target_fmt = xpp::atoms::ewmh_utf8_string;
 	} catch (const xpp::XDisplay::AtomMappingError &) {
-		m_target_fmt = xpp::XAtom(XA_STRING);
+		m_target_fmt = xpp::atoms::string_type;
 	}
 }
 
@@ -26,11 +29,11 @@ void XSelection::setSelection(const std::string_view &str, Time t) {
 	m_primary = str;
 
 	const auto &display = m_x11.getDisplay();
-	const auto primary = xpp::XAtom(XA_PRIMARY);
+	const auto &primary = xpp::atoms::primary_selection;
 	auto &our_window = m_x11.getWindow();
 
 	our_window.makeSelectionOwner(primary, t);
-	if (auto owner = display.getSelectionOwner(primary); !owner || *owner != our_window)
+	if (auto owner = display.selectionOwner(primary); !owner || *owner != our_window)
 		// we could not become the new selection owner
 		m_nst.getSelection().clear();
 }
@@ -41,14 +44,14 @@ void XSelection::copyPrimaryToClipboard() {
 	if (m_primary.empty())
 		return;
 
-	const auto clipboard = m_x11.getXAtom("CLIPBOARD");
+	const auto &clipboard = xpp::atoms::clipboard;
 	m_x11.getWindow().makeSelectionOwner(clipboard);
 }
 
-const std::string& XSelection::getSelection(const xpp::XAtom which) const {
-	if (which == XA_PRIMARY) {
+const std::string& XSelection::getSelection(const xpp::AtomID which) const {
+	if (which == xpp::atoms::primary_selection) {
 		return m_primary;
-	} else if (which == m_x11.getAtom("CLIPBOARD")) {
+	} else if (which == xpp::atoms::clipboard) {
 		return m_clipboard;
 	}
 

@@ -22,6 +22,7 @@
 #include "cosmos/proc/Process.hxx"
 
 // X++
+#include "X++/atoms.hxx"
 #include "X++/helpers.hxx"
 #include "X++/Event.hxx"
 #include "X++/RootWin.hxx"
@@ -59,7 +60,7 @@ void DrawingContext::createGC(xpp::XDisplay &display, xpp::XWindow &parent) {
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
 	m_gc = display.createGraphicsContext(
-			parent,
+			xpp::to_drawable(parent),
 			xpp::GcOptMask(xpp::GcOpts::GraphicsExposures),
 			gcvalues);
 }
@@ -81,7 +82,7 @@ void DrawingContext::setForeground(const FontColor &color) {
 }
 
 void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
-	XFillRectangle(*m_display, m_pixmap.id(), getRawGC(), pos.x, pos.y, ext.width, ext.height);
+	XFillRectangle(*m_display, xpp::raw_pixmap(m_pixmap), getRawGC(), pos.x, pos.y, ext.width, ext.height);
 }
 
 void DrawingContext::sanitizeColor(Glyph &g) const {
@@ -131,12 +132,13 @@ void X11::copyToClipboard() {
 }
 
 void X11::pasteClipboard() {
-	auto clipboard = getXAtom("CLIPBOARD");
+	const auto &clipboard = xpp::atoms::clipboard;
+
 	m_window.convertSelection(clipboard, m_xsel.getTargetFormat(), clipboard);
 }
 
 void X11::pasteSelection() {
-	auto primary = xpp::XAtom(XA_PRIMARY);
+	const auto &primary = xpp::atoms::primary_selection;
 	m_window.convertSelection(primary, m_xsel.getTargetFormat(), primary);
 }
 
@@ -160,7 +162,7 @@ void X11::resetFont() {
 }
 
 void X11::allocPixmap() {
-	if (m_pixmap.valid()) {
+	if (m_pixmap != xpp::PixMapID::INVALID) {
 		m_display->freePixmap(m_pixmap);
 	}
 	m_pixmap = m_display->createPixmap(
@@ -169,10 +171,10 @@ void X11::allocPixmap() {
 	);
 
 	if (m_font_draw) {
-		XftDrawChange(m_font_draw, m_pixmap.id());
+		XftDrawChange(m_font_draw, xpp::raw_pixmap(m_pixmap));
 	} else {
 		/* Xft rendering context */
-		m_font_draw = XftDrawCreate(*m_display, m_pixmap.id(), m_visual, m_color_map);
+		m_font_draw = XftDrawCreate(*m_display, xpp::raw_pixmap(m_pixmap), m_visual, m_color_map);
 	}
 
 	m_draw_ctx.setPixmap(m_pixmap);
@@ -223,7 +225,7 @@ void X11::loadColors() {
 			XftColorFree(*m_display, m_visual, m_color_map, &c);
 		}
 	} else {
-		m_color_map = m_display->getDefaultColormap(m_screen);
+		m_color_map = m_display->defaultColormap(m_screen);
 		auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
 		m_draw_ctx.col.resize(len);
 	}
@@ -306,7 +308,7 @@ void X11::setHints() {
 		sizeh->win_gravity = getGravity();
 	}
 
-	XSetWMProperties(*m_display, m_window, NULL, NULL, NULL, 0, sizeh.get(), &wm, &clazz);
+	XSetWMProperties(*m_display, xpp::raw_win(m_window.id()), NULL, NULL, NULL, 0, sizeh.get(), &wm, &clazz);
 }
 
 int X11::getGravity() {
@@ -619,9 +621,9 @@ void X11::setGeometry(const std::string &g) {
 	m_twin.setWinExtent(m_tsize);
 	const auto &win = m_twin.getWinExtent();
 	if (m_geometry & XNegative)
-		m_win_offset.x += m_display->getDisplayWidth(m_screen) - win.width - 2;
+		m_win_offset.x += m_display->displayWidth(m_screen) - win.width - 2;
 	if (m_geometry & YNegative)
-		m_win_offset.y  += m_display->getDisplayHeight(m_screen) - win.height - 2;
+		m_win_offset.y  += m_display->displayHeight(m_screen) - win.height - 2;
 }
 
 xpp::XWindow X11::getParent() const {
@@ -629,7 +631,7 @@ xpp::XWindow X11::getParent() const {
 
 	if (m_cmdline->embed_window.isSet()) {
 		// use window ID passed on command line as parent
-		ret = xpp::XWindow(m_cmdline->embed_window.getValue());
+		ret = xpp::XWindow(xpp::WinID{m_cmdline->embed_window.getValue()});
 	}
 
 	if (!ret.valid()) {
@@ -643,7 +645,7 @@ xpp::XWindow X11::getParent() const {
 void X11::setupCursor() {
 	/* white cursor, black outline */
 	Cursor cursor = XCreateFontCursor(*m_display, config::MOUSESHAPE);
-	XDefineCursor(*m_display, m_window, cursor);
+	XDefineCursor(*m_display, xpp::raw_win(m_window), cursor);
 
 	XColor xmousefg, xmousebg;
 
@@ -670,10 +672,9 @@ void X11::setupCursor() {
 
 void X11::init() {
 	m_cmdline = &m_nst.getCmdline();
-	m_display = &xpp::XDisplay::getInstance();
-	m_mapper = &xpp::XAtomMapper::getInstance();
-	m_screen = m_display->getDefaultScreen();
-	m_visual = m_display->getDefaultVisual(m_screen);
+	m_display = &xpp::display;
+	m_screen = m_display->defaultScreen();
+	m_visual = m_display->defaultVisual(m_screen);
 
 	m_fixed_geometry = m_cmdline->fixed_geometry.isSet();
 
@@ -717,7 +718,7 @@ void X11::init() {
 		/*border_width=*/0,
 		/*clazz = */InputOutput,
 		&parent,
-		m_display->getDefaultDepth(m_screen),
+		m_display->defaultDepth(m_screen),
 		m_visual,
 		CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
 		&m_win_attrs
@@ -733,18 +734,13 @@ void X11::init() {
 
 	setupCursor();
 
-	m_wmdeletewin = getXAtom("WM_DELETE_WINDOW");
-	m_netwmname = getXAtom("_NET_WM_NAME");
-	m_wmname = getXAtom("WM_NAME");
-	m_netwmiconname = getXAtom("_NET_WM_ICON_NAME");
-
-	m_window.setProtocols(xpp::XAtomVector{m_wmdeletewin});
+	m_window.setProtocols(xpp::AtomIDVector{xpp::atoms::icccm_wm_delete_window});
 
 	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
 	xpp::Property<int> pid_prop(
-			cosmos::to_integral(cosmos::proc::cached_pids.own_pid)
+		cosmos::to_integral(cosmos::proc::cached_pids.own_pid)
 	);
-	m_window.setProperty(getXAtom("_NET_WM_PID"), pid_prop);
+	m_window.setProperty(xpp::atoms::ewmh_window_pid, pid_prop);
 
 	setDefaultTitle();
 	setHints();
@@ -1084,8 +1080,8 @@ void X11::setDefaultIconTitle() {
 
 void X11::setIconTitle(const std::string &title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
-	m_window.setProperty(xpp::XAtom{XA_WM_ICON_NAME}, data);
-	m_window.setProperty(m_netwmiconname, data);
+	m_window.setProperty(xpp::atoms::wm_icon_name, data);
+	m_window.setProperty(xpp::atoms::ewmh_icon_name, data);
 }
 
 void X11::setDefaultTitle() {
@@ -1094,8 +1090,8 @@ void X11::setDefaultTitle() {
 
 void X11::setTitle(const std::string &title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
-	m_window.setProperty(m_wmname, data);
-	m_window.setProperty(m_netwmname, data);
+	m_window.setProperty(xpp::atoms::icccm_window_name, data);
+	m_window.setProperty(xpp::atoms::ewmh_window_name, data);
 }
 
 void X11::drawLine(const Line &line, const CharPos &start, const int count) {
@@ -1168,7 +1164,7 @@ void X11::ringBell() {
 	if (!(m_twin.checkFlag(WinMode::FOCUSED)))
 		setUrgency(1);
 	if (config::BELLVOLUME)
-		XkbBell(*m_display, m_window, config::BELLVOLUME, (Atom)nullptr);
+		XkbBell(*m_display, xpp::raw_win(m_window.id()), config::BELLVOLUME, (Atom)nullptr);
 }
 
 void X11::embeddedFocusChange(const bool in_focus) {

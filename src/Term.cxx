@@ -354,7 +354,7 @@ void Term::deleteColsAfterCursor(int count) {
 	const int dst = cursor.x;
 	const int src = cursor.x + count;
 	const int left = m_size.cols - src;
-	auto &line = m_screen.getLine(cursor);
+	auto &line = m_screen.line(cursor);
 
 	// slide remaining line content count characters to the left
 	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
@@ -378,7 +378,7 @@ void Term::insertBlanksAfterCursor(int count) {
 	const int dst = cursor.x + count;
 	const int src = cursor.x;
 	const int left = m_size.cols - dst;
-	auto &line = m_screen.getLine(cursor);
+	auto &line = m_screen.line(cursor);
 
 	// slide remaining line content count characters to the right
 	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
@@ -450,7 +450,7 @@ void Term::dumpLine(const CharPos &pos) const {
 	char buf[utf8::UTF_SIZE];
 
 	auto left = getLineLen(pos);
-	const auto line = m_screen.getLine(pos);
+	const auto line = m_screen.line(pos);
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
 		auto len = utf8::encode(it->u, buf);

@@ -879,7 +879,7 @@ void X11::getGlyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 
 	/* Change basic system colors [0-7] to bright system colors [8-15] */
 	if (base.needBrightColor() && base.isBasicColor())
-		fg = m_draw_ctx.col[base.getBrightColor()];
+		fg = m_draw_ctx.col[base.toBrightColor()];
 
 	if (m_twin.inReverseMode()) {
 		if (fg == m_draw_ctx.getDefaultFG()) {

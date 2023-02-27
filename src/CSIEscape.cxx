@@ -1,11 +1,9 @@
-// libc
-#include <limits.h>
-
-// stdlib
+// C++
+#include <limits>
 #include <cstring>
 #include <iostream>
 
-// libcosmos
+// cosmos
 #include "cosmos/formatting.hxx"
 
 // nst
@@ -26,7 +24,8 @@ constexpr size_t MAX_ARG_SIZE = 16;
 
 } // end anon ns
 
-CSIEscape::CSIEscape(Nst &nst) : m_nst(nst) {
+CSIEscape::CSIEscape(Nst &nst) :
+		m_nst(nst) {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -50,8 +49,6 @@ void CSIEscape::parse() {
 	m_args.clear();
 
 	auto it = m_str.begin();
-	int arg;
-	size_t num_parsed;
 
 	if (m_str.empty()) {
 		return;
@@ -66,6 +63,8 @@ void CSIEscape::parse() {
 	// something different depending on the command.
 	//
 	// a value generally cannot be negative from the spec's point of view.
+	int arg;
+	size_t num_parsed;
 
 	while (it < m_str.end()) {
 		try {
@@ -104,7 +103,7 @@ void CSIEscape::dump(const std::string_view &prefix) const {
 			case '\n': return "\\n";
 			case '\r': return "\\r";
 			case 0x1b: return "\\e";
-			default: return static_cast<std::string>(cosmos::HexNum(ch, 2));
+			default: return static_cast<std::string>(cosmos::HexNum{ch, 2});
 		}
 	};
 
@@ -269,26 +268,26 @@ void CSIEscape::process() {
 		return;
 	case 'i': /* MC -- Media Copy */
 		switch (arg0) {
-		case 0: // print page
-			term.dump();
-			break;
-		case 1: // print cursor line
-			term.dumpCursorLine();
-			break;
-		case 2:
-			m_nst.getSelection().dump();
-			break;
-		case 4: // reset autoprint mode
-			term.setPrintMode(false);
-			break;
-		case 5: // set autoprint mode
-			term.setPrintMode(true);
-			break;
+			case 0: // print page
+				term.dump();
+				break;
+			case 1: // print cursor line
+				term.dumpCursorLine();
+				break;
+			case 2:
+				m_nst.getSelection().dump();
+				break;
+			case 4: // reset autoprint mode
+				term.setPrintMode(false);
+				break;
+			case 5: // set autoprint mode
+				term.setPrintMode(true);
+				break;
 		}
 		return;
 	case 'c': /* DA -- Device Attributes */
 		if (arg0 == 0)
-			m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho(false));
+			m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho{false});
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		term.repeatChar(arg0 ? arg0 : 1);
@@ -301,21 +300,21 @@ void CSIEscape::process() {
 		term.moveCursorLeft(arg0 ? arg0 : 1);
 		return;
 	case 'E': /* CNL -- Cursor <n> Down and first col */
-		term.moveCursorDown(arg0 ? arg0 : 1, Term::CarriageReturn(true));
+		term.moveCursorDown(arg0 ? arg0 : 1, Term::CarriageReturn{true});
 		return;
 	case 'F': /* CPL -- Cursor <n> Up and first col */
-		term.moveCursorUp(arg0 ? arg0 : 1, Term::CarriageReturn(true));
+		term.moveCursorUp(arg0 ? arg0 : 1, Term::CarriageReturn{true});
 		return;
 	case 'g': /* TBC -- Tabulation clear */
 		switch (arg0) {
-		case 0: /* clear current tab stop */
-			term.setTabAtCursor(false);
-			return;
-		case 3: /* clear all the tabs */
-			term.clearAllTabs();
-			return;
-		default:
-			break;
+			case 0: /* clear current tab stop */
+				term.setTabAtCursor(false);
+				return;
+			case 3: /* clear all the tabs */
+				term.clearAllTabs();
+				return;
+			default:
+				break;
 		}
 		break;
 	case 'G': /* CHA -- Move to <col> */
@@ -401,7 +400,7 @@ void CSIEscape::process() {
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
 			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
-			m_nst.getTTY().write(buf, TTY::MayEcho(false));
+			m_nst.getTTY().write(buf, TTY::MayEcho{false});
 		}
 		return;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
@@ -559,6 +558,10 @@ int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 
 	const size_t num_pars = m_args.end() - it;
 
+	auto toTrueColor = [](unsigned int r, unsigned int g, unsigned int b) -> int32_t {
+		return (1 << 24) | (r << 16) | (g << 8) | b;
+	};
+
 	auto badPars = [&]() {
 		std::cerr << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
 		return -1;
@@ -612,9 +615,9 @@ int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 void CSIEscape::reportFocus(bool in_focus) {
 	auto &tty = m_nst.getTTY();
 	if (in_focus)
-		tty.write("\033[I", TTY::MayEcho(false));
+		tty.write("\033[I", TTY::MayEcho{false});
 	else
-		tty.write("\033[O", TTY::MayEcho(false));
+		tty.write("\033[O", TTY::MayEcho{false});
 }
 
 } // end ns

@@ -1,10 +1,10 @@
 #ifndef NST_GLYPH_HXX
 #define NST_GLYPH_HXX
 
-// stdlib
+// C++
 #include <vector>
 
-// libcosmos
+// cosmos
 #include "cosmos/BitMask.hxx"
 
 // nst
@@ -13,14 +13,14 @@
 namespace nst {
 
 /// primitive integer type to store character codes to be displayed on the terminal
-typedef uint_least32_t Rune;
+using Rune = uint_least32_t;
 
 /// code, color and attribute information for a single character position on the terminal
 struct Glyph {
 public: // types
 
 	/// Glyph rendering attributes
-	enum class Attr : unsigned {
+	enum class Attr {
 		NONE       = 0,
 		BOLD       = 1 << 0,
 		FAINT      = 1 << 1,
@@ -35,10 +35,10 @@ public: // types
 		WDUMMY     = 1 << 10 /// for wide UTF8 characters this is a dummy placeholder position (a following, blocked column)
 	};
 
-	typedef cosmos::BitMask<Attr> AttrBitMask;
+	using AttrBitMask = cosmos::BitMask<Attr>;
 
 	/// primitive integer type to store Glyph color information
-	typedef uint32_t color_t;
+	using color_t = uint32_t;
 
 public: // data
 
@@ -67,7 +67,7 @@ public: // functions
 	bool isBasicColor() const {
 		return fg <= 7;
 	}
-	color_t getBrightColor() const {
+	color_t toBrightColor() const {
 		return fg + 8;
 	}
 
@@ -98,16 +98,17 @@ public: // functions
 using Line = std::vector<Glyph>;
 
 /// a terminal screen consisting of lines of Glyphs
-class Screen : public std::vector<Line> {
+class Screen :
+		public std::vector<Line> {
 protected: // functions
 
-	auto& getBase() { return static_cast<std::vector<Line>&>(*this); }
-	auto& getBase() const { return static_cast<const std::vector<Line>&>(*this); }
+	auto& base() { return static_cast<std::vector<Line>&>(*this); }
+	auto& base() const { return static_cast<const std::vector<Line>&>(*this); }
 
 public: // functions
 
-	Line& getLine(const CharPos &pos) { return getBase()[pos.y]; }
-	const Line& getLine(const CharPos &pos) const { return getBase()[pos.y]; }
+	Line& line(const CharPos &pos)             { return base()[pos.y]; }
+	const Line& line(const CharPos &pos) const { return base()[pos.y]; }
 
 	void setDimension(const TermSize &size) {
 		resize(size.rows);
@@ -133,11 +134,11 @@ public: // functions
 		return validLine(p) && validColumn(p);
 	}
 
-	Glyph& operator[](const CharPos &p) { return getBase()[p.y][p.x]; }
-	const Glyph& operator[](const CharPos &p) const { return getBase()[p.y][p.x]; }
+	Glyph& operator[](const CharPos &p)             { return base()[p.y][p.x]; }
+	const Glyph& operator[](const CharPos &p) const { return base()[p.y][p.x]; }
 
-	Line& operator[](size_type pos) { return getBase()[pos]; }
-	const Line& operator[](size_type pos) const { return getBase()[pos]; }
+	Line& operator[](size_type pos)             { return base()[pos]; }
+	const Line& operator[](size_type pos) const { return base()[pos]; }
 };
 
 } // end ns

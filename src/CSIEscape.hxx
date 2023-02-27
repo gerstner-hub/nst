@@ -1,10 +1,8 @@
 #ifndef NST_CSIESCAPE_HXX
 #define NST_CSIESCAPE_HXX
 
-// libc
-#include <stddef.h>
-
-// stdlib
+// C++
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,7 +17,7 @@ namespace nst {
 
 class Nst;
 
-/// Handles CSI and some other types of escape sequences
+/// Handles CSI and some other types of escape sequences.
 /**
  * CSI (Control Sequence Introducer) struct follow the following model:
  *
@@ -33,7 +31,7 @@ public: // functions
 
 	explicit CSIEscape(Nst &nst);
 
-	/// adds the given character to the sequence, returns whether the sequence is complete
+	/// Adds the given character to the sequence, returns whether the sequence is complete.
 	bool addCSI(const char ch) {
 		m_str.push_back(ch);
 		// signal complete either if the maximum sequence length has
@@ -41,13 +39,13 @@ public: // functions
 		return m_str.length() >= MAX_STR_SIZE || isFinalByte(ch);
 	}
 
-	/// processes parsed CSI parameters
+	/// Processes parsed CSI parameters.
 	void process();
 
-	/// parses the current CSI sequence into member variables
+	/// Parses the current CSI sequence into member variables.
 	void parse();
 
-	/// resets all parsing state and data
+	/// Resets all parsing state and data.
 	void reset() {
 		m_is_private_csi = false;
 		m_mode_suffix.clear();
@@ -55,12 +53,12 @@ public: // functions
 		m_str.clear();
 	}
 
-	/// if focus reporting was enabled, report focus state change on TTY
+	/// If focus reporting was enabled, report focus state change on TTY.
 	void reportFocus(bool in_focus);
 
 protected: // functions
 
-	/// makes sure the given argument index exists in m_args, possibly assigning defval
+	/// Makes sure the given argument index exists in m_args, possibly assigning defval.
 	/**
 	 * If the given argument index is not available then m_args is
 	 * extended accordingly. Whether extended or not the function also
@@ -71,7 +69,7 @@ protected: // functions
 	 **/
 	int ensureArg(size_t index, int defval);
 
-	/// dumps the current sequence to stderr prefixed by \c prefix
+	/// Dumps the current sequence to stderr prefixed by \c prefix.
 	void dump(const std::string_view &prefix) const;
 
 	bool isFinalByte(const char ch) const {
@@ -79,33 +77,29 @@ protected: // functions
 		return cosmos::in_range(ch, 0x40, 0x7E);
 	}
 
-	/// calls setMode() or setPrivateMode() depending on current context
+	/// Calls setMode() or setPrivateMode() depending on current context.
 	void setModeGeneric(const bool enable);
 
-	/// process a set terminal mode request
+	/// Process a set terminal mode request.
 	void setMode(const bool set);
 
-	/// process a private set terminal mode request
+	/// Process a private set terminal mode request.
 	void setPrivateMode(const bool set);
 
-	/// forwards a setCursorAttrs() call to Term
+	/// Forwards a setCursorAttrs() call to Term.
 	bool setCursorAttrs() const;
 
 	int32_t parseColor(std::vector<int>::const_iterator &it) const;
 
-	static int32_t toTrueColor(unsigned int r, unsigned int g, unsigned int b) {
-		return (1 << 24) | (r << 16) | (g << 8) | b;
-	}
-
-	/// handle fb/bg cursor color settings from dim/bright color ranges
+	/// Handle fb/bg cursor color settings from dim/bright color ranges.
 	bool handleCursorColorSet(const int attr) const;
 
 protected: // data
 
-	std::string m_str; /// the raw escape sequence bytes collected so far
-	bool m_is_private_csi = false; /// whether a private CSI control was parsed
-	std::vector<int> m_args; /// up to 16 integer parameter for the current CSI
-	std::string m_mode_suffix; /// the intermediate and final characters of the sequence
+	std::string m_str; /// The raw escape sequence bytes collected so far
+	bool m_is_private_csi = false; /// Whether a private CSI control was parsed
+	std::vector<int> m_args; /// Up to 16 integer parameter for the current CSI
+	std::string m_mode_suffix; /// The intermediate and final characters of the sequence
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
 	Nst &m_nst;
 };

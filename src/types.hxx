@@ -1,14 +1,14 @@
 #ifndef NST_TYPES_HXX
 #define NST_TYPES_HXX
 
-// stdlib
+// C++
 #include <algorithm>
 #include <bitset>
 #include <functional>
 #include <stdexcept>
 #include <string_view>
 
-// Xlib
+// X
 #include <X11/X.h>
 
 // cosmos
@@ -20,9 +20,13 @@
 
 namespace nst {
 
-/* this header contains smaller utility types used throughout the project */
+/**
+ * @file
+ *
+ * This header contains simpler utility types used throughout the project.
+ **/
 
-/// baseclass for position or coordinate like types
+/// Baseclass for position or coordinate like types.
 /**
  * The template argument is solely for creating strongly typed variants of
  * this type that cannot interact with each other, because they are
@@ -30,8 +34,11 @@ namespace nst {
  **/
 template <typename T>
 struct PosT {
+public: // types
 	int x = 0;
 	int y = 0;
+
+public: // functions
 
 	void set(int _x, int _y) {
 		x = _x;
@@ -75,24 +82,28 @@ struct PosT {
 	}
 };
 
-/// represents a character position on the terminal in col/row units
-struct CharPos : public PosT<class char_pos_t> {
+/// Represents a character position on the terminal in col/row units.
+struct CharPos :
+		public PosT<class char_pos_t> {
+public: // functions
 	CharPos nextCol(const int n=1)  const { return CharPos{x + n, y    }; }
 	CharPos prevCol(const int n=1)  const { return CharPos{x - n, y    }; }
 	CharPos nextLine(const int n=1) const { return CharPos{x,     y + n}; }
 	CharPos prevLine(const int n=1) const { return CharPos{x,     y - n}; }
 	CharPos startOfLine() const { return CharPos{0, y}; }
 
-	CharPos& moveLeft(const int n=1) { x -= n; return *this; }
+	CharPos& moveLeft(const int n=1)  { x -= n; return *this; }
 	CharPos& moveRight(const int n=1) { x += n; return *this; }
-	CharPos& moveDown(const int n=1) { y += n; return *this; }
-	CharPos& moveUp(const int n=1) { y -= n; return *this; }
+	CharPos& moveDown(const int n=1)  { y += n; return *this; }
+	CharPos& moveUp(const int n=1)    { y -= n; return *this; }
 
 	CharPos& moveToStartOfLine() { x = 0; return *this; }
 };
 
 /// represents a drawing position in a window in pixel units
-struct DrawPos : public PosT<class draw_pos_t> {
+struct DrawPos :
+		public PosT<class draw_pos_t> {
+public: // functions
 	auto& moveDown( int px) { y += px; return *this; }
 	auto& moveUp(   int px) { y -= px; return *this; }
 	auto& moveLeft( int px) { x -= px; return *this; }
@@ -108,7 +119,7 @@ struct DrawPos : public PosT<class draw_pos_t> {
 	}
 };
 
-/// a rectangular range of characters between a begin and and end CharPos
+/// A rectangular range of characters between a begin and and end CharPos.
 /**
  * the begin and end coordinates are *inclusive*.
  **/
@@ -127,11 +138,18 @@ public: // types
 public: // functions
 
 	Range() = default;
-	Range(const CharPos &b, const CharPos &e) : begin(b), end(e) {}
-	Range(const CharPos &b, const Width &w) : Range(b, b) {
+
+	Range(const CharPos &b, const CharPos &e) :
+			begin{b}, end{e}
+	{}
+
+	Range(const CharPos &b, const Width &w) :
+			Range{b, b} {
 		end.x += static_cast<int>(w);
 	}
-	Range(const CharPos &b, const Height &h) : Range(b, b) {
+
+	Range(const CharPos &b, const Height &h) :
+			Range{b, b} {
 		end.y += static_cast<int>(h);
 	}
 
@@ -169,7 +187,7 @@ public: // functions
 	}
 };
 
-/// represents the terminal size in character elements
+/// Represents the terminal size in character elements.
 struct TermSize {
 public: // data
 
@@ -188,17 +206,22 @@ public: // functions
 	}
 };
 
-/// a span over one or more terminal lines
+/// A span over one or more terminal lines.
 struct LineSpan {
 public: // data
+
 	int top = 0;
 	int bottom = 0;
 
 public: // functions
 
 	LineSpan() = default;
-	LineSpan(int t, int b) : top(t), bottom(b) {}
-	explicit LineSpan(const Range &r) : top(r.begin.y), bottom(r.end.y) {}
+	LineSpan(int t, int b) :
+			top{t}, bottom{b}
+	{}
+	explicit LineSpan(const Range &r) :
+			top{r.begin.y}, bottom{r.end.y}
+	{}
 
 	void sanitize() {
 		if (top > bottom) {
@@ -212,16 +235,20 @@ public: // functions
 	}
 };
 
-/// a span over one or more terminal columns
+/// A span over one or more terminal columns.
 struct ColSpan {
 	int left = 0;
 	int right = 0;
 };
 
-//! a two-dimensional extent in pixels e.g. for characters, windows, ...
+/// a two-dimensional extent in pixels e.g. for characters, windows etc.
 struct Extent {
+public: // data
+
 	int width = 0;
 	int height = 0;
+
+public: // functions
 
 	bool operator==(const Extent &o) const {
 		return width == o.width && height == o.height;
@@ -233,7 +260,7 @@ struct Extent {
 
 	void assertPositive() const {
 		if (width < 0 || height < 0) {
-			throw(std::runtime_error("extent-positive assertion failed"));
+			throw std::runtime_error{"extent-positive assertion failed"};
 		}
 	}
 
@@ -244,9 +271,11 @@ struct Extent {
 	}
 };
 
-typedef std::function<void ()> Callback;
 
 /* types used in nst_config.h */
+
+using Callback = std::function<void ()>;
+
 struct KbdShortcut {
 	unsigned int mod;
 	KeySym keysym;
@@ -263,16 +292,18 @@ struct MouseShortcut {
 struct Key {
 	KeySym k;
 	unsigned int mask = 0;
-	std::string_view s = "";
+	std::string_view s{};
 	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
 	signed char appkey = 0;    /* application keypad */
 	signed char appcursor = 0; /* application cursor */
 };
 
-class PressedButtons : public std::bitset<11> {
+class PressedButtons :
+		public std::bitset<11> {
 public: // data
 
 	static constexpr size_t NO_BUTTON = 12;
+
 public:
 
 	/// returns the position of the lowest button pressed, or NO_BUTTON
@@ -324,9 +355,9 @@ enum class WinMode {
 	MOUSE       = MOUSEBTN|MOUSEMOTION|MOUSEX10|MOUSEMANY
 };
 
-typedef cosmos::BitMask<WinMode> WinModeMask;
+using WinModeMask = cosmos::BitMask<WinMode>;
 
-enum class CursorStyle : unsigned {
+enum class CursorStyle {
 	BLINKING_BLOCK = 0,
 	BLINKING_BLOCK_DEFAULT,
 	STEADY_BLOCK, // "█"

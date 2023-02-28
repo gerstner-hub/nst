@@ -19,7 +19,7 @@
 #include "cosmos/error/ApiError.hxx"
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
-#include "cosmos/proc/Process.hxx"
+#include "cosmos/proc/process.hxx"
 
 // X++
 #include "X++/atoms.hxx"

@@ -32,11 +32,11 @@ public: // functions
 	/// passed the command line parameters for the program
 	void run(int argc, const char **argv);
 
-	TTY& getTTY() { return m_tty; }
-	Term& getTerm() { return m_term; }
-	Selection& getSelection() { return m_selection; }
-	X11& getX11() { return m_x11; }
-	const Cmdline& getCmdline() const { return m_cmdline; }
+	TTY& tty() { return m_tty; }
+	Term& term() { return m_term; }
+	Selection& selection() { return m_selection; }
+	X11& x11() { return m_x11; }
+	const Cmdline& cmdline() const { return m_cmdline; }
 
 	void resizeConsole(const Extent &win = {0,0});
 

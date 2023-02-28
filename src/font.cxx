@@ -26,7 +26,7 @@ void FontPattern::setPixelSize(double size_px) {
 	FcPatternAddDouble(m_pattern, FC_PIXEL_SIZE, size_px);
 }
 
-std::optional<double> FontPattern::getPointSize() const {
+std::optional<double> FontPattern::pointSize() const {
 	if(!m_pattern)
 		return {};
 
@@ -37,7 +37,7 @@ std::optional<double> FontPattern::getPointSize() const {
 	return {};
 }
 
-std::optional<double> FontPattern::getPixelSize() const {
+std::optional<double> FontPattern::pixelSize() const {
 	if(!m_pattern)
 		return {};
 

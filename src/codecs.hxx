@@ -30,7 +30,7 @@ size_t validate(Rune *, size_t);
 namespace base64 {
 
 /// decodes a base64 encoded string and returns a string containing the decoded result
-std::string decode(const std::string_view &s);
+std::string decode(const std::string_view s);
 
 }
 
@@ -42,7 +42,7 @@ public: // functions
 	Rune rune() const { return m_rune; }
 	int width() const { return m_width; }
 
-	std::string_view getEncoded() const {
+	std::string_view encoded() const {
 		return {&m_encoded[0], m_enc_len};
 	}
 

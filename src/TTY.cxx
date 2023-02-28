@@ -3,19 +3,19 @@
 #include <cstdlib>
 #include <iostream>
 
-// libcosmos
+// cosmos
 #include "cosmos/algs.hxx"
 #include "cosmos/error/ApiError.hxx"
 #include "cosmos/error/InternalError.hxx"
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/error/UsageError.hxx"
 #include "cosmos/formatting.hxx"
+#include "cosmos/PasswdInfo.hxx"
 #include "cosmos/proc/ChildCloner.hxx"
 #include "cosmos/proc/process.hxx"
-#include "cosmos/proc/Signal.hxx"
 #include "cosmos/proc/SignalFD.hxx"
+#include "cosmos/proc/Signal.hxx"
 #include "cosmos/proc/SubProc.hxx"
-#include "cosmos/PasswdInfo.hxx"
 
 // nst
 #include "Cmdline.hxx"
@@ -34,7 +34,7 @@ TTY::~TTY() {
 }
 
 cosmos::FileDescriptor TTY::create() {
-	const auto &cmdline = m_nst.getCmdline();
+	const auto &cmdline = m_nst.cmdline();
 
 	if (m_cmd_file.isOpen()) {
 		cosmos_throw (cosmos::UsageError("TTY has already been created"));
@@ -61,7 +61,7 @@ void TTY::openTTY(const std::string &line) {
 	} catch (const std::exception &ex) {
 		cosmos_throw (cosmos::ApiError(cosmos::sprintf("open line '%s' failed: %s", line.c_str(), ex.what())));
 	}
-	m_cmd_file.fd().duplicate(cosmos::stdin, cosmos::CloseOnExec(false));
+	m_cmd_file.fd().duplicate(cosmos::stdin, cosmos::CloseOnExec{false});
 	configureTTY();
 }
 
@@ -112,7 +112,7 @@ void TTY::setupIOFile(const std::string &path) {
 		}
 	}
 
-	m_nst.getTerm().setPrintMode(m_io_file.isOpen());
+	m_nst.term().setPrintMode(m_io_file.isOpen());
 }
 
 void TTY::configureTTY() {
@@ -123,7 +123,7 @@ void TTY::configureTTY() {
 		// append fixed config strings
 		cosmos::append(args, config::STTY_ARGS);
 		// append command line strings
-		cosmos::append(args, m_nst.getCmdline().rest.getValue());
+		cosmos::append(args, m_nst.cmdline().rest.getValue());
 	}
 
 	try {
@@ -166,7 +166,7 @@ size_t TTY::read() {
 		/* append read bytes to unprocessed bytes */
 		m_buf_bytes += read_bytes;
 		const auto view = std::string_view{m_buf, m_buf_bytes};
-		const auto written = m_nst.getTerm().write(view, Term::ShowCtrlChars(false));
+		const auto written = m_nst.term().write(view, Term::ShowCtrlChars(false));
 		m_buf_bytes -= written;
 		/* keep any incomplete UTF-8 byte sequence for the next call */
 		if (m_buf_bytes > 0)
@@ -178,14 +178,14 @@ size_t TTY::read() {
 	}
 }
 
-void TTY::write(const std::string_view &sv, const MayEcho echo) {
+void TTY::write(const std::string_view sv, const MayEcho echo) {
 
-	auto &term = m_nst.getTerm();
-	const auto mode = term.getMode();
+	auto &term = m_nst.term();
+	const auto mode = term.mode();
 
 	if (echo && mode[Term::Mode::TECHO])
 		// display data on screen
-		term.write(sv, Term::ShowCtrlChars(true));
+		term.write(sv, Term::ShowCtrlChars{true});
 
 	if (!mode[Term::Mode::CRLF]) {
 		// forward unmodified data to child
@@ -209,7 +209,7 @@ void TTY::write(const std::string_view &sv, const MayEcho echo) {
 	}
 }
 
-void TTY::writeRaw(const std::string_view &sv) {
+void TTY::writeRaw(const std::string_view sv) {
 	/*
 	 * Remember that we are potentially using a real TTY, which might be a
 	 * modem line.
@@ -264,8 +264,8 @@ void TTY::writeRaw(const std::string_view &sv) {
 }
 
 void TTY::resize(const Extent &size) {
-	const auto &term = m_nst.getTerm();
-	cosmos::TermDimension dim(term.getNumCols(), term.getNumRows());
+	const auto &term = m_nst.term();
+	cosmos::TermDimension dim(term.numCols(), term.numRows());
 	// according to the man page these fields are unused on Linux, but it
 	// seems nst wants to use them anyway
 	dim.ws_xpixel = size.width;
@@ -346,10 +346,10 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 		setenv("USER",    pw_info.name().data(), 1);
 		setenv("SHELL",   shell.data(), 1);
 		setenv("HOME",    pw_info.homeDir().data(), 1);
-		setenv("TERM",    config::TERMNAME.data(), 1);
+		setenv("TERM",    config::TERM_NAME.data(), 1);
 	});
 
-	if (auto &args = m_nst.getCmdline().rest.getValue(); !args.empty()) {
+	if (auto &args = m_nst.cmdline().rest.getValue(); !args.empty()) {
 		cloner.setArgs(args);
 	} else {
 		// use default configuration
@@ -388,7 +388,7 @@ void TTY::sendBreak() {
 	}
 }
 
-void TTY::doPrintToIoFile(const std::string_view &s) {
+void TTY::doPrintToIoFile(const std::string_view s) {
 	try {
 		m_io_file.writeAll(s.data(), s.size());
 	} catch (const std::exception &ex) {

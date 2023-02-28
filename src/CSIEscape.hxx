@@ -70,7 +70,7 @@ protected: // functions
 	int ensureArg(size_t index, int defval);
 
 	/// Dumps the current sequence to stderr prefixed by \c prefix.
-	void dump(const std::string_view &prefix) const;
+	void dump(const std::string_view prefix) const;
 
 	bool isFinalByte(const char ch) const {
 		// this range is coming from the CSI spec

@@ -1,4 +1,4 @@
-// libcosmos
+// cosmos
 #include "cosmos/formatting.hxx"
 
 // nst
@@ -8,9 +8,10 @@
 namespace nst {
 
 EscapeHandler::EscapeHandler(Nst &nst) :
-	m_nst(nst),
-	m_str_escape(nst),
-	m_csi_escape(nst) {}
+		m_nst{nst},
+		m_str_escape{nst},
+		m_csi_escape{nst}
+{}
 
 bool EscapeHandler::handleCommandTerminator() {
 	if (m_state[Escape::STR_END]) {
@@ -24,8 +25,8 @@ bool EscapeHandler::handleCommandTerminator() {
 
 void EscapeHandler::handleControlCode(const RuneInfo &rinfo) {
 
-	auto &term = m_nst.getTerm();
-	const auto &cursor = term.getCursor();
+	auto &term = m_nst.term();
+	const auto &cursor = term.cursor();
 	const auto code = rinfo.asChar();
 
 	switch (code) {
@@ -33,16 +34,16 @@ void EscapeHandler::handleControlCode(const RuneInfo &rinfo) {
 		term.moveToNextTab();
 		return;
 	case '\b':   /* BS */
-		term.moveCursorTo(cursor.getPos().prevCol());
+		term.moveCursorTo(cursor.position().prevCol());
 		return;
 	case '\r':   /* CR */
-		term.moveCursorTo(cursor.getPos().startOfLine());
+		term.moveCursorTo(cursor.position().startOfLine());
 		return;
 	case '\f':   /* LF */
 	case '\v':   /* VT */
 	case '\n':   /* LF */ {
 		/* go also to first col if CRLF mode is set */
-		term.moveToNewline(term.getCarriageReturn());
+		term.moveToNewline(term.carriageReturn());
 		return;
 	}
 	case '\a':   /* BEL */ {
@@ -51,7 +52,7 @@ void EscapeHandler::handleControlCode(const RuneInfo &rinfo) {
 		const auto handled = handleCommandTerminator();
 		if (!handled)
 			// otherwise process as a regular bell
-			m_nst.getX11().ringBell();
+			m_nst.x11().ringBell();
 		break;
 	}
 	case '\033': /* ESC */
@@ -109,7 +110,7 @@ void EscapeHandler::handleControlCode(const RuneInfo &rinfo) {
 	case 0x99:   /* TODO: SGCI */
 		break;
 	case 0x9a:   /* DECID -- Identify Terminal */
-		m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho(false));
+		m_nst.tty().write(config::VT_IDENT, TTY::MayEcho{false});
 		break;
 	case 0x9b:   /* TODO: CSI */
 	case 0x9c:   /* TODO: ST */
@@ -148,8 +149,8 @@ EscapeHandler::WasProcessed EscapeHandler::process(const RuneInfo &rinfo) {
 			 */
 			markStringEscapeFinal();
 		} else {
-			m_str_escape.add(rinfo.getEncoded());
-			return WasProcessed(true);
+			m_str_escape.add(rinfo.encoded());
+			return WasProcessed{true};
 		}
 	}
 
@@ -162,9 +163,9 @@ EscapeHandler::WasProcessed EscapeHandler::process(const RuneInfo &rinfo) {
 		handleControlCode(rinfo);
 		// control codes are not shown ever
 		if (m_state.none())
-			m_nst.getTerm().resetLastChar();
+			m_nst.term().resetLastChar();
 
-		return WasProcessed(true);
+		return WasProcessed{true};
 	} else if (m_state[Escape::START]) {
 		const bool finished = checkCSISequence(rinfo);
 
@@ -173,15 +174,15 @@ EscapeHandler::WasProcessed EscapeHandler::process(const RuneInfo &rinfo) {
 		}
 
 		// All characters which form part of a sequence are not printed
-		return WasProcessed(true);
+		return WasProcessed{true};
 	}
 
-	return WasProcessed(false);
+	return WasProcessed{false};
 }
 
 bool EscapeHandler::checkCSISequence(const RuneInfo &rinfo) {
 	const auto rune = rinfo.rune();
-	auto &term = m_nst.getTerm();
+	auto &term = m_nst.term();
 
 	if (m_state[Escape::CSI]) {
 		const bool finished = m_csi_escape.addCSI(rinfo.rune());
@@ -230,8 +231,8 @@ bool EscapeHandler::checkCSISequence(const RuneInfo &rinfo) {
 }
 
 EscapeHandler::Escape EscapeHandler::handleInitialEscape(const char ch) {
-	auto &term = m_nst.getTerm();
-	auto &x11 = m_nst.getX11();
+	auto &term = m_nst.term();
+	auto &x11 = m_nst.x11();
 
 	// for reference see `man 4 console_codes`
 
@@ -277,7 +278,7 @@ EscapeHandler::Escape EscapeHandler::handleInitialEscape(const char ch) {
 		term.doReverseLineFeed();
 		break;
 	case 'Z': /* DECID -- Identify Terminal */
-		m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho(false));
+		m_nst.tty().write(config::VT_IDENT, TTY::MayEcho{false});
 		break;
 	case 'c': /* RIS -- Reset to initial state */
 		term.reset();

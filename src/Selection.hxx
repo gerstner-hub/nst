@@ -82,7 +82,7 @@ public: // functions
 	/**
 	 * If nothing is currently selected then an empty string is returned.
 	 **/
-	std::string getSelection() const;
+	std::string selection() const;
 
 	/// dump current selection into I/O file
 	void dump() const;
@@ -91,6 +91,7 @@ protected: // functions
 
 	bool isRegularType() const { return m_type == Type::REGULAR; }
 	bool isRectType()    const { return m_type == Type::RECTANGULAR; }
+
 	bool inIdleState()   const { return m_state == State::IDLE; }
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }

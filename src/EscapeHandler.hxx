@@ -1,7 +1,7 @@
 #ifndef NST_ESCAPEHANDLER_HXX
 #define NST_ESCAPEHANDLER_HXX
 
-// libcosmos
+// cosmos
 #include "cosmos/BitMask.hxx"
 #include "cosmos/types.hxx"
 
@@ -11,7 +11,7 @@
 
 namespace nst {
 
-/// Handling of all types of escape and control sequences supported by NST
+/// Handling of all types of escape and control sequences supported by NST.
 /**
  * This class handles single byte control codes, XTerm style OSC string
  * sequences (via StringEscape) and CSI sequences (via CSIEscape). Some
@@ -38,7 +38,7 @@ public: // types
 		UTF8       = 1 << 6, /// UTF8 (character set change) requested
 	};
 
-	typedef cosmos::BitMask<Escape> State;
+	using State = cosmos::BitMask<Escape>;
 
 	using WasProcessed = cosmos::NamedBool<struct continue_proc_t, true>;
 
@@ -60,7 +60,9 @@ public: // functions
 protected: // functions
 
 	/// returns whether we're currently passing a StringEscape sequence
-	bool inStringEscape() const { return m_state[Escape::STR]; }
+	bool inStringEscape() const {
+		return m_state[Escape::STR];
+	}
 
 	/// initialize a newly starting terminal string escape sequence of the given type
 	void initStringEscape(const StringEscape::Type &type) {

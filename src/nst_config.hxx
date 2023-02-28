@@ -4,13 +4,13 @@
 // libc
 #include <limits.h>
 
-// stdlib
+// C++
 #include <array>
 #include <chrono>
 #include <set>
 #include <string_view>
 
-// Xlib
+// X11
 #include <X11/cursorfont.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
@@ -27,9 +27,9 @@ class Nst; // fwd. decl
 namespace config {
 
 /* X modifiers */
-#define XK_ANY_MOD    UINT_MAX
-#define XK_NO_MOD     0
-#define XK_SWITCH_MOD (1<<13|1<<14)
+inline constexpr unsigned int XK_ANY_MOD = UINT_MAX;
+inline constexpr unsigned int XK_NO_MOD = 0;
+inline constexpr unsigned int XK_SWITCH_MOD = (1<<13|1<<14);
 
 /*
  * appearance
@@ -44,9 +44,9 @@ constexpr double FONT_DEFAULT_SIZE_PX = 12;
  *
  * More advanced example: L" `'\"()[]{}"
  */
-constexpr const std::wstring_view WORDDELIMITERS{L" "};
+constexpr const std::wstring_view WORD_DELIMITERS{L" "};
 
-constexpr std::array<std::string_view, 8> STTY_ARGS({"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"});
+constexpr std::array<std::string_view, 8> STTY_ARGS{{"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"}};
 
 /*
  * What program is execed by st depends on these precedence rules:
@@ -61,14 +61,14 @@ constexpr std::string_view UTMP{};
 /* scroll program: to enable use a string like "scroll" */
 constexpr std::string_view SCROLL{};
 /* default TERM value */
-constexpr std::string_view TERMNAME{"st-256color"};
+constexpr std::string_view TERM_NAME{"st-256color"};
 
 /* identification sequence returned in DA and DECID */
-constexpr std::string_view VTIDEN{"\033[?6c"};
+constexpr std::string_view VT_IDENT{"\033[?6c"};
 
 /* allow certain non-interactive (insecure) window operations such as:
    setting the clipboard text */
-constexpr bool ALLOWWINDOWOPS = false;
+constexpr bool ALLOW_WINDOW_OPS = false;
 
 /*
  * spaces per tab
@@ -91,29 +91,29 @@ constexpr int TABSPACES = 8;
  * Default colors (colorname index)
  * foreground, background, cursor, reverse cursor
  */
-constexpr unsigned int DEFAULTFG = 258;
-constexpr unsigned int DEFAULTBG = 259;
-constexpr unsigned int DEFAULTCS = 256;
-constexpr unsigned int DEFAULTRCS = 257;
+constexpr unsigned int DEFAULT_FG = 258;
+constexpr unsigned int DEFAULT_BG = 259;
+constexpr unsigned int DEFAULT_CS = 256;
+constexpr unsigned int DEFAULT_RCS = 257;
 
 /* alt screens */
-constexpr bool ALLOWALTSCREEN = true;
+constexpr bool ALLOW_ALTSCREEN = true;
 
 constexpr int BORDERPX = 2;
 
 /* Kerning / character bounding-box multipliers */
-const float CWSCALE = 1.0;
-const float CHSCALE = 1.0;
+const float CW_SCALE = 1.0;
+const float CH_SCALE = 1.0;
 
 /* selection timeouts (in milliseconds) */
-constexpr std::chrono::milliseconds DOUBLECLICKTIMEOUT(300);
-constexpr std::chrono::milliseconds TRIPLECLICKTIMEOUT(600);
+constexpr std::chrono::milliseconds DOUBLE_CLICK_TIMEOUT{300};
+constexpr std::chrono::milliseconds TRIPLE_CLICK_TIMEOUT{600};
 
 /*
  * Set this to true if you want the selection to disappear when you select
  * something different in another window.
  */
-constexpr bool SELCLEAR = false;
+constexpr bool SEL_CLEAR = false;
 
 /*
  * draw latency range - from new content/keypress/etc until drawing.
@@ -121,36 +121,36 @@ constexpr bool SELCLEAR = false;
  * near MINLATENCY, but it waits longer for slow updates to avoid partial draw.
  * low MINLATENCY Will tear/flicker more, as it can "detect" idle too early.
  */
-constexpr std::chrono::milliseconds MINLATENCY(8);
-constexpr std::chrono::milliseconds MAXLATENCY(33);
+constexpr std::chrono::milliseconds MIN_LATENCY{8};
+constexpr std::chrono::milliseconds MAX_LATENCY{33};
 
 /*
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
  * attribute.
  */
-constexpr std::chrono::milliseconds BLINKTIMEOUT(800);
+constexpr std::chrono::milliseconds BLINK_TIMEOUT{800};
 
 /*
  * thickness of underline and bar cursors
  */
-const unsigned int CURSORTHICKNESS = 2;
+const unsigned int CURSOR_THICKNESS = 2;
 
 /*
  * bell volume. It must be a value between -100 and 100. Use 0 for disabling
  * it
  */
-const int BELLVOLUME = 0;
+const int BELL_VOLUME = 0;
 
-constexpr std::array<std::string_view, 4> EXTENDED_COLORS({
+constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 	/* more colors can be added after 255 to use with DefaultXX */
 	"#cccccc",
 	"#555555",
 	"gray90", /* default foreground colour */
 	"black"   /* default background colour */
-});
+}};
 
 /* Terminal colors (16 first used in escape sequence) */
-constexpr std::array<std::string_view, 16> COLORNAMES({
+constexpr std::array<std::string_view, 16> COLORNAMES{{
 	/* 8 normal colors */
 	"black",
 	"red3",
@@ -170,13 +170,13 @@ constexpr std::array<std::string_view, 16> COLORNAMES({
 	"magenta",
 	"cyan",
 	"white",
-});
+}};
 
 /// returns the color name for a color number taking into account extended color configuration
 /**
  * \return The according color name or nullptr if none is configured for the number
  **/
-const std::string_view getColorName(size_t nr);
+const std::string_view get_color_name(size_t nr);
 
 /// Default shape of cursor
 static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
@@ -191,22 +191,22 @@ static const unsigned int ROWS = 24;
 /*
  * Default colour and shape of the mouse cursor
  */
-const unsigned int MOUSESHAPE = XC_xterm;
-const unsigned int MOUSEFG = 7;
-const unsigned int MOUSEBG = 0;
+const unsigned int MOUSE_SHAPE = XC_xterm;
+const unsigned int MOUSE_FG = 7;
+const unsigned int MOUSE_BG = 0;
 
 /*
  * Color used to display font attributes when fontconfig selected a font which
  * doesn't match the ones requested.
  */
-const unsigned int DEFAULTATTR = 11;
+const unsigned int DEFAULT_ATTR = 11;
 
 /*
  * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to 0 to not use it.
  */
-const unsigned int FORCEMOUSEMOD = ShiftMask;
+const unsigned int FORCE_MOUSE_MOD = ShiftMask;
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -233,9 +233,9 @@ const unsigned int FORCEMOUSEMOD = ShiftMask;
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
  * to be mapped below, add them to this array.
  */
-const std::set<KeySym> MAPPEDKEYS({
+const std::set<KeySym> MAPPED_KEYS{{
 	KeySym(-1)
-});
+}};
 
 /*
  * State bits to ignore when matching key or button events.  By default,
@@ -257,7 +257,7 @@ struct KeyCmp {
  * This is the huge list of keys which defines all compatibility to the Linux
  * world. Please decide about changes wisely.
  */
-const std::multiset<Key, KeyCmp> KEYS({
+const std::multiset<Key, KeyCmp> KEYS{{
 	/* keysym           mask            string      appkey appcursor */
 	{ XK_KP_Home,       ShiftMask,      "\033[2J",       0,   -1},
 	{ XK_KP_Home,       ShiftMask,      "\033[1;2H",     0,   +1},
@@ -468,7 +468,7 @@ const std::multiset<Key, KeyCmp> KEYS({
 	{ XK_F33,           XK_NO_MOD,      "\033[20;5~",    0,    0},
 	{ XK_F34,           XK_NO_MOD,      "\033[21;5~",    0,    0},
 	{ XK_F35,           XK_NO_MOD,      "\033[23;5~",    0,    0},
-});
+}};
 
 /*
  * Printable characters in ASCII, used to estimate the advance width
@@ -488,16 +488,16 @@ constexpr size_t ASCII_PRINTABLE_LEN = sizeof(ASCII_PRINTABLE) - 1;
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
  */
-constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SELMASKS = {
+constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SEL_MASKS = {
 	std::pair{Selection::Type::REGULAR,     0},
 	         {Selection::Type::RECTANGULAR, Mod1Mask},
 };
 
 // see implementation file
-std::vector<MouseShortcut> getMouseShortcuts(Nst &nst);
+std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);
 
 // see implementation file
-std::vector<KbdShortcut> getKbdShortcuts(Nst &nst);
+std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst);
 
 }} // end ns nst::config
 

@@ -1,12 +1,12 @@
-// stdlib
+// C++
 #include <cstring>
+
+// cosmos
+#include "cosmos/algs.hxx"
 
 // nst
 #include "codecs.hxx"
 #include "Glyph.hxx"
-
-// libcosmos
-#include "cosmos/algs.hxx"
 
 using cosmos::in_range;
 
@@ -133,7 +133,7 @@ constexpr char BASE64_DIGITS[] = {
 
 } // end anon ns
 
-std::string decode(const std::string_view &src) {
+std::string decode(const std::string_view src) {
 	std::string result;
 	// + 3 is to consider padding that might be necessary if src.size() % 4 != 0.
 	result.reserve(src.size() / 4 * 3 + 1 + 3);
@@ -176,7 +176,8 @@ std::string decode(const std::string_view &src) {
 
 } // end ns base64
 
-RuneInfo::RuneInfo(Rune r, const bool use_utf8) : m_rune(r) {
+RuneInfo::RuneInfo(Rune r, const bool use_utf8) :
+		m_rune{r} {
 	m_is_control = isControlChar(r);
 
 	if (r < 0x7f || !use_utf8) {

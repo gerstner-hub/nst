@@ -9,15 +9,15 @@
 
 namespace nst {
 
-/// nst command line parameter handling and storage
+/// nst command line parameter handling and storage.
 class Cmdline :
-	public TCLAP::CmdLine {
+		public TCLAP::CmdLine {
 public: // functions
 
 	Cmdline();
 
 	/// returns the string that should be used as terminal window title
-	const std::string& getTitle() const {
+	const std::string& title() const {
 		auto &rst = rest.getValue();
 
 		if (!window_title.isSet() && !tty_line.isSet() && !rst.empty()) {

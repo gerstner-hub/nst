@@ -20,13 +20,13 @@ constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
 constexpr size_t MAX_STR_ARGS = 16;
 
 StringEscape::StringEscape(Nst &nst) :
-	m_nst(nst)
+		m_nst{nst}
 {}
 
 void StringEscape::oscColorResponse(int index, int code) {
 	unsigned char r, g, b;
 
-	if (!m_nst.getX11().getColor(index, &r, &g, &b)) {
+	if (!m_nst.x11().getColor(index, &r, &g, &b)) {
 		std::cerr << "erresc: failed to fetch osc color " << index << "\n";
 		return;
 	}
@@ -40,11 +40,11 @@ void StringEscape::oscColorResponse(int index, int code) {
 		res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", code, r, r, g, g, b, b);
 	}
 
-	m_nst.getTTY().write(res, TTY::MayEcho(true));
+	m_nst.tty().write(res, TTY::MayEcho{true});
 }
 
 void StringEscape::setTitle(const char *s) {
-	auto &x11 = m_nst.getX11();
+	auto &x11 = m_nst.x11();
 	if (s && s[0])
 		x11.setTitle(s);
 	else
@@ -52,7 +52,7 @@ void StringEscape::setTitle(const char *s) {
 }
 
 void StringEscape::setIconTitle(const char *s) {
-	auto &x11 = m_nst.getX11();
+	auto &x11 = m_nst.x11();
 	if (s && s[0])
 		x11.setIconTitle(s);
 	else
@@ -81,8 +81,8 @@ void StringEscape::process() {
 }
 
 bool StringEscape::processOSC() {
-	auto &term = m_nst.getTerm();
-	auto &x11 = m_nst.getX11();
+	auto &term = m_nst.term();
+	auto &x11 = m_nst.x11();
 	const int par = m_args.empty() ? 0 : std::atoi(m_args[0].data());
 	const auto numargs = m_args.size();
 
@@ -122,10 +122,10 @@ bool StringEscape::processOSC() {
 				setTitle(m_args[1].data());
 			break;
 		case 52: // manipulate selection data
-			if (numargs > 2 && config::ALLOWWINDOWOPS) {
+			if (numargs > 2 && config::ALLOW_WINDOW_OPS) {
 				auto decoded = base64::decode(m_args[2]);
 				if (!decoded.empty()) {
-					x11.getXSelection().setSelection(decoded);
+					x11.selection().setSelection(decoded);
 					x11.copyToClipboard();
 				} else {
 					std::cerr << "erresc: invalid base64\n";
@@ -133,11 +133,11 @@ bool StringEscape::processOSC() {
 			}
 			break;
 		case 10: // change text FG color
-			return handle_color("foreground", par, config::DEFAULTFG);
+			return handle_color("foreground", par, config::DEFAULT_FG);
 		case 11: // change text BG color
-			return handle_color("background", par, config::DEFAULTBG);
+			return handle_color("background", par, config::DEFAULT_BG);
 		case 12: // change text cursor color
-			return handle_color("cursor", par, config::DEFAULTCS);
+			return handle_color("cursor", par, config::DEFAULT_CS);
 		case 4: /* change color number to RGB value */
 			if (numargs < 3)
 				return false;
@@ -192,7 +192,7 @@ void StringEscape::parseArgs() {
 	}
 }
 
-void StringEscape::dump(const std::string_view &prefix) const {
+void StringEscape::dump(const std::string_view prefix) const {
 	std::cerr << prefix << " ESC" << static_cast<char>(m_esc_type);
 
 	for (const auto c: m_str) {
@@ -208,7 +208,7 @@ void StringEscape::dump(const std::string_view &prefix) const {
 		} else if (c == 0x1b) {
 			std::cerr << "(\\e)";
 		} else {
-			std::cerr << "(" << cosmos::HexNum(static_cast<unsigned>(c), 2).showBase(false) << ")";
+			std::cerr << "(" << cosmos::HexNum{static_cast<unsigned>(c), 2}.showBase(false) << ")";
 		}
 	}
 	std::cerr << "ESC\\\n";
@@ -221,7 +221,7 @@ void StringEscape::reset(const Type &type) {
 	m_esc_type = type;
 }
 
-void StringEscape::add(const std::string_view &s) {
+void StringEscape::add(const std::string_view s) {
 	if (m_str.size() + s.size() >= m_str.capacity()) {
 		/*
 		 * Here is a bug in terminals. If the user never sends
@@ -233,7 +233,7 @@ void StringEscape::add(const std::string_view &s) {
 		 * In the case users ever get fixed, here is the code:
 		 */
 		/*
-		 * m_nst.getTerm().m_esc_state.reset();
+		 * m_nst.term().m_esc_state.reset();
 		 * process();
 		 */
 		if (m_str.size() > (SIZE_MAX - utf8::UTF_SIZE) / 2)

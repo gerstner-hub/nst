@@ -32,12 +32,12 @@ namespace nst {
 typedef Glyph::Attr Attr;
 
 Term::TCursor::TCursor() {
-	m_attr.fg = config::DEFAULTFG;
-	m_attr.bg = config::DEFAULTBG;
+	m_attrs.fg = config::DEFAULT_FG;
+	m_attrs.bg = config::DEFAULT_BG;
 }
 
 void Term::TCursor::resetAttrs() {
-	m_attr.mode.reset({
+	m_attrs.mode.reset({
 		Attr::BOLD,
 		Attr::FAINT,
 		Attr::ITALIC,
@@ -47,30 +47,30 @@ void Term::TCursor::resetAttrs() {
 		Attr::INVISIBLE,
 		Attr::STRUCK
 	});
-	m_attr.fg = config::DEFAULTFG;
-	m_attr.bg = config::DEFAULTBG;
+	m_attrs.fg = config::DEFAULT_FG;
+	m_attrs.bg = config::DEFAULT_BG;
 }
 
 Term::Term(Nst &nst) :
-	m_selection(nst.getSelection()),
-	m_tty(nst.getTTY()),
-	m_x11(nst.getX11()),
-	m_allowaltscreen(config::ALLOWALTSCREEN),
-	m_esc_handler(nst)
+		m_selection{nst.selection()},
+		m_tty{nst.tty()},
+		m_x11{nst.x11()},
+		m_allowaltscreen{config::ALLOW_ALTSCREEN},
+		m_esc_handler{nst}
 {}
 
 void Term::init(const Nst &nst) {
 
-	if (auto &cmdline = nst.getCmdline(); cmdline.use_alt_screen.isSet()) {
+	if (auto &cmdline = nst.cmdline(); cmdline.use_alt_screen.isSet()) {
 		m_allowaltscreen = cmdline.use_alt_screen.getValue();
 	}
 
-	resize(m_x11.getTermSize());
+	resize(m_x11.termSize());
 	reset();
 }
 
 void Term::reset() {
-	m_cursor = TCursor();
+	m_cursor = TCursor{};
 
 	clearAllTabs();
 	for (auto i = config::TABSPACES; i < m_size.cols; i += config::TABSPACES)
@@ -178,7 +178,7 @@ void Term::clearRegion(Range range) {
 			if (m_selection.isSelected(pos))
 				m_selection.clear();
 			auto &gp = m_screen[pos];
-			gp.clear(m_cursor.getAttr());
+			gp.clear(m_cursor.attrs());
 		}
 	}
 }
@@ -192,7 +192,7 @@ void Term::clearLinesBelowCursor() {
 		// nothing to do
 		return;
 
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 	clearRegion(Range{curpos.nextLine().startOfLine(), bottomRight()});
 }
 
@@ -201,31 +201,31 @@ void Term::clearLinesAboveCursor() {
 		// nothing to do
 		return;
 
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 	clearRegion(Range{topLeft(), atEndOfLine(curpos.prevLine())});
 }
 
 void Term::clearCursorLine() {
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 	clearRegion(LineSpan{curpos.y, curpos.y});
 }
 
 void Term::clearColsBeforeCursor() {
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 	clearRegion({curpos.startOfLine(), curpos});
 }
 
 void Term::clearColsAfterCursor() {
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 	clearRegion(Range{curpos, atEndOfLine(curpos)});
 }
 
 bool Term::isCursorAtBottom() const {
-	return getCursor().getPos().y == m_size.rows - 1;
+	return cursor().pos.y == m_size.rows - 1;
 }
 
 bool Term::isCursorAtTop() const {
-	return getCursor().getPos().y == 0;
+	return cursor().pos.y == 0;
 }
 
 void Term::setScrollArea(const LineSpan &span) {
@@ -295,7 +295,7 @@ void Term::cursorControl(const TCursor::Control &ctrl) {
 	}
 }
 
-int Term::getLineLen(const CharPos &pos) const {
+int Term::lineLen(const CharPos &pos) const {
 	const auto &line = m_screen[pos.y];
 
 	if (line.back().mode[Attr::WRAP])
@@ -395,9 +395,9 @@ void Term::insertBlankLinesBelowCursor(int count) {
 }
 
 void Term::doLineFeed() {
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 
-	if (curpos.y == getScrollArea().bottom) {
+	if (curpos.y == scrollArea().bottom) {
 		scrollUp(1);
 	} else {
 		moveCursorTo(curpos.nextLine());
@@ -405,9 +405,9 @@ void Term::doLineFeed() {
 }
 
 void Term::doReverseLineFeed() {
-	const auto &curpos = getCursor().getPos();
+	const auto &curpos = cursor().pos;
 
-	if (curpos.y == getScrollArea().top) {
+	if (curpos.y == scrollArea().top) {
 		scrollDown(1);
 	} else {
 		moveCursorTo(curpos.prevLine());
@@ -449,7 +449,7 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 void Term::dumpLine(const CharPos &pos) const {
 	char buf[utf8::UTF_SIZE];
 
-	auto left = getLineLen(pos);
+	auto left = lineLen(pos);
 	const auto line = m_screen.line(pos);
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
@@ -523,7 +523,7 @@ void Term::draw() {
 	m_x11.finishDraw();
 
 	if (cursor_pos_changed)
-		m_x11.getInput().setSpot(new_pos);
+		m_x11.input().setSpot(new_pos);
 }
 
 Rune Term::translateChar(Rune u) {
@@ -581,7 +581,7 @@ void Term::setChar(Rune u, const CharPos &pos) {
 	}
 
 	m_dirty_lines[pos.y] = true;
-	glyph = m_cursor.getAttr();
+	glyph = m_cursor.attrs();
 	glyph.u = translateChar(u);
 }
 
@@ -603,26 +603,26 @@ void Term::repeatChar(int count) {
 }
 
 void Term::putChar(Rune rune) {
-	const auto rinfo = RuneInfo(rune, m_mode[Term::Mode::UTF8]);
+	const auto rinfo = RuneInfo{rune, m_mode[Term::Mode::UTF8]};
 
 	if (isPrintMode()) {
-		m_tty.printToIoFile(rinfo.getEncoded());
+		m_tty.printToIoFile(rinfo.encoded());
 	}
 
-	if (m_esc_handler.process(rinfo) == EscapeHandler::WasProcessed(true))
+	if (m_esc_handler.process(rinfo) == EscapeHandler::WasProcessed{true})
 		// input was part of a special control sequence
 		return;
 
 	if (m_selection.isSelected(m_cursor.pos))
 		m_selection.clear();
 
-	Glyph *gp = getCurGlyph();
+	Glyph *gp = curGlyph();
 
 	// perform automatic line wrap, if necessary
 	if (m_mode[Mode::WRAP] && m_cursor.needWrapNext()) {
 		gp->mode.set(Attr::WRAP);
 		moveToNewline();
-		gp = getCurGlyph();
+		gp = curGlyph();
 	}
 
 	const auto req_width = rinfo.width();
@@ -636,7 +636,7 @@ void Term::putChar(Rune rune) {
 
 	if (lineSpaceLeft() < req_width) {
 		moveToNewline();
-		gp = getCurGlyph();
+		gp = curGlyph();
 	}
 
 	setChar(rune, m_cursor.pos);
@@ -670,7 +670,7 @@ void Term::putChar(Rune rune) {
 	}
 }
 
-size_t Term::write(const std::string_view &data, const ShowCtrlChars &show_ctrl) {
+size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	Rune u;
 	size_t charsize = 0;
 	const bool use_utf8 = m_mode[Mode::UTF8];

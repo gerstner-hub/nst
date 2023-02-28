@@ -42,7 +42,7 @@ struct FontCache {
 /// Wrapper around a FontConfig FcPattern structure
 class FontPattern {
 public: // functions
-	FontPattern() {}
+	FontPattern() = default;
 
 	explicit FontPattern(const std::string &str) {
 		parse(str);
@@ -50,8 +50,8 @@ public: // functions
 
 	/// only wrap the given external FcPattern structure
 	explicit FontPattern(FcPattern *ext) :
-		m_ext_pattern(true),
-		m_pattern(ext) {}
+			m_ext_pattern{true},
+			m_pattern{ext} {}
 
 	~FontPattern() {
 		if (!m_ext_pattern && isValid())
@@ -63,8 +63,8 @@ public: // functions
 
 	bool isValid() const { return m_pattern != nullptr; }
 
-	std::optional<double> getPointSize() const;
-	std::optional<double> getPixelSize() const;
+	std::optional<double> pointSize() const;
+	std::optional<double> pixelSize() const;
 	void setPixelSize(double size_px);
 
 	void setSlant(const Slant &slant);
@@ -98,20 +98,23 @@ struct Font {
 	FcPattern *pattern = nullptr;
 };
 
-struct FcPatternGuard : public cosmos::ResourceGuard<FcPattern*> {
+struct FcPatternGuard :
+		public cosmos::ResourceGuard<FcPattern*> {
 	explicit FcPatternGuard(FcPattern *p) :
-		ResourceGuard(p, [](FcPattern *_p) { FcPatternDestroy(_p); })
+		ResourceGuard{p, [](FcPattern *_p) { FcPatternDestroy(_p); }}
 	{}
 };
-struct FcCharSetGuard : public cosmos::ResourceGuard<FcCharSet*> {
+struct FcCharSetGuard :
+		public cosmos::ResourceGuard<FcCharSet*> {
 	explicit FcCharSetGuard(FcCharSet *p) :
-		ResourceGuard(p, [](FcCharSet *_p) { FcCharSetDestroy(_p); })
+		ResourceGuard{p, [](FcCharSet *_p) { FcCharSetDestroy(_p); }}
 	{}
 };
 
 typedef Glyph::Attr Attr;
 
-class FontColor : public XftColor {
+class FontColor :
+		public XftColor {
 public:
 	void invert() {
 		color.red = ~color.red;

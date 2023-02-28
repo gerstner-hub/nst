@@ -1,6 +1,7 @@
 // cosmos
 #include "cosmos/algs.hxx"
 #include "cosmos/io/Poller.hxx"
+#include "cosmos/proc/process.hxx"
 #include "cosmos/time/time.hxx"
 
 // nst
@@ -9,16 +10,16 @@
 namespace nst {
 
 Nst::Nst() :
-		m_x11(*this),
-		m_term(*this),
-		m_tty(*this),
-		m_selection(*this),
-		m_event_handler(*this)
+		m_x11{*this},
+		m_term{*this},
+		m_tty{*this},
+		m_selection{*this},
+		m_event_handler{*this}
 {}
 
 void Nst::waitForWindowMapping() {
 	xpp::Event ev;
-	auto &display = m_x11.getDisplay();
+	auto &display = m_x11.display();
 
 	/* Waiting for window mapping */
 	do {
@@ -36,7 +37,7 @@ void Nst::waitForWindowMapping() {
 		}
 	} while (!ev.isMapNotify());
 
-	resizeConsole(m_x11.getTermWin().getWinExtent());
+	resizeConsole(m_x11.termWin().winExtent());
 }
 
 void Nst::run(int argc, const char **argv) {
@@ -51,28 +52,31 @@ void Nst::run(int argc, const char **argv) {
 }
 
 void Nst::setEnv() {
-	auto win = m_x11.getWindow().id();
-	::setenv("WINDOWID", std::to_string(cosmos::to_integral(win)).c_str(), 1);
+	auto win = m_x11.window().id();
+	cosmos::proc::set_env_var(
+			"WINDOWID",
+			std::to_string(cosmos::to_integral(win)).c_str(),
+			cosmos::proc::OverwriteEnv{true});
 }
 
 
 void Nst::mainLoop() {
 	auto ttyfd = m_tty.create();
-	auto childfd = m_tty.getChildFD();
-	auto &display = m_x11.getDisplay();
+	auto childfd = m_tty.childFD();
+	auto &display = m_x11.display();
 	auto xfd = display.connectionNumber();
 
 	cosmos::Poller poller;
 	poller.create();
 	for (auto fd: {ttyfd, xfd, childfd}) {
-		poller.addFD(fd, cosmos::Poller::MonitorMask({cosmos::Poller::MonitorSetting::INPUT}));
+		poller.addFD(fd, cosmos::Poller::MonitorMask{{cosmos::Poller::MonitorSetting::INPUT}});
 	}
 
 	xpp::Event ev;
 	bool drawing = false;
 	cosmos::MonotonicStopWatch draw_watch;
-	cosmos::MonotonicStopWatch blink_watch(cosmos::MonotonicStopWatch::InitialMark(true));
-	std::chrono::milliseconds timeout(-1);
+	cosmos::MonotonicStopWatch blink_watch{cosmos::MonotonicStopWatch::InitialMark{true}};
+	std::chrono::milliseconds timeout{-1};
 
 	waitForWindowMapping();
 
@@ -81,7 +85,7 @@ void Nst::mainLoop() {
 			timeout = std::chrono::milliseconds(0);  /* existing events might not set xfd */
 
 		auto events = poller.wait(timeout.count() >= 0 ?
-				std::optional<std::chrono::milliseconds>(timeout) :
+				std::optional<std::chrono::milliseconds>{timeout} :
 				std::nullopt);
 
 		bool draw_event = false;
@@ -111,7 +115,7 @@ void Nst::mainLoop() {
 		 * everything, and if nothing new arrives - we draw.
 		 * We start with trying to wait minlatency ms. If more content
 		 * arrives sooner, we retry with shorter and shorter periods,
-		 * and eventually draw even without idle after MAXLATENCY ms.
+		 * and eventually draw even without idle after MAX_LATENCY ms.
 		 * Typically this results in low latency while interacting,
 		 * maximum latency intervals during `cat huge.txt`, and perfect
 		 * sync with periodic updates from animations/key-repeats/etc.
@@ -123,7 +127,7 @@ void Nst::mainLoop() {
 			}
 
 			const auto diff = draw_watch.elapsed();
-			timeout = (config::MAXLATENCY - diff) / config::MAXLATENCY * config::MINLATENCY;
+			timeout = (config::MAX_LATENCY - diff) / config::MAX_LATENCY * config::MIN_LATENCY;
 
 			if (timeout.count() > 0)
 				continue;  /* we have time, try to find idle */
@@ -132,15 +136,15 @@ void Nst::mainLoop() {
 		/* idle detected or maxlatency exhausted -> draw */
 		timeout = std::chrono::milliseconds(-1);
 
-		if (config::BLINKTIMEOUT.count() > 0 && m_term.existsBlinkingGlyph()) {
-			timeout = config::BLINKTIMEOUT - blink_watch.elapsed();
+		if (config::BLINK_TIMEOUT.count() > 0 && m_term.existsBlinkingGlyph()) {
+			timeout = config::BLINK_TIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
-				if (-timeout.count() > config::BLINKTIMEOUT.count()) /* start visible */
+				if (-timeout.count() > config::BLINK_TIMEOUT.count()) /* start visible */
 					m_x11.setBlinking(true);
 				m_x11.switchBlinking();
 				m_term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
-				timeout = config::BLINKTIMEOUT;
+				timeout = config::BLINK_TIMEOUT;
 			}
 		}
 
@@ -152,12 +156,12 @@ void Nst::mainLoop() {
 
 void Nst::resizeConsole(const Extent &win) {
 	m_x11.setWinSize(win);
-	const auto &twin = m_x11.getTermWin();
+	const auto &twin = m_x11.termWin();
 	auto tdim = twin.getTermDim();
 
 	m_term.resize(tdim);
 	m_x11.resize(tdim);
-	m_tty.resize(twin.getTTYExtent());
+	m_tty.resize(twin.TTYExtent());
 }
 
 } // end ns nst

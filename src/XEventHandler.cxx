@@ -7,11 +7,11 @@
 
 // nst
 #include "atoms.hxx"
-#include "nst.hxx"
 #include "nst_config.hxx"
+#include "nst.hxx"
+#include "x11.hxx"
 #include "XEventHandler.hxx"
 #include "XSelection.hxx"
-#include "x11.hxx"
 
 namespace nst {
 
@@ -24,11 +24,11 @@ constexpr long XEMBED_FOCUS_OUT = 5;
 }
 
 XEventHandler::XEventHandler(Nst &nst) :
-	m_nst(nst),
-	m_x11(nst.getX11()),
-	m_xsel(m_x11.getXSelection()),
-	m_mouse_shortcuts(config::getMouseShortcuts(nst)),
-	m_kbd_shortcuts(config::getKbdShortcuts(nst))
+		m_nst{nst},
+		m_x11{nst.x11()},
+		m_xsel{m_x11.selection()},
+		m_mouse_shortcuts{config::get_mouse_shortcuts(nst)},
+		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)}
 {}
 
 void XEventHandler::process(xpp::Event &ev) {
@@ -36,7 +36,7 @@ void XEventHandler::process(xpp::Event &ev) {
 
 	switch(ev.type()) {
 		default: return;
-		case Event::Ev_KeyPress: return keyPress(ev.toKeyEvent());
+		case Event::Ev_KeyPress:         return keyPress(ev.toKeyEvent());
 		case Event::Ev_ClientMessage:    return clientMessage(ev.toClientMessage());
 		case Event::Ev_ConfigureNotify:  return resize(ev.toConfigureNotify());
 		case Event::Ev_VisibilityNotify: return visibilityChange(ev.toVisibilityNotify());
@@ -59,13 +59,13 @@ void XEventHandler::process(xpp::Event &ev) {
 }
 
 bool XEventHandler::stateMatches(unsigned mask, unsigned state) {
-	return mask == XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
+	return mask == config::XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 }
 
 std::optional<std::string_view>
-XEventHandler::getCustomKeyMapping(KeySym k, unsigned state) const {
+XEventHandler::customKeyMapping(KeySym k, unsigned state) const {
 	/* Check for mapped keys out of X11 function keys. */
-	const bool found = config::MAPPEDKEYS.count(k) != 0;
+	const bool found = config::MAPPED_KEYS.count(k) != 0;
 
 	// if the key is not explicitly mapped and it is outside the range of
 	// X11 function keys, don't continue
@@ -73,7 +73,7 @@ XEventHandler::getCustomKeyMapping(KeySym k, unsigned state) const {
 		return {};
 	}
 
-	const auto &tmode = m_x11.getTermWin().getMode();
+	const auto &tmode = m_x11.termWin().mode();
 
 	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
 		auto &key = *it;
@@ -93,7 +93,7 @@ XEventHandler::getCustomKeyMapping(KeySym k, unsigned state) const {
 	return {};
 }
 
-unsigned XEventHandler::getButtonMask(unsigned button) {
+unsigned XEventHandler::buttonMask(unsigned button) {
 	switch(button) {
 		default: return 0;
 		case Button1: return Button1Mask;
@@ -106,14 +106,14 @@ unsigned XEventHandler::getButtonMask(unsigned button) {
 
 bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 	/* ignore Button<N>mask for Button<N> - it's set on release */
-	const unsigned state = ev.state & ~getButtonMask(ev.button);
+	const unsigned state = ev.state & ~buttonMask(ev.button);
 
 	for (auto &ms: m_mouse_shortcuts) {
 		if (ms.release != is_release || ms.button != ev.button)
 			continue;
 
 		if ( stateMatches(ms.mod, state) ||  /* exact or forced */
-		     stateMatches(ms.mod, state & ~config::FORCEMOUSEMOD)) {
+		     stateMatches(ms.mod, state & ~config::FORCE_MOUSE_MOD)) {
 			ms.func();
 			return true;
 		}
@@ -126,9 +126,9 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	size_t btn;
 	// the escape code to report for the mouse motion
 	int code;
-	const auto &twin = m_x11.getTermWin();
-	const auto &tmode = twin.getMode();
-	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
+	const auto &twin = m_x11.termWin();
+	const auto &tmode = twin.mode();
+	const auto pos = twin.toCharPos(DrawPos{ev.x, ev.y});
 
 	if (ev.type == MotionNotify) {
 		if (pos == m_old_mouse_pos)
@@ -138,7 +138,7 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 		/* WinMode::MOUSEMOTION: no reporting if no button is pressed */
 		else if (tmode[WinMode::MOUSEMOTION] && m_buttons.none())
 			return;
-		btn = m_buttons.getFirstButton();
+		btn = m_buttons.firstButton();
 		code = 32;
 	} else {
 		btn = ev.button;
@@ -191,32 +191,32 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 		return;
 	}
 
-	m_nst.getTTY().write(report, TTY::MayEcho(false));
+	m_nst.tty().write(report, TTY::MayEcho(false));
 }
 
 void XEventHandler::handleMouseSelection(const XButtonEvent &ev, const bool done) {
 	auto seltype = Selection::Type::REGULAR;
-	const unsigned state = ev.state & ~(Button1Mask | config::FORCEMOUSEMOD);
+	const unsigned state = ev.state & ~(Button1Mask | config::FORCE_MOUSE_MOD);
 
-	for (auto [type, mask]: config::SELMASKS) {
+	for (auto [type, mask]: config::SEL_MASKS) {
 		if (stateMatches(mask, state)) {
 			seltype = type;
 			break;
 		}
 	}
 
-	auto &sel = m_nst.getSelection();
-	const auto pos = m_x11.getTermWin().getCharPos(DrawPos{ev.x, ev.y});
+	auto &sel = m_nst.selection();
+	const auto pos = m_x11.termWin().toCharPos(DrawPos{ev.x, ev.y});
 	sel.extend(pos, seltype, done);
 
 	if (done) {
-		auto selection = sel.getSelection();
+		auto selection = sel.selection();
 		m_xsel.setSelection(selection, ev.time);
 	}
 }
 
 void XEventHandler::expose() {
-	m_nst.getTerm().redraw();
+	m_nst.term().redraw();
 }
 
 void XEventHandler::visibilityChange(const XVisibilityEvent &ev) {
@@ -235,13 +235,13 @@ void XEventHandler::focus(const xpp::Event &ev) {
 }
 
 void XEventHandler::keyPress(const XKeyEvent &ev) {
-	const auto &tmode = m_x11.getTermWin().getMode();
+	const auto &tmode = m_x11.termWin().mode();
 
 	if (tmode[WinMode::KBDLOCK])
 		return;
 
 	std::string buf;
-	const auto ksym = m_x11.getInput().lookupString(ev, buf);
+	const auto ksym = m_x11.input().lookupString(ev, buf);
 
 	/* 1. shortcuts */
 	for (auto &sc: m_kbd_shortcuts) {
@@ -252,8 +252,8 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 	}
 
 	/* 2. custom keys from nst_config.hxx */
-	if (auto seq = getCustomKeyMapping(ksym, ev.state); seq) {
-		m_nst.getTTY().write(*seq, TTY::MayEcho(true));
+	if (auto seq = customKeyMapping(ksym, ev.state); seq) {
+		m_nst.tty().write(*seq, TTY::MayEcho(true));
 		return;
 	}
 
@@ -275,7 +275,7 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 		}
 	}
 
-	m_nst.getTTY().write(buf, TTY::MayEcho(true));
+	m_nst.tty().write(buf, TTY::MayEcho(true));
 }
 
 void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
@@ -295,7 +295,7 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 			}
 		}
 	} else if (xpp::AtomID(msg.data.l[0]) == xpp::atoms::icccm_wm_delete_window) {
-		m_nst.getTTY().hangup();
+		m_nst.tty().hangup();
 		exit(0);
 	}
 }
@@ -303,7 +303,7 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 void XEventHandler::resize(const XConfigureEvent &config) {
 	auto new_size = Extent{config.width, config.height};
 
-	if (new_size == m_x11.getTermWin().getWinExtent())
+	if (new_size == m_x11.termWin().winExtent())
 		return;
 
 	m_nst.resizeConsole(new_size);
@@ -311,12 +311,12 @@ void XEventHandler::resize(const XConfigureEvent &config) {
 
 void XEventHandler::buttonPress(const XButtonEvent &ev) {
 	const auto btn = ev.button;
-	const auto &twin = m_x11.getTermWin();
+	const auto &twin = m_x11.termWin();
 
 	if (m_buttons.valid(btn))
 		m_buttons.setPressed(btn);
 
-	if (twin.checkFlag(WinMode::MOUSE) && !(ev.state & config::FORCEMOUSEMOD)) {
+	if (twin.checkFlag(WinMode::MOUSE) && !(ev.state & config::FORCE_MOUSE_MOD)) {
 		handleMouseReport(ev);
 		return;
 	}
@@ -327,8 +327,8 @@ void XEventHandler::buttonPress(const XButtonEvent &ev) {
 		return;
 
 	const auto snap = m_xsel.handleClick();
-	const auto pos = twin.getCharPos(DrawPos{ev.x, ev.y});
-	m_nst.getSelection().start(pos, snap);
+	const auto pos = twin.toCharPos(DrawPos{ev.x, ev.y});
+	m_nst.selection().start(pos, snap);
 }
 
 void XEventHandler::propertyNotify(const xpp::Event &ev) {
@@ -356,8 +356,8 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		}
 	}();
 
-	auto &tty = m_nst.getTTY();
-	auto &win = m_x11.getWindow();
+	auto &tty = m_nst.tty();
+	auto &win = m_x11.window();
 	xpp::XWindow::PropertyInfo info;
 	xpp::RawProperty prop;
 
@@ -400,7 +400,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		}
 
 		/*
-		 * As seen in Selection::getSelection():
+		 * As seen in Selection::selection():
 		 * Line endings are inconsistent in the terminal and GUI world
 		 * copy and pasting. When receiving some selection data,
 		 * replace all '\n' with '\r'.
@@ -409,13 +409,13 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 		auto ptr = prop.data.get();
 		std::replace(ptr, ptr + prop.length, '\n', '\r');
 
-		const bool brcktpaste = m_x11.getTermWin().checkFlag(WinMode::BRKT_PASTE);
+		const bool brcktpaste = m_x11.termWin().checkFlag(WinMode::BRKT_PASTE);
 
 		if (brcktpaste && prop.offset == 0)
-			tty.write("\033[200~", TTY::MayEcho(false));
-		tty.write(std::string_view{reinterpret_cast<const char*>(ptr), prop.length}, TTY::MayEcho(true));
+			tty.write("\033[200~", TTY::MayEcho{false});
+		tty.write(std::string_view{reinterpret_cast<const char*>(ptr), prop.length}, TTY::MayEcho{true});
 		if (brcktpaste && prop.left == 0)
-			tty.write("\033[201~", TTY::MayEcho(false));
+			tty.write("\033[201~", TTY::MayEcho{false});
 		/* number of 32-bit chunks returned */
 		prop.offset += prop.length;
 	} while (prop.left > 0);
@@ -428,8 +428,8 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 }
 
 void XEventHandler::selectionClear() {
-	if (config::SELCLEAR) {
-		m_nst.getSelection().clear();
+	if (config::SEL_CLEAR) {
+		m_nst.selection().clear();
 	}
 }
 
@@ -450,11 +450,11 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 
 	if (target == atoms::targets) {
 		/* respond with the supported type */
-		xpp::Property<xpp::AtomID> tgt_format(m_xsel.getTargetFormat());
+		xpp::Property<xpp::AtomID> tgt_format(m_xsel.targetFormat());
 
 		requestor.setProperty(req_prop, tgt_format);
 		xev.property = xpp::raw_atom(req_prop);
-	} else if (target == m_xsel.getTargetFormat() || target == xpp::atoms::string_type) {
+	} else if (target == m_xsel.targetFormat() || target == xpp::atoms::string_type) {
 		/*
 		 * with XA_STRING (string_type) non ascii characters may be
 		 * incorrect in the requestor. It is not our problem, use
@@ -494,15 +494,16 @@ void XEventHandler::buttonRelease(const XButtonEvent &ev) {
 	if (m_buttons.valid(btn))
 		m_buttons.setReleased(btn);
 
-	const auto &tmode = m_x11.getTermWin().getMode();
+	const auto &tmode = m_x11.termWin().mode();
 
-	if (tmode[WinMode::MOUSE] && !(ev.state & config::FORCEMOUSEMOD)) {
+	if (tmode[WinMode::MOUSE] && !(ev.state & config::FORCE_MOUSE_MOD)) {
 		handleMouseReport(ev);
 		return;
-	} else if (handleMouseAction(ev, true))
+	} else if (handleMouseAction(ev, true)) {
 		return;
-	else if (btn == Button1)
+	} else if (btn == Button1) {
 		handleMouseSelection(ev, /*done =*/ true);
+	}
 }
 
 void XEventHandler::motionEvent(const xpp::Event &ev) {
@@ -513,12 +514,11 @@ void XEventHandler::motionEvent(const xpp::Event &ev) {
 	// raw structure
 	// TODO: maybe fix this using a template function
 	const auto &bev = ev.raw()->xbutton;
-	const auto &tmode = m_x11.getTermWin().getMode();
+	const auto &tmode = m_x11.termWin().mode();
 
-	if (tmode[WinMode::MOUSE] && !(bev.state & config::FORCEMOUSEMOD)) {
+	if (tmode[WinMode::MOUSE] && !(bev.state & config::FORCE_MOUSE_MOD)) {
 		handleMouseReport(bev);
-	}
-	else {
+	} else {
 		handleMouseSelection(bev);
 	}
 }

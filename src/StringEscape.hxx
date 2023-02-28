@@ -1,10 +1,7 @@
 #ifndef NST_STRINGESCAPE_HXX
 #define NST_STRINGESCAPE_HXX
 
-// libc
-#include <stddef.h>
-
-// stdlib
+// C++
 #include <string>
 #include <string_view>
 #include <vector>
@@ -17,7 +14,7 @@ namespace nst {
 
 class Nst;
 
-/// Handles STR (non CSI) escape sequences
+/// Handles STR (non CSI) escape sequences.
 /**
  * STR escape sequences follow the following model:
  *
@@ -53,7 +50,7 @@ public: // functions
 	/// starts a new string escape sequence of the given type
 	void reset(const Type &type);
 	/// adds input characters to the current sequence
-	void add(const std::string_view &s);
+	void add(const std::string_view s);
 	/// processes a completed escape sequence, 
 	void process();
 
@@ -72,7 +69,7 @@ public: // functions
 protected: // functions
 
 	/// prints the current escape status to stderr
-	void dump(const std::string_view &prefix) const;
+	void dump(const std::string_view prefix) const;
 	/// parses escape sequence arguments from m_str into m_args
 	void parseArgs();
 	/// process an OSC (Operating System Command)

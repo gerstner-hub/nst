@@ -8,12 +8,12 @@
 
 // nst
 #include "CSIEscape.hxx"
-#include "Term.hxx"
+#include "nst_config.hxx"
+#include "nst.hxx"
 #include "Selection.hxx"
 #include "StringEscape.hxx"
+#include "Term.hxx"
 #include "TTY.hxx"
-#include "nst.hxx"
-#include "nst_config.hxx"
 
 namespace nst {
 
@@ -25,7 +25,7 @@ constexpr size_t MAX_ARG_SIZE = 16;
 } // end anon ns
 
 CSIEscape::CSIEscape(Nst &nst) :
-		m_nst(nst) {
+		m_nst{nst} {
 	m_args.reserve(MAX_ARG_SIZE);
 	m_str.reserve(MAX_STR_SIZE);
 }
@@ -95,7 +95,7 @@ void CSIEscape::parse() {
 		m_args.push_back(0);
 }
 
-void CSIEscape::dump(const std::string_view &prefix) const {
+void CSIEscape::dump(const std::string_view prefix) const {
 	std::cerr << prefix << ": ESC[";
 
 	auto get_repr = [](const char ch) -> std::string {
@@ -128,14 +128,14 @@ void CSIEscape::setModeGeneric(const bool enable) {
 
 void CSIEscape::setMode(const bool set) {
 
-	auto &term = m_nst.getTerm();
+	auto &term = m_nst.term();
 
 	for (const auto arg: m_args) {
 		switch (arg) {
 		case 0:  /* Error (IGNORED) */
 			break;
 		case 2:
-			m_nst.getX11().setMode(WinMode::KBDLOCK, set);
+			m_nst.x11().setMode(WinMode::KBDLOCK, set);
 			break;
 		case 4:  /* IRM -- Insertion-replacement */
 			term.setInsertMode(set);
@@ -155,8 +155,8 @@ void CSIEscape::setMode(const bool set) {
 
 void CSIEscape::setPrivateMode(const bool set) {
 
-	auto &x11 = m_nst.getX11();
-	auto &term = m_nst.getTerm();
+	auto &x11 = m_nst.x11();
+	auto &term = m_nst.term();
 
 	for (const auto arg: m_args) {
 		switch (arg) {
@@ -248,9 +248,9 @@ void CSIEscape::process() {
 
 	// spec reference: https://vt100.net/docs/vt510-rm/chapter4.html
 
-	auto &term = m_nst.getTerm();
+	auto &term = m_nst.term();
 	const auto arg0 = m_args[0];
-	const auto &curpos = term.getCursor().getPos();
+	const auto &curpos = term.cursor().position();
 
 	switch (m_mode_suffix.front()) {
 	default:
@@ -275,7 +275,7 @@ void CSIEscape::process() {
 				term.dumpCursorLine();
 				break;
 			case 2:
-				m_nst.getSelection().dump();
+				m_nst.selection().dump();
 				break;
 			case 4: // reset autoprint mode
 				term.setPrintMode(false);
@@ -287,7 +287,7 @@ void CSIEscape::process() {
 		return;
 	case 'c': /* DA -- Device Attributes */
 		if (arg0 == 0)
-			m_nst.getTTY().write(config::VTIDEN, TTY::MayEcho{false});
+			m_nst.tty().write(config::VT_IDENT, TTY::MayEcho{false});
 		return;
 	case 'b': /* REP -- if last char is printable print it <n> more times */
 		term.repeatChar(arg0 ? arg0 : 1);
@@ -400,7 +400,7 @@ void CSIEscape::process() {
 	case 'n': /* DSR – Device Status Report (cursor position) */
 		if (arg0 == 6) {
 			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
-			m_nst.getTTY().write(buf, TTY::MayEcho{false});
+			m_nst.tty().write(buf, TTY::MayEcho{false});
 		}
 		return;
 	case 'r': /* DECSTBM -- Set Scrolling Region */
@@ -408,7 +408,7 @@ void CSIEscape::process() {
 			break;
 		} else {
 			const auto start_row = arg0 ? arg0 : 1;
-			const auto end_row = ensureArg(1, term.getNumRows());
+			const auto end_row = ensureArg(1, term.numRows());
 			term.setScrollArea(LineSpan{start_row - 1, end_row - 1});
 			term.moveCursorAbsTo({0, 0});
 		}
@@ -429,7 +429,7 @@ void CSIEscape::process() {
 			if (arg0 < 0 || static_cast<unsigned>(arg0) >= static_cast<unsigned>(CursorStyle::END))
 				// cursor style out of range
 				break;
-			m_nst.getX11().setCursorStyle(static_cast<CursorStyle>(arg0));
+			m_nst.x11().setCursorStyle(static_cast<CursorStyle>(arg0));
 			return;
 		default:
 			break;
@@ -442,7 +442,7 @@ void CSIEscape::process() {
 
 bool CSIEscape::setCursorAttrs() const {
 	bool ret = true;
-	auto &term = m_nst.getTerm();
+	auto &term = m_nst.term();
 
 	for (auto it = m_args.begin(); it < m_args.end(); it++) {
 		const auto &attr = *it;
@@ -504,7 +504,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		}
 		case 39:
-			term.setCursorFgColor(config::DEFAULTFG);
+			term.setCursorFgColor(config::DEFAULT_FG);
 			break;
 		case 48: {
 			if (auto colidx = parseColor(++it); colidx != -1)
@@ -512,7 +512,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		}
 		case 49:
-			term.setCursorBgColor(config::DEFAULTBG);
+			term.setCursorBgColor(config::DEFAULT_BG);
 			break;
 		default:
 			if (!handleCursorColorSet(attr)) {
@@ -534,7 +534,7 @@ bool CSIEscape::handleCursorColorSet(const int attr) const {
 		          {100, 107, false, 8}  // bright background colors
 	};
 
-	auto &term = m_nst.getTerm();
+	auto &term = m_nst.term();
 
 	for (const auto &range: RANGES) {
 		const auto &[start, end, is_fg, offset] = range;
@@ -613,7 +613,7 @@ int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 }
 
 void CSIEscape::reportFocus(bool in_focus) {
-	auto &tty = m_nst.getTTY();
+	auto &tty = m_nst.tty();
 	if (in_focus)
 		tty.write("\033[I", TTY::MayEcho{false});
 	else

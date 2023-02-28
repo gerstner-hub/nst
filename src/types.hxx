@@ -307,7 +307,7 @@ public: // data
 public:
 
 	/// returns the position of the lowest button pressed, or NO_BUTTON
-	size_t getFirstButton() const {
+	size_t firstButton() const {
 		for (size_t bit = 0; bit < size(); bit++) {
 			if (this->test(bit))
 				return bit + 1;

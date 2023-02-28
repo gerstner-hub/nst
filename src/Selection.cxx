@@ -22,12 +22,13 @@ namespace nst {
 
 typedef Glyph::Attr Attr;
 
-Selection::Selection(Nst &nst) : m_nst(nst), m_term(nst.getTerm()) {
+Selection::Selection(Nst &nst) :
+		m_nst{nst}, m_term{nst.term()} {
 	m_orig.invalidate();
 }
 
 bool Selection::isDelim(const Glyph &g) const {
-	auto &DELIMITERS = config::WORDDELIMITERS;
+	auto &DELIMITERS = config::WORD_DELIMITERS;
 	return g.u && DELIMITERS.find_first_of(g.u) != DELIMITERS.npos;
 }
 
@@ -41,7 +42,7 @@ void Selection::clear() {
 }
 
 bool Selection::hasScreenChanged() const {
-	return m_alt_screen != m_term.getMode().test(Term::Mode::ALTSCREEN);
+	return m_alt_screen != m_term.mode().test(Term::Mode::ALTSCREEN);
 }
 
 bool Selection::isSelected(const CharPos &pos) const {
@@ -59,7 +60,7 @@ void Selection::start(const CharPos &pos, Snap snap) {
 	clear();
 	m_state = State::EMPTY;
 	m_type = Type::REGULAR;
-	m_alt_screen = m_term.getMode().test(Term::Mode::ALTSCREEN);
+	m_alt_screen = m_term.mode().test(Term::Mode::ALTSCREEN);
 	m_snap = snap;
 	m_orig.begin = pos;
 	m_orig.end = pos;
@@ -108,12 +109,12 @@ void Selection::extendLineBreaks() {
 	// end of the start line and moving the end column to the  (physical)
 	// end of the end line. I'm not completely sure why that is needed
 	// though.
-	const auto start_line_len = m_term.getLineLen(m_range.begin);
-	const auto end_line_len   = m_term.getLineLen(m_range.end);
+	const auto start_line_len = m_term.lineLen(m_range.begin);
+	const auto end_line_len   = m_term.lineLen(m_range.end);
 
 	m_range.begin.x = std::min(m_range.begin.x, start_line_len);
 	if (end_line_len <= m_range.end.x)
-		m_range.end.x = m_term.getNumCols() - 1;
+		m_range.end.x = m_term.numCols() - 1;
 }
 
 void Selection::extendSnap(CharPos &pos, const Direction direction) const {
@@ -125,7 +126,7 @@ void Selection::extendSnap(CharPos &pos, const Direction direction) const {
 }
 
 void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
-	const auto &screen = m_term.getScreen();
+	const auto &screen = m_term.screen();
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
 
 	const Glyph *prevgp = &screen[pos];
@@ -150,7 +151,7 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 				break;
 		}
 
-		if (next.x >= m_term.getLineLen(next))
+		if (next.x >= m_term.lineLen(next))
 			// valid position but no valid character
 			break;
 
@@ -173,10 +174,10 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 }
 
 void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
-	const auto &screen = m_term.getScreen();
+	const auto &screen = m_term.screen();
 
-	const auto last_col = m_term.getNumCols() - 1;
-	const auto last_row = m_term.getNumRows() - 1;
+	const auto last_col = m_term.numCols() - 1;
+	const auto last_row = m_term.numRows() - 1;
 
 	/*
 	 * Snap around if the the previous line or the current one
@@ -235,7 +236,7 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 	if (!m_orig.isValid())
 		return;
 
-	const auto scroll_area = m_term.getScrollArea();
+	const auto scroll_area = m_term.scrollArea();
 
 	// not fully clear what this condition is for:
 	// - either the selection range is completely within the scroll area
@@ -258,11 +259,11 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 	}
 }
 
-std::string Selection::getSelection() const {
+std::string Selection::selection() const {
 	if (!m_orig.isValid())
 		return "";
 
-	const auto &screen = m_term.getScreen();
+	const auto &screen = m_term.screen();
 	const Glyph *gp, *last;
 	int lastx = m_range.end.x;
 	std::string ret;
@@ -275,7 +276,7 @@ std::string Selection::getSelection() const {
 
 	/* append every set & selected glyph to the selection */
 	for (int y = m_range.begin.y; y <= m_range.end.y; y++) {
-		const int linelen = m_term.getLineLen(y);
+		const int linelen = m_term.lineLen(y);
 		const bool is_last_line = m_range.end.y == y;
 
 		if (linelen == 0) {
@@ -326,12 +327,12 @@ std::string Selection::getSelection() const {
 }
 
 void Selection::dump() const {
-	auto selection = getSelection();
+	auto sel = selection();
 
-	if (selection.empty())
+	if (sel.empty())
 		return;
 
-	m_nst.getTTY().printToIoFile(selection);
+	m_nst.tty().printToIoFile(sel);
 }
 
 } // end ns

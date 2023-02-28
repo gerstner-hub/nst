@@ -7,15 +7,15 @@
 
 namespace nst {
 
-/// Purely graphic info about the Terminal
+/// Purely graphic info about the Terminal.
 struct TermWindow {
 	TermWindow() :
-		m_mode(WinModeMask(WinMode::NUMLOCK))
+		m_mode{WinModeMask{WinMode::NUMLOCK}}
 	{}
 
 	void setCharSize(const Font &font) {
-		m_chr_extent.width = ceilf(font.width * config::CWSCALE);
-		m_chr_extent.height = ceilf(font.height * config::CHSCALE);
+		m_chr_extent.width = ceilf(font.width * config::CW_SCALE);
+		m_chr_extent.height = ceilf(font.height * config::CH_SCALE);
 	}
 
 	void setWinExtent(const Extent &ext) {
@@ -46,22 +46,22 @@ struct TermWindow {
 		m_tty_extent.height = chars.rows * m_chr_extent.height;
 	}
 
-	DrawPos getDrawPos(const CharPos &cp) const {
+	DrawPos toDrawPos(const CharPos &cp) const {
 		DrawPos dp;
 		dp.x = config::BORDERPX + cp.x * m_chr_extent.width;
 		dp.y = config::BORDERPX + cp.y * m_chr_extent.height;
 		return dp;
 	}
 
-	DrawPos getNextCol(const DrawPos &pos) const {
+	DrawPos nextCol(const DrawPos &pos) const {
 		return DrawPos{pos.x + m_chr_extent.width, pos.y};
 	}
 
-	DrawPos getNextLine(const DrawPos &pos) const {
+	DrawPos nextLine(const DrawPos &pos) const {
 		return DrawPos{pos.x, pos.y + m_chr_extent.height};
 	}
 
-	CharPos getCharPos(const DrawPos &pos) const {
+	CharPos toCharPos(const DrawPos &pos) const {
 		CharPos ret{pos.x - config::BORDERPX, pos.y - config::BORDERPX};
 
 		ret.clampX(m_tty_extent.width - 1);
@@ -73,18 +73,18 @@ struct TermWindow {
 		return ret;
 	}
 
-	size_t getActiveForegroundColor() const {
-		return m_mode[WinMode::REVERSE] ? config::DEFAULTFG : config::DEFAULTBG;
+	size_t activeForegroundColor() const {
+		return m_mode[WinMode::REVERSE] ? config::DEFAULT_FG : config::DEFAULT_BG;
 	}
 
 	auto getCursorStyle() const { return m_cursor_style; }
 	void setCursorStyle(const CursorStyle &s) { m_cursor_style = s; }
 
-	const auto& getTTYExtent() const { return m_tty_extent; }
-	const auto& getChrExtent() const { return m_chr_extent; }
-	const auto& getWinExtent() const { return m_win_extent; }
+	const auto& TTYExtent() const { return m_tty_extent; }
+	const auto& chrExtent() const { return m_chr_extent; }
+	const auto& winExtent() const { return m_win_extent; }
 
-	const auto& getMode() const { return m_mode; }
+	const auto& mode() const { return m_mode; }
 	bool checkFlag(const WinMode &flag) const { return m_mode[flag]; }
 	void setFlag(const WinMode &flag, const bool on_off = true) { m_mode.set(flag, on_off); }
 	void resetFlag(const WinMode &flag) { m_mode.reset(flag); }

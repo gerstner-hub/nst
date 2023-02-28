@@ -8,7 +8,9 @@
 
 namespace nst {
 
-XSelection::XSelection(Nst &nst) : m_nst(nst), m_x11(nst.getX11()) {}
+XSelection::XSelection(Nst &nst) :
+		m_nst{nst}, m_x11{nst.x11()}
+{}
 
 void XSelection::init() {
 	m_last_click.mark();
@@ -22,20 +24,20 @@ void XSelection::init() {
 	}
 }
 
-void XSelection::setSelection(const std::string_view &str, Time t) {
+void XSelection::setSelection(const std::string_view str, Time t) {
 	if (str.empty())
 		return;
 
 	m_primary = str;
 
-	const auto &display = m_x11.getDisplay();
+	const auto &display = m_x11.display();
 	const auto &primary = xpp::atoms::primary_selection;
-	auto &our_window = m_x11.getWindow();
+	auto &our_window = m_x11.window();
 
 	our_window.makeSelectionOwner(primary, t);
 	if (auto owner = display.selectionOwner(primary); !owner || *owner != our_window)
 		// we could not become the new selection owner
-		m_nst.getSelection().clear();
+		m_nst.selection().clear();
 }
 
 void XSelection::copyPrimaryToClipboard() {
@@ -45,7 +47,7 @@ void XSelection::copyPrimaryToClipboard() {
 		return;
 
 	const auto &clipboard = xpp::atoms::clipboard;
-	m_x11.getWindow().makeSelectionOwner(clipboard);
+	m_x11.window().makeSelectionOwner(clipboard);
 }
 
 const std::string& XSelection::getSelection(const xpp::AtomID which) const {
@@ -65,9 +67,9 @@ Selection::Snap XSelection::handleClick() {
 	 */
 	auto ret = Selection::Snap::NONE;
 
-	if (m_penultimate_click.elapsed() <= config::TRIPLECLICKTIMEOUT) {
+	if (m_penultimate_click.elapsed() <= config::TRIPLE_CLICK_TIMEOUT) {
 		ret = Selection::Snap::LINE;
-	} else if (m_last_click.elapsed() <= config::DOUBLECLICKTIMEOUT) {
+	} else if (m_last_click.elapsed() <= config::DOUBLE_CLICK_TIMEOUT) {
 		ret = Selection::Snap::WORD;
 	}
 

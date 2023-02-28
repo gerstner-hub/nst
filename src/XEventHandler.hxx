@@ -59,8 +59,8 @@ protected: // functions
 	 * 	The string sequence associated with the key input event or
 	 * 	nullopt_t if nothing is mapped.
 	 **/
-	std::optional<std::string_view> getCustomKeyMapping(KeySym k, unsigned state) const;
-	static unsigned getButtonMask(unsigned button);
+	std::optional<std::string_view> customKeyMapping(KeySym k, unsigned state) const;
+	static unsigned buttonMask(unsigned button);
 	static bool stateMatches(unsigned mask, unsigned state);
 
 protected: // data

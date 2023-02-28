@@ -6,7 +6,7 @@
 #include <optional>
 #include <vector>
 
-// libcosmos
+// cosmos
 #include "cosmos/BitMask.hxx"
 #include "cosmos/types.hxx"
 
@@ -22,20 +22,20 @@ class TTY;
 class X11;
 class RuneInfo;
 
-/// Internal representation of the screen
+/// Internal representation of the screen.
 /**
  * This class maintains the terminal contents on a logical level without
  * containing the actual X11 drawing logic.
  *
  * It manages the dimensions of the terminal, each line and its contents,
- * processes input data and passes on escape sequence to EscapeHandler
+ * processes input data and passes escape sequences to EscapeHandler
  **/
 class Term {
 
 public: // types
 
 	/// gobal terminal mode settings
-	enum class Mode : unsigned {
+	enum class Mode {
 		WRAP        = 1 << 0, /// automatically wrap to next line if cursor reaches end of line
 		INSERT      = 1 << 1, /// if set, on input, shift existing characters in a line to the right
 		ALTSCREEN   = 1 << 2, /// if set then the alternative screen is shown
@@ -45,7 +45,7 @@ public: // types
 		UTF8        = 1 << 6, /// UTF8 input support
 	};
 
-	typedef cosmos::BitMask<Mode> ModeBitMask;
+	using ModeBitMask =  cosmos::BitMask<Mode>;
 
 	/// different terminal character sets (we don't support them all)
 	enum class Charset {
@@ -83,28 +83,28 @@ public: // types
 			ORIGIN   = 2  /// if set then the cursor position is limited to the active scroll area
 		};
 
-		typedef cosmos::BitMask<State> StateBitMask;
+		using StateBitMask = cosmos::BitMask<State>;
 
 	protected: // data
 
 		CharPos pos; /// current cursor position (not yet rendered)
-		Glyph m_attr; /// contains the currently active font attributes for newly input characters
+		Glyph m_attrs; /// contains the currently active font attributes for newly input characters
 		StateBitMask m_state;
 
 	public: // functions
 
 		TCursor();
 
-		const auto& getAttr() const { return m_attr; }
+		const auto& attrs() const { return m_attrs; }
 
-		const auto& getPos() const { return pos; }
+		const auto& position() const { return pos; }
 
 		void setFgColor(int32_t colindex) {
-			m_attr.fg = colindex;
+			m_attrs.fg = colindex;
 		}
 
 		void setBgColor(int32_t colindex) {
-			m_attr.bg = colindex;
+			m_attrs.bg = colindex;
 		}
 
 		/// resets all rendering related attributes (colors, markup)
@@ -216,31 +216,31 @@ public: // functions
 	void moveCursorTo(CharPos pos);
 
 	void moveCursorUp(const size_t count, const CarriageReturn &cr = CarriageReturn(false)) {
-		auto curpos = getCursor().getPos();
+		auto curpos = cursor().pos;
 		if (cr)
 			curpos.moveToStartOfLine();
 		moveCursorTo(curpos.prevLine(count));
 	}
 
 	void moveCursorDown(const size_t count, const CarriageReturn &cr = CarriageReturn(false)) {
-		auto curpos = getCursor().getPos();
+		auto curpos = cursor().pos;
 		if (cr)
 			curpos.moveToStartOfLine();
 		moveCursorTo(curpos.nextLine(count));
 	}
 
 	void moveCursorLeft(const size_t count) {
-		const auto &curpos = getCursor().getPos();
+		const auto &curpos = cursor().pos;
 		moveCursorTo(curpos.prevCol(count));
 	}
 
 	void moveCursorRight(const size_t count) {
-		const auto &curpos = getCursor().getPos();
+		const auto &curpos = cursor().pos;
 		moveCursorTo(curpos.nextCol(count));
 	}
 
 	void moveCursorToCol(const int col) {
-		const auto &curpos = getCursor().getPos();
+		const auto &curpos = cursor().pos;
 		moveCursorTo(CharPos{col, curpos.y});
 	}
 
@@ -251,7 +251,7 @@ public: // functions
 
 	void cursorControl(const TCursor::Control &ctrl);
 
-	const auto& getMode() const { return m_mode; }
+	const auto& mode() const { return m_mode; }
 
 	void setCarriageReturn(const bool enable) { m_mode.set(Mode::CRLF, enable); }
 
@@ -268,14 +268,14 @@ public: // functions
 	void setAutoWrap(const bool enable) { m_mode.set(Mode::WRAP, enable); }
 
 	/// returns the current implicit carriage return setting as a typesafe boolean type
-	CarriageReturn getCarriageReturn() const { return CarriageReturn(m_mode[Mode::CRLF]); }
+	CarriageReturn carriageReturn() const { return CarriageReturn{m_mode[Mode::CRLF]}; }
 
 	/// moves the cursor to the next `count` tab position(s)
 	void moveToNextTab(size_t count = 1);
 	/// moves the cursor to the previous `count` tab position(s)
 	void moveToPrevTab(size_t count = 1);
 	/// moves the cursor the the next line (and also the first column, if set)
-	void moveToNewline(const CarriageReturn cr = CarriageReturn());
+	void moveToNewline(const CarriageReturn cr = CarriageReturn{});
 
 	void setTabAtCursor(const bool on_off) {
 		m_tabs[m_cursor.pos.x] = on_off;
@@ -283,7 +283,7 @@ public: // functions
 
 	/// inserts a marker at the current cursor position indicating a SUB control sequence
 	void showSubMarker() {
-		setChar('?', m_cursor.getPos());
+		setChar('?', m_cursor.pos);
 	}
 
 	void resetLastChar() {
@@ -308,9 +308,9 @@ public: // functions
 	void scrollUp(int num_lines = 1, std::optional<int> origin = {});
 
 	/// returns the number of characters found in the given line nr
-	int getLineLen(int y) const { return getLineLen(CharPos{0, y}); }
+	int lineLen(int y) const { return lineLen(CharPos{0, y}); }
 	/// returns the number of characters found in the given line position
-	int getLineLen(const CharPos &pos) const;
+	int lineLen(const CharPos &pos) const;
 
 	/// delete the given number of characters from the cursor position to the right
 	/**
@@ -337,7 +337,7 @@ public: // functions
 
 	/// write the line the cursor is on into the I/O file
 	void dumpCursorLine() const {
-		dumpLine(getCursor().getPos());
+		dumpLine(cursor().pos);
 	}
 
 	/// write the given line into the I/O file
@@ -362,9 +362,9 @@ public: // functions
 	void repeatChar(int count);
 
 	/// provide new data to the terminal
-	size_t write(const std::string_view &data, const ShowCtrlChars &show_ctrl);
+	size_t write(const std::string_view data, const ShowCtrlChars show_ctrl);
 
-	const TCursor& getCursor() const { return m_cursor; }
+	const TCursor& cursor() const { return m_cursor; }
 
 	/// reset all cursor attrs to default
 	void resetCursorAttrs() {
@@ -373,12 +373,12 @@ public: // functions
 
 	/// turn on the given cursor attribute
 	void setCursorAttr(const Glyph::Attr &attr) {
-		m_cursor.m_attr.mode.set(attr);
+		m_cursor.m_attrs.mode.set(attr);
 	}
 
 	/// turn off the given cursor attribute
 	void resetCursorAttr(const Glyph::Attr &attr) {
-		m_cursor.m_attr.mode.reset(attr);
+		m_cursor.m_attrs.mode.reset(attr);
 	}
 
 	void setCursorFgColor(int32_t colindex) {
@@ -395,13 +395,13 @@ public: // functions
 
 	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
 
-	LineSpan getScrollArea() const { return m_scroll_area; }
+	LineSpan scrollArea() const { return m_scroll_area; }
 
-	const auto getSize() const { return m_size; }
-	auto getNumRows() const { return m_size.rows; }
-	auto getNumCols() const { return m_size.cols; }
+	const auto size() const { return m_size; }
+	auto numRows() const { return m_size.rows; }
+	auto numCols() const { return m_size.cols; }
 
-	auto& getScreen() const { return m_screen; }
+	auto& screen() const { return m_screen; }
 
 	void reportFocus(bool in_focus) { m_esc_handler.reportFocus(in_focus); }
 
@@ -464,7 +464,7 @@ protected: // functions
 		clampRow(span.bottom);
 	}
 
-	Glyph* getCurGlyph() { return &m_screen[m_cursor.pos]; }
+	Glyph* curGlyph() { return &m_screen[m_cursor.pos]; }
 };
 
 } // end ns

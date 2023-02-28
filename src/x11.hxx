@@ -3,16 +3,20 @@
 
 // libc
 #include <math.h>
-// stdlib
+
+// C++
 #include <string>
-// libX11
+
+// X11
 #include <X11/Xft/Xft.h>
 #include <X11/cursorfont.h>
+
 // X++
 #include "X++/AtomMapper.hxx"
 #include "X++/types.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
+
 // nst
 #include "font.hxx"
 #include "nst_config.hxx"
@@ -33,7 +37,7 @@ public: // functions
 	auto getRawGC() { return m_gc.get(); }
 	auto getGC() { return m_gc; }
 	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
-	std::tuple<Font*, FontFlags> getFontForMode(const Glyph::AttrBitMask &mode);
+	std::tuple<Font*, FontFlags> fontForMode(const Glyph::AttrBitMask &mode);
 	void setForeground(const FontColor &color);
 	void setForeground(size_t colidx) {
 		setForeground(col[colidx]);
@@ -41,8 +45,8 @@ public: // functions
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
 	void sanitizeColor(Glyph &g) const;
 
-	const FontColor& getDefaultFG() const { return col[config::DEFAULTFG]; }
-	const FontColor& getDefaultBG() const { return col[config::DEFAULTBG]; }
+	const FontColor& defaultFG() const { return col[config::DEFAULT_FG]; }
+	const FontColor& defaultBG() const { return col[config::DEFAULT_BG]; }
 
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
@@ -51,8 +55,9 @@ protected: // data
 };
 
 /// Wrapper around the XRenderColor primitive that adds some helper functions
-struct RenderColor : public XRenderColor {
-	RenderColor() {}
+struct RenderColor :
+		public XRenderColor {
+	RenderColor() = default;
 	explicit RenderColor(const Glyph::color_t rgb) {
 		setFromRGB(rgb);
 	}
@@ -83,6 +88,7 @@ public: // types
 		void destroyMethod();
 		int destroyContext();
 		void instMethod();
+		XIC context() { return m_ctx; }
 	public:
 		Input(X11 &x) : m_x11(x) {}
 		~Input();
@@ -90,7 +96,6 @@ public: // types
 		void setSpot(const CharPos &chp);
 		void installCallback();
 		bool haveContext() const { return m_ctx != nullptr; }
-		XIC getContext() { return m_ctx; }
 		void setFocus();
 		void unsetFocus();
 		/// looks up a KeySym and string representation of the given event
@@ -141,7 +146,7 @@ public: // functions
 	void setUrgency(int add);
 	void resize(const TermSize &dim);
 	void setHints();
-	Input& getInput() { return m_input; }
+	Input& input() { return m_input; }
 	void init();
 	void setupCursor();
 	/// reset the initial state
@@ -179,18 +184,18 @@ public: // functions
 		m_twin.flipFlag(WinMode::BLINK);
 	}
 
-	auto& getDisplay() { return *(m_display); }
-	const xpp::XWindow& getWindow() const { return m_window; }
-	xpp::XWindow& getWindow() { return m_window; }
-	auto& getXSelection() { return m_xsel; }
-	auto& getTermWin() const { return m_twin; }
-	auto& getTermSize() const { return m_tsize; }
+	auto& display() { return *(m_display); }
+	const xpp::XWindow& window() const { return m_window; }
+	xpp::XWindow& window() { return m_window; }
+	auto& selection() { return m_xsel; }
+	auto& termWin() const { return m_twin; }
+	auto& termSize() const { return m_tsize; }
 	bool canDraw() const { return m_twin.checkFlag(WinMode::VISIBLE); }
 
 protected: // functions
 
-	auto getRawDisplay() { return static_cast<Display*>(*m_display); }
-	int getGravity();
+	auto rawDisplay() { return static_cast<Display*>(*m_display); }
+	int gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
 	void unloadFont(Font *f);
@@ -207,7 +212,7 @@ protected: // functions
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font
 	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
-	void getGlyphColors(const Glyph base, FontColor &fg, FontColor &bg);
+	void glyphColors(const Glyph base, FontColor &fg, FontColor &bg);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);
@@ -218,8 +223,8 @@ protected: // functions
 	/// (re)allocate the m_pixmap buffer and related context according to the current window size
 	void allocPixmap();
 	/// returns the parent window to be used as parent of the terminal window
-	xpp::XWindow getParent() const;
-	const FontColor& getCursorColor(const CharPos &pos, Glyph &glyph) const;
+	xpp::XWindow parent() const;
+	const FontColor& cursorColor(const CharPos &pos, Glyph &glyph) const;
 };
 
 } // end ns

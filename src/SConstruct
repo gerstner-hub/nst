@@ -1,14 +1,10 @@
 Import('env')
 
-warnings = ["all", "error", "extra", "null-dereference", "double-promotion", "shadow", "format=2"]
-warnings = [f"-W{w}" for w in warnings]
-
 env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
 env.ConfigureForLib("libcosmos")
 env.ConfigureForLib("libX++")
 env.Append(CCFLAGS=['-DVERSION=\\"0.9\\"'])
 env.Append(LIBS=["util"])
-env.Append(CCFLAGS=warnings)
 
 sources = env.GatherSources(suffixes=[".cxx"])
 

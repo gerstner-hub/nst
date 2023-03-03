@@ -233,9 +233,9 @@ const unsigned int FORCE_MOUSE_MOD = ShiftMask;
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
  * to be mapped below, add them to this array.
  */
-const std::set<KeySym> MAPPED_KEYS{{
+const std::set<KeySym> MAPPED_KEYS{
 	KeySym(-1)
-}};
+};
 
 /*
  * State bits to ignore when matching key or button events.  By default,

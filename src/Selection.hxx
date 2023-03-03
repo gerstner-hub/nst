@@ -9,7 +9,7 @@
 
 namespace nst {
 
-class Glyph;
+struct Glyph;
 class Nst;
 class Term;
 

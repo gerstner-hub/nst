@@ -397,7 +397,7 @@ public: // functions
 
 	LineSpan scrollArea() const { return m_scroll_area; }
 
-	const auto size() const { return m_size; }
+	auto size() const { return m_size; }
 	auto numRows() const { return m_size.rows; }
 	auto numCols() const { return m_size.cols; }
 

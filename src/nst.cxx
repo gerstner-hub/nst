@@ -69,7 +69,7 @@ void Nst::mainLoop() {
 	cosmos::Poller poller;
 	poller.create();
 	for (auto fd: {ttyfd, xfd, childfd}) {
-		poller.addFD(fd, cosmos::Poller::MonitorMask{{cosmos::Poller::MonitorSetting::INPUT}});
+		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
 	}
 
 	xpp::Event ev;

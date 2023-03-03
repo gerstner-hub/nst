@@ -13,11 +13,11 @@
 
 namespace nst {
 
-struct X11;
+class X11;
 class Nst;
 
 /// This type manages the X11 specific parts of selection/clipboard buffer handling
-struct XSelection {
+class XSelection {
 public: // functions
 
 	explicit XSelection(Nst &nst);

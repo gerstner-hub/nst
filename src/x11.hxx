@@ -68,7 +68,7 @@ struct RenderColor :
 };
 
 /// This contains central X11 graphics, input and font handling
-struct X11 {
+class X11 {
 public: // types
 
 	friend class XEventHandler;

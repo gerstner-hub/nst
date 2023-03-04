@@ -77,4 +77,22 @@ void FontPattern::destroy() {
 	m_pattern = nullptr;
 }
 
+void Font::reset(xpp::XDisplay &d) {
+	if (match) {
+		XftFontClose(d, match);
+		match = nullptr;
+	}
+	if (pattern) {
+		FcPatternDestroy(pattern);
+		pattern = nullptr;
+	}
+	if (set) {
+		FcFontSetDestroy(set);
+		set = nullptr;
+	}
+
+	badslant = false;
+	badweight = false;
+}
+
 } // end ns

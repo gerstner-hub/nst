@@ -7,6 +7,9 @@
 // cosmos
 #include "cosmos/types.hxx"
 
+// X++
+#include "X++/XDisplay.hxx"
+
 // nst
 #include "Glyph.hxx"
 
@@ -85,17 +88,19 @@ protected: // data
 
 /* Font structure */
 struct Font {
-	int height;
+	int height = 0;
 	int width;
 	int ascent;
 	int descent;
-	int badslant;
-	int badweight;
+	bool badslant = false;
+	bool badweight = false;
 	short lbearing;
 	short rbearing;
 	XftFont *match = nullptr;
 	FcFontSet *set = nullptr;
 	FcPattern *pattern = nullptr;
+public: // functions
+	void reset(xpp::XDisplay &d);
 };
 
 struct FcPatternGuard :

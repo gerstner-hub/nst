@@ -362,7 +362,7 @@ int X11::loadFont(Font *f, FcPattern *pattern) {
 		 */
 		if (int haveattr; (XftPatternGetInteger(f->match->pattern, "slant", 0,
 		    &haveattr) != XftResultMatch) || haveattr < wantattr) {
-			f->badslant = 1;
+			f->badslant = true;
 			fputs("font slant does not match\n", stderr);
 		}
 	}
@@ -370,7 +370,7 @@ int X11::loadFont(Font *f, FcPattern *pattern) {
 	if (int wantattr; (XftPatternGetInteger(pattern, "weight", 0, &wantattr) == XftResultMatch)) {
 		if (int haveattr; (XftPatternGetInteger(f->match->pattern, "weight", 0,
 		    &haveattr) != XftResultMatch) || haveattr != wantattr) {
-			f->badweight = 1;
+			f->badweight = true;
 			fputs("font weight does not match\n", stderr);
 		}
 	}
@@ -454,21 +454,6 @@ void X11::loadFontsOrThrow(const std::string &fontstr, double fontsize) {
 	}
 }
 
-void X11::unloadFont(Font *f) {
-	if (f->match) {
-		XftFontClose(*m_display, f->match);
-		f->match = nullptr;
-	}
-	if (f->pattern) {
-		FcPatternDestroy(f->pattern);
-		f->pattern = nullptr;
-	}
-	if (f->set) {
-		FcFontSetDestroy(f->set);
-		f->set = nullptr;
-	}
-}
-
 void X11::unloadFonts() {
 	/* Free the loaded fonts in the font cache.  */
 	for (auto &fc: m_font_cache)
@@ -477,7 +462,7 @@ void X11::unloadFonts() {
 	m_font_cache.clear();
 
 	for (auto font: {&m_draw_ctx.font, &m_draw_ctx.bfont, &m_draw_ctx.ifont, &m_draw_ctx.ibfont}) {
-		unloadFont(font);
+		font->reset(*m_display);
 	}
 }
 

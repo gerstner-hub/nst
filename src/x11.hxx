@@ -198,7 +198,6 @@ protected: // functions
 	int gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
-	void unloadFont(Font *f);
 	int loadColor(size_t i, const char *name, FontColor *ncolor);
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);

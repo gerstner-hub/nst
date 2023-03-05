@@ -8,7 +8,6 @@
 #include <string>
 
 // X11
-#include <X11/Xft/Xft.h>
 #include <X11/cursorfont.h>
 
 // X++
@@ -52,19 +51,6 @@ protected: // data
 	xpp::XDisplay *m_display = nullptr;
 	xpp::PixMapID m_pixmap;
 	xpp::GcSharedPtr m_gc;
-};
-
-/// Wrapper around the XRenderColor primitive that adds some helper functions
-struct RenderColor :
-		public XRenderColor {
-	RenderColor() = default;
-	explicit RenderColor(const Glyph::color_t rgb) {
-		setFromRGB(rgb);
-	}
-	explicit RenderColor(const FontColor &c) {
-		c.assignTo(*this);
-	}
-	void setFromRGB(const Glyph::color_t rgb);
 };
 
 /// This contains central X11 graphics, input and font handling

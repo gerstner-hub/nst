@@ -4,6 +4,9 @@
 // C++
 #include <optional>
 
+// X11
+#include <X11/Xft/Xft.h>
+
 // cosmos
 #include "cosmos/types.hxx"
 
@@ -158,6 +161,24 @@ public:
 			color.green == other.color.green &&
 			color.blue == other.color.blue;
 	}
+};
+
+/// Wrapper around the XRenderColor primitive that adds some helper functions
+struct RenderColor :
+		public XRenderColor {
+public: // functions
+	//
+	RenderColor() = default;
+
+	explicit RenderColor(const Glyph::color_t rgb) {
+		setFromRGB(rgb);
+	}
+
+	explicit RenderColor(const FontColor &c) {
+		c.assignTo(*this);
+	}
+
+	void setFromRGB(const Glyph::color_t rgb);
 };
 
 } // end ns

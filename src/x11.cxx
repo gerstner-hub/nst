@@ -106,7 +106,7 @@ void RenderColor::setFromRGB(const Glyph::color_t rgb) {
 
 X11::X11(Nst &nst) :
 		m_nst{nst},
-		m_input{*this},
+		m_input{m_window},
 		m_xsel{nst},
 		m_tsize{config::COLS, config::ROWS} {
 	m_tsize.normalize();
@@ -466,138 +466,6 @@ void X11::unloadFonts() {
 	}
 }
 
-bool X11::ximOpen() {
-	if (m_input.open())
-		return true;
-
-	m_input.installCallback();
-	return false;
-}
-
-X11::Input::~Input() {
-	if (m_spotlist)
-		XFree(m_spotlist);
-}
-
-void X11::Input::installCallback() {
-	XRegisterIMInstantiateCallback(m_x11.display(), nullptr, nullptr, nullptr,
-				       &Input::instMethodCB, (XPointer)this);
-}
-
-bool X11::Input::open() {
-	XIMCallback imdestroy = { .client_data = (XPointer)this, .callback = destroyMethodCB };
-	XICCallback icdestroy = { .client_data = (XPointer)this, .callback = destroyContextCB };
-
-	m_method = XOpenIM(m_x11.display(), nullptr, nullptr, nullptr);
-	if (!m_method)
-		return false;
-
-	if (XSetIMValues(m_method, XNDestroyCallback, &imdestroy, nullptr))
-		fprintf(stderr, "XSetIMValues: "
-		                "Could not set XNDestroyCallback.\n");
-
-	m_spotlist = XVaCreateNestedList(0, XNSpotLocation, &m_spot, nullptr);
-
-	if (!m_ctx) {
-		// NOTE: this function takes varargs, passing in C++ objects
-		// like m_window even with conversion operator does not work
-		m_ctx = XCreateIC(m_method,
-		                       XNInputStyle,
-		                       XIMPreeditNothing | XIMStatusNothing,
-		                       XNClientWindow, m_x11.window().id(),
-		                       XNDestroyCallback, &icdestroy,
-		                       nullptr);
-	}
-
-	if (!m_ctx) {
-		fprintf(stderr, "XCreateIC: Could not create input context.\n");
-	}
-
-	return true;
-}
-
-void X11::Input::instMethod() {
-	if (!open())
-		return;
-
-	XUnregisterIMInstantiateCallback(m_x11.display(), nullptr, nullptr, nullptr,
-					 &instMethodCB, (XPointer)this);
-}
-
-void X11::Input::instMethodCB(Display *, XPointer inputp, XPointer) {
-	auto &input = *reinterpret_cast<Input*>(inputp);
-	input.instMethod();
-}
-
-void X11::Input::destroyMethod() {
-	m_method = nullptr;
-	installCallback();
-	XFree(m_spotlist);
-	m_spotlist = nullptr;
-}
-
-void X11::Input::destroyMethodCB(XIM, XPointer inputp, XPointer) {
-	auto &input = *reinterpret_cast<Input*>(inputp);
-	input.destroyMethod();
-}
-
-int X11::Input::destroyContext() {
-	m_ctx = nullptr;
-	return 1;
-}
-
-int X11::Input::destroyContextCB(XIC, XPointer inputp, XPointer) {
-	auto &input = *reinterpret_cast<Input*>(inputp);
-	return input.destroyContext();
-}
-
-void X11::Input::setSpot(const CharPos &chp) {
-	if (!m_ctx)
-		return;
-
-	const auto dp = m_x11.termWin().toDrawPos(chp.nextLine());
-
-	m_spot.x = dp.x;
-	m_spot.y = dp.y;
-
-	XSetICValues(m_ctx, XNPreeditAttributes, m_spotlist, nullptr);
-}
-
-void X11::Input::setFocus() {
-	if (!haveContext())
-		return;
-
-	XSetICFocus(m_ctx);
-}
-
-void X11::Input::unsetFocus() {
-	if (!haveContext())
-		return;
-
-	XUnsetICFocus(m_ctx);
-}
-
-KeySym X11::Input::lookupString(const XKeyEvent &ev, std::string &s) {
-	int len;
-	KeySym sym;
-
-	s.resize(64);
-
-	if (haveContext()) {
-		Status status;
-		len = XmbLookupString(
-				context(), const_cast<XKeyEvent*>(&ev),
-				&s[0], s.size() + 1,
-				&sym, &status);
-	}
-	else {
-		len = XLookupString(const_cast<XKeyEvent*>(&ev), &s[0], s.size() + 1, &sym, nullptr);
-	}
-
-	s.resize(len);
-	return sym;
-}
-
 void X11::setGeometry(const std::string &g) {
 	unsigned int cols, rows;
 
@@ -717,7 +585,7 @@ void X11::init() {
 	m_draw_ctx.fillRectangle(DrawPos{0,0}, win);
 
 	/* input methods */
-	ximOpen();
+	m_input.tryOpen();
 
 	setupCursor();
 

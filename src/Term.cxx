@@ -523,7 +523,7 @@ void Term::draw() {
 	m_x11.finishDraw();
 
 	if (cursor_pos_changed)
-		m_x11.input().setSpot(new_pos);
+		m_x11.setInputSpot(new_pos);
 }
 
 Rune Term::translateChar(Rune u) {

@@ -18,6 +18,7 @@
 
 // nst
 #include "font.hxx"
+#include "Input.hxx"
 #include "nst_config.hxx"
 #include "TermWindow.hxx"
 #include "XSelection.hxx"
@@ -59,45 +60,16 @@ public: // types
 
 	friend class XEventHandler;
 
-	/// X11 Input Method handling
-	struct Input {
-	protected: // data
-		XIM m_method = nullptr;
-		XIC m_ctx = nullptr;
-		XPoint m_spot = {0, 0};
-		XVaNestedList m_spotlist = nullptr;
-		X11 &m_x11;
-	protected: // functions
-		static void destroyMethodCB(XIM, XPointer, XPointer);
-		static int destroyContextCB(XIC, XPointer, XPointer);
-		static void instMethodCB(Display*, XPointer, XPointer);
-		void destroyMethod();
-		int destroyContext();
-		void instMethod();
-		XIC context() { return m_ctx; }
-	public:
-		Input(X11 &x) : m_x11(x) {}
-		~Input();
-		bool open();
-		void setSpot(const CharPos &chp);
-		void installCallback();
-		bool haveContext() const { return m_ctx != nullptr; }
-		void setFocus();
-		void unsetFocus();
-		/// looks up a KeySym and string representation of the given event
-		KeySym lookupString(const XKeyEvent &ev, std::string &s);
-	};
-
 protected: // data
 	
 	nst::Nst &m_nst;
-	Input m_input;
+	xpp::XWindow m_window; /// the main (and only) terminal window
+	Input m_input; /// X11 input handling logic
 
 	xpp::XDisplay *m_display = nullptr;
 	const Cmdline *m_cmdline = nullptr;
 	int m_screen = -1;
 	Visual *m_visual = nullptr;
-	xpp::XWindow m_window; // the main (and only) terminal window
 	int m_geometry = 0; /* geometry mask */
 	bool m_fixed_geometry = false;
 	DrawPos m_win_offset;
@@ -133,6 +105,9 @@ public: // functions
 	void resize(const TermSize &dim);
 	void setHints();
 	Input& input() { return m_input; }
+	void setInputSpot(const CharPos pos) {
+		m_input.setSpot(m_twin.toDrawPos(pos));
+	}
 	void init();
 	void setupCursor();
 	/// reset the initial state
@@ -192,7 +167,6 @@ protected: // functions
 	bool loadFonts(const std::string &fontstr, double fontsize);
 	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();
-	bool ximOpen();
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font

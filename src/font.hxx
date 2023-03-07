@@ -7,13 +7,12 @@
 // X11
 #include <X11/Xft/Xft.h>
 
-// cosmos
-#include "cosmos/types.hxx"
-
 // nst
 #include "Glyph.hxx"
 
 namespace nst {
+
+typedef Glyph::Attr Attr;
 
 enum class Slant : int {
 	ITALIC = FC_SLANT_ITALIC,
@@ -33,16 +32,16 @@ enum class FontFlags {
 	NORMAL,
 	ITALIC,
 	BOLD,
-	ITALICBOLD
+	ITALIC_BOLD
 };
 
-/// Wrapper around a FontConfig FcPattern structure
+/// Wrapper around a FontConfig FcPattern structure.
 class FontPattern {
 public: // functions
 	FontPattern() = default;
 
-	explicit FontPattern(const std::string &str) {
-		parse(str);
+	explicit FontPattern(const std::string_view spec) {
+		parse(spec);
 	}
 
 	/// only wrap the given external FcPattern structure
@@ -52,21 +51,20 @@ public: // functions
 	{}
 
 	~FontPattern() {
-		if (!m_ext_pattern && isValid())
-			destroy();
+		destroy();
 	}
 
-	/// attempts to load the given font description, returns true on success
-	bool parse(const std::string &str);
+	/// attempts to load the given font description, returns true on success.
+	bool parse(const std::string_view spec);
 
-	bool isValid() const { return m_pattern != nullptr; }
+	bool valid() const { return m_pattern != nullptr; }
 
 	std::optional<double> pointSize() const;
 	std::optional<double> pixelSize() const;
 	void setPixelSize(double size_px);
 
-	void setSlant(const Slant &slant);
-	void setWeight(const Weight &weight);
+	void setSlant(const Slant slant);
+	void setWeight(const Weight weight);
 
 	FcPattern* raw() { return m_pattern; }
 
@@ -81,42 +79,37 @@ protected: // data
 	FcPattern *m_pattern = nullptr;
 };
 
-/* Font structure */
+/// Nst custom Font management structure.
 struct Font {
-	int height = 0;
-	int width = 0;
-	int ascent = 0;
-	int descent = 0;
-	bool badslant = false;
-	bool badweight = false;
-	short lbearing = 0;
-	short rbearing = 0;
-	XftFont *match = nullptr;
-	FcFontSet *set = nullptr;
-	FcPattern *pattern = nullptr;
 public: // functions
+
 	~Font() {
 		unload();
 	}
 	void unload();
 	bool load(FontPattern &pattern);
 	FcPattern* queryFontConfig(const Rune rune);
-};
 
-struct FcPatternGuard :
-		public cosmos::ResourceGuard<FcPattern*> {
-	explicit FcPatternGuard(FcPattern *p) :
-		ResourceGuard{p, [](FcPattern *_p) { ::FcPatternDestroy(_p); }}
-	{}
-};
-struct FcCharSetGuard :
-		public cosmos::ResourceGuard<FcCharSet*> {
-	explicit FcCharSetGuard(FcCharSet *p) :
-		ResourceGuard{p, [](FcCharSet *_p) { ::FcCharSetDestroy(_p); }}
-	{}
-};
+	int height() const { return m_height; }
+	int width() const { return m_width; }
+	int ascent() const { return m_ascent; }
+	int descent() const { return m_descent; }
+	bool hasBadSlant() const { return m_bad_slant; }
+	bool hasBadWeight() const { return m_bad_weight; }
+	XftFont* match() { return m_match; }
 
-typedef Glyph::Attr Attr;
+protected: // data
+
+	int m_height = 0;
+	int m_width = 0;
+	int m_ascent = 0;
+	int m_descent = 0;
+	bool m_bad_slant = false;
+	bool m_bad_weight = false;
+	FcFontSet *m_set = nullptr;
+	XftFont *m_match = nullptr;
+	FcPattern *m_pattern = nullptr;
+};
 
 class FontColor :
 		public XftColor {
@@ -173,11 +166,11 @@ public: // functions
 	void zoom(double val);
 	void resetZoom();
 	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
-	std::tuple<Font*, FontFlags> fontForMode(const Glyph::AttrBitMask &mode);
+	std::tuple<Font*, FontFlags> fontForMode(const Glyph::AttrBitMask mode);
 	void sanitizeColor(Glyph g) const;
 
 	auto& normalFont() { return m_normal_font; }
-	auto ascent() { return normalFont().ascent; }
+	auto ascent() { return normalFont().ascent(); }
 
 protected: // types
 

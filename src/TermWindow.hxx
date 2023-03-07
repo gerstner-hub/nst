@@ -14,8 +14,8 @@ struct TermWindow {
 	{}
 
 	void setCharSize(const Font &font) {
-		m_chr_extent.width = ceilf(font.width * config::CW_SCALE);
-		m_chr_extent.height = ceilf(font.height * config::CH_SCALE);
+		m_chr_extent.width = ceilf(font.width() * config::CW_SCALE);
+		m_chr_extent.height = ceilf(font.height() * config::CH_SCALE);
 	}
 
 	void setWinExtent(const Extent &ext) {

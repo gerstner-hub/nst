@@ -445,7 +445,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	size_t numspecs = 0;
 	Glyph::AttrBitMask prevmode(Glyph::AttrBitMask::all);
 	const auto start = m_twin.toDrawPos(loc);
-	DrawPos cur{start.atBelow(fnt->ascent)};
+	DrawPos cur{start.atBelow(fnt->ascent())};
 
 	for (size_t i = 0; i < len; i++) {
 		/* Fetch rune and mode for current glyph. */
@@ -461,7 +461,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 			prevmode = mode;
 			std::tie(fnt, fflags) = m_font_manager.fontForMode(mode);
 			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
-			cur.y = start.y + fnt->ascent;
+			cur.y = start.y + fnt->ascent();
 		}
 
 		auto [xftfont, glyphidx] = m_font_manager.lookupFontEntry(rune, *fnt, fflags);

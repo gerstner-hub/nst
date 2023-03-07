@@ -10,9 +10,6 @@
 // cosmos
 #include "cosmos/types.hxx"
 
-// X++
-#include "X++/XDisplay.hxx"
-
 // nst
 #include "Glyph.hxx"
 
@@ -39,12 +36,6 @@ enum class FontFlags {
 	ITALICBOLD
 };
 
-struct FontCache {
-	XftFont *font = nullptr;
-	FontFlags flags;
-	Rune unicodep;
-};
-
 /// Wrapper around a FontConfig FcPattern structure
 class FontPattern {
 public: // functions
@@ -57,7 +48,8 @@ public: // functions
 	/// only wrap the given external FcPattern structure
 	explicit FontPattern(FcPattern *ext) :
 			m_ext_pattern{true},
-			m_pattern{ext} {}
+			m_pattern{ext}
+	{}
 
 	~FontPattern() {
 		if (!m_ext_pattern && isValid())
@@ -92,30 +84,35 @@ protected: // data
 /* Font structure */
 struct Font {
 	int height = 0;
-	int width;
-	int ascent;
-	int descent;
+	int width = 0;
+	int ascent = 0;
+	int descent = 0;
 	bool badslant = false;
 	bool badweight = false;
-	short lbearing;
-	short rbearing;
+	short lbearing = 0;
+	short rbearing = 0;
 	XftFont *match = nullptr;
 	FcFontSet *set = nullptr;
 	FcPattern *pattern = nullptr;
 public: // functions
-	void reset(xpp::XDisplay &d);
+	~Font() {
+		unload();
+	}
+	void unload();
+	bool load(FontPattern &pattern);
+	FcPattern* queryFontConfig(const Rune rune);
 };
 
 struct FcPatternGuard :
 		public cosmos::ResourceGuard<FcPattern*> {
 	explicit FcPatternGuard(FcPattern *p) :
-		ResourceGuard{p, [](FcPattern *_p) { FcPatternDestroy(_p); }}
+		ResourceGuard{p, [](FcPattern *_p) { ::FcPatternDestroy(_p); }}
 	{}
 };
 struct FcCharSetGuard :
 		public cosmos::ResourceGuard<FcCharSet*> {
 	explicit FcCharSetGuard(FcCharSet *p) :
-		ResourceGuard{p, [](FcCharSet *_p) { FcCharSetDestroy(_p); }}
+		ResourceGuard{p, [](FcCharSet *_p) { ::FcCharSetDestroy(_p); }}
 	{}
 };
 
@@ -161,6 +158,50 @@ public:
 			color.green == other.color.green &&
 			color.blue == other.color.blue;
 	}
+};
+
+/// Manages loading, changing and properties of fonts.
+class FontManager {
+public: // functions
+
+	FontManager();
+	~FontManager();
+	void setFontSpec(const std::string_view font_spec) {
+		m_font_spec = font_spec;
+	}
+	bool loadFonts();
+	void zoom(double val);
+	void resetZoom();
+	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
+	std::tuple<Font*, FontFlags> fontForMode(const Glyph::AttrBitMask &mode);
+	void sanitizeColor(Glyph g) const;
+
+	auto& normalFont() { return m_normal_font; }
+	auto ascent() { return normalFont().ascent; }
+
+protected: // types
+
+	struct FontCache {
+		XftFont *font = nullptr;
+		FontFlags flags;
+		Rune rune;
+	};
+
+protected: // functions
+
+	void unloadFonts();
+	void clearCache();
+
+protected: // data
+
+	std::string m_font_spec;
+	Font m_normal_font;
+	Font m_bold_font;
+	Font m_italics_font;
+	Font m_italics_bold_font;
+	std::optional<double> m_used_font_size; /// may differ from default size due to zooming
+	std::optional<double> m_default_font_size;
+	std::vector<FontCache> m_font_cache;
 };
 
 /// Wrapper around the XRenderColor primitive that adds some helper functions

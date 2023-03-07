@@ -63,35 +63,12 @@ void DrawingContext::createGC(xpp::XDisplay &display, xpp::XWindow &parent) {
 			gcvalues);
 }
 
-std::tuple<Font*, FontFlags> DrawingContext::fontForMode(const Glyph::AttrBitMask &mode) {
-	if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
-		return std::make_tuple(&ibfont, FontFlags::ITALICBOLD);
-	} else if (mode[Attr::ITALIC]) {
-		return std::make_tuple(&ifont, FontFlags::ITALIC);
-	} else if (mode[Attr::BOLD]) {
-		return std::make_tuple(&bfont, FontFlags::BOLD);
-	} else {
-		return std::make_tuple(&font, FontFlags::NORMAL);
-	}
-}
-
 void DrawingContext::setForeground(const FontColor &color) {
 	XSetForeground(*m_display, getRawGC(), color.pixel);
 }
 
 void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
 	XFillRectangle(*m_display, xpp::raw_pixmap(m_pixmap), getRawGC(), pos.x, pos.y, ext.width, ext.height);
-}
-
-void DrawingContext::sanitizeColor(Glyph &g) const {
-	/* Fallback on color display for attributes not supported by the font */
-	if (g.mode[Attr::ITALIC] && g.mode[Attr::BOLD]) {
-		if (ibfont.badslant || ibfont.badweight) {
-			g.fg = config::DEFAULT_ATTR;
-		}
-	} else if ((g.mode[Attr::ITALIC] && ifont.badslant) || (g.mode[Attr::BOLD] && bfont.badweight)) {
-		g.fg = config::DEFAULT_ATTR;
-	}
 }
 
 void RenderColor::setFromRGB(const Glyph::color_t rgb) {
@@ -118,15 +95,6 @@ X11::~X11() {
 		XftDrawDestroy(m_font_draw);
 	}
 	m_draw_ctx.freeGC();
-	unloadFonts();
-#if 0
-	// TODO: enabling this fixed a leak but also causes an assertion on
-	// shutdown, because something else within fontconfig was not
-	// properly freed. Hard to hunt this down in the current state of font
-	// handling code. Fix this together with font refactoring.
-	if (m_fc_inited)
-		FcFini();
-#endif
 }
 
 void X11::copyToClipboard() {
@@ -149,18 +117,15 @@ void X11::toggleNumlock() {
 }
 
 void X11::zoomFont(float val) {
-	unloadFonts();
-	loadFontsOrThrow(m_cmdline->font.getValue(), m_used_font_size + (double)val);
+	m_font_manager.zoom(static_cast<double>(val));
+	m_twin.setCharSize(m_font_manager.normalFont());
 	m_nst.resizeConsole();
 	m_nst.term().redraw();
 	setHints();
 }
 
 void X11::resetFont() {
-	if (m_default_font_size > 0) {
-		m_used_font_size = m_default_font_size;
-		zoomFont(0);
-	}
+	m_font_manager.resetZoom();
 }
 
 void X11::allocPixmap() {
@@ -326,146 +291,6 @@ int X11::gravity() {
 	}
 }
 
-int X11::loadFont(Font *f, FcPattern *pattern) {
-	/*
-	 * Manually configure instead of calling XftMatchFont
-	 * so that we can use the configured pattern for
-	 * "missing glyph" lookups.
-	 */
-	FcPattern *configured = FcPatternDuplicate(pattern);
-	if (!configured)
-		return 1;
-
-	FcPatternGuard configured_guard(configured);
-	FcConfigSubstitute(nullptr, configured, FcMatchPattern);
-	XftDefaultSubstitute(*m_display, m_screen, configured);
-
-	FcResult result;
-	FcPattern *match = FcFontMatch(nullptr, configured, &result);
-	if (!match)
-		return 1;
-
-	FcPatternGuard match_guard(match);
-
-	if (!(f->match = XftFontOpenPattern(*m_display, match)))
-		return 1;
-
-	// ownership will be transferred now
-	configured_guard.disarm();
-	// TODO: memory leak? Is this match pattern really transferred?
-	match_guard.disarm();
-
-	if (int wantattr; (XftPatternGetInteger(pattern, "slant", 0, &wantattr) == XftResultMatch)) {
-		/*
-		 * Check if xft was unable to find a font with the appropriate
-		 * slant but gave us one anyway. Try to mitigate.
-		 */
-		if (int haveattr; (XftPatternGetInteger(f->match->pattern, "slant", 0,
-		    &haveattr) != XftResultMatch) || haveattr < wantattr) {
-			f->badslant = true;
-			fputs("font slant does not match\n", stderr);
-		}
-	}
-
-	if (int wantattr; (XftPatternGetInteger(pattern, "weight", 0, &wantattr) == XftResultMatch)) {
-		if (int haveattr; (XftPatternGetInteger(f->match->pattern, "weight", 0,
-		    &haveattr) != XftResultMatch) || haveattr != wantattr) {
-			f->badweight = true;
-			fputs("font weight does not match\n", stderr);
-		}
-	}
-
-	XGlyphInfo extents;
-	XftTextExtentsUtf8(*m_display, f->match, (const FcChar8 *) config::ASCII_PRINTABLE,
-		config::ASCII_PRINTABLE_LEN, &extents);
-
-	f->set = nullptr;
-	f->pattern = configured;
-
-	f->ascent = f->match->ascent;
-	f->descent = f->match->descent;
-	f->lbearing = 0;
-	f->rbearing = f->match->max_advance_width;
-
-	f->height = f->ascent + f->descent;
-	f->width = (extents.xOff + config::ASCII_PRINTABLE_LEN - 1) / config::ASCII_PRINTABLE_LEN;
-
-	return 0;
-}
-
-bool X11::loadFonts(const std::string &fontstr, double fontsize) {
-	FontPattern pattern{fontstr};
-
-	if (!pattern.isValid())
-		return false;
-
-	if (fontsize > 1) {
-		pattern.setPixelSize(fontsize);
-		m_used_font_size = fontsize;
-	} else {
-		if (auto pxsize = pattern.pixelSize(); pxsize.has_value())
-			m_used_font_size = *pxsize;
-		else if(auto ptsize = pattern.pointSize(); ptsize.has_value())
-			m_used_font_size = -1;
-		else {
-			/*
-			 * Use default font size, if none given. This is to
-			 * have a known m_used_font_size value.
-			 */
-			m_used_font_size = config::FONT_DEFAULT_SIZE_PX;
-			pattern.setPixelSize(m_used_font_size);
-		}
-		m_default_font_size = m_used_font_size;
-	}
-
-	if (loadFont(&m_draw_ctx.font, pattern.raw()))
-		return false;
-
-	if (m_used_font_size < 0) {
-		auto loaded = FontPattern(m_draw_ctx.font.match->pattern);
-		if (auto pxsize = loaded.pixelSize(); pxsize.has_value()) {
-			m_used_font_size = *pxsize;
-			if (fontsize == 0)
-				m_default_font_size = *pxsize;
-		}
-	}
-
-	/* Setting character width and height. */
-	m_twin.setCharSize(m_draw_ctx.font);
-
-	pattern.setSlant(Slant::ITALIC);
-	if (loadFont(&m_draw_ctx.ifont, pattern.raw()))
-		return false;
-
-	pattern.setWeight(Weight::BOLD);
-	if (loadFont(&m_draw_ctx.ibfont, pattern.raw()))
-		return false;
-
-	pattern.setSlant(Slant::ROMAN);
-	if (loadFont(&m_draw_ctx.bfont, pattern.raw()))
-		return false;
-
-	return true;
-}
-
-void X11::loadFontsOrThrow(const std::string &fontstr, double fontsize) {
-	if (!loadFonts(fontstr, fontsize)) {
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("failed to open font %s", fontstr.c_str())));
-	}
-}
-
-void X11::unloadFonts() {
-	/* Free the loaded fonts in the font cache.  */
-	for (auto &fc: m_font_cache)
-		XftFontClose(*m_display, fc.font);
-
-	m_font_cache.clear();
-
-	for (auto font: {&m_draw_ctx.font, &m_draw_ctx.bfont, &m_draw_ctx.ifont, &m_draw_ctx.ibfont}) {
-		font->reset(*m_display);
-	}
-}
-
 void X11::setGeometry(const std::string &g) {
 	unsigned int cols, rows;
 
@@ -530,16 +355,18 @@ void X11::init() {
 	m_display = &xpp::display;
 	m_screen = m_display->defaultScreen();
 	m_visual = m_display->defaultVisual(m_screen);
-
 	m_fixed_geometry = m_cmdline->fixed_geometry.isSet();
 
-	/* font */
-	if (!FcInit())
-		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
+	const auto &fontspec = m_cmdline->font.getValue();
 
-	m_fc_inited = true;
+	m_font_manager.setFontSpec(fontspec);
 
-	loadFontsOrThrow(m_cmdline->font.getValue());
+	if (!m_font_manager.loadFonts()) {
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", fontspec.c_str())));
+	}
+
+	/* Setting character width and height. */
+	m_twin.setCharSize(m_font_manager.normalFont());
 
 	/* colors */
 	loadColors();
@@ -609,70 +436,9 @@ void X11::init() {
 	}
 }
 
-std::tuple<XftFont*, FT_UInt> X11::lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags) {
-	/* Lookup character index with default font. */
-	auto glyphidx = XftCharIndex(*m_display, fnt.match, rune);
-	if (glyphidx) {
-		return std::make_tuple(fnt.match, glyphidx);
-	}
-
-	/* Fallback on font cache, search the font cache for match. */
-	for (auto &fc: m_font_cache) {
-		glyphidx = XftCharIndex(*m_display, fc.font, rune);
-		/* Everything correct. */
-		if (glyphidx && fc.flags == flags) {
-			return std::make_tuple(fc.font, glyphidx);
-		}
-		/* We got a default font for a not found glyph. */
-		else if (!glyphidx && fc.flags == flags && fc.unicodep == rune) {
-			return std::make_tuple(fc.font, glyphidx);
-		}
-	}
-
-	/* Nothing was found. Use fontconfig to find matching font. */
-	FcResult fcres;
-	if (!fnt.set)
-		fnt.set = FcFontSort(0, fnt.pattern, 1, 0, &fcres);
-	FcFontSet *fcsets[] = { NULL };
-	fcsets[0] = fnt.set;
-
-	/*
-	 * Nothing was found in the cache. Now use some dozen
-	 * of Fontconfig calls to get the font for one single
-	 * character.
-	 *
-	 * Xft and fontconfig are design failures.
-	 */
-	FcPattern *fcpattern = FcPatternDuplicate(fnt.pattern);
-	FcPatternGuard fcpattern_guard(fcpattern);
-	FcCharSet *fccharset = FcCharSetCreate();
-	FcCharSetGuard fccharset_guard(fccharset);
-
-	FcCharSetAddChar(fccharset, rune);
-	FcPatternAddCharSet(fcpattern, FC_CHARSET, fccharset);
-	FcPatternAddBool(fcpattern, FC_SCALABLE, 1);
-
-	FcConfigSubstitute(0, fcpattern, FcMatchPattern);
-	FcDefaultSubstitute(fcpattern);
-
-	FcPattern *fontpattern = FcFontSetMatch(0, fcsets, 1, fcpattern, &fcres);
-
-	/* Allocate memory for the new cache entry. */
-
-	auto font = XftFontOpenPattern(*m_display, fontpattern);
-	if (!font)
-		cosmos_throw (cosmos::ApiError("XftFontOpenPattern failed seeking fallback font"));
-	m_font_cache.emplace_back(FontCache{font, flags, rune});
-
-	auto &new_font = m_font_cache.back();
-
-	glyphidx = XftCharIndex(*m_display, new_font.font, rune);
-
-	return std::make_tuple(new_font.font, glyphidx);
-}
 
 size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc) {
-	Font *fnt = &m_draw_ctx.font;
+	Font *fnt = &m_font_manager.normalFont();
 	FontFlags fflags = FontFlags::NORMAL;
 	const auto chr = m_twin.chrExtent();
 	auto runewidth = chr.width;
@@ -693,12 +459,12 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 		/* Determine font for glyph if different from previous glyph. */
 		if (prevmode != mode) {
 			prevmode = mode;
-			std::tie(fnt, fflags) = m_draw_ctx.fontForMode(mode);
+			std::tie(fnt, fflags) = m_font_manager.fontForMode(mode);
 			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
 			cur.y = start.y + fnt->ascent;
 		}
 
-		auto [xftfont, glyphidx] = lookupFontEntry(rune, *fnt, fflags);
+		auto [xftfont, glyphidx] = m_font_manager.lookupFontEntry(rune, *fnt, fflags);
 
 		auto &spec = specs[numspecs++];
 		spec.font = xftfont;
@@ -769,7 +535,7 @@ void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
 
 	FontColor fg, bg;
-	m_draw_ctx.sanitizeColor(base);
+	m_font_manager.sanitizeColor(base);
 	glyphColors(base, fg, bg);
 
 	auto pos = m_twin.toDrawPos(loc);
@@ -822,11 +588,11 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
-		drawRect(fg, pos.atBelow(m_draw_ctx.font.ascent + 1), Extent{textwidth, 1});
+		drawRect(fg, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
 	}
 
 	if (base.mode[Attr::STRUCK]) {
-		drawRect(fg, pos.atBelow(2 * m_draw_ctx.font.ascent / 3), Extent{textwidth, 1});
+		drawRect(fg, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
 	}
 
 	/* Reset clip to none. */

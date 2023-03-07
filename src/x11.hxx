@@ -28,7 +28,6 @@ namespace nst {
 /// X11 drawing specific data and logic
 struct DrawingContext {
 	std::vector<FontColor> col;
-	Font font, bfont, ifont, ibfont;
 
 public: // functions
 	void createGC(xpp::XDisplay &display, xpp::XWindow &parent);
@@ -37,7 +36,7 @@ public: // functions
 	auto getRawGC() { return m_gc.get(); }
 	auto getGC() { return m_gc; }
 	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
-	std::tuple<Font*, FontFlags> fontForMode(const Glyph::AttrBitMask &mode);
+
 	void setForeground(const FontColor &color);
 	void setForeground(size_t colidx) {
 		setForeground(col[colidx]);
@@ -65,6 +64,7 @@ protected: // data
 	nst::Nst &m_nst;
 	xpp::XWindow m_window; /// the main (and only) terminal window
 	Input m_input; /// X11 input handling logic
+	FontManager m_font_manager;
 
 	xpp::XDisplay *m_display = nullptr;
 	const Cmdline *m_cmdline = nullptr;
@@ -77,12 +77,8 @@ protected: // data
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
-	bool m_fc_inited = false;
 	Colormap m_color_map = xpp::INVALID_XID;
 
-	std::vector<FontCache> m_font_cache;
-	double m_used_font_size = 0;
-	double m_default_font_size = 0;
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;
 	XSelection m_xsel;
@@ -164,13 +160,10 @@ protected: // functions
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
 	//! draw a rectangular font area using a starting point and extent
 	void drawRect(const FontColor &col, const DrawPos &start, const Extent &ext);
-	bool loadFonts(const std::string &fontstr, double fontsize);
-	void loadFontsOrThrow(const std::string&, double fontsize=0);
 	void unloadFonts();
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font
-	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
 	void glyphColors(const Glyph base, FontColor &fg, FontColor &bg);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);

@@ -474,12 +474,11 @@ const std::multiset<Key, KeyCmp> KEYS{{
  * Printable characters in ASCII, used to estimate the advance width
  * of single wide characters.
  */
-constexpr char ASCII_PRINTABLE[] =
+constexpr std::string_view ASCII_PRINTABLE{
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
-	"`abcdefghijklmnopqrstuvwxyz{|}~";
-
-constexpr size_t ASCII_PRINTABLE_LEN = sizeof(ASCII_PRINTABLE) - 1;
+	"`abcdefghijklmnopqrstuvwxyz{|}~"
+};
 
 /*
  * Selection types' masks.

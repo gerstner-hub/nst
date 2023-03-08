@@ -141,7 +141,7 @@ void X11::allocPixmap() {
 		XftDrawChange(m_font_draw, xpp::raw_pixmap(m_pixmap));
 	} else {
 		/* Xft rendering context */
-		m_font_draw = XftDrawCreate(*m_display, xpp::raw_pixmap(m_pixmap), m_visual, m_color_map);
+		m_font_draw = XftDrawCreate(*m_display, xpp::raw_pixmap(m_pixmap), m_visual, xpp::raw_cmap(m_color_map));
 	}
 
 	m_draw_ctx.setPixmap(m_pixmap);
@@ -176,20 +176,20 @@ int X11::loadColor(size_t i, const char *name, FontColor *ncolor) {
 				color.green = color.blue = color.red;
 			}
 			return XftColorAllocValue(*m_display, m_visual,
-			                          m_color_map, &color, ncolor);
+			                          xpp::raw_cmap(m_color_map), &color, ncolor);
 		} else {
 			auto cname = config::get_color_name(i);
 			name = cname.empty() ? nullptr : cname.data();
 		}
 	}
 
-	return XftColorAllocName(*m_display, m_visual, m_color_map, name, ncolor);
+	return XftColorAllocName(*m_display, m_visual, xpp::raw_cmap(m_color_map), name, ncolor);
 }
 
 void X11::loadColors() {
 	if (m_colors_loaded) {
 		for (auto &c: m_draw_ctx.col) {
-			XftColorFree(*m_display, m_visual, m_color_map, &c);
+			XftColorFree(*m_display, m_visual, xpp::raw_cmap(m_color_map), &c);
 		}
 	} else {
 		m_color_map = m_display->defaultColormap(m_screen);
@@ -228,7 +228,7 @@ bool X11::setColorName(size_t idx, const char *name) {
 	if (!loadColor(idx, name, &ncolor))
 		return false;
 
-	XftColorFree(*m_display, m_visual, m_color_map, &m_draw_ctx.col[idx]);
+	XftColorFree(*m_display, m_visual, xpp::raw_cmap(m_color_map), &m_draw_ctx.col[idx]);
 	m_draw_ctx.col[idx] = ncolor;
 
 	return true;
@@ -331,7 +331,7 @@ void X11::setupCursor() {
 
 	auto parseColor = [this](size_t colnr, XColor &out) {
 		auto cname = config::get_color_name(colnr);
-		auto res = XParseColor(*m_display, m_color_map, cname.empty() ? nullptr : cname.data(), &out);
+		auto res = XParseColor(*m_display, xpp::raw_cmap(m_color_map), cname.empty() ? nullptr : cname.data(), &out);
 		return res != 0;
 	};
 
@@ -388,7 +388,7 @@ void X11::init() {
 	m_win_attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
-	m_win_attrs.colormap = m_color_map;
+	m_win_attrs.colormap = xpp::raw_cmap(m_color_map);
 
 	auto parent = this->parent();
 	const auto &win = m_twin.winExtent();
@@ -481,7 +481,7 @@ void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 	auto assignBaseColor = [this](FontColor &out, const Glyph::color_t col) {
 		if (Glyph::isTrueColor(col)) {
 			RenderColor tmp{col};
-			XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &out);
+			XftColorAllocValue(*m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &out);
 		} else {
 			// col is a base index < 16
 			out = m_draw_ctx.col[col];
@@ -491,7 +491,7 @@ void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 	auto invertColor = [this](FontColor &c) {
 		c.invert();
 		RenderColor tmp(c);
-		XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &c);
+		XftColorAllocValue(*m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &c);
 	};
 
 	assignBaseColor(fg, base.fg);
@@ -518,7 +518,7 @@ void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 	if (base.needFaintColor()) {
 		auto faint = fg.faint();
 		RenderColor tmp(faint);
-		XftColorAllocValue(*m_display, m_visual, m_color_map, &tmp, &fg);
+		XftColorAllocValue(*m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &fg);
 	}
 
 	if (base.mode[Attr::REVERSE]) {

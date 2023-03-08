@@ -65,10 +65,10 @@ protected: // data
 	xpp::XWindow m_window; /// the main (and only) terminal window
 	Input m_input; /// X11 input handling logic
 	FontManager m_font_manager;
+	const Cmdline *m_cmdline = nullptr;
 
 	xpp::XDisplay *m_display = nullptr;
-	const Cmdline *m_cmdline = nullptr;
-	int m_screen = -1;
+	xpp::ScreenID m_screen = xpp::ScreenID::INVALID;
 	Visual *m_visual = nullptr;
 	int m_geometry = 0; /* geometry mask */
 	bool m_fixed_geometry = false;
@@ -77,7 +77,7 @@ protected: // data
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;
 	bool m_colors_loaded = false;
-	Colormap m_color_map = xpp::INVALID_XID;
+	xpp::ColorMapID m_color_map = xpp::ColorMapID::INVALID;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;
@@ -111,7 +111,6 @@ public: // functions
 		setDefaultTitle();
 		loadColors();
 	}
-	void setGeometry(const std::string &g);
 	void setPointerMotion(bool on_off);
 	void finishDraw();
 	void changeEventMask(long event, bool on_off);
@@ -151,6 +150,7 @@ public: // functions
 
 protected: // functions
 
+	void setGeometry(const std::string &g);
 	auto rawDisplay() { return static_cast<Display*>(*m_display); }
 	int gravity();
 	void loadColors();

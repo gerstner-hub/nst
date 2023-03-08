@@ -30,8 +30,7 @@ struct TermWindow {
 		m_win_extent.height = 2 * config::BORDERPX + size.rows * m_chr_extent.height;
 	}
 
-	//! calculates the number of characters that fit into the current
-	//! terminal window
+	/// calculates the number of characters that fit into the current terminal window
 	TermSize getTermDim() const {
 		auto EXTRA_PIXELS = 2 * config::BORDERPX;
 		int cols = (m_win_extent.width - EXTRA_PIXELS) / m_chr_extent.width;

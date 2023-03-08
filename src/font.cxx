@@ -12,6 +12,7 @@
 
 // X++
 #include "X++/XDisplay.hxx"
+#include "X++/helpers.hxx"
 
 // nst
 #include "font.hxx"
@@ -156,7 +157,7 @@ bool Font::load(FontPattern &pattern) {
 	} else {
 		FcPatternGuard configured_guard{configured};
 		FcConfigSubstitute(nullptr, configured, FcMatchPattern);
-		XftDefaultSubstitute(display, display.defaultScreen(), configured);
+		XftDefaultSubstitute(display, xpp::raw_screen(display.defaultScreen()), configured);
 
 		FcResult result;
 		FcPattern *match = FcFontMatch(nullptr, configured, &result);

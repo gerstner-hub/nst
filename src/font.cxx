@@ -10,7 +10,6 @@
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/types.hxx"
 
-
 // X++
 #include "X++/XDisplay.hxx"
 
@@ -43,7 +42,7 @@ bool FontPattern::parse(const std::string_view spec) {
 	if (spec[0] == '-')
 		m_pattern = XftXlfdParse(spec.data(), False, False);
 	else
-		m_pattern = FcNameParse((const FcChar8 *)spec.data());
+		m_pattern = FcNameParse((const FcChar8*)spec.data());
 
 	return valid();
 }
@@ -62,7 +61,8 @@ std::optional<double> FontPattern::pointSize() const {
 	auto res = FcPatternGetDouble(m_pattern, FC_SIZE, 0, &ret);
 	if (res == FcResultMatch)
 	       return ret;
-	return {};
+	else
+		return {};
 }
 
 std::optional<double> FontPattern::pixelSize() const {
@@ -73,7 +73,8 @@ std::optional<double> FontPattern::pixelSize() const {
 	auto res = FcPatternGetDouble(m_pattern, FC_PIXEL_SIZE, 0, &ret);
 	if (res == FcResultMatch)
 	       return ret;
-	return {};
+	else
+		return {};
 }
 
 void FontPattern::setSlant(const Slant slant) {
@@ -81,7 +82,18 @@ void FontPattern::setSlant(const Slant slant) {
 		return;
 
 	FcPatternDel(m_pattern, FC_SLANT);
-	FcPatternAddInteger(m_pattern, FC_SLANT, static_cast<int>(slant));
+	FcPatternAddInteger(m_pattern, FC_SLANT, cosmos::to_integral(slant));
+}
+
+std::optional<Slant> FontPattern::getSlant() const {
+	int attr;
+	auto res = XftPatternGetInteger(m_pattern, "slant", 0, &attr);
+
+	if (res != XftResultMatch) {
+		return {};
+	}
+
+	return Slant{attr};
 }
 
 void FontPattern::setWeight(const Weight weight) {
@@ -89,7 +101,18 @@ void FontPattern::setWeight(const Weight weight) {
 		return;
 
 	FcPatternDel(m_pattern, FC_WEIGHT);
-	FcPatternAddInteger(m_pattern, FC_WEIGHT, static_cast<int>(weight));
+	FcPatternAddInteger(m_pattern, FC_WEIGHT, cosmos::to_integral(weight));
+}
+
+std::optional<Weight> FontPattern::getWeight() const {
+	int attr;
+	auto res = XftPatternGetInteger(m_pattern, "weight", 0, &attr);
+
+	if (res != XftResultMatch) {
+		return {};
+	}
+
+	return Weight{attr};
 }
 
 void FontPattern::destroy() {
@@ -123,9 +146,8 @@ void Font::unload() {
 bool Font::load(FontPattern &pattern) {
 	unload();
 	/*
-	 * Manually configure instead of calling XftMatchFont
-	 * so that we can use the configured pattern for
-	 * "missing glyph" lookups.
+	 * Manually configure instead of calling XftMatchFont so that we can
+	 * use the configured pattern for "missing glyph" lookups.
 	 */
 	auto &display = xpp::display;
 	FcPattern *configured = FcPatternDuplicate(pattern.raw());
@@ -137,55 +159,61 @@ bool Font::load(FontPattern &pattern) {
 		XftDefaultSubstitute(display, display.defaultScreen(), configured);
 
 		FcResult result;
-		FcPattern *m = FcFontMatch(nullptr, configured, &result);
-		if (!m)
+		FcPattern *match = FcFontMatch(nullptr, configured, &result);
+		if (!match)
 			return false;
 
-		FcPatternGuard match_guard{m};
+		FcPatternGuard match_guard{match};
 
-		if (!(m_match = XftFontOpenPattern(display, m)))
+		if (!(m_match = XftFontOpenPattern(display, match)))
 			return false;
 
 		m_pattern = configured;
 
-		// ownership is transferred now to pattern
+		// ownership is transferred now to m_pattern
 		configured_guard.disarm();
 		// ... and to m_match
 		match_guard.disarm();
 	}
 
-	if (int wantattr; XftPatternGetInteger(pattern.raw(), "slant", 0, &wantattr) == XftResultMatch) {
-		/*
-		 * Check if xft was unable to find a font with the appropriate
-		 * slant but gave us one anyway. Try to mitigate.
-		 */
-		if (int haveattr; (XftPatternGetInteger(m_match->pattern, "slant", 0, &haveattr) != XftResultMatch) ||
-				haveattr < wantattr) {
-			m_bad_slant = true;
-			std::cerr << "font slant does not match\n";
-		}
-	}
-
-	if (int wantattr; (XftPatternGetInteger(pattern.raw(), "weight", 0, &wantattr) == XftResultMatch)) {
-		if (int haveattr; (XftPatternGetInteger(m_match->pattern, "weight", 0, &haveattr) != XftResultMatch) ||
-				haveattr != wantattr) {
-			m_bad_weight = true;
-			std::cerr << "font weight does not match\n";
-		}
-	}
+	checkSlant(pattern);
+	checkWeight(pattern);
 
 	XGlyphInfo extents;
 	XftTextExtentsUtf8(display, m_match,
 		(const FcChar8 *)config::ASCII_PRINTABLE.data(),
 		config::ASCII_PRINTABLE.size(), &extents);
 
-	m_ascent = m_match->ascent;
-	m_descent = m_match->descent;
-
-	m_height = m_ascent + m_descent;
+	m_height = ascent() + descent();
 	m_width = (extents.xOff + config::ASCII_PRINTABLE.size() - 1) / config::ASCII_PRINTABLE.size();
 
 	return true;
+}
+
+void Font::checkSlant(FontPattern &pattern) {
+	const FontPattern opened = this->pattern();
+
+	if (auto wanted_slant = pattern.getSlant(); wanted_slant != std::nullopt) {
+		/*
+		 * Check if xft was unable to find a font with the appropriate
+		 * slant but gave us one anyway. Try to mitigate.
+		 */
+		if (auto our_slant = opened.getSlant(); our_slant != std::nullopt && *our_slant < *wanted_slant) {
+			m_bad_slant = true;
+			std::cerr << "font slant does not match\n";
+		}
+	}
+}
+
+void Font::checkWeight(FontPattern &pattern) {
+	const FontPattern opened = this->pattern();
+
+	if (auto wanted_weight = pattern.getWeight(); wanted_weight != std::nullopt) {
+		if (auto our_weight = opened.getWeight(); our_weight != std::nullopt && *our_weight != *wanted_weight) {
+			m_bad_weight = true;
+			std::cerr << "font weight does not match\n";
+		}
+	}
 }
 
 FcPattern* Font::queryFontConfig(const Rune rune) {
@@ -196,9 +224,8 @@ FcPattern* Font::queryFontConfig(const Rune rune) {
 	FcFontSet *fc_sets[] = { m_set };
 
 	/*
-	 * Nothing was found in the cache. Now use some dozen
-	 * of Fontconfig calls to get the font for one single
-	 * character.
+	 * Nothing was found in the cache. Now use some dozen of Fontconfig
+	 * calls to get the font for one single character.
 	 *
 	 * Xft and fontconfig are design failures.
 	 */
@@ -229,13 +256,17 @@ void FontManager::unloadFonts() {
 	/* Free the loaded fonts in the font cache.  */
 	clearCache();
 
-	for (auto font: {&m_normal_font, &m_bold_font, &m_italics_font, &m_italics_bold_font}) {
+	for (auto font: {&m_normal_font, &m_bold_font, &m_italic_font, &m_italic_bold_font}) {
 		font->unload();
 	}
 }
 
 
-FontManager::FontManager() {
+FontManager::FontManager() :
+		m_normal_font{FontFlags::NORMAL},
+		m_bold_font{FontFlags::BOLD},
+		m_italic_font{FontFlags::ITALIC},
+		m_italic_bold_font{FontFlags::ITALIC_BOLD} {
 	if (!FcInit()) {
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 	}
@@ -245,13 +276,17 @@ FontManager::FontManager() {
 FontManager::~FontManager() {
 	unloadFonts();
 #if 0
-	// TODO: enabling this fixed a leak but also causes an assertion on
-	// shutdown, because something else within fontconfig was not
-	// properly freed. Hard to hunt this down in the current state of font
-	// handling code. Fix this together with font refactoring.
+	/*
+	 * Calling this results in an assertion on shutdown, because some
+	 * caches are not freed within fontconfig. After investigating this
+	 * more closely it seems this is not due to a leak caused by NST, but
+	 * due to libXft's handling of fontconfig. There is XftInit() that
+	 * also calls FcInit(), but there is no counterpart in libXft to
+	 * cleanup ... it seems like the leaks stem from libXft and there is
+	 * nothing we can do against that.
+	 */
 	FcFini();
 #endif
-
 }
 
 void FontManager::zoom(double val) {
@@ -297,7 +332,7 @@ bool FontManager::loadFonts() {
 		return false;
 
 	if (!m_used_font_size) {
-		auto loaded = FontPattern{m_normal_font.match()->pattern};
+		auto loaded = m_normal_font.pattern();
 		if (auto pxsize = loaded.pixelSize(); pxsize.has_value()) {
 			m_used_font_size = *pxsize;
 			if (!m_default_font_size)
@@ -306,11 +341,11 @@ bool FontManager::loadFonts() {
 	}
 
 	pattern.setSlant(Slant::ITALIC);
-	if (!m_italics_font.load(pattern))
+	if (!m_italic_font.load(pattern))
 		return false;
 
 	pattern.setWeight(Weight::BOLD);
-	if (!m_italics_bold_font.load(pattern))
+	if (!m_italic_bold_font.load(pattern))
 		return false;
 
 	pattern.setSlant(Slant::ROMAN);
@@ -320,19 +355,19 @@ bool FontManager::loadFonts() {
 	return true;
 }
 
-std::tuple<Font*, FontFlags> FontManager::fontForMode(const Glyph::AttrBitMask mode) {
+Font* FontManager::fontForMode(const Glyph::AttrBitMask mode) {
 	if (mode.allOf({Attr::ITALIC, Attr::BOLD})) {
-		return std::make_tuple(&m_italics_bold_font, FontFlags::ITALIC_BOLD);
+		return &m_italic_bold_font;
 	} else if (mode[Attr::ITALIC]) {
-		return std::make_tuple(&m_italics_font, FontFlags::ITALIC);
+		return &m_italic_font;
 	} else if (mode[Attr::BOLD]) {
-		return std::make_tuple(&m_bold_font, FontFlags::BOLD);
+		return &m_bold_font;
 	} else {
-		return std::make_tuple(&m_normal_font, FontFlags::NORMAL);
+		return &m_normal_font;
 	}
 }
 
-std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font &font, const FontFlags flags) {
+std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font &font) {
 	/* Lookup character index with default font. */
 	auto glyphidx = XftCharIndex(xpp::display, font.match(), rune);
 	if (glyphidx) {
@@ -342,10 +377,10 @@ std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font
 	/* Fallback on font cache, search the font cache for match. */
 	for (auto &entry: m_font_cache) {
 		glyphidx = XftCharIndex(xpp::display, entry.font, rune);
-		if (glyphidx && entry.flags == flags) {
+		if (glyphidx && entry.flags == font.flags()) {
 			/* Everything correct. */
 			return std::make_tuple(entry.font, glyphidx);
-		} else if (!glyphidx && entry.flags == flags && entry.rune == rune) {
+		} else if (!glyphidx && entry.flags == font.flags() && entry.rune == rune) {
 			/* We got a default font for a not found glyph. */
 			return std::make_tuple(entry.font, glyphidx);
 		}
@@ -360,7 +395,7 @@ std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font
 		cosmos_throw (cosmos::ApiError("XftFontOpenPattern() failed seeking fallback font"));
 	}
 
-	m_font_cache.emplace_back(FontCache{new_font, flags, rune});
+	m_font_cache.emplace_back(FontCache{new_font, font.flags(), rune});
 
 	glyphidx = XftCharIndex(xpp::display, new_font, rune);
 
@@ -370,14 +405,13 @@ std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font
 void FontManager::sanitizeColor(Glyph g) const {
 	/* Fallback on color display for attributes not supported by the font */
 	if (g.mode[Attr::ITALIC] && g.mode[Attr::BOLD]) {
-		if (m_italics_bold_font.hasBadSlant() || m_italics_bold_font.hasBadWeight()) {
+		if (m_italic_bold_font.hasBadSlant() || m_italic_bold_font.hasBadWeight()) {
 			g.fg = config::DEFAULT_ATTR;
 		}
-	} else if ((g.mode[Attr::ITALIC] && m_italics_font.hasBadSlant()) ||
+	} else if ((g.mode[Attr::ITALIC] && m_italic_font.hasBadSlant()) ||
 			(g.mode[Attr::BOLD] && m_bold_font.hasBadWeight())) {
 		g.fg = config::DEFAULT_ATTR;
 	}
 }
-
 
 } // end ns

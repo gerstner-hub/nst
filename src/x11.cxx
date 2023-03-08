@@ -439,7 +439,6 @@ void X11::init() {
 
 size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc) {
 	Font *fnt = &m_font_manager.normalFont();
-	FontFlags fflags = FontFlags::NORMAL;
 	const auto chr = m_twin.chrExtent();
 	auto runewidth = chr.width;
 	size_t numspecs = 0;
@@ -459,12 +458,12 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 		/* Determine font for glyph if different from previous glyph. */
 		if (prevmode != mode) {
 			prevmode = mode;
-			std::tie(fnt, fflags) = m_font_manager.fontForMode(mode);
+			fnt = m_font_manager.fontForMode(mode);
 			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
 			cur.y = start.y + fnt->ascent();
 		}
 
-		auto [xftfont, glyphidx] = m_font_manager.lookupFontEntry(rune, *fnt, fflags);
+		auto [xftfont, glyphidx] = m_font_manager.lookupFontEntry(rune, *fnt);
 
 		auto &spec = specs[numspecs++];
 		spec.font = xftfont;

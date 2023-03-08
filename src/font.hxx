@@ -65,6 +65,8 @@ public: // functions
 
 	void setSlant(const Slant slant);
 	void setWeight(const Weight weight);
+	std::optional<Slant> getSlant() const;
+	std::optional<Weight> getWeight() const;
 
 	FcPattern* raw() { return m_pattern; }
 
@@ -82,6 +84,9 @@ protected: // data
 /// Nst custom Font management structure.
 struct Font {
 public: // functions
+	explicit Font(const FontFlags flags) :
+			m_flags{flags}
+	{}
 
 	~Font() {
 		unload();
@@ -92,23 +97,31 @@ public: // functions
 
 	int height() const { return m_height; }
 	int width() const { return m_width; }
-	int ascent() const { return m_ascent; }
-	int descent() const { return m_descent; }
+	int ascent() const { return m_match->ascent; }
+	int descent() const { return m_match->descent; }
 	bool hasBadSlant() const { return m_bad_slant; }
 	bool hasBadWeight() const { return m_bad_weight; }
 	XftFont* match() { return m_match; }
+	const FontPattern pattern() {
+		return FontPattern{m_match->pattern};
+	}
+	auto flags() { return m_flags; }
+
+protected: // functions
+
+	void checkSlant(FontPattern &pattern);
+	void checkWeight(FontPattern &pattern);
 
 protected: // data
 
 	int m_height = 0;
 	int m_width = 0;
-	int m_ascent = 0;
-	int m_descent = 0;
 	bool m_bad_slant = false;
 	bool m_bad_weight = false;
 	FcFontSet *m_set = nullptr;
 	XftFont *m_match = nullptr;
 	FcPattern *m_pattern = nullptr;
+	const FontFlags m_flags;
 };
 
 class FontColor :
@@ -165,8 +178,8 @@ public: // functions
 	bool loadFonts();
 	void zoom(double val);
 	void resetZoom();
-	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt, const FontFlags flags);
-	std::tuple<Font*, FontFlags> fontForMode(const Glyph::AttrBitMask mode);
+	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt);
+	Font* fontForMode(const Glyph::AttrBitMask mode);
 	void sanitizeColor(Glyph g) const;
 
 	auto& normalFont() { return m_normal_font; }
@@ -190,8 +203,8 @@ protected: // data
 	std::string m_font_spec;
 	Font m_normal_font;
 	Font m_bold_font;
-	Font m_italics_font;
-	Font m_italics_bold_font;
+	Font m_italic_font;
+	Font m_italic_bold_font;
 	std::optional<double> m_used_font_size; /// may differ from default size due to zooming
 	std::optional<double> m_default_font_size;
 	std::vector<FontCache> m_font_cache;

@@ -79,9 +79,7 @@ void RenderColor::setFromRGB(const Glyph::color_t rgb) {
 X11::X11(Nst &nst) :
 		m_nst{nst},
 		m_input{m_window},
-		m_xsel{nst},
-		m_tsize{config::COLS, config::ROWS} {
-	m_tsize.normalize();
+		m_xsel{nst} {
 	setCursorStyle(config::CURSORSHAPE);
 }
 
@@ -286,14 +284,14 @@ int X11::gravity() {
 	}
 }
 
-void X11::setGeometry(const std::string &g) {
+void X11::setGeometry(const std::string &g, TermSize &tsize) {
 	unsigned int cols, rows;
 
 	m_geometry = XParseGeometry(g.c_str(), &m_win_offset.x, &m_win_offset.y, &cols, &rows);
 
-	m_tsize.rows = rows;
-	m_tsize.cols = cols;
-	m_twin.setWinExtent(m_tsize);
+	tsize.rows = rows;
+	tsize.cols = cols;
+	m_twin.setWinExtent(tsize);
 	const auto &win = m_twin.winExtent();
 	if (m_geometry & XNegative)
 		m_win_offset.x += m_display->displayWidth(m_screen) - win.width - 2;
@@ -366,14 +364,18 @@ void X11::init() {
 	/* colors */
 	loadColors();
 
+	TermSize tsize{config::COLS, config::ROWS};
+	tsize.normalize();
+
 	/* adjust fixed window geometry */
 	if (m_cmdline->window_geometry.isSet()) {
-		setGeometry(m_cmdline->window_geometry.getValue());
+		setGeometry(m_cmdline->window_geometry.getValue(), tsize);
+	} else {
+		m_twin.setWinExtent(tsize);
 	}
 
-	m_twin.setWinExtent(m_tsize);
 	/* font spec buffer */
-	m_font_specs.resize(m_tsize.cols);
+	m_font_specs.resize(tsize.cols);
 
 	/* Events */
 	const auto &bgcolor = m_draw_ctx.col[config::DEFAULT_BG];

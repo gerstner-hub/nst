@@ -47,8 +47,8 @@ void Nst::run(int argc, const char **argv) {
 	XSetLocaleModifiers("");
 
 	m_cmdline.parse(argc, argv);
-	m_term.init(*this);
 	m_x11.init();
+	m_term.init(*this);
 	setEnv();
 	mainLoop();
 }

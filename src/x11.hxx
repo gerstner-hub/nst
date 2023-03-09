@@ -106,7 +106,6 @@ public: // functions
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_xsel; }
 	auto& termWin() const { return m_twin; }
-	auto& termSize() const { return m_tsize; }
 	bool canDraw() const { return m_twin.checkFlag(WinMode::VISIBLE); }
 
 protected: // functions
@@ -114,7 +113,7 @@ protected: // functions
 	void changeEventMask(long event, bool on_off);
 	void setupCursor();
 	void setHints();
-	void setGeometry(const std::string &g);
+	void setGeometry(const std::string &g, TermSize &tsize);
 	int gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
@@ -165,7 +164,6 @@ protected: // data
 	XftDraw *m_font_draw = nullptr;
 	XSelection m_xsel;
 
-	TermSize m_tsize;
 	TermWindow m_twin;
 };
 

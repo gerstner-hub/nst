@@ -65,7 +65,7 @@ void Term::init(const Nst &nst) {
 		m_allowaltscreen = cmdline.use_alt_screen.getValue();
 	}
 
-	resize(m_x11.termSize());
+	resize(m_x11.termWin().getTermDim());
 	reset();
 }
 

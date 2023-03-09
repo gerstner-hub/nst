@@ -241,7 +241,7 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 		return;
 
 	std::string buf;
-	const auto ksym = m_x11.input().lookupString(ev, buf);
+	const auto ksym = m_x11.m_input.lookupString(ev, buf);
 
 	/* 1. shortcuts */
 	for (auto &sc: m_kbd_shortcuts) {

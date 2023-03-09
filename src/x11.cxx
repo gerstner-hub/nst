@@ -1,8 +1,3 @@
-// libc
-#include <limits.h>
-#include <locale.h>
-#include <unistd.h>
-
 // C++
 #include <algorithm>
 
@@ -42,7 +37,7 @@
 namespace {
 
 template <typename T, typename V>
-inline void modifyBit(T &mask, const bool set, const V &bit) {
+inline void modifyBit(T &mask, const bool set, const V bit) {
 	if (set)
 		mask |= bit;
 	else

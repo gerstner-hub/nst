@@ -1,5 +1,6 @@
 // X++
 #include "X++/atoms.hxx"
+#include "X++/XDisplay.hxx"
 
 // nst
 #include "nst.hxx"
@@ -30,12 +31,11 @@ void XSelection::setSelection(const std::string_view str, Time t) {
 
 	m_primary = str;
 
-	const auto &display = m_x11.display();
 	const auto &primary = xpp::atoms::primary_selection;
 	auto &our_window = m_x11.window();
 
 	our_window.makeSelectionOwner(primary, t);
-	if (auto owner = display.selectionOwner(primary); !owner || *owner != our_window)
+	if (auto owner = xpp::display.selectionOwner(primary); !owner || *owner != our_window)
 		// we could not become the new selection owner
 		m_nst.selection().clear();
 }

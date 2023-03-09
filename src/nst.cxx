@@ -4,6 +4,9 @@
 #include "cosmos/proc/process.hxx"
 #include "cosmos/time/time.hxx"
 
+// X++
+#include "X++/XDisplay.hxx"
+
 // nst
 #include "nst.hxx"
 
@@ -19,11 +22,10 @@ Nst::Nst() :
 
 void Nst::waitForWindowMapping() {
 	xpp::Event ev;
-	auto &display = m_x11.display();
 
 	/* Waiting for window mapping */
 	do {
-		display.nextEvent(ev);
+		xpp::display.nextEvent(ev);
 		/*
 		 * This XFilterEvent call is required because of XOpenIM. It
 		 * does filter out the key event and some client message for
@@ -63,7 +65,7 @@ void Nst::setEnv() {
 void Nst::mainLoop() {
 	auto ttyfd = m_tty.create();
 	auto childfd = m_tty.childFD();
-	auto &display = m_x11.display();
+	auto &display = xpp::display;
 	auto xfd = display.connectionNumber();
 
 	cosmos::Poller poller;

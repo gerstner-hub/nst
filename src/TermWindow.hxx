@@ -1,6 +1,9 @@
 #ifndef NST_TERM_WINDOW_HXX
 #define NST_TERM_WINDOW_HXX
 
+// libc
+#include <math.h>
+
 // nst
 #include "types.hxx"
 #include "nst_config.hxx"

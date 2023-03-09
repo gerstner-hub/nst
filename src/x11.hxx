@@ -1,9 +1,6 @@
 #ifndef NST_X_HXX
 #define NST_X_HXX
 
-// libc
-#include <math.h>
-
 // C++
 #include <string>
 
@@ -11,7 +8,6 @@
 #include <X11/cursorfont.h>
 
 // X++
-#include "X++/AtomMapper.hxx"
 #include "X++/types.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
@@ -55,37 +51,7 @@ protected: // data
 
 /// This contains central X11 graphics, input and font handling
 class X11 {
-public: // types
-
 	friend class XEventHandler;
-
-protected: // data
-	
-	nst::Nst &m_nst;
-	xpp::XWindow m_window; /// the main (and only) terminal window
-	Input m_input; /// X11 input handling logic
-	FontManager m_font_manager;
-	const Cmdline *m_cmdline = nullptr;
-
-	xpp::XDisplay *m_display = nullptr;
-	xpp::ScreenID m_screen = xpp::ScreenID::INVALID;
-	Visual *m_visual = nullptr;
-	int m_geometry = 0; /* geometry mask */
-	bool m_fixed_geometry = false;
-	DrawPos m_win_offset;
-	XSetWindowAttributes m_win_attrs;
-	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
-	DrawingContext m_draw_ctx;
-	bool m_colors_loaded = false;
-	xpp::ColorMapID m_color_map = xpp::ColorMapID::INVALID;
-
-	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
-	XftDraw *m_font_draw = nullptr;
-	XSelection m_xsel;
-
-	TermSize m_tsize;
-	TermWindow m_twin;
-
 public: // functions
 
 	explicit X11(Nst &nst);
@@ -99,21 +65,17 @@ public: // functions
 	void toggleNumlock();
 	void setUrgency(int add);
 	void resize(const TermSize &dim);
-	void setHints();
-	Input& input() { return m_input; }
 	void setInputSpot(const CharPos pos) {
 		m_input.setSpot(m_twin.toDrawPos(pos));
 	}
 	void init();
-	void setupCursor();
-	/// reset the initial state
+	/// reset to the initial state
 	void resetState() {
 		setDefaultTitle();
 		loadColors();
 	}
 	void setPointerMotion(bool on_off);
 	void finishDraw();
-	void changeEventMask(long event, bool on_off);
 	void setIconTitle(const std::string &title);
 	void setDefaultIconTitle();
 	void setTitle(const std::string &title);
@@ -140,7 +102,6 @@ public: // functions
 		m_twin.flipFlag(WinMode::BLINK);
 	}
 
-	auto& display() { return *(m_display); }
 	const xpp::XWindow& window() const { return m_window; }
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_xsel; }
@@ -150,8 +111,10 @@ public: // functions
 
 protected: // functions
 
+	void changeEventMask(long event, bool on_off);
+	void setupCursor();
+	void setHints();
 	void setGeometry(const std::string &g);
-	auto rawDisplay() { return static_cast<Display*>(*m_display); }
 	int gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
@@ -177,6 +140,33 @@ protected: // functions
 	/// returns the parent window to be used as parent of the terminal window
 	xpp::XWindow parent() const;
 	const FontColor& cursorColor(const CharPos &pos, Glyph &glyph) const;
+
+protected: // data
+
+	nst::Nst &m_nst;
+	xpp::XWindow m_window; /// the main (and only) terminal window
+	Input m_input; /// X11 input handling logic
+	FontManager m_font_manager;
+	const Cmdline *m_cmdline = nullptr;
+
+	xpp::XDisplay *m_display = nullptr;
+	xpp::ScreenID m_screen = xpp::ScreenID::INVALID;
+	Visual *m_visual = nullptr;
+	int m_geometry = 0;
+	bool m_fixed_geometry = false;
+	DrawPos m_win_offset;
+	XSetWindowAttributes m_win_attrs;
+	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
+	DrawingContext m_draw_ctx;
+	bool m_colors_loaded = false;
+	xpp::ColorMapID m_color_map = xpp::ColorMapID::INVALID;
+
+	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
+	XftDraw *m_font_draw = nullptr;
+	XSelection m_xsel;
+
+	TermSize m_tsize;
+	TermWindow m_twin;
 };
 
 } // end ns

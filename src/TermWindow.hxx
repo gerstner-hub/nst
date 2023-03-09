@@ -21,14 +21,14 @@ struct TermWindow {
 		m_chr_extent.height = ceilf(font.height() * config::CH_SCALE);
 	}
 
-	void setWinExtent(const Extent &ext) {
+	void setWinExtent(const Extent ext) {
 		if (ext.width != 0)
 			m_win_extent.width = ext.width;
 		if (ext.height != 0)
 			m_win_extent.height = ext.height;
 	}
 
-	void setWinExtent(const TermSize &size) {
+	void setWinExtent(const TermSize size) {
 		m_win_extent.width  = 2 * config::BORDERPX + size.cols * m_chr_extent.width;
 		m_win_extent.height = 2 * config::BORDERPX + size.rows * m_chr_extent.height;
 	}
@@ -43,27 +43,27 @@ struct TermWindow {
 		return TermSize{cols, rows};
 	}
 
-	void setTermDim(const TermSize &chars) {
+	void setTermDim(const TermSize chars) {
 		m_tty_extent.width = chars.cols * m_chr_extent.width;
 		m_tty_extent.height = chars.rows * m_chr_extent.height;
 	}
 
-	DrawPos toDrawPos(const CharPos &cp) const {
+	DrawPos toDrawPos(const CharPos cp) const {
 		DrawPos dp;
 		dp.x = config::BORDERPX + cp.x * m_chr_extent.width;
 		dp.y = config::BORDERPX + cp.y * m_chr_extent.height;
 		return dp;
 	}
 
-	DrawPos nextCol(const DrawPos &pos) const {
+	DrawPos nextCol(const DrawPos pos) const {
 		return DrawPos{pos.x + m_chr_extent.width, pos.y};
 	}
 
-	DrawPos nextLine(const DrawPos &pos) const {
+	DrawPos nextLine(const DrawPos pos) const {
 		return DrawPos{pos.x, pos.y + m_chr_extent.height};
 	}
 
-	CharPos toCharPos(const DrawPos &pos) const {
+	CharPos toCharPos(const DrawPos pos) const {
 		CharPos ret{pos.x - config::BORDERPX, pos.y - config::BORDERPX};
 
 		ret.clampX(m_tty_extent.width - 1);

@@ -184,60 +184,58 @@ int X11::loadColor(size_t i, const char *name, FontColor *ncolor) {
 }
 
 void X11::loadColors() {
-	if (m_colors_loaded) {
-		for (auto &c: m_draw_ctx.col) {
+	if (m_color_map == xpp::ColorMapID::INVALID) {
+		m_color_map = m_display.defaultColormap(m_screen);
+		const auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
+		m_draw_ctx.colors.resize(len);
+	} else {
+		for (auto &c: m_draw_ctx.colors) {
 			XftColorFree(m_display, m_visual, xpp::raw_cmap(m_color_map), &c);
 		}
-	} else {
-		m_color_map = m_display.defaultColormap(m_screen);
-		auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
-		m_draw_ctx.col.resize(len);
 	}
 
-	for (size_t i = 0; i < m_draw_ctx.col.size(); i++) {
-		if (!loadColor(i, nullptr, &m_draw_ctx.col[i])) {
+	for (size_t i = 0; i < m_draw_ctx.colors.size(); i++) {
+		if (!loadColor(i, nullptr, &m_draw_ctx.colors[i])) {
 			if (auto colorname = config::get_color_name(i); !colorname.empty())
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname.data())));
 			else
 				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color %zd", i)));
 		}
 	}
-
-	m_colors_loaded = true;
 }
 
 bool X11::getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const {
-	if (idx >= m_draw_ctx.col.size())
+	if (idx >= m_draw_ctx.colors.size())
 		return false;
 
-	*r = m_draw_ctx.col[idx].color.red >> 8;
-	*g = m_draw_ctx.col[idx].color.green >> 8;
-	*b = m_draw_ctx.col[idx].color.blue >> 8;
+	*r = m_draw_ctx.colors[idx].color.red >> 8;
+	*g = m_draw_ctx.colors[idx].color.green >> 8;
+	*b = m_draw_ctx.colors[idx].color.blue >> 8;
 
 	return true;
 }
 
 bool X11::setColorName(size_t idx, const char *name) {
-	if (idx >= m_draw_ctx.col.size())
+	if (idx >= m_draw_ctx.colors.size())
 		return false;
 
 	FontColor ncolor;
 	if (!loadColor(idx, name, &ncolor))
 		return false;
 
-	XftColorFree(m_display, m_visual, xpp::raw_cmap(m_color_map), &m_draw_ctx.col[idx]);
-	m_draw_ctx.col[idx] = ncolor;
+	XftColorFree(m_display, m_visual, xpp::raw_cmap(m_color_map), &m_draw_ctx.colors[idx]);
+	m_draw_ctx.colors[idx] = ncolor;
 
 	return true;
 }
 
 void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 	const auto colindex = m_twin.activeForegroundColor();
-	drawRect(m_draw_ctx.col[colindex], pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
+	drawRect(m_draw_ctx.colors[colindex], pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
-void X11::drawRect(const FontColor &col, const DrawPos &start, const Extent &ext) {
-	XftDrawRect(m_font_draw, &col, start.x, start.y, ext.width, ext.height);
+void X11::drawRect(const FontColor &color, const DrawPos &start, const Extent &ext) {
+	XftDrawRect(m_font_draw, &color, start.x, start.y, ext.width, ext.height);
 }
 
 void X11::setHints() {
@@ -358,10 +356,8 @@ void X11::init() {
 		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", fontspec.c_str())));
 	}
 
-	/* Setting character width and height. */
 	m_twin.setCharSize(m_font_manager.normalFont());
 
-	/* colors */
 	loadColors();
 
 	TermSize tsize{config::COLS, config::ROWS};
@@ -374,11 +370,10 @@ void X11::init() {
 		m_twin.setWinExtent(tsize);
 	}
 
-	/* font spec buffer */
 	m_font_specs.resize(tsize.cols);
 
 	/* Events */
-	const auto &bgcolor = m_draw_ctx.col[config::DEFAULT_BG];
+	const auto &bgcolor = m_draw_ctx.colors[config::DEFAULT_BG];
 	m_win_attrs.background_pixel = bgcolor.pixel;
 	m_win_attrs.border_pixel = bgcolor.pixel;
 	m_win_attrs.bit_gravity = NorthWestGravity;
@@ -476,13 +471,13 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 
 void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 
-	auto assignBaseColor = [this](FontColor &out, const Glyph::color_t col) {
-		if (Glyph::isTrueColor(col)) {
-			RenderColor tmp{col};
+	auto assignBaseColor = [this](FontColor &out, const Glyph::color_t color) {
+		if (Glyph::isTrueColor(color)) {
+			RenderColor tmp{color};
 			XftColorAllocValue(m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &out);
 		} else {
-			// col is a base index < 16
-			out = m_draw_ctx.col[col];
+			// color is a base index < 16
+			out = m_draw_ctx.colors[color];
 		}
 	};
 
@@ -497,7 +492,7 @@ void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
 
 	/* Change basic system colors [0-7] to bright system colors [8-15] */
 	if (base.needBrightColor() && base.isBasicColor())
-		fg = m_draw_ctx.col[base.toBrightColor()];
+		fg = m_draw_ctx.colors[base.toBrightColor()];
 
 	if (m_twin.inReverseMode()) {
 		if (fg == m_draw_ctx.defaultFG()) {
@@ -623,10 +618,10 @@ const FontColor& X11::cursorColor(const CharPos &pos, Glyph &glyph) const {
 		glyph.bg = config::DEFAULT_FG;
 		if (is_selected) {
 			glyph.fg = config::DEFAULT_RCS;
-			return m_draw_ctx.col[config::DEFAULT_CS];
+			return m_draw_ctx.colors[config::DEFAULT_CS];
 		} else {
 			glyph.fg = config::DEFAULT_CS;
-			return m_draw_ctx.col[config::DEFAULT_RCS];
+			return m_draw_ctx.colors[config::DEFAULT_RCS];
 		}
 	} else {
 		if (is_selected) {
@@ -637,7 +632,7 @@ const FontColor& X11::cursorColor(const CharPos &pos, Glyph &glyph) const {
 			glyph.bg = config::DEFAULT_CS;
 		}
 
-		return m_draw_ctx.col[glyph.bg];
+		return m_draw_ctx.colors[glyph.bg];
 	}
 }
 
@@ -749,7 +744,7 @@ void X11::finishDraw() {
 }
 
 void X11::changeEventMask(long event, bool on_off) {
-	modifyBit(m_win_attrs.event_mask, on_off ? 1 : 0, event);
+	modifyBit(m_win_attrs.event_mask, on_off, event);
 	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
 }
 
@@ -786,8 +781,7 @@ void X11::ringBell() {
 }
 
 void X11::embeddedFocusChange(const bool in_focus) {
-	// called when we run embedded in another window and the focus
-	// changes
+	// called when we run embedded in another window and the focus changes
 	if (in_focus) {
 		m_twin.setFlag(WinMode::FOCUSED);
 		setUrgency(0);

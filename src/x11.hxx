@@ -24,7 +24,7 @@ namespace nst {
 
 /// X11 drawing specific data and logic
 struct DrawingContext {
-	std::vector<FontColor> col;
+	std::vector<FontColor> colors;
 
 public: // functions
 	void createGC(xpp::XDisplay &display, xpp::XWindow &parent);
@@ -36,13 +36,13 @@ public: // functions
 
 	void setForeground(const FontColor &color);
 	void setForeground(size_t colidx) {
-		setForeground(col[colidx]);
+		setForeground(colors[colidx]);
 	}
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
 	void sanitizeColor(Glyph &g) const;
 
-	const FontColor& defaultFG() const { return col[config::DEFAULT_FG]; }
-	const FontColor& defaultBG() const { return col[config::DEFAULT_BG]; }
+	const FontColor& defaultFG() const { return colors[config::DEFAULT_FG]; }
+	const FontColor& defaultBG() const { return colors[config::DEFAULT_BG]; }
 
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
@@ -157,7 +157,6 @@ protected: // data
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;
-	bool m_colors_loaded = false;
 	xpp::ColorMapID m_color_map = xpp::ColorMapID::INVALID;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */

@@ -270,23 +270,25 @@ void X11::setHints() {
 		sizeh->flags |= USPosition | PWinGravity;
 		sizeh->x = m_win_geometry.x;
 		sizeh->y = m_win_geometry.y;
-		sizeh->win_gravity = gravity();
+		sizeh->win_gravity = xpp::raw_gravity(gravity());
 	}
 
 	XSetWMProperties(m_display, xpp::raw_win(m_window.id()), NULL, NULL, NULL, 0, sizeh.get(), &wm, &clazz);
 }
 
-int X11::gravity() {
+xpp::Gravity X11::gravity() {
 	using Geometry = xpp::GeometrySettings;
+	using Gravity = xpp::Gravity;
+
 	switch (m_geometry_mask & xpp::GeometrySettingsMask({Geometry::NegativeX, Geometry::NegativeY})) {
 	case Geometry::HaveNone:
-		return NorthWestGravity;
+		return Gravity::NorthWest;
 	case Geometry::NegativeX:
-		return NorthEastGravity;
+		return Gravity::NorthEast;
 	case Geometry::NegativeY:
-		return SouthWestGravity;
+		return Gravity::SouthWest;
 	default: // both are negative
-		return SouthEastGravity;
+		return Gravity::SouthEast;
 	}
 }
 

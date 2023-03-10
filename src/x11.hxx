@@ -115,7 +115,7 @@ protected: // functions
 	void setupCursor();
 	void setHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
-	int gravity();
+	xpp::Gravity gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
 	int loadColor(size_t i, const char *name, FontColor *ncolor);

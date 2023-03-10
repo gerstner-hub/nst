@@ -9,6 +9,7 @@
 
 // X++
 #include "X++/types.hxx"
+#include "X++/utils.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
 
@@ -113,7 +114,7 @@ protected: // functions
 	void changeEventMask(long event, bool on_off);
 	void setupCursor();
 	void setHints();
-	void setGeometry(const std::string &g, TermSize &tsize);
+	void setGeometry(const std::string_view str, TermSize &tsize);
 	int gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
@@ -146,14 +147,13 @@ protected: // data
 	xpp::XWindow m_window; /// the main (and only) terminal window
 	Input m_input; /// X11 input handling logic
 	FontManager m_font_manager;
-	const Cmdline *m_cmdline = nullptr;
+	const Cmdline &m_cmdline;
 
-	xpp::XDisplay *m_display = nullptr;
+	xpp::XDisplay &m_display;
 	xpp::ScreenID m_screen = xpp::ScreenID::INVALID;
 	Visual *m_visual = nullptr;
-	int m_geometry = 0;
-	bool m_fixed_geometry = false;
-	DrawPos m_win_offset;
+	xpp::GeometrySettingsMask m_geometry_mask;
+	xpp::WindowSpec m_win_geometry;
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;

@@ -16,11 +16,7 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 
-using cosmos::in_range;
-
 namespace nst {
-
-typedef Glyph::Attr Attr;
 
 Selection::Selection(Nst &nst) :
 		m_nst{nst}, m_term{nst.term()} {
@@ -51,7 +47,7 @@ bool Selection::isSelected(const CharPos &pos) const {
 	else if (isRectType())
 		return m_range.inRange(pos);
 	else
-		return in_range(pos.y, m_range.begin.y, m_range.end.y) &&
+		return cosmos::in_range(pos.y, m_range.begin.y, m_range.end.y) &&
 			(pos.y != m_range.begin.y || pos.x >= m_range.begin.x) &&
 			(pos.y != m_range.end.y || pos.x <= m_range.end.x);
 }
@@ -237,6 +233,9 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 		return;
 
 	const auto scroll_area = m_term.scrollArea();
+
+	using cosmos::in_range;
+
 
 	// not fully clear what this condition is for:
 	// - either the selection range is completely within the scroll area

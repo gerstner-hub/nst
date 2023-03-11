@@ -29,8 +29,6 @@ static_assert(std::is_pod<Glyph>::value, "Glyph type needs to be POD because of 
 
 namespace nst {
 
-typedef Glyph::Attr Attr;
-
 Term::TCursor::TCursor() {
 	m_attrs.fg = config::DEFAULT_FG;
 	m_attrs.bg = config::DEFAULT_BG;

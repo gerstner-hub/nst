@@ -156,6 +156,9 @@ void X11::resize(const TermSize &dim) {
 }
 
 void X11::loadColors() {
+
+	FontColor::init();
+
 	if (m_color_map == xpp::ColorMapID::INVALID) {
 		m_color_map = m_display.defaultColormap(m_screen);
 		const auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);

@@ -14,6 +14,7 @@
 #include "X++/XWindow.hxx"
 
 // nst
+#include "color.hxx"
 #include "font.hxx"
 #include "Input.hxx"
 #include "nst_config.hxx"

@@ -94,6 +94,8 @@ public: // functions
 	bool isWrapped() const { return mode[Attr::WRAP]; }
 };
 
+using Attr = Glyph::Attr;
+
 /// a series of Glyphs forming a line on the terminal
 using Line = std::vector<Glyph>;
 

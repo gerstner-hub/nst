@@ -44,17 +44,32 @@ void FontColor::load(size_t colnr, std::string_view name) {
 }
 
 void FontColor::load256(size_t colnr) {
+	/*
+	 * xterm 256 color support has the following planes:
+	 *
+	 *   0 -  15: the 16 standard system colors which aren't handled here
+	 *  16 - 232: extended color palette organized in three sub-planes
+	 * 232 - 255: extended greyscale colors
+	 */
+
+	/// this converts an xterm extended color plane to an unsigned short r/g/b component.
 	auto sixd_to_16bit = [](size_t x) -> uint16_t {
 		return x == 0 ? 0 : 0x3737 + 0x2828 * x;
 	};
+
 	XRenderColor tmp = { 0, 0, 0, 0xffff };
 
-	if (colnr < 6*6*6+16) { /* same colors as xterm */
-		tmp.red   = sixd_to_16bit( ((colnr-16)/36)%6 );
-		tmp.green = sixd_to_16bit( ((colnr-16)/6) %6 );
-		tmp.blue  = sixd_to_16bit( ((colnr-16)/1) %6 );
+	constexpr size_t EXTENDED_START = 16;
+	constexpr size_t GREYSCALE_START = 6 * 6 * 6 + 16;
+
+	if (colnr < GREYSCALE_START) { /* same colors as xterm */
+		auto baseindex = colnr - EXTENDED_START;
+		tmp.red   = sixd_to_16bit((baseindex/36)  % 6);
+		tmp.green = sixd_to_16bit((baseindex/ 6)  % 6);
+		tmp.blue  = sixd_to_16bit((baseindex/ 1)  % 6);
 	} else { /* greyscale */
-		tmp.red = 0x0808 + 0x0a0a * (colnr - (6*6*6+16));
+		auto baseindex = colnr - GREYSCALE_START;
+		tmp.red = 0x0808 + 0x0a0a * baseindex;
 		tmp.green = tmp.blue = tmp.red;
 	}
 

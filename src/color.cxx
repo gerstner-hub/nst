@@ -11,9 +11,9 @@
 
 namespace nst {
 
-// shorthands for this unit
-Visual *visual = nullptr;
-xpp::ColorMapID cmap = xpp::ColorMapID::INVALID;
+inline auto cmap() {
+	return xpp::raw_cmap(xpp::colormap);
+}
 
 void FontColor::load(size_t colnr, std::string_view name) {
 	if (name.empty()) {
@@ -28,7 +28,7 @@ void FontColor::load(size_t colnr, std::string_view name) {
 	destroy();
 
 	auto res = ::XftColorAllocName(
-			xpp::display, visual, xpp::raw_cmap(cmap),
+			xpp::display, xpp::visual, cmap(),
 			name.empty() ? nullptr : name.data(), this);
 
 	if (res == True) {
@@ -63,7 +63,7 @@ void FontColor::load256(size_t colnr) {
 
 void FontColor::load(const XRenderColor &rc) {
 	destroy();
-	auto res = ::XftColorAllocValue(xpp::display, visual, xpp::raw_cmap(cmap), &rc, this);
+	auto res = ::XftColorAllocValue(xpp::display, xpp::visual, cmap(), &rc, this);
 
 	if (res == True) {
 		m_loaded = true;
@@ -76,7 +76,7 @@ void FontColor::destroy() {
 	if (!valid())
 		return;
 
-	::XftColorFree(xpp::display, visual, xpp::raw_cmap(cmap), this);
+	::XftColorFree(xpp::display, xpp::visual, cmap(), this);
 
 	m_loaded = false;
 }
@@ -93,11 +93,6 @@ void FontColor::makeFaint() {
 	faint.makeFaint();
 
 	load(faint);
-}
-
-void FontColor::init() {
-	visual = xpp::display.defaultVisual();
-	cmap = xpp::display.defaultColormap();
 }
 
 } // end ns

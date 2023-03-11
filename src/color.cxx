@@ -47,7 +47,7 @@ void FontColor::load256(size_t colnr) {
 	auto sixd_to_16bit = [](size_t x) -> uint16_t {
 		return x == 0 ? 0 : 0x3737 + 0x2828 * x;
 	};
-	XRenderColor tmp = { 0, 0, 0, 0xfff };
+	XRenderColor tmp = { 0, 0, 0, 0xffff };
 
 	if (colnr < 6*6*6+16) { /* same colors as xterm */
 		tmp.red   = sixd_to_16bit( ((colnr-16)/36)%6 );

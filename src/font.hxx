@@ -124,45 +124,101 @@ protected: // data
 	const FontFlags m_flags;
 };
 
+struct RenderColor;
+
+/// Wrapper around the XftColor type which is a composite of XRenderColor and additional "pixel" info.
+/**
+ * The additional "pixel" info is potentially allocated from the XServer via
+ * the current colormap. Thus we need to manage this resource without creating
+ * leaks or other trouble.
+ **/
 class FontColor :
 		public XftColor {
-public:
-	void invert() {
-		color.red = ~color.red;
-		color.green = ~color.green;
-		color.blue = ~color.blue;
+public: // functions
+
+	FontColor() = default;
+
+	~FontColor() {
+		destroy();
 	}
 
-	FontColor inverted() const {
-		auto ret = FontColor(*this);
-		ret.invert();
-		return ret;
+	FontColor(FontColor &&other) {
+		*this = std::move(other);
 	}
 
-	void makeFaint() {
-		color.red /= 2;
-		color.green /= 2;
-		color.blue /= 2;
+	FontColor& operator=(FontColor &&other) {
+		static_cast<XftColor&>(*this) = other;
+		other.m_loaded = false;
+		return *this;
 	}
 
-	FontColor faint() const {
-		auto ret = FontColor(*this);
-		ret.makeFaint();
-		return ret;
+	FontColor(const FontColor &other) {
+		*this = other;
 	}
 
-	void assignTo(XRenderColor &xc) const {
-		xc.red = color.red;
-		xc.green = color.green;
-		xc.blue = color.blue;
-		xc.alpha = color.alpha;
+	FontColor& operator=(const FontColor &other) {
+		load(other.color);
+		return *this;
 	}
+
+	/// reverse the color values
+	void invert();
+
+	/// make faint color of a bright color
+	void makeFaint();
 
 	bool operator==(const FontColor &other) const {
 		return pixel == other.pixel &&
 			color.red == other.color.red &&
 			color.green == other.color.green &&
 			color.blue == other.color.blue;
+	}
+
+	void load(size_t colnr, std::string_view name = std::string_view(""));
+
+	void load(const XRenderColor &rc);
+
+	bool valid() const { return m_loaded; }
+
+protected: // functions
+
+	void destroy();
+
+	void load256(size_t colnr);
+
+protected: // data
+
+	bool m_loaded = false;
+};
+
+/// Wrapper around the XRenderColor primitive that adds some helper functions.
+struct RenderColor :
+		public XRenderColor {
+public: // functions
+	//
+	RenderColor() = default;
+	RenderColor(const RenderColor &other) = default;
+
+	explicit RenderColor(const Glyph::color_t rgb) {
+		setFromRGB(rgb);
+	}
+
+	explicit RenderColor(const FontColor &c) {
+		static_cast<XRenderColor&>(*this) = c.color;
+	}
+
+	void setFromRGB(const Glyph::color_t rgb);
+
+	void invert() {
+		red   = ~red;
+		green = ~green;
+		blue  = ~blue;
+	}
+
+	void makeFaint() {
+		red   /= 2;
+		green /= 2;
+		blue  /= 2;
 	}
 };
 
@@ -208,24 +264,6 @@ protected: // data
 	std::optional<double> m_used_font_size; /// may differ from default size due to zooming
 	std::optional<double> m_default_font_size;
 	std::vector<FontCache> m_font_cache;
-};
-
-/// Wrapper around the XRenderColor primitive that adds some helper functions
-struct RenderColor :
-		public XRenderColor {
-public: // functions
-	//
-	RenderColor() = default;
-
-	explicit RenderColor(const Glyph::color_t rgb) {
-		setFromRGB(rgb);
-	}
-
-	explicit RenderColor(const FontColor &c) {
-		c.assignTo(*this);
-	}
-
-	void setFromRGB(const Glyph::color_t rgb);
 };
 
 } // end ns

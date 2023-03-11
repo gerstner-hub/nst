@@ -155,52 +155,16 @@ void X11::resize(const TermSize &dim) {
 	m_font_specs.resize(dim.cols);
 }
 
-int X11::loadColor(size_t i, const char *name, FontColor *ncolor) {
-	XRenderColor color = { 0, 0, 0, 0xfff };
-
-	auto sixd_to_16bit = [](size_t x) -> uint16_t {
-		return x == 0 ? 0 : 0x3737 + 0x2828 * x;
-	};
-
-	if (!name) {
-		if (cosmos::in_range(i, 16, 255)) { /* 256 color */
-			if (i < 6*6*6+16) { /* same colors as xterm */
-				color.red   = sixd_to_16bit( ((i-16)/36)%6 );
-				color.green = sixd_to_16bit( ((i-16)/6) %6 );
-				color.blue  = sixd_to_16bit( ((i-16)/1) %6 );
-			} else { /* greyscale */
-				color.red = 0x0808 + 0x0a0a * (i - (6*6*6+16));
-				color.green = color.blue = color.red;
-			}
-			return XftColorAllocValue(m_display, m_visual,
-			                          xpp::raw_cmap(m_color_map), &color, ncolor);
-		} else {
-			auto cname = config::get_color_name(i);
-			name = cname.empty() ? nullptr : cname.data();
-		}
-	}
-
-	return XftColorAllocName(m_display, m_visual, xpp::raw_cmap(m_color_map), name, ncolor);
-}
-
 void X11::loadColors() {
 	if (m_color_map == xpp::ColorMapID::INVALID) {
 		m_color_map = m_display.defaultColormap(m_screen);
 		const auto len = std::max(256UL + config::EXTENDED_COLORS.size(), 256UL);
 		m_draw_ctx.colors.resize(len);
-	} else {
-		for (auto &c: m_draw_ctx.colors) {
-			XftColorFree(m_display, m_visual, xpp::raw_cmap(m_color_map), &c);
-		}
 	}
 
-	for (size_t i = 0; i < m_draw_ctx.colors.size(); i++) {
-		if (!loadColor(i, nullptr, &m_draw_ctx.colors[i])) {
-			if (auto colorname = config::get_color_name(i); !colorname.empty())
-				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color '%s'", colorname.data())));
-			else
-				cosmos_throw (cosmos::ApiError(cosmos::sprintf("could not allocate color %zd", i)));
-		}
+	for (size_t colnr = 0; colnr < m_draw_ctx.colors.size(); colnr++) {
+		auto &fc = m_draw_ctx.colors[colnr];
+		fc.load(colnr);
 	}
 }
 
@@ -215,16 +179,19 @@ bool X11::getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char
 	return true;
 }
 
-bool X11::setColorName(size_t idx, const char *name) {
-	if (idx >= m_draw_ctx.colors.size())
+bool X11::setColorName(size_t colnr, const std::string_view name) {
+	if (colnr >= m_draw_ctx.colors.size())
 		return false;
 
-	FontColor ncolor;
-	if (!loadColor(idx, name, &ncolor))
-		return false;
+	FontColor color;
 
-	XftColorFree(m_display, m_visual, xpp::raw_cmap(m_color_map), &m_draw_ctx.colors[idx]);
-	m_draw_ctx.colors[idx] = ncolor;
+	try {
+		color.load(colnr, name);
+	} catch(...) {
+		return false;
+	}
+
+	m_draw_ctx.colors[colnr] = std::move(color);
 
 	return true;
 }
@@ -469,66 +436,57 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	return numspecs;
 }
 
-void X11::glyphColors(const Glyph base, FontColor &fg, FontColor &bg) {
-
+void X11::applyGlyphColors(const Glyph base) {
 	auto assignBaseColor = [this](FontColor &out, const Glyph::color_t color) {
 		if (Glyph::isTrueColor(color)) {
-			RenderColor tmp{color};
-			XftColorAllocValue(m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &out);
+			out.load(RenderColor{color});
 		} else {
 			// color is a base index < 16
 			out = m_draw_ctx.colors[color];
 		}
 	};
 
-	auto invertColor = [this](FontColor &c) {
-		c.invert();
-		RenderColor tmp(c);
-		XftColorAllocValue(m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &c);
-	};
+	assignBaseColor(m_font_fg_color, base.fg);
+	assignBaseColor(m_font_bg_color, base.bg);
 
-	assignBaseColor(fg, base.fg);
-	assignBaseColor(bg, base.bg);
-
-	/* Change basic system colors [0-7] to bright system colors [8-15] */
-	if (base.needBrightColor() && base.isBasicColor())
-		fg = m_draw_ctx.colors[base.toBrightColor()];
+	// Change basic system colors [0-7] to bright system colors [8-15]
+	if (base.needBrightColor() && base.isBasicColor()) {
+		m_font_fg_color = m_draw_ctx.colors[base.toBrightColor()];
+	}
 
 	if (m_twin.inReverseMode()) {
-		if (fg == m_draw_ctx.defaultFG()) {
-			fg = m_draw_ctx.defaultBG();
+		if (m_font_fg_color == m_draw_ctx.defaultFG()) {
+			m_font_fg_color = m_draw_ctx.defaultBG();
 		} else {
-			invertColor(fg);
+			m_font_fg_color.invert();
 		}
 
-		if (bg == m_draw_ctx.defaultBG()) {
-			bg = m_draw_ctx.defaultFG();
+		if (m_font_bg_color == m_draw_ctx.defaultBG()) {
+			m_font_bg_color = m_draw_ctx.defaultFG();
 		} else {
-			invertColor(bg);
+			m_font_bg_color.invert();
 		}
 	}
 
 	if (base.needFaintColor()) {
-		auto faint = fg.faint();
-		RenderColor tmp(faint);
-		XftColorAllocValue(m_display, m_visual, xpp::raw_cmap(m_color_map), &tmp, &fg);
+		m_font_fg_color.makeFaint();
 	}
 
 	if (base.mode[Attr::REVERSE]) {
-		std::swap(fg, bg);
+		std::swap(m_font_fg_color, m_font_bg_color);
 	}
 
-	if (base.mode[Attr::BLINK] && m_twin.checkFlag(WinMode::BLINK))
-		fg = bg;
-	else if (base.mode[Attr::INVISIBLE])
-		fg = bg;
+	if (base.mode[Attr::BLINK] && m_twin.checkFlag(WinMode::BLINK)) {
+		m_font_fg_color = m_font_bg_color;
+	} else if (base.mode[Attr::INVISIBLE]) {
+		m_font_fg_color = m_font_bg_color;
+	}
 }
 
 void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
 
-	FontColor fg, bg;
 	m_font_manager.sanitizeColor(base);
-	glyphColors(base, fg, bg);
+	applyGlyphColors(base);
 
 	auto pos = m_twin.toDrawPos(loc);
 	const auto &win = m_twin.winExtent();
@@ -569,22 +527,22 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + textwidth, win.height});
 
 	/* Clean up the region we want to draw to. */
-	drawRect(bg, pos, Extent{textwidth, chr.height});
+	drawRect(m_font_bg_color, pos, Extent{textwidth, chr.height});
 
 	/* Set the clip region because Xft is sometimes dirty. */
 	XRectangle r{0, 0, static_cast<unsigned short>(textwidth), static_cast<unsigned short>(chr.height)};
 	XftDrawSetClipRectangles(m_font_draw, pos.x, pos.y, &r, 1);
 
 	/* Render the glyphs. */
-	XftDrawGlyphFontSpec(m_font_draw, &fg, specs, len);
+	XftDrawGlyphFontSpec(m_font_draw, &m_font_fg_color, specs, len);
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
-		drawRect(fg, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
+		drawRect(m_font_fg_color, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
 	}
 
 	if (base.mode[Attr::STRUCK]) {
-		drawRect(fg, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
+		drawRect(m_font_fg_color, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
 	}
 
 	/* Reset clip to none. */

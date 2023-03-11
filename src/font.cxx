@@ -8,6 +8,7 @@
 // cosmos
 #include "cosmos/algs.hxx"
 #include "cosmos/error/RuntimeError.hxx"
+#include "cosmos/formatting.hxx"
 #include "cosmos/types.hxx"
 
 // X++
@@ -33,15 +34,99 @@ struct FcCharSetGuard :
 	{}
 };
 
+// these are currently initialized in FontManager, shorthands for this unit
+Visual *visual = nullptr;
+xpp::ColorMapID cmap = xpp::ColorMapID::INVALID;
+
 } // end ns
 
 namespace nst {
+
+void FontColor::load(size_t colnr, std::string_view name) {
+	if (name.empty()) {
+		if (cosmos::in_range(colnr, 16, 255)) { /* 256 color */
+			load256(colnr);
+			return;
+		} else {
+			name = config::get_color_name(colnr);
+		}
+	}
+
+	destroy();
+
+	auto res = ::XftColorAllocName(
+			xpp::display, visual, xpp::raw_cmap(cmap),
+			name.empty() ? nullptr : name.data(), this);
+
+	if (res == True) {
+		m_loaded = true;
+		return;
+	} else {
+		auto colorname = config::get_color_name(colnr);
+
+		cosmos_throw (cosmos::RuntimeError(
+				cosmos::sprintf("could not allocate color %zd ('%s')", colnr,
+					colorname.empty() ? "unknown" : colorname.data())));
+	}
+}
+
+void FontColor::load256(size_t colnr) {
+	auto sixd_to_16bit = [](size_t x) -> uint16_t {
+		return x == 0 ? 0 : 0x3737 + 0x2828 * x;
+	};
+	XRenderColor tmp = { 0, 0, 0, 0xfff };
+
+	if (colnr < 6*6*6+16) { /* same colors as xterm */
+		tmp.red   = sixd_to_16bit( ((colnr-16)/36)%6 );
+		tmp.green = sixd_to_16bit( ((colnr-16)/6) %6 );
+		tmp.blue  = sixd_to_16bit( ((colnr-16)/1) %6 );
+	} else { /* greyscale */
+		tmp.red = 0x0808 + 0x0a0a * (colnr - (6*6*6+16));
+		tmp.green = tmp.blue = tmp.red;
+	}
+
+	load(tmp);
+}
+
+void FontColor::load(const XRenderColor &rc) {
+	destroy();
+	auto res = ::XftColorAllocValue(xpp::display, visual, xpp::raw_cmap(cmap), &rc, this);
+
+	if (res == True) {
+		m_loaded = true;
+	} else {
+		cosmos_throw (cosmos::RuntimeError("Failed to allocate color value"));
+	}
+}
+
+void FontColor::destroy() {
+	if (!valid())
+		return;
+
+	::XftColorFree(xpp::display, visual, xpp::raw_cmap(cmap), this);
+
+	m_loaded = false;
+}
+
+void FontColor::invert() {
+	RenderColor inverted{*this};
+	inverted.invert();
+
+	load(inverted);
+}
+
+void FontColor::makeFaint() {
+	RenderColor faint{*this};
+	faint.makeFaint();
+
+	load(faint);
+}
 
 bool FontPattern::parse(const std::string_view spec) {
 	destroy();
 
 	if (spec[0] == '-')
-		m_pattern = XftXlfdParse(spec.data(), False, False);
+		m_pattern = ::XftXlfdParse(spec.data(), False, False);
 	else
 		m_pattern = FcNameParse((const FcChar8*)spec.data());
 
@@ -88,7 +173,7 @@ void FontPattern::setSlant(const Slant slant) {
 
 std::optional<Slant> FontPattern::getSlant() const {
 	int attr;
-	auto res = XftPatternGetInteger(m_pattern, "slant", 0, &attr);
+	auto res = ::XftPatternGetInteger(m_pattern, "slant", 0, &attr);
 
 	if (res != XftResultMatch) {
 		return {};
@@ -107,7 +192,7 @@ void FontPattern::setWeight(const Weight weight) {
 
 std::optional<Weight> FontPattern::getWeight() const {
 	int attr;
-	auto res = XftPatternGetInteger(m_pattern, "weight", 0, &attr);
+	auto res = ::XftPatternGetInteger(m_pattern, "weight", 0, &attr);
 
 	if (res != XftResultMatch) {
 		return {};
@@ -128,7 +213,7 @@ void FontPattern::destroy() {
 
 void Font::unload() {
 	if (m_match) {
-		XftFontClose(xpp::display, m_match);
+		::XftFontClose(xpp::display, m_match);
 		m_match = nullptr;
 	}
 	if (m_pattern) {
@@ -157,7 +242,7 @@ bool Font::load(FontPattern &pattern) {
 	} else {
 		FcPatternGuard configured_guard{configured};
 		FcConfigSubstitute(nullptr, configured, FcMatchPattern);
-		XftDefaultSubstitute(display, xpp::raw_screen(display.defaultScreen()), configured);
+		::XftDefaultSubstitute(display, xpp::raw_screen(display.defaultScreen()), configured);
 
 		FcResult result;
 		FcPattern *match = FcFontMatch(nullptr, configured, &result);
@@ -166,7 +251,7 @@ bool Font::load(FontPattern &pattern) {
 
 		FcPatternGuard match_guard{match};
 
-		if (!(m_match = XftFontOpenPattern(display, match)))
+		if (!(m_match = ::XftFontOpenPattern(display, match)))
 			return false;
 
 		m_pattern = configured;
@@ -181,7 +266,7 @@ bool Font::load(FontPattern &pattern) {
 	checkWeight(pattern);
 
 	XGlyphInfo extents;
-	XftTextExtentsUtf8(display, m_match,
+	::XftTextExtentsUtf8(display, m_match,
 		(const FcChar8 *)config::ASCII_PRINTABLE.data(),
 		config::ASCII_PRINTABLE.size(), &extents);
 
@@ -247,7 +332,7 @@ FcPattern* Font::queryFontConfig(const Rune rune) {
 
 void FontManager::clearCache() {
 	for (auto &entry: m_font_cache) {
-		XftFontClose(xpp::display, entry.font);
+		::XftFontClose(xpp::display, entry.font);
 	}
 
 	m_font_cache.clear();
@@ -271,6 +356,9 @@ FontManager::FontManager() :
 	if (!FcInit()) {
 		cosmos_throw (cosmos::RuntimeError("could not init fontconfig"));
 	}
+
+	visual = xpp::display.defaultVisual();
+	cmap = xpp::display.defaultColormap();
 }
 
 
@@ -370,14 +458,14 @@ Font* FontManager::fontForMode(const Glyph::AttrBitMask mode) {
 
 std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font &font) {
 	/* Lookup character index with default font. */
-	auto glyphidx = XftCharIndex(xpp::display, font.match(), rune);
+	auto glyphidx = ::XftCharIndex(xpp::display, font.match(), rune);
 	if (glyphidx) {
 		return std::make_tuple(font.match(), glyphidx);
 	}
 
 	/* Fallback on font cache, search the font cache for match. */
 	for (auto &entry: m_font_cache) {
-		glyphidx = XftCharIndex(xpp::display, entry.font, rune);
+		glyphidx = ::XftCharIndex(xpp::display, entry.font, rune);
 		if (glyphidx && entry.flags == font.flags()) {
 			/* Everything correct. */
 			return std::make_tuple(entry.font, glyphidx);
@@ -391,14 +479,14 @@ std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font
 	auto pattern = font.queryFontConfig(rune);
 
 	/* Allocate memory for the new cache entry. */
-	auto new_font = XftFontOpenPattern(xpp::display, pattern);
+	auto new_font = ::XftFontOpenPattern(xpp::display, pattern);
 	if (!new_font) {
 		cosmos_throw (cosmos::ApiError("XftFontOpenPattern() failed seeking fallback font"));
 	}
 
 	m_font_cache.emplace_back(FontCache{new_font, font.flags(), rune});
 
-	glyphidx = XftCharIndex(xpp::display, new_font, rune);
+	glyphidx = ::XftCharIndex(xpp::display, new_font, rune);
 
 	return std::make_tuple(new_font, glyphidx);
 }

@@ -82,7 +82,7 @@ public: // functions
 	void setTitle(const std::string &title);
 	void setDefaultTitle();
 	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
-	bool setColorName(size_t idx, const char *name);
+	bool setColorName(size_t idx, const std::string_view name);
 	void drawLine(const Line &line, const CharPos &start, const int count);
 	void clearCursor(const CharPos &pos, Glyph glyph);
 	void drawCursor(const CharPos &pos, Glyph glyph);
@@ -118,7 +118,6 @@ protected: // functions
 	xpp::Gravity gravity();
 	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
-	int loadColor(size_t i, const char *name, FontColor *ncolor);
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
 	//! draw a rectangular font area using a starting point and extent
@@ -127,7 +126,7 @@ protected: // functions
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
 	/// looks up the matching XftFont and Glyph index for the given rune and Font
-	void glyphColors(const Glyph base, FontColor &fg, FontColor &bg);
+	void applyGlyphColors(const Glyph base);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);
@@ -158,6 +157,8 @@ protected: // data
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;
 	xpp::ColorMapID m_color_map = xpp::ColorMapID::INVALID;
+	FontColor m_font_fg_color;
+	FontColor m_font_bg_color;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;

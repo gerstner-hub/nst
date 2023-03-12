@@ -66,16 +66,6 @@ void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
 	XFillRectangle(*m_display, xpp::raw_pixmap(m_pixmap), getRawGC(), pos.x, pos.y, ext.width, ext.height);
 }
 
-void RenderColor::setFromRGB(const Glyph::color_t rgb) {
-	/* seems like the X color values are 16-bit wide and we need to
-	 * translate the one color bytes into the upper byte in the
-	 * XRenderColor */
-	alpha = 0xffff;
-	red = (rgb & 0xff0000) >> 8;
-	green = (rgb & 0xff00);
-	blue = (rgb & 0xff) << 8;
-}
-
 X11::X11(Nst &nst) :
 		m_nst{nst},
 		m_input{m_window},
@@ -163,43 +153,43 @@ void X11::loadColors() {
 		m_draw_ctx.colors.resize(len);
 	}
 
-	for (size_t colnr = 0; colnr < m_draw_ctx.colors.size(); colnr++) {
+	for (uint32_t colnr = 0; colnr < m_draw_ctx.colors.size(); colnr++) {
 		auto &fc = m_draw_ctx.colors[colnr];
-		fc.load(colnr);
+		fc.load(ColorIndex{colnr});
 	}
 }
 
-bool X11::getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const {
-	if (idx >= m_draw_ctx.colors.size())
-		return false;
-
-	*r = m_draw_ctx.colors[idx].color.red >> 8;
-	*g = m_draw_ctx.colors[idx].color.green >> 8;
-	*b = m_draw_ctx.colors[idx].color.blue >> 8;
-
-	return true;
-}
-
-bool X11::setColorName(size_t colnr, const std::string_view name) {
-	if (colnr >= m_draw_ctx.colors.size())
-		return false;
-
-	FontColor color;
+bool X11::getColor(ColorIndex idx, unsigned char *r, unsigned char *g, unsigned char *b) const {
 
 	try {
-		color.load(colnr, name);
-	} catch(...) {
+		const auto color = m_draw_ctx.color(idx).color;
+
+		*r = color.red >> 8;
+		*g = color.green >> 8;
+		*b = color.blue >> 8;
+		return true;
+	} catch (const std::out_of_range &) {
+		return false;
+	}
+}
+
+bool X11::setColorName(ColorIndex idx, const std::string_view name) {
+	try {
+		auto &old_color = m_draw_ctx.color(idx);
+		FontColor new_color;
+
+		new_color.load(idx, name);
+		old_color = std::move(new_color);
+		return true;
+	} catch (...) {
 		return false;
 	}
 
-	m_draw_ctx.colors[colnr] = std::move(color);
-
-	return true;
 }
 
 void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
 	const auto colindex = m_twin.activeForegroundColor();
-	drawRect(m_draw_ctx.colors[colindex], pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
+	drawRect(m_draw_ctx.color(colindex), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
 void X11::drawRect(const FontColor &color, const DrawPos &start, const Extent &ext) {
@@ -294,8 +284,8 @@ void X11::setupCursor() {
 
 	XColor xmousefg, xmousebg;
 
-	auto parseColor = [this](size_t colnr, XColor &out) {
-		auto cname = config::get_color_name(colnr);
+	auto parseColor = [this](ColorIndex idx, XColor &out) {
+		auto cname = config::get_color_name(idx);
 		auto res = XParseColor(m_display, xpp::raw_cmap(m_color_map), cname.empty() ? nullptr : cname.data(), &out);
 		return res != 0;
 	};
@@ -341,7 +331,7 @@ void X11::init() {
 	m_font_specs.resize(tsize.cols);
 
 	/* Events */
-	const auto &bgcolor = m_draw_ctx.colors[config::DEFAULT_BG];
+	const auto &bgcolor = m_draw_ctx.defaultBG();
 	m_win_attrs.background_pixel = bgcolor.pixel;
 	m_win_attrs.border_pixel = bgcolor.pixel;
 	m_win_attrs.bit_gravity = NorthWestGravity;
@@ -438,12 +428,12 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 }
 
 void X11::applyGlyphColors(const Glyph base) {
-	auto assignBaseColor = [this](FontColor &out, const Glyph::color_t color) {
-		if (Glyph::isTrueColor(color)) {
+	auto assignBaseColor = [this](FontColor &out, const ColorIndex color) {
+		if (is_true_color(color)) {
 			out.load(RenderColor{color});
 		} else {
 			// color is a base index < 16
-			out = m_draw_ctx.colors[color];
+			out = m_draw_ctx.color(color);
 		}
 	};
 
@@ -452,7 +442,7 @@ void X11::applyGlyphColors(const Glyph base) {
 
 	// Change basic system colors [0-7] to bright system colors [8-15]
 	if (base.needBrightColor() && base.isBasicColor()) {
-		m_font_fg_color = m_draw_ctx.colors[base.toBrightColor()];
+		m_font_fg_color = m_draw_ctx.color(base.toBrightColor());
 	}
 
 	if (m_twin.inReverseMode()) {
@@ -577,10 +567,10 @@ const FontColor& X11::cursorColor(const CharPos &pos, Glyph &glyph) const {
 		glyph.bg = config::DEFAULT_FG;
 		if (is_selected) {
 			glyph.fg = config::DEFAULT_RCS;
-			return m_draw_ctx.colors[config::DEFAULT_CS];
+			return m_draw_ctx.color(config::DEFAULT_CS);
 		} else {
 			glyph.fg = config::DEFAULT_CS;
-			return m_draw_ctx.colors[config::DEFAULT_RCS];
+			return m_draw_ctx.color(config::DEFAULT_RCS);
 		}
 	} else {
 		if (is_selected) {
@@ -591,7 +581,7 @@ const FontColor& X11::cursorColor(const CharPos &pos, Glyph &glyph) const {
 			glyph.bg = config::DEFAULT_CS;
 		}
 
-		return m_draw_ctx.colors[glyph.bg];
+		return m_draw_ctx.color(glyph.bg);
 	}
 }
 

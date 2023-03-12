@@ -89,7 +89,7 @@ protected: // functions
 	/// Forwards a setCursorAttrs() call to Term.
 	bool setCursorAttrs() const;
 
-	int32_t parseColor(std::vector<int>::const_iterator &it) const;
+	ColorIndex parseColor(std::vector<int>::const_iterator &it) const;
 
 	/// Handle fb/bg cursor color settings from dim/bright color ranges.
 	bool handleCursorColorSet(const int attr) const;

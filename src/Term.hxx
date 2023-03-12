@@ -99,12 +99,12 @@ public: // types
 
 		const auto& position() const { return pos; }
 
-		void setFgColor(int32_t colindex) {
-			m_attrs.fg = colindex;
+		void setFgColor(ColorIndex idx) {
+			m_attrs.fg = idx;
 		}
 
-		void setBgColor(int32_t colindex) {
-			m_attrs.bg = colindex;
+		void setBgColor(ColorIndex idx) {
+			m_attrs.bg = idx;
 		}
 
 		/// resets all rendering related attributes (colors, markup)
@@ -381,12 +381,12 @@ public: // functions
 		m_cursor.m_attrs.mode.reset(attr);
 	}
 
-	void setCursorFgColor(int32_t colindex) {
-		m_cursor.setFgColor(colindex);
+	void setCursorFgColor(ColorIndex idx) {
+		m_cursor.setFgColor(idx);
 	}
 
-	void setCursorBgColor(int32_t colindex) {
-		m_cursor.setBgColor(colindex);
+	void setCursorBgColor(ColorIndex idx) {
+		m_cursor.setBgColor(idx);
 	}
 
 	void setPrintMode(const bool on_off) {

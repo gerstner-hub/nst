@@ -75,7 +75,7 @@ struct TermWindow {
 		return ret;
 	}
 
-	size_t activeForegroundColor() const {
+	auto activeForegroundColor() const {
 		return m_mode[WinMode::REVERSE] ? config::DEFAULT_FG : config::DEFAULT_BG;
 	}
 

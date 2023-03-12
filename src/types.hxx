@@ -4,6 +4,7 @@
 // C++
 #include <algorithm>
 #include <bitset>
+#include <climits>
 #include <functional>
 #include <stdexcept>
 #include <string_view>
@@ -368,6 +369,55 @@ enum class CursorStyle {
 	SNOWMAN, // "☃"
 	END
 };
+
+/// Represents a terminal color index _or_ a 24 bit RGB true color value
+/**
+ * For terminal color indices the following ranges exist:
+ *
+ * 0 - 15: the 16 basic system colors supported by most terminals
+ * 16 - 255: 256 color support known from XTerm. The end of the range contains
+ *           extended greyscale colors.
+ * >= 256: custom defined extended colors, see nst_config header
+ *
+ * On top of this a ColorIndex may also contain 24 bit RGB true color values.
+ * This is indicated via a special bit position set in the upper byte that is
+ * unused otherwise.
+ * This repurposing of this type is unfortunate but saves a noticable amount
+ * of memory, because the Glyph type carries a ColorIndex for foreground and
+ * background color. If we would use a dedicated TrueColor type then the size
+ * of the Glyph type would increase by at least 8 bytes. For large terminal
+ * dimensions this can lead to an increase in memory use of over 100
+ * Kilobytes. To maintain low overhead continue using this bit fiddling.
+ *
+ * Note: using a std::variant instead would add full type safety at the
+ * expense of at least 4 bytes extra per color, which is the same cost.
+ **/
+enum class ColorIndex : uint32_t {
+	INVALID             = UINT32_MAX,
+	END_DIM_BASIC_COLOR = 7,
+	START_256           = 16,
+	START_GREYSCALE     = 6 * 6 * 6 + 16,
+	END_256             = 255,
+	START_EXTENDED      = 256,
+	TRUE_COLOR_FLAG     = size_t{1 << 24}
+};
+
+inline ColorIndex operator-(const ColorIndex a, const ColorIndex b) {
+	return ColorIndex{cosmos::to_integral(a) - cosmos::to_integral(b)};
+}
+
+inline bool is_true_color(const ColorIndex idx) {
+	auto raw = cosmos::to_integral(idx);
+	auto flag = cosmos::to_integral(ColorIndex::TRUE_COLOR_FLAG);
+
+	return (raw & flag) != 0;
+}
+
+inline ColorIndex to_true_color(const ColorIndex idx) {
+	auto raw = cosmos::to_integral(idx);
+	raw |= cosmos::to_integral(ColorIndex::TRUE_COLOR_FLAG);
+	return ColorIndex{raw};
+}
 
 } // end ns
 

@@ -77,7 +77,7 @@ protected: // functions
 	void setIconTitle(const char *s);
 	void setTitle(const char *s);
 	/// reports back the current color mapping for color index
-	void oscColorResponse(int index, int code);
+	void oscColorResponse(ColorIndex idx, int code);
 
 protected: // data
 

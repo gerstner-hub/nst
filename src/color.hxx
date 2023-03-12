@@ -66,7 +66,7 @@ public: // functions
 			color.blue == other.color.blue;
 	}
 
-	void load(size_t colnr, std::string_view name = std::string_view(""));
+	void load(ColorIndex idx, std::string_view name = std::string_view(""));
 
 	void load(const XRenderColor &rc);
 
@@ -78,7 +78,7 @@ protected: // functions
 
 	void destroy();
 
-	void load256(size_t colnr);
+	void load256(ColorIndex idx);
 
 protected: // data
 
@@ -93,7 +93,7 @@ public: // functions
 	RenderColor() = default;
 	RenderColor(const RenderColor &other) = default;
 
-	explicit RenderColor(const Glyph::color_t rgb) {
+	explicit RenderColor(const ColorIndex rgb) {
 		setFromRGB(rgb);
 	}
 
@@ -101,7 +101,7 @@ public: // functions
 		static_cast<XRenderColor&>(*this) = c.color;
 	}
 
-	void setFromRGB(const Glyph::color_t rgb);
+	void setFromRGB(const ColorIndex rgb);
 
 	void invert() {
 		red   = ~red;

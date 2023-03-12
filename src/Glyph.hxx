@@ -37,23 +37,20 @@ public: // types
 
 	using AttrBitMask = cosmos::BitMask<Attr>;
 
-	/// primitive integer type to store Glyph color information
-	using color_t = uint32_t;
-
 public: // data
 
 	Rune u = 0;       /// character code
 	AttrBitMask mode; /// attribute flags
-	color_t fg = 0;   /// foreground color
-	color_t bg = 0;   /// background color
+	ColorIndex fg = ColorIndex::INVALID; /// foreground color
+	ColorIndex bg = ColorIndex::INVALID; /// background color
 
 public: // functions
 
 	bool isFgTrueColor() const {
-		return isTrueColor(fg);
+		return is_true_color(fg);
 	}
 	bool isBgTrueColor() const {
-		return isTrueColor(bg);
+		return is_true_color(bg);
 	}
 	bool attrsDiffer(const Glyph &other) const {
 		return mode != other.mode || fg != other.fg || bg != other.bg;
@@ -65,14 +62,10 @@ public: // functions
 		return mode[Attr::FAINT] && !mode[Attr::BOLD];
 	}
 	bool isBasicColor() const {
-		return fg <= 7;
+		return fg <= ColorIndex::END_DIM_BASIC_COLOR;
 	}
-	color_t toBrightColor() const {
-		return fg + 8;
-	}
-
-	static bool isTrueColor(const color_t c) {
-		return 1 << 24 & c;
+	ColorIndex toBrightColor() const {
+		return ColorIndex{cosmos::to_integral(fg) + 8};
 	}
 
 	void clear(const Glyph &templ) {

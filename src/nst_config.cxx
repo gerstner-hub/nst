@@ -68,19 +68,18 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 	};
 }
 
-const std::string_view get_color_name(size_t nr) {
-	if (nr < COLORNAMES.size())
-		return COLORNAMES[nr];
-	else if (nr >= 256) {
+const std::string_view get_color_name(const ColorIndex idx) {
+	if (auto raw = cosmos::to_integral(idx); raw < COLORNAMES.size()) {
+		return COLORNAMES[raw];
+	} else if (idx >= ColorIndex::START_EXTENDED) {
+		const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
 		// check for extended colors
-		nr -= 256;
-		if (nr < EXTENDED_COLORS.size())
-			return EXTENDED_COLORS[nr];
+		if (ext < EXTENDED_COLORS.size())
+			return EXTENDED_COLORS[ext];
 	}
 
 	// unassigned
-	// NOTE: the libX functions that consume this are tolerant against
-	// null pointers
+	// NOTE: the libX functions that consume this are tolerant against null pointers
 	return {};
 }
 

@@ -23,11 +23,11 @@ StringEscape::StringEscape(Nst &nst) :
 		m_nst{nst}
 {}
 
-void StringEscape::oscColorResponse(int index, int code) {
+void StringEscape::oscColorResponse(ColorIndex idx, int code) {
 	unsigned char r, g, b;
 
-	if (!m_nst.x11().getColor(index, &r, &g, &b)) {
-		std::cerr << "erresc: failed to fetch osc color " << index << "\n";
+	if (!m_nst.x11().getColor(idx, &r, &g, &b)) {
+		std::cerr << "erresc: failed to fetch osc color " << cosmos::to_integral(idx) << "\n";
 		return;
 	}
 
@@ -35,7 +35,7 @@ void StringEscape::oscColorResponse(int index, int code) {
 
 	if (code == 4) {
 		// for code 4 type responses also the index is reported back
-		res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", index, r, r, g, g, b, b);
+		res = cosmos::sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", cosmos::to_integral(idx), r, r, g, g, b, b);
 	} else {
 		res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", code, r, r, g, g, b, b);
 	}
@@ -87,7 +87,7 @@ bool StringEscape::processOSC() {
 	const auto numargs = m_args.size();
 
 	// handles different color settings and reporting
-	auto handle_color = [&](const char *label, const int code, const int colindex) {
+	auto handle_color = [&](const char *label, const int code, const ColorIndex idx) {
 		if (numargs < 2)
 			return false;
 
@@ -95,8 +95,8 @@ bool StringEscape::processOSC() {
 
 		if (arg == "?")
 			// report current color setting
-			oscColorResponse(colindex, code);
-		else if (!x11.setColorName(colindex, arg.data()))
+			oscColorResponse(idx, code);
+		else if (!x11.setColorName(idx, arg.data()))
 			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
 		else
 			term.redraw();
@@ -144,14 +144,15 @@ bool StringEscape::processOSC() {
 			/* FALLTHROUGH */
 		case 104: /* color reset */ {
 			const auto name = (par == 4 ? m_args[2] : std::string_view(""));
-			const int colindex = (numargs > 1) ? atoi(m_args[1].data()) : -1;
+			const int rawindex = (numargs > 1) ? atoi(m_args[1].data()) : -1;
+			const auto colindex = rawindex >= 0 ? ColorIndex(rawindex) : ColorIndex::INVALID;
 
 			if (name == "?")
 				oscColorResponse(colindex, 4);
 			else if (!x11.setColorName(colindex, name.data())) {
 				if (par == 104 && numargs <= 1)
 					break; /* color reset without parameter */
-				std::cerr << "erresc: invalid color index=" << colindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
+				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
 			} else {
 				// TODO if defaultbg color is changed, borders are dirty
 				term.redraw();

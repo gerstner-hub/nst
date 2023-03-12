@@ -36,14 +36,21 @@ public: // functions
 	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
 
 	void setForeground(const FontColor &color);
-	void setForeground(size_t colidx) {
-		setForeground(colors[colidx]);
+	void setForeground(const ColorIndex idx) {
+		setForeground(color(idx));
 	}
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
 	void sanitizeColor(Glyph &g) const;
 
-	const FontColor& defaultFG() const { return colors[config::DEFAULT_FG]; }
-	const FontColor& defaultBG() const { return colors[config::DEFAULT_BG]; }
+	const FontColor& defaultFG() const { return color(config::DEFAULT_FG); }
+	const FontColor& defaultBG() const { return color(config::DEFAULT_BG); }
+
+	const FontColor& color(const ColorIndex index) const {
+		return colors.at(cosmos::to_integral(index));
+	}
+	FontColor& color(const ColorIndex index) {
+		return colors.at(cosmos::to_integral(index));
+	}
 
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
@@ -82,8 +89,8 @@ public: // functions
 	void setDefaultIconTitle();
 	void setTitle(const std::string &title);
 	void setDefaultTitle();
-	bool getColor(size_t idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
-	bool setColorName(size_t idx, const std::string_view name);
+	bool getColor(ColorIndex idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
+	bool setColorName(ColorIndex idx, const std::string_view name);
 	void drawLine(const Line &line, const CharPos &start, const int count);
 	void clearCursor(const CharPos &pos, Glyph glyph);
 	void drawCursor(const CharPos &pos, Glyph glyph);

@@ -499,7 +499,7 @@ bool CSIEscape::setCursorAttrs() const {
 			term.resetCursorAttr(Attr::STRUCK);
 			break;
 		case 38: {
-			if (auto colidx = parseColor(++it); colidx != -1)
+			if (auto colidx = parseColor(++it); colidx != ColorIndex::INVALID)
 				term.setCursorFgColor(colidx);
 			break;
 		}
@@ -507,7 +507,7 @@ bool CSIEscape::setCursorAttrs() const {
 			term.setCursorFgColor(config::DEFAULT_FG);
 			break;
 		case 48: {
-			if (auto colidx = parseColor(++it); colidx != -1)
+			if (auto colidx = parseColor(++it); colidx != ColorIndex::INVALID)
 				term.setCursorBgColor(colidx);
 			break;
 		}
@@ -527,6 +527,7 @@ bool CSIEscape::setCursorAttrs() const {
 }
 
 bool CSIEscape::handleCursorColorSet(const int attr) const {
+	// this allows to calculate system color indices from CSI escape codes
 	constexpr std::array<std::tuple<int, int, bool, int>, 4> RANGES{
 		std::tuple{ 30,  37, true,  0}, // dim foreground colors
 		          { 40,  47, false, 0}, // dim background colors
@@ -537,16 +538,16 @@ bool CSIEscape::handleCursorColorSet(const int attr) const {
 	auto &term = m_nst.term();
 
 	for (const auto &range: RANGES) {
-		const auto &[start, end, is_fg, offset] = range;
+		const auto [start, end, is_fg, offset] = range;
 		if (!cosmos::in_range(attr, start, end))
 			continue;
 
-		const auto val = attr - start + offset;
+		const ColorIndex idx{uint32_t(attr - start + offset)};
 
 		if (is_fg)
-			term.setCursorFgColor(val);
+			term.setCursorFgColor(idx);
 		else
-			term.setCursorBgColor(val);
+			term.setCursorBgColor(idx);
 
 		return true;
 	}
@@ -554,17 +555,19 @@ bool CSIEscape::handleCursorColorSet(const int attr) const {
 	return false;
 }
 
-int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
+ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 
 	const size_t num_pars = m_args.end() - it;
 
-	auto toTrueColor = [](unsigned int r, unsigned int g, unsigned int b) -> int32_t {
-		return (1 << 24) | (r << 16) | (g << 8) | b;
+	auto toTrueColor = [](unsigned int r, unsigned int g, unsigned int b) -> ColorIndex {
+		std::underlying_type<ColorIndex>::type raw = (r << 16) | (g << 8) | b;
+		raw |= cosmos::to_integral(ColorIndex::TRUE_COLOR_FLAG);
+		return to_true_color(ColorIndex{raw});
 	};
 
 	auto badPars = [&]() {
 		std::cerr << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
-		return -1;
+		return ColorIndex::INVALID;
 	};
 
 	if (num_pars == 0)
@@ -586,20 +589,20 @@ int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 			return toTrueColor(r, g, b);
 		} else {
 			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
-			return -1;
+			return ColorIndex::INVALID;
 		}
 	}
 	case 5: /* indexed color */ {
 		if (left < 1)
 			return badPars();
 
-		const auto col = *it;
+		const auto idx = *it >= 0 ? ColorIndex{uint32_t(*it)} : ColorIndex::INVALID;
 
-		if (cosmos::in_range(col, 0, 255)) {
-			return col;
+		if (idx <= ColorIndex::END_256) {
+			return idx;
 		} else {
-			std::cerr << "erresc: bad fg/bgcolor " << col << std::endl;
-			return -1;
+			std::cerr << "erresc: bad fg/bgcolor " << *it << std::endl;
+			return ColorIndex::INVALID;
 		}
 	}
 	case 0: /* implementation defined (only foreground) */
@@ -608,7 +611,7 @@ int32_t CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	case 4: /* direct color in CMYK space */
 	default:
 		std::cerr << "erresc(38): gfx attr " << color_type << " unknown" << std::endl;
-		return -1;
+		return ColorIndex::INVALID;
 	}
 }
 

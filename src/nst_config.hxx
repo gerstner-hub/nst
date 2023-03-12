@@ -91,10 +91,10 @@ constexpr int TABSPACES = 8;
  * Default colors (colorname index)
  * foreground, background, cursor, reverse cursor
  */
-constexpr unsigned int DEFAULT_FG = 258;
-constexpr unsigned int DEFAULT_BG = 259;
-constexpr unsigned int DEFAULT_CS = 256;
-constexpr unsigned int DEFAULT_RCS = 257;
+constexpr ColorIndex DEFAULT_FG{258};
+constexpr ColorIndex DEFAULT_BG{259};
+constexpr ColorIndex DEFAULT_CS{256};
+constexpr ColorIndex DEFAULT_RCS{257};
 
 /* alt screens */
 constexpr bool ALLOW_ALTSCREEN = true;
@@ -176,7 +176,7 @@ constexpr std::array<std::string_view, 16> COLORNAMES{{
 /**
  * \return The according color name or nullptr if none is configured for the number
  **/
-const std::string_view get_color_name(size_t nr);
+const std::string_view get_color_name(ColorIndex idx);
 
 /// Default shape of cursor
 static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
@@ -192,14 +192,14 @@ static const unsigned int ROWS = 24;
  * Default colour and shape of the mouse cursor
  */
 const unsigned int MOUSE_SHAPE = XC_xterm;
-const unsigned int MOUSE_FG = 7;
-const unsigned int MOUSE_BG = 0;
+const ColorIndex MOUSE_FG{7};
+const ColorIndex MOUSE_BG{0};
 
 /*
  * Color used to display font attributes when fontconfig selected a font which
  * doesn't match the ones requested.
  */
-const unsigned int DEFAULT_ATTR = 11;
+const ColorIndex DEFAULT_ATTR{11};
 
 /*
  * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).

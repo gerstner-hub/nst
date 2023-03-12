@@ -15,13 +15,13 @@ inline auto cmap() {
 	return xpp::raw_cmap(xpp::colormap);
 }
 
-void FontColor::load(size_t colnr, std::string_view name) {
+void FontColor::load(ColorIndex idx, std::string_view name) {
 	if (name.empty()) {
-		if (cosmos::in_range(colnr, 16, 255)) { /* 256 color */
-			load256(colnr);
+		if (cosmos::in_range(idx, ColorIndex::START_256, ColorIndex::END_256)) { /* 256 color */
+			load256(idx);
 			return;
 		} else {
-			name = config::get_color_name(colnr);
+			name = config::get_color_name(idx);
 		}
 	}
 
@@ -35,15 +35,15 @@ void FontColor::load(size_t colnr, std::string_view name) {
 		m_loaded = true;
 		return;
 	} else {
-		auto colorname = config::get_color_name(colnr);
+		auto colorname = config::get_color_name(idx);
 
 		cosmos_throw (cosmos::RuntimeError(
-				cosmos::sprintf("could not allocate color %zd ('%s')", colnr,
+				cosmos::sprintf("could not allocate color %d ('%s')", cosmos::to_integral(idx),
 					colorname.empty() ? "unknown" : colorname.data())));
 	}
 }
 
-void FontColor::load256(size_t colnr) {
+void FontColor::load256(ColorIndex idx) {
 	/*
 	 * xterm 256 color support has the following planes:
 	 *
@@ -59,16 +59,13 @@ void FontColor::load256(size_t colnr) {
 
 	XRenderColor tmp = { 0, 0, 0, 0xffff };
 
-	constexpr size_t EXTENDED_START = 16;
-	constexpr size_t GREYSCALE_START = 6 * 6 * 6 + 16;
-
-	if (colnr < GREYSCALE_START) { /* same colors as xterm */
-		auto baseindex = colnr - EXTENDED_START;
+	if (idx < ColorIndex::START_GREYSCALE) { /* same colors as xterm */
+		auto baseindex = cosmos::to_integral(idx - ColorIndex::START_256);
 		tmp.red   = sixd_to_16bit((baseindex/36)  % 6);
 		tmp.green = sixd_to_16bit((baseindex/ 6)  % 6);
 		tmp.blue  = sixd_to_16bit((baseindex/ 1)  % 6);
 	} else { /* greyscale */
-		auto baseindex = colnr - GREYSCALE_START;
+		auto baseindex = cosmos::to_integral(idx - ColorIndex::START_GREYSCALE);
 		tmp.red = 0x0808 + 0x0a0a * baseindex;
 		tmp.green = tmp.blue = tmp.red;
 	}
@@ -108,6 +105,17 @@ void FontColor::makeFaint() {
 	faint.makeFaint();
 
 	load(faint);
+}
+
+void RenderColor::setFromRGB(const ColorIndex rgb) {
+	/* The X color values are 16-bit wide and we need to
+	 * translate the one color bytes into the upper byte in the
+	 * XRenderColor */
+	auto raw = cosmos::to_integral(rgb);
+	alpha = 0xffff;
+	red = (raw & 0xff0000) >> 8;
+	green = (raw & 0xff00);
+	blue = (raw & 0xff) << 8;
 }
 
 } // end ns

@@ -3,6 +3,7 @@
 
 // C++
 #include <string>
+#include <vector>
 
 // X11
 #include <X11/cursorfont.h>
@@ -25,7 +26,6 @@ namespace nst {
 
 /// X11 drawing specific data and logic
 struct DrawingContext {
-	std::vector<FontColor> colors;
 
 public: // functions
 	void createGC(xpp::XDisplay &display, xpp::XWindow &parent);
@@ -35,23 +35,9 @@ public: // functions
 	auto getGC() { return m_gc; }
 	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
 
-	void setForeground(const FontColor &color);
-	void setForeground(const ColorIndex idx) {
-		setForeground(color(idx));
-	}
 	void fillRectangle(const DrawPos &pos, const Extent &ext);
-	void sanitizeColor(Glyph &g) const;
 
-	const FontColor& defaultFG() const { return color(config::DEFAULT_FG); }
-	const FontColor& defaultBG() const { return color(config::DEFAULT_BG); }
-
-	const FontColor& color(const ColorIndex index) const {
-		return colors.at(cosmos::to_integral(index));
-	}
-	FontColor& color(const ColorIndex index) {
-		return colors.at(cosmos::to_integral(index));
-	}
-
+	void setForeground(const FontColor &color);
 protected: // data
 	xpp::XDisplay *m_display = nullptr;
 	xpp::PixMapID m_pixmap;
@@ -81,7 +67,7 @@ public: // functions
 	/// reset to the initial state
 	void resetState() {
 		setDefaultTitle();
-		loadColors();
+		m_color_manager.resetColors();
 	}
 	void setPointerMotion(bool on_off);
 	void finishDraw();
@@ -89,8 +75,6 @@ public: // functions
 	void setDefaultIconTitle();
 	void setTitle(const std::string &title);
 	void setDefaultTitle();
-	bool getColor(ColorIndex idx, unsigned char *r, unsigned char *g, unsigned char *b) const;
-	bool setColorName(ColorIndex idx, const std::string_view name);
 	void drawLine(const Line &line, const CharPos &start, const int count);
 	void clearCursor(const CharPos &pos, Glyph glyph);
 	void drawCursor(const CharPos &pos, Glyph glyph);
@@ -115,6 +99,7 @@ public: // functions
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_xsel; }
 	auto& termWin() const { return m_twin; }
+	auto& colorManager() { return m_color_manager; }
 	bool canDraw() const { return m_twin.checkFlag(WinMode::VISIBLE); }
 
 protected: // functions
@@ -124,7 +109,6 @@ protected: // functions
 	void setHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
 	xpp::Gravity gravity();
-	void loadColors();
 	int loadFont(Font *f, FcPattern *pattern);
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
@@ -133,8 +117,6 @@ protected: // functions
 	void unloadFonts();
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
-	/// looks up the matching XftFont and Glyph index for the given rune and Font
-	void applyGlyphColors(const Glyph base);
 	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
 	void drawGlyph(Glyph g, const CharPos &loc);
 	void embeddedFocusChange(const bool in_focus);
@@ -154,6 +136,7 @@ protected: // data
 	xpp::XWindow m_window; /// the main (and only) terminal window
 	Input m_input; /// X11 input handling logic
 	FontManager m_font_manager;
+	ColorManager m_color_manager;
 	const Cmdline &m_cmdline;
 
 	xpp::XDisplay &m_display;
@@ -164,9 +147,6 @@ protected: // data
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	DrawingContext m_draw_ctx;
-	xpp::ColorMapID m_color_map = xpp::ColorMapID::INVALID;
-	FontColor m_font_fg_color;
-	FontColor m_font_bg_color;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;

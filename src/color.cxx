@@ -8,6 +8,7 @@
 #include "color.hxx"
 #include "Glyph.hxx"
 #include "nst_config.hxx"
+#include "TermWindow.hxx"
 
 namespace nst {
 
@@ -117,5 +118,94 @@ void RenderColor::setFromRGB(const ColorIndex rgb) {
 	green = (raw & 0xff00);
 	blue = (raw & 0xff) << 8;
 }
+
+void ColorManager::init() {
+	for (uint32_t colnr = 0; colnr < m_colors.size(); colnr++) {
+		ColorIndex idx{colnr};
+		auto &fc = fontColor(idx);
+		fc.load(idx);
+	}
+}
+
+bool ColorManager::toRGB(const ColorIndex idx, uint8_t &red, uint8_t &green, uint8_t &blue) const {
+
+	try {
+		const auto color = fontColor(idx).color;
+
+		red = color.red >> 8;
+		green = color.green >> 8;
+		blue = color.blue >> 8;
+		return true;
+	} catch (const std::out_of_range &) {
+		return false;
+	}
+}
+
+bool ColorManager::setColorName(const ColorIndex idx, const std::string_view name) {
+	try {
+		auto &old_color = fontColor(idx);
+		FontColor new_color;
+
+		new_color.load(idx, name);
+		old_color = std::move(new_color);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
+void ColorManager::configureFor(const Glyph base, const TermWindow &twin) {
+	auto assignBaseColor = [this](FontColor &out, const ColorIndex color) {
+		if (is_true_color(color)) {
+			out.load(RenderColor{color});
+		} else {
+			// color is a palette index
+			out = fontColor(color);
+		}
+	};
+
+	assignBaseColor(m_front_color, base.fg);
+	assignBaseColor(m_back_color, base.bg);
+
+	// Change basic system colors [0-7] to bright system colors [8-15]
+	if (base.needBrightColor() && base.isBasicColor()) {
+		m_front_color = fontColor(base.toBrightColor());
+	} else if (base.needFaintColor()) {
+		m_front_color.makeFaint();
+	}
+
+	if (twin.inReverseMode()) {
+		// NOTE: this is a bit strange logic by now which stems from
+		// the fact that previously this have been pointers that
+		// pointed either to fixed colors in the array or to a
+		// temporary color object on the stack. For performance this
+		// would certainly still be better to make this distinction,
+		// but is causes ugly code ...
+		// TODO: either find a nice way to implement copy-on-write, or
+		// simplify this code by only calling `.invert()` right away.
+		if (m_front_color == defaultFront()) {
+			m_front_color = defaultBack();
+		} else {
+			m_front_color.invert();
+		}
+
+		if (m_back_color == defaultBack()) {
+			m_back_color = defaultFront();
+		} else {
+			m_back_color.invert();
+		}
+	}
+
+	if (base.mode[Attr::REVERSE]) {
+		std::swap(m_front_color, m_back_color);
+	}
+
+	if (base.mode[Attr::BLINK] && twin.checkFlag(WinMode::BLINK)) {
+		m_front_color = m_back_color;
+	} else if (base.mode[Attr::INVISIBLE]) {
+		m_front_color = m_back_color;
+	}
+}
+
 
 } // end ns

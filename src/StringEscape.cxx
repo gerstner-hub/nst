@@ -24,9 +24,9 @@ StringEscape::StringEscape(Nst &nst) :
 {}
 
 void StringEscape::oscColorResponse(ColorIndex idx, int code) {
-	unsigned char r, g, b;
+	uint8_t r, g, b;
 
-	if (!m_nst.x11().getColor(idx, &r, &g, &b)) {
+	if (!m_nst.x11().colorManager().toRGB(idx, r, g, b)) {
 		std::cerr << "erresc: failed to fetch osc color " << cosmos::to_integral(idx) << "\n";
 		return;
 	}
@@ -96,7 +96,7 @@ bool StringEscape::processOSC() {
 		if (arg == "?")
 			// report current color setting
 			oscColorResponse(idx, code);
-		else if (!x11.setColorName(idx, arg.data()))
+		else if (!x11.colorManager().setColorName(idx, arg.data()))
 			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
 		else
 			term.redraw();
@@ -149,7 +149,7 @@ bool StringEscape::processOSC() {
 
 			if (name == "?")
 				oscColorResponse(colindex, 4);
-			else if (!x11.setColorName(colindex, name.data())) {
+			else if (!x11.colorManager().setColorName(colindex, name.data())) {
 				if (par == 104 && numargs <= 1)
 					break; /* color reset without parameter */
 				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";

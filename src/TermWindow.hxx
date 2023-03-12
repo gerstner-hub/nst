@@ -5,8 +5,9 @@
 #include <math.h>
 
 // nst
-#include "types.hxx"
+#include "font.hxx"
 #include "nst_config.hxx"
+#include "types.hxx"
 
 namespace nst {
 

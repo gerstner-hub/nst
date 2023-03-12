@@ -403,7 +403,7 @@ std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font
 	return std::make_tuple(new_font, glyphidx);
 }
 
-void FontManager::sanitizeColor(Glyph g) const {
+void FontManager::sanitize(Glyph g) const {
 	/* Fallback on color display for attributes not supported by the font */
 	if (g.mode[Attr::ITALIC] && g.mode[Attr::BOLD]) {
 		if (m_italic_bold_font.hasBadSlant() || m_italic_bold_font.hasBadWeight()) {

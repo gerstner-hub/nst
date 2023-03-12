@@ -2,6 +2,7 @@
 #define NST_COLOR_HXX
 
 // C++
+#include <array>
 #include <string_view>
 
 // X11
@@ -9,6 +10,7 @@
 
 // nst
 #include "Glyph.hxx"
+#include "nst_config.hxx"
 
 /**
  * @file
@@ -17,6 +19,8 @@
  **/
 
 namespace nst {
+
+struct TermWindow;
 
 /// Wrapper around the XftColor type which is a composite of XRenderColor and additional "pixel" info.
 /**
@@ -114,6 +118,46 @@ public: // functions
 		green /= 2;
 		blue  /= 2;
 	}
+};
+
+/// Management of the color palette and per-Glyph color settings.
+class ColorManager {
+public: // functions
+
+	const FontColor& defaultFront() const { return fontColor(config::DEFAULT_FG); }
+	const FontColor& defaultBack() const { return fontColor(config::DEFAULT_BG); }
+
+	const FontColor& fontColor(const ColorIndex index) const {
+		return m_colors.at(cosmos::to_integral(index));
+	}
+	FontColor& fontColor(const ColorIndex index) {
+		return m_colors.at(cosmos::to_integral(index));
+	}
+
+	bool toRGB(const ColorIndex idx, uint8_t &red, uint8_t &green, uint8_t &blue) const;
+
+	bool setColorName(const ColorIndex idx, const std::string_view name);
+
+	void resetColors() {
+		init();
+	}
+
+	void init();
+
+	/// Adjust the current fb/bg color to the given Glyph's settings.
+	void configureFor(const Glyph base, const TermWindow &twin);
+
+	const FontColor& frontColor() { return m_front_color; }
+	const FontColor& backColor() { return m_back_color; }
+
+protected: // data
+
+	/// Current foreground color for drawing.
+	FontColor m_front_color;
+	/// Current background color for drawing.
+	FontColor m_back_color;
+	/// colors corresponding to specific ColorIndex palette values.
+	std::array<FontColor, 256UL + config::EXTENDED_COLORS.size()> m_colors;
 };
 
 } // end ns

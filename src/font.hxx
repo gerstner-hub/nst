@@ -143,7 +143,7 @@ public: // functions
 	void resetZoom();
 	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt);
 	Font* fontForMode(const Glyph::AttrBitMask mode);
-	void sanitizeColor(Glyph g) const;
+	void sanitize(Glyph g) const;
 
 	auto& normalFont() { return m_normal_font; }
 	auto ascent() { return normalFont().ascent(); }

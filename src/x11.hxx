@@ -28,18 +28,17 @@ namespace nst {
 struct DrawingContext {
 
 public: // functions
-	void createGC(xpp::XDisplay &display, xpp::XWindow &parent);
+	void createGC(xpp::XWindow &parent);
 	void freeGC() { m_gc.reset(); }
 	void setRawGC(xpp::GcSharedPtr gc) { m_gc = gc; }
 	auto getRawGC() { return m_gc.get(); }
 	auto getGC() { return m_gc; }
 	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
 
-	void fillRectangle(const DrawPos &pos, const Extent &ext);
+	void fillRectangle(const DrawPos pos, const Extent ext);
 
 	void setForeground(const FontColor &color);
 protected: // data
-	xpp::XDisplay *m_display = nullptr;
 	xpp::PixMapID m_pixmap;
 	xpp::GcSharedPtr m_gc;
 };
@@ -59,7 +58,7 @@ public: // functions
 	void resetFont();
 	void toggleNumlock();
 	void setUrgency(int add);
-	void resize(const TermSize &dim);
+	void resize(const TermSize dim);
 	void setInputSpot(const CharPos pos) {
 		m_input.setSpot(m_twin.toDrawPos(pos));
 	}
@@ -71,18 +70,18 @@ public: // functions
 	}
 	void setPointerMotion(bool on_off);
 	void finishDraw();
-	void setIconTitle(const std::string &title);
+	void setIconTitle(const std::string_view title);
 	void setDefaultIconTitle();
-	void setTitle(const std::string &title);
+	void setTitle(const std::string_view title);
 	void setDefaultTitle();
-	void drawLine(const Line &line, const CharPos &start, const int count);
-	void clearCursor(const CharPos &pos, Glyph glyph);
-	void drawCursor(const CharPos &pos, Glyph glyph);
-	void setMode(const WinMode &flag, const bool set);
-	void setCursorStyle(const CursorStyle &cursor);
+	void drawLine(const Line &line, const CharPos start, const int count);
+	void clearCursor(const CharPos pos, Glyph glyph);
+	void drawCursor(const CharPos pos, Glyph glyph);
+	void setMode(const WinMode flag, const bool set);
+	void setCursorStyle(const CursorStyle cursor);
 	void ringBell();
 
-	void setWinSize(const Extent &ext) {
+	void setWinSize(const Extent ext) {
 		m_twin.setWinExtent(ext);
 	}
 	void setBlinking(const bool blinking) {
@@ -109,16 +108,15 @@ protected: // functions
 	void setHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
 	xpp::Gravity gravity();
-	int loadFont(Font *f, FcPattern *pattern);
 	//! clear a rectangular font area using absolute coordinates, using the current background color
-	void clearRect(const DrawPos &pos1, const DrawPos &pos2);
+	void clearRect(const DrawPos pos1, const DrawPos pos2);
 	//! draw a rectangular font area using a starting point and extent
-	void drawRect(const FontColor &col, const DrawPos &start, const Extent &ext);
+	void drawRect(const FontColor &col, const DrawPos start, const Extent ext);
 	void unloadFonts();
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
-	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc);
-	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc);
-	void drawGlyph(Glyph g, const CharPos &loc);
+	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos loc);
+	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos loc);
+	void drawGlyph(Glyph g, const CharPos loc);
 	void embeddedFocusChange(const bool in_focus);
 	void focusChange(const bool in_focus);
 	void setVisible(const bool visible) {
@@ -132,16 +130,14 @@ protected: // functions
 protected: // data
 
 	nst::Nst &m_nst;
+	const Cmdline &m_cmdline;
 	xpp::XWindow m_window; /// the main (and only) terminal window
 	Input m_input; /// X11 input handling logic
 	TermWindow m_twin;
 	FontManager m_font_manager;
 	ColorManager m_color_manager;
-	const Cmdline &m_cmdline;
 
 	xpp::XDisplay &m_display;
-	xpp::ScreenID m_screen = xpp::ScreenID::INVALID;
-	Visual *m_visual = nullptr;
 	xpp::GeometrySettingsMask m_geometry_mask;
 	xpp::WindowSpec m_win_geometry;
 	XSetWindowAttributes m_win_attrs;

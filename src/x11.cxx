@@ -42,32 +42,29 @@ inline void modifyBit(T &mask, const bool set, const V bit) {
 
 namespace nst {
 
-void DrawingContext::createGC(xpp::XDisplay &display, xpp::XWindow &parent) {
-	m_display = &display;
+void DrawingContext::createGC(xpp::XWindow &parent) {
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	m_gc = display.createGraphicsContext(
+	m_gc = xpp::display.createGraphicsContext(
 			xpp::to_drawable(parent),
 			xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
 			gcvalues);
 }
 
 void DrawingContext::setForeground(const FontColor &color) {
-	XSetForeground(*m_display, getRawGC(), color.pixel);
+	XSetForeground(xpp::display, getRawGC(), color.pixel);
 }
 
-void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
-	XFillRectangle(*m_display, xpp::raw_pixmap(m_pixmap), getRawGC(), pos.x, pos.y, ext.width, ext.height);
+void DrawingContext::fillRectangle(const DrawPos pos, const Extent ext) {
+	XFillRectangle(xpp::display, xpp::raw_pixmap(m_pixmap), getRawGC(), pos.x, pos.y, ext.width, ext.height);
 }
 
 X11::X11(Nst &nst) :
 		m_nst{nst},
+		m_cmdline{nst.cmdline()},
 		m_input{m_window},
 		m_color_manager{m_twin},
-		m_cmdline{nst.cmdline()},
 		m_display{xpp::display},
-		m_screen{m_display.defaultScreen()},
-		m_visual{m_display.defaultVisual(m_screen)},
 		m_xsel{nst} {
 	setCursorStyle(config::CURSORSHAPE);
 }
@@ -123,13 +120,13 @@ void X11::allocPixmap() {
 		XftDrawChange(m_font_draw, xpp::raw_pixmap(m_pixmap));
 	} else {
 		/* Xft rendering context */
-		m_font_draw = XftDrawCreate(m_display, xpp::raw_pixmap(m_pixmap), m_visual, xpp::raw_cmap(xpp::colormap));
+		m_font_draw = XftDrawCreate(m_display, xpp::raw_pixmap(m_pixmap), xpp::visual, xpp::raw_cmap(xpp::colormap));
 	}
 
 	m_draw_ctx.setPixmap(m_pixmap);
 }
 
-void X11::resize(const TermSize &dim) {
+void X11::resize(const TermSize dim) {
 
 	m_twin.setTermDim(dim);
 	allocPixmap();
@@ -140,12 +137,12 @@ void X11::resize(const TermSize &dim) {
 	m_font_specs.resize(dim.cols);
 }
 
-void X11::clearRect(const DrawPos &pos1, const DrawPos &pos2) {
+void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
 	const auto idx = m_twin.activeForegroundColor();
 	drawRect(m_color_manager.fontColor(idx), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
-void X11::drawRect(const FontColor &color, const DrawPos &start, const Extent &ext) {
+void X11::drawRect(const FontColor &color, const DrawPos start, const Extent ext) {
 	XftDrawRect(m_font_draw, &color, start.x, start.y, ext.width, ext.height);
 }
 
@@ -209,9 +206,9 @@ void X11::setGeometry(const std::string_view str, TermSize &tsize) {
 	m_twin.setWinExtent(tsize);
 	const auto &win = m_twin.winExtent();
 	if (m_geometry_mask[xpp::GeometrySettings::NegativeX])
-		m_win_geometry.x += m_display.displayWidth(m_screen) - win.width - 2;
+		m_win_geometry.x += m_display.displayWidth() - win.width - 2;
 	if (m_geometry_mask[xpp::GeometrySettings::NegativeY])
-		m_win_geometry.y += m_display.displayHeight(m_screen) - win.height - 2;
+		m_win_geometry.y += m_display.displayHeight() - win.height - 2;
 }
 
 xpp::XWindow X11::parent() const {
@@ -224,7 +221,7 @@ xpp::XWindow X11::parent() const {
 
 	if (!ret.valid()) {
 		// either not embedded or the command line parsing failed
-		ret = xpp::RootWin{m_display, m_screen};
+		ret = xpp::RootWin{m_display, xpp::screen};
 	}
 
 	return ret;
@@ -237,7 +234,7 @@ void X11::setupCursor() {
 
 	XColor xmousefg, xmousebg;
 
-	auto parseColor = [this](ColorIndex idx, XColor &out) {
+	auto parseColor = [this](ColorIndex idx, XColor &out) -> bool {
 		auto cname = config::get_color_name(idx);
 		auto res = XParseColor(m_display, xpp::raw_cmap(xpp::colormap), cname.empty() ? nullptr : cname.data(), &out);
 		return res != 0;
@@ -304,13 +301,13 @@ void X11::init() {
 		/*border_width=*/0,
 		/*clazz = */InputOutput,
 		&parent,
-		m_display.defaultDepth(m_screen),
-		m_visual,
+		m_display.defaultDepth(),
+		xpp::visual,
 		CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
 		&m_win_attrs
 	);
 
-	m_draw_ctx.createGC(m_display, parent);
+	m_draw_ctx.createGC(parent);
 	allocPixmap();
 	m_draw_ctx.setForeground(bgcolor);
 	m_draw_ctx.fillRectangle(DrawPos{0,0}, win);
@@ -341,7 +338,7 @@ void X11::init() {
 }
 
 
-size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos &loc) {
+size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos loc) {
 	Font *fnt = &m_font_manager.normalFont();
 	const auto chr = m_twin.chrExtent();
 	auto runewidth = chr.width;
@@ -380,7 +377,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 	return numspecs;
 }
 
-void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
+void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos loc) {
 
 	m_font_manager.sanitize(base);
 	m_color_manager.configureFor(base);
@@ -448,21 +445,21 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	XftDrawSetClip(m_font_draw, 0);
 }
 
-void X11::drawGlyph(Glyph g, const CharPos &loc) {
+void X11::drawGlyph(Glyph g, const CharPos loc) {
 	XftGlyphFontSpec spec;
 
 	auto numspecs = makeGlyphFontSpecs(&spec, &g, 1, loc);
 	drawGlyphFontSpecs(&spec, g, numspecs, loc);
 }
 
-void X11::clearCursor(const CharPos &pos, Glyph glyph) {
+void X11::clearCursor(const CharPos pos, Glyph glyph) {
 	/* remove the old cursor */
 	if (m_nst.selection().isSelected(pos))
 		glyph.mode.flip(Attr::REVERSE);
 	drawGlyph(glyph, pos);
 }
 
-void X11::drawCursor(const CharPos &pos, Glyph glyph) {
+void X11::drawCursor(const CharPos pos, Glyph glyph) {
 
 	if (m_twin.checkFlag(WinMode::HIDE_CURSOR))
 		return;
@@ -517,7 +514,7 @@ void X11::setDefaultIconTitle() {
 	setIconTitle(m_cmdline.title());
 }
 
-void X11::setIconTitle(const std::string &title) {
+void X11::setIconTitle(const std::string_view title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
 	m_window.setProperty(xpp::atoms::wm_icon_name, data);
 	m_window.setProperty(xpp::atoms::ewmh_icon_name, data);
@@ -527,13 +524,13 @@ void X11::setDefaultTitle() {
 	setTitle(m_cmdline.title());
 }
 
-void X11::setTitle(const std::string &title) {
+void X11::setTitle(const std::string_view title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
 	m_window.setProperty(xpp::atoms::icccm_window_name, data);
 	m_window.setProperty(xpp::atoms::ewmh_window_name, data);
 }
 
-void X11::drawLine(const Line &line, const CharPos &start, const int count) {
+void X11::drawLine(const Line &line, const CharPos start, const int count) {
 	Glyph base, newone;
 	auto *specs = m_font_specs.data();
 	size_t numcols = 0;
@@ -579,14 +576,14 @@ void X11::setPointerMotion(bool on_off) {
 	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
 }
 
-void X11::setMode(const WinMode &flag, const bool set) {
+void X11::setMode(const WinMode flag, const bool set) {
 	const auto prevmode = m_twin.mode();
 	m_twin.setFlag(flag, set);
 	if (m_twin.checkFlag(WinMode::REVERSE) != prevmode[WinMode::REVERSE])
 		m_nst.term().redraw();
 }
 
-void X11::setCursorStyle(const CursorStyle &cursor) {
+void X11::setCursorStyle(const CursorStyle cursor) {
 	m_twin.setCursorStyle(cursor);
 }
 

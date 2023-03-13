@@ -128,13 +128,13 @@ protected: // functions
 	void allocPixmap();
 	/// returns the parent window to be used as parent of the terminal window
 	xpp::XWindow parent() const;
-	const FontColor& cursorColor(const CharPos &pos, Glyph &glyph) const;
 
 protected: // data
 
 	nst::Nst &m_nst;
 	xpp::XWindow m_window; /// the main (and only) terminal window
 	Input m_input; /// X11 input handling logic
+	TermWindow m_twin;
 	FontManager m_font_manager;
 	ColorManager m_color_manager;
 	const Cmdline &m_cmdline;
@@ -151,8 +151,6 @@ protected: // data
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;
 	XSelection m_xsel;
-
-	TermWindow m_twin;
 };
 
 } // end ns

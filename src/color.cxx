@@ -154,7 +154,7 @@ bool ColorManager::setColorName(const ColorIndex idx, const std::string_view nam
 	}
 }
 
-void ColorManager::configureFor(const Glyph base, const TermWindow &twin) {
+void ColorManager::configureFor(const Glyph base) {
 	auto assignBaseColor = [this](FontColor &out, const ColorIndex color) {
 		if (is_true_color(color)) {
 			out.load(RenderColor{color});
@@ -174,7 +174,7 @@ void ColorManager::configureFor(const Glyph base, const TermWindow &twin) {
 		m_front_color.makeFaint();
 	}
 
-	if (twin.inReverseMode()) {
+	if (m_twin.inReverseMode()) {
 		// NOTE: this is a bit strange logic by now which stems from
 		// the fact that previously this have been pointers that
 		// pointed either to fixed colors in the array or to a
@@ -200,12 +200,39 @@ void ColorManager::configureFor(const Glyph base, const TermWindow &twin) {
 		std::swap(m_front_color, m_back_color);
 	}
 
-	if (base.mode[Attr::BLINK] && twin.checkFlag(WinMode::BLINK)) {
+	if (base.mode[Attr::BLINK] && m_twin.checkFlag(WinMode::BLINK)) {
 		m_front_color = m_back_color;
 	} else if (base.mode[Attr::INVISIBLE]) {
 		m_front_color = m_back_color;
 	}
 }
 
+const FontColor& ColorManager::cursorColor(const bool is_selected, Glyph &glyph) const {
+
+	// Select the right color for the right mode.
+	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
+
+	if (m_twin.inReverseMode()) {
+		glyph.mode.set(Attr::REVERSE);
+		glyph.bg = config::DEFAULT_FG;
+		if (is_selected) {
+			glyph.fg = config::DEFAULT_RCS;
+			return fontColor(config::DEFAULT_CS);
+		} else {
+			glyph.fg = config::DEFAULT_CS;
+			return fontColor(config::DEFAULT_RCS);
+		}
+	} else {
+		if (is_selected) {
+			glyph.fg = config::DEFAULT_FG;
+			glyph.bg = config::DEFAULT_RCS;
+		} else {
+			glyph.fg = config::DEFAULT_BG;
+			glyph.bg = config::DEFAULT_CS;
+		}
+
+		return fontColor(glyph.bg);
+	}
+}
 
 } // end ns

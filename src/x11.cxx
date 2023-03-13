@@ -63,6 +63,7 @@ void DrawingContext::fillRectangle(const DrawPos &pos, const Extent &ext) {
 X11::X11(Nst &nst) :
 		m_nst{nst},
 		m_input{m_window},
+		m_color_manager{m_twin},
 		m_cmdline{nst.cmdline()},
 		m_display{xpp::display},
 		m_screen{m_display.defaultScreen()},
@@ -382,7 +383,7 @@ size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, siz
 void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos &loc) {
 
 	m_font_manager.sanitize(base);
-	m_color_manager.configureFor(base, m_twin);
+	m_color_manager.configureFor(base);
 
 	auto pos = m_twin.toDrawPos(loc);
 	const auto &win = m_twin.winExtent();
@@ -461,43 +462,12 @@ void X11::clearCursor(const CharPos &pos, Glyph glyph) {
 	drawGlyph(glyph, pos);
 }
 
-const FontColor& X11::cursorColor(const CharPos &pos, Glyph &glyph) const {
-	const bool is_selected = m_nst.selection().isSelected(pos);
-
-	/*
-	 * Select the right color for the right mode.
-	 */
-	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
-
-	if (m_twin.inReverseMode()) {
-		glyph.mode.set(Attr::REVERSE);
-		glyph.bg = config::DEFAULT_FG;
-		if (is_selected) {
-			glyph.fg = config::DEFAULT_RCS;
-			return m_color_manager.fontColor(config::DEFAULT_CS);
-		} else {
-			glyph.fg = config::DEFAULT_CS;
-			return m_color_manager.fontColor(config::DEFAULT_RCS);
-		}
-	} else {
-		if (is_selected) {
-			glyph.fg = config::DEFAULT_FG;
-			glyph.bg = config::DEFAULT_RCS;
-		} else {
-			glyph.fg = config::DEFAULT_BG;
-			glyph.bg = config::DEFAULT_CS;
-		}
-
-		return m_color_manager.fontColor(glyph.bg);
-	}
-}
-
 void X11::drawCursor(const CharPos &pos, Glyph glyph) {
 
 	if (m_twin.checkFlag(WinMode::HIDE_CURSOR))
 		return;
 
-	auto &drawcol = cursorColor(pos, glyph);
+	auto &drawcol = m_color_manager.cursorColor(m_nst.selection().isSelected(pos), glyph);
 	auto &chr = m_twin.chrExtent();
 	constexpr auto CURSOR_THICKNESS = config::CURSOR_THICKNESS;
 

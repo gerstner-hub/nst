@@ -123,6 +123,9 @@ public: // functions
 /// Management of the color palette and per-Glyph color settings.
 class ColorManager {
 public: // functions
+	explicit ColorManager(TermWindow &twin) :
+			m_twin{twin}
+	{}
 
 	const FontColor& defaultFront() const { return fontColor(config::DEFAULT_FG); }
 	const FontColor& defaultBack() const { return fontColor(config::DEFAULT_BG); }
@@ -145,13 +148,15 @@ public: // functions
 	void init();
 
 	/// Adjust the current fb/bg color to the given Glyph's settings.
-	void configureFor(const Glyph base, const TermWindow &twin);
+	void configureFor(const Glyph base);
 
 	const FontColor& frontColor() { return m_front_color; }
 	const FontColor& backColor() { return m_back_color; }
+	const FontColor& cursorColor(const bool is_selected, Glyph &glyph) const;
 
 protected: // data
 
+	TermWindow &m_twin;
 	/// Current foreground color for drawing.
 	FontColor m_front_color;
 	/// Current background color for drawing.

@@ -11,10 +11,12 @@
 #include <string_view>
 
 // X11
-#include <X11/cursorfont.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <X11/X.h>
+
+// X++
+#include "X++/XCursor.hxx"
 
 // nst
 #include "Selection.hxx"
@@ -191,7 +193,7 @@ static const unsigned int ROWS = 24;
 /*
  * Default colour and shape of the mouse cursor
  */
-const unsigned int MOUSE_SHAPE = XC_xterm;
+constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::Xterm};
 const ColorIndex MOUSE_FG{7};
 const ColorIndex MOUSE_BG{0};
 

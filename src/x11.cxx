@@ -11,6 +11,8 @@
 
 // X++
 #include "X++/atoms.hxx"
+#include "X++/XColor.hxx"
+#include "X++/XCursor.hxx"
 #include "X++/helpers.hxx"
 #include "X++/Event.hxx"
 #include "X++/RootWin.hxx"
@@ -228,31 +230,25 @@ xpp::XWindow X11::parent() const {
 }
 
 void X11::setupCursor() {
-	/* white cursor, black outline */
-	Cursor cursor = XCreateFontCursor(m_display, config::MOUSE_SHAPE);
-	XDefineCursor(m_display, xpp::raw_win(m_window), cursor);
+	xpp::XCursor cursor = m_display.createFontCursor(config::MOUSE_SHAPE);
 
-	XColor xmousefg, xmousebg;
+	xpp::XColor fg, bg;
 
-	auto parseColor = [this](ColorIndex idx, XColor &out) -> bool {
-		auto cname = config::get_color_name(idx);
-		auto res = XParseColor(m_display, xpp::raw_cmap(xpp::colormap), cname.empty() ? nullptr : cname.data(), &out);
-		return res != 0;
+	auto parseColor = [this](ColorIndex idx, xpp::XColor &out, const unsigned short fallback) {
+		auto name = config::get_color_name(idx);
+		try {
+			m_display.parseColor(out, name);
+		} catch (const cosmos::CosmosError &) {
+			out.setAll(fallback);
+		}
 	};
 
-	if (!parseColor(config::MOUSE_FG, xmousefg)) {
-		xmousefg.red   = 0xffff;
-		xmousefg.green = 0xffff;
-		xmousefg.blue  = 0xffff;
-	}
+	// white cursor, black outline
+	parseColor(config::MOUSE_FG, fg, 0xFFFF);
+	parseColor(config::MOUSE_BG, bg, 0x0000);
 
-	if (!parseColor(config::MOUSE_BG, xmousebg)) {
-		xmousebg.red   = 0x0000;
-		xmousebg.green = 0x0000;
-		xmousebg.blue  = 0x0000;
-	}
-
-	XRecolorCursor(m_display, cursor, &xmousefg, &xmousebg);
+	cursor.recolorCursor(fg, bg);
+	m_window.defineCursor(cursor);
 }
 
 void X11::init() {

@@ -104,8 +104,8 @@ constexpr bool ALLOW_ALTSCREEN = true;
 constexpr int BORDERPX = 2;
 
 /* Kerning / character bounding-box multipliers */
-const float CW_SCALE = 1.0;
-const float CH_SCALE = 1.0;
+constexpr float CW_SCALE = 1.0;
+constexpr float CH_SCALE = 1.0;
 
 /* selection timeouts (in milliseconds) */
 constexpr std::chrono::milliseconds DOUBLE_CLICK_TIMEOUT{300};
@@ -135,13 +135,13 @@ constexpr std::chrono::milliseconds BLINK_TIMEOUT{800};
 /*
  * thickness of underline and bar cursors
  */
-const unsigned int CURSOR_THICKNESS = 2;
+constexpr unsigned int CURSOR_THICKNESS = 2;
 
 /*
  * bell volume. It must be a value between -100 and 100. Use 0 for disabling
  * it
  */
-const int BELL_VOLUME = 0;
+constexpr int BELL_VOLUME = 0;
 
 constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 	/* more colors can be added after 255 to use with DefaultXX */
@@ -187,28 +187,28 @@ static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
  * Default columns and rows numbers
  */
 
-static const unsigned int COLS = 80;
-static const unsigned int ROWS = 24;
+static constexpr unsigned int COLS = 80;
+static constexpr unsigned int ROWS = 24;
 
 /*
  * Default colour and shape of the mouse cursor
  */
 constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::Xterm};
-const ColorIndex MOUSE_FG{7};
-const ColorIndex MOUSE_BG{0};
+constexpr ColorIndex MOUSE_FG{7};
+constexpr ColorIndex MOUSE_BG{0};
 
 /*
  * Color used to display font attributes when fontconfig selected a font which
  * doesn't match the ones requested.
  */
-const ColorIndex DEFAULT_ATTR{11};
+constexpr ColorIndex DEFAULT_ATTR{11};
 
 /*
  * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to 0 to not use it.
  */
-const unsigned int FORCE_MOUSE_MOD = ShiftMask;
+constexpr unsigned int FORCE_MOUSE_MOD = ShiftMask;
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -243,7 +243,7 @@ const std::set<KeySym> MAPPED_KEYS{
  * State bits to ignore when matching key or button events.  By default,
  * numlock (Mod2Mask) and keyboard layout (XK_SWITCH_MOD) are ignored.
  */
-const unsigned int IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
+constexpr unsigned int IGNOREMOD = Mod2Mask|XK_SWITCH_MOD;
 
 // we use a multiset for the key definitions below
 // the keysym is the comparison key, so we don't have to iterate over the

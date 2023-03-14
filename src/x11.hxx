@@ -24,25 +24,6 @@
 
 namespace nst {
 
-/// X11 drawing specific data and logic
-struct DrawingContext {
-
-public: // functions
-	void createGC(xpp::XWindow &parent);
-	void freeGC() { m_gc.reset(); }
-	void setRawGC(xpp::GcSharedPtr gc) { m_gc = gc; }
-	auto getRawGC() { return m_gc.get(); }
-	auto getGC() { return m_gc; }
-	void setPixmap(xpp::PixMapID pm) { m_pixmap = pm; }
-
-	void fillRectangle(const DrawPos pos, const Extent ext);
-
-	void setForeground(const FontColor &color);
-protected: // data
-	xpp::PixMapID m_pixmap;
-	xpp::GcSharedPtr m_gc;
-};
-
 /// This contains central X11 graphics, input and font handling
 class X11 {
 	friend class XEventHandler;
@@ -112,6 +93,8 @@ protected: // functions
 	void clearRect(const DrawPos pos1, const DrawPos pos2);
 	//! draw a rectangular font area using a starting point and extent
 	void drawRect(const FontColor &col, const DrawPos start, const Extent ext);
+	void fillRectangle(const DrawPos pos, const Extent ext);
+	void setForeground(const FontColor &color);
 	void unloadFonts();
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
 	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos loc);
@@ -126,6 +109,7 @@ protected: // functions
 	void allocPixmap();
 	/// returns the parent window to be used as parent of the terminal window
 	xpp::XWindow parent() const;
+	void createGraphicsContext(xpp::XWindow &parent);
 
 protected: // data
 
@@ -142,7 +126,7 @@ protected: // data
 	xpp::WindowSpec m_win_geometry;
 	XSetWindowAttributes m_win_attrs;
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
-	DrawingContext m_draw_ctx;
+	xpp::GcSharedPtr m_graphics_context;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
 	XftDraw *m_font_draw = nullptr;

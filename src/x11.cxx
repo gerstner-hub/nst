@@ -44,21 +44,25 @@ inline void modifyBit(T &mask, const bool set, const V bit) {
 
 namespace nst {
 
-void DrawingContext::createGC(xpp::XWindow &parent) {
+void X11::createGraphicsContext(xpp::XWindow &parent) {
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	m_gc = xpp::display.createGraphicsContext(
-			xpp::to_drawable(parent),
-			xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
-			gcvalues);
+	m_graphics_context = xpp::display.createGraphicsContext(
+		xpp::to_drawable(parent),
+		xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
+		gcvalues
+	);
 }
 
-void DrawingContext::setForeground(const FontColor &color) {
-	XSetForeground(xpp::display, getRawGC(), color.pixel);
+void X11::setForeground(const FontColor &color) {
+	XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
 }
 
-void DrawingContext::fillRectangle(const DrawPos pos, const Extent ext) {
-	XFillRectangle(xpp::display, xpp::raw_pixmap(m_pixmap), getRawGC(), pos.x, pos.y, ext.width, ext.height);
+void X11::fillRectangle(const DrawPos pos, const Extent ext) {
+	XFillRectangle(
+			xpp::display,
+			xpp::raw_pixmap(m_pixmap),
+			m_graphics_context.get(), pos.x, pos.y, ext.width, ext.height);
 }
 
 X11::X11(Nst &nst) :
@@ -75,7 +79,8 @@ X11::~X11() {
 	if (m_font_draw) {
 		XftDrawDestroy(m_font_draw);
 	}
-	m_draw_ctx.freeGC();
+
+	m_graphics_context.reset();
 }
 
 void X11::copyToClipboard() {
@@ -124,8 +129,6 @@ void X11::allocPixmap() {
 		/* Xft rendering context */
 		m_font_draw = XftDrawCreate(m_display, xpp::raw_pixmap(m_pixmap), xpp::visual, xpp::raw_cmap(xpp::colormap));
 	}
-
-	m_draw_ctx.setPixmap(m_pixmap);
 }
 
 void X11::resize(const TermSize dim) {
@@ -303,10 +306,10 @@ void X11::init() {
 		&m_win_attrs
 	);
 
-	m_draw_ctx.createGC(parent);
+	createGraphicsContext(parent);
 	allocPixmap();
-	m_draw_ctx.setForeground(bgcolor);
-	m_draw_ctx.fillRectangle(DrawPos{0,0}, win);
+	setForeground(bgcolor);
+	fillRectangle(DrawPos{0,0}, win);
 
 	/* input methods */
 	m_input.tryOpen();
@@ -558,8 +561,8 @@ void X11::drawLine(const Line &line, const CharPos start, const int count) {
 
 void X11::finishDraw() {
 	auto extent = m_twin.winExtent();
-	m_window.copyArea(m_draw_ctx.getGC(), m_pixmap, extent);
-	m_draw_ctx.setForeground(m_color_manager.fontColor(m_twin.activeForegroundColor()));
+	m_window.copyArea(m_graphics_context, m_pixmap, extent);
+	setForeground(m_color_manager.fontColor(m_twin.activeForegroundColor()));
 }
 
 void X11::changeEventMask(long event, bool on_off) {

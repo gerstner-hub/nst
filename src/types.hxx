@@ -197,11 +197,6 @@ public: // data
 
 public: // functions
 
-	void normalize() {
-		cols = std::max(cols, 1);
-		rows = std::max(rows, 1);
-	}
-
 	bool valid() const {
 		return cols >= 1 && rows >= 1;
 	}

@@ -35,7 +35,7 @@ public: // functions
 	void pasteSelection();
 	void pasteClipboard();
 	void copyToClipboard();
-	void zoomFont(float val);
+	void zoomFont(double val);
 	void resetFont();
 	void toggleNumlock();
 	void setUrgency(int add);
@@ -88,12 +88,12 @@ protected: // functions
 	void setupCursor();
 	void setHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
-	xpp::Gravity gravity();
+	xpp::Gravity gravity() const;
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos pos1, const DrawPos pos2);
 	//! draw a rectangular font area using a starting point and extent
 	void drawRect(const FontColor &col, const DrawPos start, const Extent ext);
-	void fillRectangle(const DrawPos pos, const Extent ext);
+	void clearWindow();
 	void setForeground(const FontColor &color);
 	void unloadFonts();
 	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs

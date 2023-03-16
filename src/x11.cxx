@@ -55,14 +55,7 @@ void X11::createGraphicsContext(xpp::XWindow &parent) {
 }
 
 void X11::setForeground(const FontColor &color) {
-	XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
-}
-
-void X11::fillRectangle(const DrawPos pos, const Extent ext) {
-	XFillRectangle(
-			xpp::display,
-			xpp::raw_pixmap(m_pixmap),
-			m_graphics_context.get(), pos.x, pos.y, ext.width, ext.height);
+	::XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
 }
 
 X11::X11(Nst &nst) :
@@ -80,6 +73,7 @@ X11::~X11() {
 		XftDrawDestroy(m_font_draw);
 	}
 
+	m_display.freePixmap(m_pixmap);
 	m_graphics_context.reset();
 }
 
@@ -102,8 +96,8 @@ void X11::toggleNumlock() {
 	m_twin.flipFlag(WinMode::NUMLOCK);
 }
 
-void X11::zoomFont(float val) {
-	m_font_manager.zoom(static_cast<double>(val));
+void X11::zoomFont(double val) {
+	m_font_manager.zoom(val);
 	m_twin.setCharSize(m_font_manager.normalFont());
 	m_nst.resizeConsole();
 	m_nst.term().redraw();
@@ -135,11 +129,15 @@ void X11::resize(const TermSize dim) {
 
 	m_twin.setTermDim(dim);
 	allocPixmap();
-	const auto &win = m_twin.winExtent();
-	clearRect(DrawPos{0,0}, DrawPos{win.width, win.height});
+	clearWindow();
 
 	/* resize to new width */
 	m_font_specs.resize(dim.cols);
+}
+
+void X11::clearWindow() {
+	const auto &win = m_twin.winExtent();
+	clearRect(DrawPos{0,0}, DrawPos{win.width, win.height});
 }
 
 void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
@@ -156,38 +154,38 @@ void X11::setHints() {
 	// the command line arguments
 	auto wname = m_cmdline.window_name.getValue();
 	auto wclass = m_cmdline.window_class.getValue();
-	const auto &chr = m_twin.chrExtent();
-	const auto &win = m_twin.winExtent();
+	const auto chr = m_twin.chrExtent();
+	const auto win = m_twin.winExtent();
 	XClassHint clazz = {&wname[0], &wclass[0]};
 	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
-	auto sizeh = xpp::make_shared_xptr(XAllocSizeHints());
+	auto hints = xpp::make_shared_xptr(XAllocSizeHints());
 
-	sizeh->flags = PSize | PResizeInc | PBaseSize | PMinSize;
-	sizeh->height = win.height;
-	sizeh->width = win.width;
-	sizeh->height_inc = chr.height;
-	sizeh->width_inc = chr.width;
-	sizeh->base_height = 2 * config::BORDERPX;
-	sizeh->base_width = 2 * config::BORDERPX;
-	sizeh->min_height = chr.height + 2 * config::BORDERPX;
-	sizeh->min_width = chr.width + 2 * config::BORDERPX;
+	hints->flags = PSize | PResizeInc | PBaseSize | PMinSize;
+	hints->height = win.height;
+	hints->width = win.width;
+	hints->height_inc = chr.height;
+	hints->width_inc = chr.width;
+	hints->base_height = 2 * config::BORDERPX;
+	hints->base_width = 2 * config::BORDERPX;
+	hints->min_height = chr.height + 2 * config::BORDERPX;
+	hints->min_width = chr.width + 2 * config::BORDERPX;
 
 	if (m_cmdline.fixed_geometry.isSet()) {
-		sizeh->flags |= PMaxSize;
-		sizeh->min_width = sizeh->max_width = win.width;
-		sizeh->min_height = sizeh->max_height = win.height;
+		hints->flags |= PMaxSize;
+		hints->min_width = hints->max_width = win.width;
+		hints->min_height = hints->max_height = win.height;
 	}
 	if (m_geometry_mask.anyOf({xpp::GeometrySettings::NegativeX, xpp::GeometrySettings::NegativeY})) {
-		sizeh->flags |= USPosition | PWinGravity;
-		sizeh->x = m_win_geometry.x;
-		sizeh->y = m_win_geometry.y;
-		sizeh->win_gravity = xpp::raw_gravity(gravity());
+		hints->flags |= USPosition | PWinGravity;
+		hints->x = m_win_geometry.x;
+		hints->y = m_win_geometry.y;
+		hints->win_gravity = xpp::raw_gravity(gravity());
 	}
 
-	XSetWMProperties(m_display, xpp::raw_win(m_window.id()), NULL, NULL, NULL, 0, sizeh.get(), &wm, &clazz);
+	::XSetWMProperties(m_display, xpp::raw_win(m_window.id()), nullptr, nullptr, nullptr, 0, hints.get(), &wm, &clazz);
 }
 
-xpp::Gravity X11::gravity() {
+xpp::Gravity X11::gravity() const {
 	using Geometry = xpp::GeometrySettings;
 	using Gravity = xpp::Gravity;
 
@@ -268,7 +266,6 @@ void X11::init() {
 	m_color_manager.init();
 
 	TermSize tsize{config::COLS, config::ROWS};
-	tsize.normalize();
 
 	/* adjust fixed window geometry */
 	if (m_cmdline.window_geometry.isSet()) {
@@ -280,9 +277,8 @@ void X11::init() {
 	m_font_specs.resize(tsize.cols);
 
 	/* Events */
-	const auto &bgcolor = m_color_manager.defaultBack();
-	m_win_attrs.background_pixel = bgcolor.pixel;
-	m_win_attrs.border_pixel = bgcolor.pixel;
+	m_win_attrs.background_pixel = m_color_manager.defaultBack().pixel;
+	m_win_attrs.border_pixel = m_win_attrs.background_pixel;
 	m_win_attrs.bit_gravity = NorthWestGravity;
 	m_win_attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
 		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
@@ -290,7 +286,7 @@ void X11::init() {
 	m_win_attrs.colormap = xpp::raw_cmap(xpp::colormap);
 
 	auto parent = this->parent();
-	const auto &win = m_twin.winExtent();
+	const auto win = m_twin.winExtent();
 
 	m_win_geometry.width = win.width;
 	m_win_geometry.height = win.height;
@@ -308,8 +304,7 @@ void X11::init() {
 
 	createGraphicsContext(parent);
 	allocPixmap();
-	setForeground(bgcolor);
-	fillRectangle(DrawPos{0,0}, win);
+	clearWindow();
 
 	/* input methods */
 	m_input.tryOpen();

@@ -190,6 +190,9 @@ static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
 static constexpr unsigned int COLS = 80;
 static constexpr unsigned int ROWS = 24;
 
+static_assert(COLS > 1);
+static_assert(ROWS > 1);
+
 /*
  * Default colour and shape of the mouse cursor
  */

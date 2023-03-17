@@ -1,6 +1,5 @@
 // X11
 #include <X11/Xlib.h>
-#include <X11/XKBlib.h>
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -11,11 +10,12 @@
 
 // X++
 #include "X++/atoms.hxx"
+#include "X++/Event.hxx"
+#include "X++/helpers.hxx"
+#include "X++/keyboard.hxx"
+#include "X++/RootWin.hxx"
 #include "X++/XColor.hxx"
 #include "X++/XCursor.hxx"
-#include "X++/helpers.hxx"
-#include "X++/Event.hxx"
-#include "X++/RootWin.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/Xpp.hxx"
 
@@ -29,18 +29,6 @@
 #include "types.hxx"
 #include "x11.hxx"
 #include "XSelection.hxx"
-
-namespace {
-
-template <typename T, typename V>
-inline void modifyBit(T &mask, const bool set, const V bit) {
-	if (set)
-		mask |= bit;
-	else
-		mask &= ~bit;
-}
-
-} // end anon ns
 
 namespace nst {
 
@@ -157,7 +145,8 @@ void X11::setHints() {
 	const auto chr = m_twin.chrExtent();
 	const auto win = m_twin.winExtent();
 	XClassHint clazz = {&wname[0], &wclass[0]};
-	XWMHints wm = {InputHint, 1, 0, 0, 0, 0, 0, 0, 0};
+	xpp::WindowManagerHints wm_hints;
+	wm_hints.setWMInputHandling(true);
 	auto hints = xpp::make_shared_xptr(XAllocSizeHints());
 
 	hints->flags = PSize | PResizeInc | PBaseSize | PMinSize;
@@ -182,7 +171,7 @@ void X11::setHints() {
 		hints->win_gravity = xpp::raw_gravity(gravity());
 	}
 
-	::XSetWMProperties(m_display, xpp::raw_win(m_window.id()), nullptr, nullptr, nullptr, 0, hints.get(), &wm, &clazz);
+	::XSetWMProperties(m_display, xpp::raw_win(m_window.id()), nullptr, nullptr, nullptr, 0, hints.get(), wm_hints, &clazz);
 }
 
 xpp::Gravity X11::gravity() const {
@@ -279,11 +268,16 @@ void X11::init() {
 	/* Events */
 	m_win_attrs.background_pixel = m_color_manager.defaultBack().pixel;
 	m_win_attrs.border_pixel = m_win_attrs.background_pixel;
-	m_win_attrs.bit_gravity = NorthWestGravity;
-	m_win_attrs.event_mask = FocusChangeMask | KeyPressMask | KeyReleaseMask
-		| ExposureMask | VisibilityChangeMask | StructureNotifyMask
-		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
-	m_win_attrs.colormap = xpp::raw_cmap(xpp::colormap);
+	m_win_attrs.setBitGravity(xpp::Gravity::NorthWest);
+	using Event = xpp::EventMask;
+	m_win_attrs.setEventMask(xpp::EventSelectionMask{
+			Event::FocusChange, Event::Exposure,
+			Event::KeyPresses, Event::KeyReleases,
+			Event::VisibilityChange, Event::StructureNotify,
+			Event::ButtonMotion,
+			Event::ButtonPresses, Event::ButtonReleases
+	});
+	m_win_attrs.setColormap(xpp::colormap);
 
 	auto parent = this->parent();
 	const auto win = m_twin.winExtent();
@@ -291,14 +285,16 @@ void X11::init() {
 	m_win_geometry.width = win.width;
 	m_win_geometry.height = win.height;
 
+	using WinAttr = xpp::WindowAttr;
+
 	m_window = m_display.createWindow(
 		m_win_geometry,
 		/*border_width=*/0,
-		/*clazz = */InputOutput,
+		xpp::WindowClass::InOut,
 		&parent,
 		m_display.defaultDepth(),
 		xpp::visual,
-		CWBackPixel | CWBorderPixel | CWBitGravity | CWEventMask | CWColormap,
+		xpp::WindowAttrMask({WinAttr::BackPixel, WinAttr::BorderPixel, WinAttr::BitGravity, WinAttr::EventMask, WinAttr::Colormap}),
 		&m_win_attrs
 	);
 
@@ -560,13 +556,8 @@ void X11::finishDraw() {
 	setForeground(m_color_manager.fontColor(m_twin.activeForegroundColor()));
 }
 
-void X11::changeEventMask(long event, bool on_off) {
-	modifyBit(m_win_attrs.event_mask, on_off, event);
-	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
-}
-
-void X11::setPointerMotion(bool on_off) {
-	modifyBit(m_win_attrs.event_mask, on_off, PointerMotionMask);
+void X11::changeEventMask(const xpp::EventMask event, bool on_off) {
+	m_win_attrs.changeEventMask(event, on_off);
 	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
 }
 
@@ -581,27 +572,31 @@ void X11::setCursorStyle(const CursorStyle cursor) {
 	m_twin.setCursorStyle(cursor);
 }
 
-void X11::setUrgency(int add) {
+void X11::setUrgency(const bool have_urgency) {
 	// should never be nullptr, since we've set hints initially
 	auto hints = m_window.getWMHints();
 
-	modifyBit(hints->flags, add, XUrgencyHint);
+	if (!hints.valid())
+		return;
+
+	hints.changeFlag(xpp::HintFlags::Urgency, have_urgency);
 
 	m_window.setWMHints(*hints);
 }
 
 void X11::ringBell() {
 	if (!(m_twin.checkFlag(WinMode::FOCUSED)))
-		setUrgency(1);
-	if (config::BELL_VOLUME)
-		XkbBell(m_display, xpp::raw_win(m_window.id()), config::BELL_VOLUME, (Atom)nullptr);
+		setUrgency(true);
+	if (config::BELL_VOLUME != xpp::BellVolume::NONE) {
+		xpp::ring_bell(m_window, config::BELL_VOLUME);
+	}
 }
 
 void X11::embeddedFocusChange(const bool in_focus) {
 	// called when we run embedded in another window and the focus changes
 	if (in_focus) {
 		m_twin.setFlag(WinMode::FOCUSED);
-		setUrgency(0);
+		setUrgency(false);
 	} else {
 		m_twin.resetFlag(WinMode::FOCUSED);
 	}
@@ -611,7 +606,7 @@ void X11::focusChange(const bool in_focus) {
 	if (in_focus) {
 		m_input.setFocus();
 		m_twin.setFlag(WinMode::FOCUSED);
-		setUrgency(0);
+		setUrgency(false);
 	} else {
 		m_input.unsetFocus();
 		m_twin.resetFlag(WinMode::FOCUSED);

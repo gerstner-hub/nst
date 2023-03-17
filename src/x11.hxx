@@ -38,7 +38,6 @@ public: // functions
 	void zoomFont(double val);
 	void resetFont();
 	void toggleNumlock();
-	void setUrgency(int add);
 	void resize(const TermSize dim);
 	void setInputSpot(const CharPos pos) {
 		m_input.setSpot(m_twin.toDrawPos(pos));
@@ -49,7 +48,9 @@ public: // functions
 		setDefaultTitle();
 		m_color_manager.resetColors();
 	}
-	void setPointerMotion(bool on_off);
+	void setPointerMotion(bool on_off) {
+		changeEventMask(xpp::EventMask::PointerMotion, on_off);
+	}
 	void finishDraw();
 	void setIconTitle(const std::string_view title);
 	void setDefaultIconTitle();
@@ -84,7 +85,7 @@ public: // functions
 
 protected: // functions
 
-	void changeEventMask(long event, bool on_off);
+	void changeEventMask(const xpp::EventMask event, bool on_off);
 	void setupCursor();
 	void setHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
@@ -105,6 +106,7 @@ protected: // functions
 	void setVisible(const bool visible) {
 		m_twin.setFlag(WinMode::VISIBLE, visible);
 	}
+	void setUrgency(const bool have_urgency);
 	/// (re)allocate the m_pixmap buffer and related context according to the current window size
 	void allocPixmap();
 	/// returns the parent window to be used as parent of the terminal window
@@ -124,7 +126,7 @@ protected: // data
 	xpp::XDisplay &m_display;
 	xpp::GeometrySettingsMask m_geometry_mask;
 	xpp::WindowSpec m_win_geometry;
-	XSetWindowAttributes m_win_attrs;
+	xpp::SetWindowAttributes m_win_attrs;
 	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
 	xpp::GcSharedPtr m_graphics_context;
 

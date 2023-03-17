@@ -17,6 +17,7 @@
 
 // X++
 #include "X++/XCursor.hxx"
+#include "X++/keyboard.hxx"
 
 // nst
 #include "Selection.hxx"
@@ -141,7 +142,7 @@ constexpr unsigned int CURSOR_THICKNESS = 2;
  * bell volume. It must be a value between -100 and 100. Use 0 for disabling
  * it
  */
-constexpr int BELL_VOLUME = 0;
+constexpr xpp::BellVolume BELL_VOLUME{0};
 
 constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 	/* more colors can be added after 255 to use with DefaultXX */

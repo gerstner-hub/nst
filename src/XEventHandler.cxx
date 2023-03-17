@@ -381,7 +381,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			 * data has been transferred. We won't need to receive
 			 * PropertyNotify events anymore.
 			 */
-			m_x11.changeEventMask(PropertyChangeMask, false);
+			m_x11.changeEventMask(xpp::EventMask::PropertyChange, false);
 		}
 
 		if (info.type == atoms::incr) {
@@ -390,7 +390,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			 * when the selection owner does send us the next
 			 * chunk of data.
 			 */
-			m_x11.changeEventMask(PropertyChangeMask, true);
+			m_x11.changeEventMask(xpp::EventMask::PropertyChange, true);
 
 			/*
 			 * Deleting the property is the transfer start signal.

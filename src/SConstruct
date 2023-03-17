@@ -4,7 +4,6 @@ env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
 env.ConfigureForLib("libcosmos")
 env.ConfigureForLib("libX++")
 env.Append(CCFLAGS=['-DVERSION=\\"0.9\\"'])
-env.Append(LIBS=["util"])
 
 sources = env.GatherSources(suffixes=[".cxx"])
 

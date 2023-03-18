@@ -14,6 +14,7 @@
 #include "X++/helpers.hxx"
 #include "X++/keyboard.hxx"
 #include "X++/RootWin.hxx"
+#include "X++/SizeHints.hxx"
 #include "X++/XColor.hxx"
 #include "X++/XCursor.hxx"
 #include "X++/XDisplay.hxx"
@@ -138,40 +139,52 @@ void X11::drawRect(const FontColor &color, const DrawPos start, const Extent ext
 }
 
 void X11::setHints() {
-	// note: the X API breaks constness here, thus use a by-value-copy of
-	// the command line arguments
-	auto wname = m_cmdline.window_name.getValue();
-	auto wclass = m_cmdline.window_class.getValue();
+	{
+		xpp::WindowManagerHints wm_hints;
+		wm_hints.setWMInputHandling(true);
+		m_window.setWMHints(wm_hints);
+	}
+	{
+		xpp::ClassHints winclass{
+			m_cmdline.window_name.getValue(),
+			m_cmdline.window_class.getValue()
+		};
+		m_window.setClassHints(winclass);
+	}
+
+	using Flags = xpp::SizeHints::Flags;
+	constexpr auto BORDER_PIXELS = 2 * config::BORDERPX;
 	const auto chr = m_twin.chrExtent();
 	const auto win = m_twin.winExtent();
-	XClassHint clazz = {&wname[0], &wclass[0]};
-	xpp::WindowManagerHints wm_hints;
-	wm_hints.setWMInputHandling(true);
-	auto hints = xpp::make_shared_xptr(XAllocSizeHints());
+	xpp::SizeHints size_hints;
+	xpp::SizeHints::Mask mask{
+			Flags::ProgSize,
+			Flags::ProgResizeIncrements,
+			Flags::ProgBaseSize,
+			Flags::ProgMinSize
+	};
 
-	hints->flags = PSize | PResizeInc | PBaseSize | PMinSize;
-	hints->height = win.height;
-	hints->width = win.width;
-	hints->height_inc = chr.height;
-	hints->width_inc = chr.width;
-	hints->base_height = 2 * config::BORDERPX;
-	hints->base_width = 2 * config::BORDERPX;
-	hints->min_height = chr.height + 2 * config::BORDERPX;
-	hints->min_width = chr.width + 2 * config::BORDERPX;
+	size_hints.clear();
+	size_hints.setDimensions(win.width, win.height);
+	size_hints.setIncrements(chr.width, chr.height);
+	size_hints.setBaseDimensions(BORDER_PIXELS, BORDER_PIXELS);
+	size_hints.setMinDimensions(chr.width + BORDER_PIXELS, chr.height + BORDER_PIXELS);
 
 	if (m_cmdline.fixed_geometry.isSet()) {
-		hints->flags |= PMaxSize;
-		hints->min_width = hints->max_width = win.width;
-		hints->min_height = hints->max_height = win.height;
-	}
-	if (m_geometry_mask.anyOf({xpp::GeometrySettings::NegativeX, xpp::GeometrySettings::NegativeY})) {
-		hints->flags |= USPosition | PWinGravity;
-		hints->x = m_win_geometry.x;
-		hints->y = m_win_geometry.y;
-		hints->win_gravity = xpp::raw_gravity(gravity());
+		mask.set(Flags::ProgMaxSize);
+		size_hints.setMinDimensions(win.width, win.height);
+		size_hints.setMaxDimensions(win.width, win.height);
 	}
 
-	::XSetWMProperties(m_display, xpp::raw_win(m_window.id()), nullptr, nullptr, nullptr, 0, hints.get(), wm_hints, &clazz);
+	if (m_geometry_mask.anyOf({xpp::GeometrySettings::NegativeX, xpp::GeometrySettings::NegativeY})) {
+		mask.set({Flags::UserPos, Flags::ProgWinGravity});
+		size_hints.setPosition(xpp::Coord{m_win_geometry.x, m_win_geometry.y});
+		size_hints.setWinGravity(gravity());
+	}
+
+	size_hints.setFlags(mask);
+
+	m_window.setWMNormalHints(size_hints);
 }
 
 xpp::Gravity X11::gravity() const {
@@ -579,7 +592,7 @@ void X11::setUrgency(const bool have_urgency) {
 	if (!hints.valid())
 		return;
 
-	hints.changeFlag(xpp::HintFlags::Urgency, have_urgency);
+	hints.changeFlag(xpp::WindowManagerHints::Flags::Urgency, have_urgency);
 
 	m_window.setWMHints(*hints);
 }

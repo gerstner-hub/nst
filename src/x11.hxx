@@ -127,7 +127,7 @@ protected: // data
 	xpp::GeometrySettingsMask m_geometry_mask;
 	xpp::WindowSpec m_win_geometry;
 	xpp::SetWindowAttributes m_win_attrs;
-	xpp::PixMapID m_pixmap = xpp::PixMapID::INVALID;
+	xpp::PixmapID m_pixmap = xpp::PixmapID::INVALID;
 	xpp::GcSharedPtr m_graphics_context;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */

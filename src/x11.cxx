@@ -98,7 +98,7 @@ void X11::resetFont() {
 }
 
 void X11::allocPixmap() {
-	if (m_pixmap != xpp::PixMapID::INVALID) {
+	if (m_pixmap != xpp::PixmapID::INVALID) {
 		m_display.freePixmap(m_pixmap);
 	}
 	m_pixmap = m_display.createPixmap(

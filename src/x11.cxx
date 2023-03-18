@@ -62,7 +62,7 @@ X11::~X11() {
 		XftDrawDestroy(m_font_draw);
 	}
 
-	m_display.freePixmap(m_pixmap);
+	m_pixmap.destroy();
 	m_graphics_context.reset();
 }
 
@@ -98,13 +98,7 @@ void X11::resetFont() {
 }
 
 void X11::allocPixmap() {
-	if (m_pixmap != xpp::PixmapID::INVALID) {
-		m_display.freePixmap(m_pixmap);
-	}
-	m_pixmap = m_display.createPixmap(
-		m_window,
-		m_twin.winExtent()
-	);
+	m_pixmap = xpp::Pixmap{m_window, m_twin.winExtent()};
 
 	if (m_font_draw) {
 		XftDrawChange(m_font_draw, xpp::raw_pixmap(m_pixmap));
@@ -233,7 +227,7 @@ xpp::XWindow X11::parent() const {
 }
 
 void X11::setupCursor() {
-	xpp::XCursor cursor = m_display.createFontCursor(config::MOUSE_SHAPE);
+	xpp::XCursor cursor{config::MOUSE_SHAPE};
 
 	xpp::XColor fg, bg;
 
@@ -589,10 +583,10 @@ void X11::setUrgency(const bool have_urgency) {
 	// should never be nullptr, since we've set hints initially
 	auto hints = m_window.getWMHints();
 
-	if (!hints.valid())
+	if (!hints)
 		return;
 
-	hints.changeFlag(xpp::WindowManagerHints::Flags::Urgency, have_urgency);
+	hints->changeFlag(xpp::WindowManagerHints::Flags::Urgency, have_urgency);
 
 	m_window.setWMHints(*hints);
 }

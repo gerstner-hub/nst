@@ -11,6 +11,7 @@
 // X++
 #include "X++/types.hxx"
 #include "X++/utils.hxx"
+#include "X++/Pixmap.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
 
@@ -127,7 +128,7 @@ protected: // data
 	xpp::GeometrySettingsMask m_geometry_mask;
 	xpp::WindowSpec m_win_geometry;
 	xpp::SetWindowAttributes m_win_attrs;
-	xpp::PixmapID m_pixmap = xpp::PixmapID::INVALID;
+	xpp::Pixmap m_pixmap;
 	xpp::GcSharedPtr m_graphics_context;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */

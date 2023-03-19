@@ -8,6 +8,9 @@
 // X11
 #include <X11/Xft/Xft.h>
 
+// X++
+#include "X++/fwd.hxx"
+
 // nst
 #include "Glyph.hxx"
 
@@ -171,6 +174,36 @@ protected: // data
 	std::optional<double> m_used_font_size; /// may differ from default size due to zooming
 	std::optional<double> m_default_font_size;
 	std::vector<FontCache> m_font_cache;
+};
+
+class FontDrawContext {
+	FontDrawContext(const FontDrawContext &) = delete;
+	FontDrawContext& operator=(const FontDrawContext&) = delete;
+public: // functions
+	
+	FontDrawContext() = default;
+	
+	~FontDrawContext() {
+		destroy();
+	}
+
+	void setup(xpp::XDisplay &disp, xpp::Pixmap &pixmap);
+
+	/// Draw a rectangular font area using a starting point and extent.
+	void drawRect(const FontColor &color, const DrawPos start, const Extent ext);
+
+	void setClipRectangle(const DrawPos pos, const Extent ext);
+
+	void resetClip();
+
+	auto raw() { return m_ctx; }
+
+	bool valid() { return m_ctx != nullptr; }
+
+	void destroy();
+
+protected: // data
+	XftDraw *m_ctx = nullptr;
 };
 
 } // end ns

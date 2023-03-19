@@ -93,8 +93,6 @@ protected: // functions
 	xpp::Gravity gravity() const;
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos pos1, const DrawPos pos2);
-	//! draw a rectangular font area using a starting point and extent
-	void drawRect(const FontColor &col, const DrawPos start, const Extent ext);
 	void clearWindow();
 	void setForeground(const FontColor &color);
 	void unloadFonts();
@@ -122,6 +120,7 @@ protected: // data
 	Input m_input; /// X11 input handling logic
 	TermWindow m_twin;
 	FontManager m_font_manager;
+	FontDrawContext m_font_draw_ctx;
 	ColorManager m_color_manager;
 
 	xpp::XDisplay &m_display;
@@ -132,7 +131,6 @@ protected: // data
 	xpp::GcSharedPtr m_graphics_context;
 
 	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
-	XftDraw *m_font_draw = nullptr;
 	XSelection m_xsel;
 };
 

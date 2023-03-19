@@ -11,10 +11,12 @@
 #include "cosmos/types.hxx"
 
 // X++
-#include "X++/XDisplay.hxx"
 #include "X++/helpers.hxx"
+#include "X++/Pixmap.hxx"
+#include "X++/XDisplay.hxx"
 
 // nst
+#include "color.hxx"
 #include "font.hxx"
 #include "nst_config.hxx"
 
@@ -413,6 +415,34 @@ void FontManager::sanitize(Glyph g) const {
 			(g.mode[Attr::BOLD] && m_bold_font.hasBadWeight())) {
 		g.fg = config::DEFAULT_ATTR;
 	}
+}
+
+void FontDrawContext::destroy() {
+	if (m_ctx) {
+		::XftDrawDestroy(m_ctx);
+		m_ctx = nullptr;
+	}
+}
+
+void FontDrawContext::setup(xpp::XDisplay &disp, xpp::Pixmap &pixmap) {
+	if (m_ctx) {
+		::XftDrawChange(m_ctx, xpp::raw_pixmap(pixmap));
+	} else {
+		m_ctx = ::XftDrawCreate(disp, xpp::raw_pixmap(pixmap), xpp::visual, xpp::raw_cmap(xpp::colormap));
+	}
+}
+
+void FontDrawContext::drawRect(const FontColor &color, const DrawPos start, const Extent ext) {
+	::XftDrawRect(m_ctx, &color, start.x, start.y, ext.width, ext.height);
+}
+
+void FontDrawContext::setClipRectangle(const DrawPos pos, const Extent ext) {
+	XRectangle r{0, 0, static_cast<unsigned short>(ext.width), static_cast<unsigned short>(ext.height)};
+	::XftDrawSetClipRectangles(m_ctx, pos.x, pos.y, &r, /*n_rects=*/1);
+}
+
+void FontDrawContext::resetClip() {
+	::XftDrawSetClip(m_ctx, 0);
 }
 
 } // end ns

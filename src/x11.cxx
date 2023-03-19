@@ -58,10 +58,7 @@ X11::X11(Nst &nst) :
 }
 
 X11::~X11() {
-	if (m_font_draw) {
-		XftDrawDestroy(m_font_draw);
-	}
-
+	m_font_draw_ctx.destroy();
 	m_pixmap.destroy();
 	m_graphics_context.reset();
 }
@@ -99,13 +96,7 @@ void X11::resetFont() {
 
 void X11::allocPixmap() {
 	m_pixmap = xpp::Pixmap{m_window, m_twin.winExtent()};
-
-	if (m_font_draw) {
-		XftDrawChange(m_font_draw, xpp::raw_pixmap(m_pixmap));
-	} else {
-		/* Xft rendering context */
-		m_font_draw = XftDrawCreate(m_display, xpp::raw_pixmap(m_pixmap), xpp::visual, xpp::raw_cmap(xpp::colormap));
-	}
+	m_font_draw_ctx.setup(m_display, m_pixmap);
 }
 
 void X11::resize(const TermSize dim) {
@@ -125,11 +116,7 @@ void X11::clearWindow() {
 
 void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
 	const auto idx = m_twin.activeForegroundColor();
-	drawRect(m_color_manager.fontColor(idx), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
-}
-
-void X11::drawRect(const FontColor &color, const DrawPos start, const Extent ext) {
-	XftDrawRect(m_font_draw, &color, start.x, start.y, ext.width, ext.height);
+	m_font_draw_ctx.drawRect(m_color_manager.fontColor(idx), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
 void X11::setHints() {
@@ -418,28 +405,27 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + textwidth, win.height});
 
 	/* Clean up the region we want to draw to. */
-	drawRect(m_color_manager.backColor(), pos, Extent{textwidth, chr.height});
+	m_font_draw_ctx.drawRect(m_color_manager.backColor(), pos, Extent{textwidth, chr.height});
 
 	/* Set the clip region because Xft is sometimes dirty. */
-	XRectangle r{0, 0, static_cast<unsigned short>(textwidth), static_cast<unsigned short>(chr.height)};
-	XftDrawSetClipRectangles(m_font_draw, pos.x, pos.y, &r, 1);
+	m_font_draw_ctx.setClipRectangle(pos, Extent{textwidth, chr.height});
 
 	const auto &front_color = m_color_manager.frontColor();
 
 	/* Render the glyphs. */
-	XftDrawGlyphFontSpec(m_font_draw, &front_color, specs, len);
+	XftDrawGlyphFontSpec(m_font_draw_ctx.raw(), &front_color, specs, len);
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
-		drawRect(front_color, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
+		m_font_draw_ctx.drawRect(front_color, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
 	}
 
 	if (base.mode[Attr::STRUCK]) {
-		drawRect(front_color, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
+		m_font_draw_ctx.drawRect(front_color, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
 	}
 
 	/* Reset clip to none. */
-	XftDrawSetClip(m_font_draw, 0);
+	m_font_draw_ctx.resetClip();
 }
 
 void X11::drawGlyph(Glyph g, const CharPos loc) {
@@ -480,13 +466,13 @@ void X11::drawCursor(const CharPos pos, Glyph glyph) {
 		case CursorStyle::STEADY_UNDERLINE: {
 			auto dpos = m_twin.toDrawPos(pos.nextLine());
 			dpos.moveUp(CURSOR_THICKNESS);
-			drawRect(drawcol, dpos, Extent{chr.width, CURSOR_THICKNESS});
+			m_font_draw_ctx.drawRect(drawcol, dpos, Extent{chr.width, CURSOR_THICKNESS});
 			break;
 		}
 		case CursorStyle::BLINKING_BAR:
 		case CursorStyle::STEADY_BAR: {
 			auto dpos = m_twin.toDrawPos(pos);
-			drawRect(drawcol, dpos, Extent{CURSOR_THICKNESS, chr.height});
+			m_font_draw_ctx.drawRect(drawcol, dpos, Extent{CURSOR_THICKNESS, chr.height});
 			break;
 		}
 		default:
@@ -496,14 +482,14 @@ void X11::drawCursor(const CharPos pos, Glyph glyph) {
 		// only draw a non-solid rectangle outline of the cursor, if
 		// there's no focus
 		auto dpos = m_twin.toDrawPos(pos);
-		drawRect(drawcol, dpos, Extent{chr.width - 1, 1});
-		drawRect(drawcol, dpos, Extent{1, chr.height - 1});
+		m_font_draw_ctx.drawRect(drawcol, dpos, Extent{chr.width - 1, 1});
+		m_font_draw_ctx.drawRect(drawcol, dpos, Extent{1, chr.height - 1});
 
 		auto nextcol = m_twin.nextCol(dpos).atLeft(1);
-		drawRect(drawcol, nextcol, Extent{1, chr.height - 1});
+		m_font_draw_ctx.drawRect(drawcol, nextcol, Extent{1, chr.height - 1});
 
 		auto nextline = m_twin.nextLine(dpos).atAbove(1);
-		drawRect(drawcol, nextline, Extent{chr.width, 1});
+		m_font_draw_ctx.drawRect(drawcol, nextline, Extent{chr.width, 1});
 	}
 }
 

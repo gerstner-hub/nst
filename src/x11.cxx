@@ -87,7 +87,7 @@ void X11::zoomFont(double val) {
 	m_twin.setCharSize(m_font_manager.normalFont());
 	m_nst.resizeConsole();
 	m_nst.term().redraw();
-	setHints();
+	setSizeHints();
 }
 
 void X11::resetFont() {
@@ -119,20 +119,32 @@ void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
 	m_font_draw_ctx.drawRect(m_color_manager.fontColor(idx), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
-void X11::setHints() {
-	{
-		xpp::WindowManagerHints wm_hints;
-		wm_hints.setWMInputHandling(true);
-		m_window.setWMHints(wm_hints);
-	}
-	{
-		xpp::ClassHints winclass{
-			m_cmdline.window_name.getValue(),
-			m_cmdline.window_class.getValue()
-		};
-		m_window.setClassHints(winclass);
-	}
+void X11::setupWindow(xpp::XWindow &parent) {
+	using WinAttr = xpp::WindowAttr;
 
+	m_window = m_display.createWindow(
+		m_win_geometry,
+		/*border_width=*/0,
+		xpp::WindowClass::InOut,
+		&parent,
+		m_display.defaultDepth(),
+		xpp::visual,
+		xpp::WindowAttrMask({WinAttr::BackPixel, WinAttr::BorderPixel, WinAttr::BitGravity, WinAttr::EventMask, WinAttr::Colormap}),
+		&m_win_attrs
+	);
+
+	xpp::WindowManagerHints wm_hints;
+	wm_hints.setWMInputHandling(true);
+	m_window.setWMHints(wm_hints);
+
+	xpp::ClassHints winclass{
+		m_cmdline.window_name.getValue(),
+		m_cmdline.window_class.getValue()
+	};
+	m_window.setClassHints(winclass);
+}
+
+void X11::setSizeHints() {
 	using Flags = xpp::SizeHints::Flags;
 	constexpr auto BORDER_PIXELS = 2 * config::BORDERPX;
 	const auto chr = m_twin.chrExtent();
@@ -279,19 +291,7 @@ void X11::init() {
 	m_win_geometry.width = win.width;
 	m_win_geometry.height = win.height;
 
-	using WinAttr = xpp::WindowAttr;
-
-	m_window = m_display.createWindow(
-		m_win_geometry,
-		/*border_width=*/0,
-		xpp::WindowClass::InOut,
-		&parent,
-		m_display.defaultDepth(),
-		xpp::visual,
-		xpp::WindowAttrMask({WinAttr::BackPixel, WinAttr::BorderPixel, WinAttr::BitGravity, WinAttr::EventMask, WinAttr::Colormap}),
-		&m_win_attrs
-	);
-
+	setupWindow(parent);
 	createGraphicsContext(parent);
 	allocPixmap();
 	clearWindow();
@@ -310,7 +310,7 @@ void X11::init() {
 	m_window.setProperty(xpp::atoms::ewmh_window_pid, pid_prop);
 
 	setDefaultTitle();
-	setHints();
+	setSizeHints();
 	m_display.mapWindow(m_window);
 	m_display.sync();
 

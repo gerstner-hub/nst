@@ -88,7 +88,8 @@ protected: // functions
 
 	void changeEventMask(const xpp::EventMask event, bool on_off);
 	void setupCursor();
-	void setHints();
+	void setupWindow(xpp::XWindow &parent);
+	void setSizeHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
 	xpp::Gravity gravity() const;
 	//! clear a rectangular font area using absolute coordinates, using the current background color

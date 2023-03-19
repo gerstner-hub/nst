@@ -33,20 +33,6 @@
 
 namespace nst {
 
-void X11::createGraphicsContext(xpp::XWindow &parent) {
-	XGCValues gcvalues = {};
-	gcvalues.graphics_exposures = False;
-	m_graphics_context = xpp::display.createGraphicsContext(
-		xpp::to_drawable(parent),
-		xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
-		gcvalues
-	);
-}
-
-void X11::setForeground(const FontColor &color) {
-	::XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
-}
-
 X11::X11(Nst &nst) :
 		m_nst{nst},
 		m_cmdline{nst.cmdline()},
@@ -61,6 +47,20 @@ X11::~X11() {
 	m_font_draw_ctx.destroy();
 	m_pixmap.destroy();
 	m_graphics_context.reset();
+}
+
+void X11::createGraphicsContext(xpp::XWindow &parent) {
+	XGCValues gcvalues = {};
+	gcvalues.graphics_exposures = False;
+	m_graphics_context = xpp::display.createGraphicsContext(
+		xpp::to_drawable(parent),
+		xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
+		gcvalues
+	);
+}
+
+void X11::setForeground(const FontColor &color) {
+	::XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
 }
 
 void X11::copyToClipboard() {
@@ -119,6 +119,22 @@ void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
 	m_font_draw_ctx.drawRect(m_color_manager.fontColor(idx), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
+void X11::setupWinAttrs() {
+	/* Events */
+	m_win_attrs.background_pixel = m_color_manager.defaultBack().pixel;
+	m_win_attrs.border_pixel = m_win_attrs.background_pixel;
+	m_win_attrs.setBitGravity(xpp::Gravity::NorthWest);
+	using Event = xpp::EventMask;
+	m_win_attrs.setEventMask(xpp::EventSelectionMask{
+			Event::FocusChange, Event::Exposure,
+			Event::KeyPresses, Event::KeyReleases,
+			Event::VisibilityChange, Event::StructureNotify,
+			Event::ButtonMotion,
+			Event::ButtonPresses, Event::ButtonReleases
+	});
+	m_win_attrs.setColormap(xpp::colormap);
+}
+
 void X11::setupWindow(xpp::XWindow &parent) {
 	using WinAttr = xpp::WindowAttr;
 
@@ -129,7 +145,9 @@ void X11::setupWindow(xpp::XWindow &parent) {
 		&parent,
 		m_display.defaultDepth(),
 		xpp::visual,
-		xpp::WindowAttrMask({WinAttr::BackPixel, WinAttr::BorderPixel, WinAttr::BitGravity, WinAttr::EventMask, WinAttr::Colormap}),
+		xpp::WindowAttrMask({
+			WinAttr::BackPixel, WinAttr::BorderPixel, WinAttr::BitGravity,
+			WinAttr::EventMask, WinAttr::Colormap}),
 		&m_win_attrs
 	);
 
@@ -142,6 +160,18 @@ void X11::setupWindow(xpp::XWindow &parent) {
 		m_cmdline.window_class.getValue()
 	};
 	m_window.setClassHints(winclass);
+
+	m_window.setProtocols(
+			xpp::AtomIDVector{xpp::atoms::icccm_wm_delete_window});
+
+	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
+	xpp::Property<int> pid_prop(
+		cosmos::to_integral(cosmos::proc::cached_pids.own_pid)
+	);
+	m_window.setProperty(xpp::atoms::ewmh_window_pid, pid_prop);
+
+	setDefaultTitle();
+	setSizeHints();
 }
 
 void X11::setSizeHints() {
@@ -269,21 +299,7 @@ void X11::init() {
 		m_twin.setWinExtent(tsize);
 	}
 
-	m_font_specs.resize(tsize.cols);
-
-	/* Events */
-	m_win_attrs.background_pixel = m_color_manager.defaultBack().pixel;
-	m_win_attrs.border_pixel = m_win_attrs.background_pixel;
-	m_win_attrs.setBitGravity(xpp::Gravity::NorthWest);
-	using Event = xpp::EventMask;
-	m_win_attrs.setEventMask(xpp::EventSelectionMask{
-			Event::FocusChange, Event::Exposure,
-			Event::KeyPresses, Event::KeyReleases,
-			Event::VisibilityChange, Event::StructureNotify,
-			Event::ButtonMotion,
-			Event::ButtonPresses, Event::ButtonReleases
-	});
-	m_win_attrs.setColormap(xpp::colormap);
+	setupWinAttrs();
 
 	auto parent = this->parent();
 	const auto win = m_twin.winExtent();
@@ -293,24 +309,13 @@ void X11::init() {
 
 	setupWindow(parent);
 	createGraphicsContext(parent);
-	allocPixmap();
-	clearWindow();
+	resize(tsize);
 
 	/* input methods */
 	m_input.tryOpen();
 
 	setupCursor();
 
-	m_window.setProtocols(xpp::AtomIDVector{xpp::atoms::icccm_wm_delete_window});
-
-	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
-	xpp::Property<int> pid_prop(
-		cosmos::to_integral(cosmos::proc::cached_pids.own_pid)
-	);
-	m_window.setProperty(xpp::atoms::ewmh_window_pid, pid_prop);
-
-	setDefaultTitle();
-	setSizeHints();
 	m_display.mapWindow(m_window);
 	m_display.sync();
 
@@ -320,7 +325,6 @@ void X11::init() {
 		m_display.setSynchronized(true);
 	}
 }
-
 
 size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos loc) {
 	Font *fnt = &m_font_manager.normalFont();
@@ -435,6 +439,36 @@ void X11::drawGlyph(Glyph g, const CharPos loc) {
 	drawGlyphFontSpecs(&spec, g, numspecs, loc);
 }
 
+void X11::drawLine(const Line &line, const CharPos start, const int count) {
+	Glyph base, newone;
+	auto *specs = m_font_specs.data();
+	size_t numcols = 0;
+	CharPos curpos{0, start.y};
+	auto &selection = m_nst.selection();
+
+	auto numspecs = makeGlyphFontSpecs(specs, &line[start.x], count, start);
+	for (int x = start.x; x < start.x + count && numcols < numspecs; x++) {
+		newone = line[x];
+		if (newone.mode.only(Attr::WDUMMY))
+			continue;
+		if (selection.isSelected(CharPos{x, start.y}))
+			newone.mode.flip(Attr::REVERSE);
+		if (numcols > 0 && base.attrsDiffer(newone)) {
+			drawGlyphFontSpecs(specs, base, numcols, curpos);
+			specs += numcols;
+			numspecs -= numcols;
+			numcols = 0;
+		}
+		if (numcols == 0) {
+			curpos.x = x;
+			base = newone;
+		}
+		numcols++;
+	}
+	if (numcols > 0)
+		drawGlyphFontSpecs(specs, base, numcols, curpos);
+}
+
 void X11::clearCursor(const CharPos pos, Glyph glyph) {
 	/* remove the old cursor */
 	if (m_nst.selection().isSelected(pos))
@@ -511,36 +545,6 @@ void X11::setTitle(const std::string_view title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
 	m_window.setProperty(xpp::atoms::icccm_window_name, data);
 	m_window.setProperty(xpp::atoms::ewmh_window_name, data);
-}
-
-void X11::drawLine(const Line &line, const CharPos start, const int count) {
-	Glyph base, newone;
-	auto *specs = m_font_specs.data();
-	size_t numcols = 0;
-	CharPos curpos{0, start.y};
-	auto &selection = m_nst.selection();
-
-	auto numspecs = makeGlyphFontSpecs(specs, &line[start.x], count, start);
-	for (int x = start.x; x < start.x + count && numcols < numspecs; x++) {
-		newone = line[x];
-		if (newone.mode.only(Attr::WDUMMY))
-			continue;
-		if (selection.isSelected(CharPos{x, start.y}))
-			newone.mode.flip(Attr::REVERSE);
-		if (numcols > 0 && base.attrsDiffer(newone)) {
-			drawGlyphFontSpecs(specs, base, numcols, curpos);
-			specs += numcols;
-			numspecs -= numcols;
-			numcols = 0;
-		}
-		if (numcols == 0) {
-			curpos.x = x;
-			base = newone;
-		}
-		numcols++;
-	}
-	if (numcols > 0)
-		drawGlyphFontSpecs(specs, base, numcols, curpos);
 }
 
 void X11::finishDraw() {

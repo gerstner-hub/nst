@@ -89,6 +89,7 @@ protected: // functions
 	void changeEventMask(const xpp::EventMask event, bool on_off);
 	void setupCursor();
 	void setupWindow(xpp::XWindow &parent);
+	void setupWinAttrs();
 	void setSizeHints();
 	void setGeometry(const std::string_view str, TermSize &tsize);
 	xpp::Gravity gravity() const;

@@ -144,10 +144,10 @@ public: // functions
 	bool loadFonts();
 	void zoom(double val);
 	void resetZoom();
-	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &fnt);
 	Font* fontForMode(const Glyph::AttrBitMask mode);
 	void sanitize(Glyph &g) const;
 
+	void assignFont(const Rune rune, Font &font, XftGlyphFontSpec &spec);
 	auto& normalFont() { return m_normal_font; }
 	auto ascent() { return normalFont().ascent(); }
 
@@ -161,6 +161,7 @@ protected: // types
 
 protected: // functions
 
+	std::tuple<XftFont*, FT_UInt> lookupFontEntry(const Rune rune, Font &font);
 	void unloadFonts();
 	void clearCache();
 

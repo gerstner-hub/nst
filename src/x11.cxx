@@ -104,9 +104,7 @@ void X11::resize(const TermSize dim) {
 	m_twin.setTermDim(dim);
 	allocPixmap();
 	clearWindow();
-
-	/* resize to new width */
-	m_font_specs.resize(dim.cols);
+	m_font_specs.reserve(dim.cols);
 }
 
 void X11::clearWindow() {
@@ -326,57 +324,55 @@ void X11::init() {
 	}
 }
 
-size_t X11::makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos loc) {
-	Font *fnt = &m_font_manager.normalFont();
+void X11::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos ch_pos) {
 	const auto chr = m_twin.chrExtent();
-	auto runewidth = chr.width;
-	size_t numspecs = 0;
-	Glyph::AttrBitMask prevmode(Glyph::AttrBitMask::all);
-	const auto start = m_twin.toDrawPos(loc);
-	DrawPos cur{start.atBelow(fnt->ascent())};
+	const auto start_pos = m_twin.toDrawPos(ch_pos);
+	Glyph::AttrBitMask prevmode{Glyph::AttrBitMask::all};
+	DrawPos cur_pos{start_pos};
+	Font *font = nullptr;
+	int runewidth = 0;
+	XftGlyphFontSpec spec;
 
-	for (size_t i = 0; i < len; i++) {
-		/* Fetch rune and mode for current glyph. */
-		Rune rune = glyphs[i].u;
-		const auto &mode = glyphs[i].mode;
+	m_font_specs.clear();
 
-		/* Skip dummy wide-character spacing. */
-		if (mode == Glyph::AttrBitMask({Attr::WDUMMY}))
+	for (size_t i = 0; i < count; i++) {
+		const auto &glyph = glyphs[i];
+
+		// Skip dummy wide-character spacing.
+		if (glyph.isDummy())
 			continue;
 
-		/* Determine font for glyph if different from previous glyph. */
-		if (prevmode != mode) {
+		// Determine font for glyph if different from previous glyph.
+		if (const auto mode = glyph.mode; prevmode != mode) {
 			prevmode = mode;
-			fnt = m_font_manager.fontForMode(mode);
-			runewidth = chr.width * (mode[Attr::WIDE] ? 2 : 1);
-			cur.y = start.y + fnt->ascent();
+			font = m_font_manager.fontForMode(mode);
+			runewidth = chr.width * glyph.width();
+			cur_pos.y = start_pos.y + font->ascent();
 		}
 
-		auto [xftfont, glyphidx] = m_font_manager.lookupFontEntry(rune, *fnt);
+		m_font_manager.assignFont(glyph.u, *font, spec);
+		spec.x = static_cast<short>(cur_pos.x);
+		spec.y = static_cast<short>(cur_pos.y);
 
-		auto &spec = specs[numspecs++];
-		spec.font = xftfont;
-		spec.glyph = glyphidx;
-		spec.x = (short)cur.x;
-		spec.y = (short)cur.y;
-		cur.moveRight(runewidth);
+		m_font_specs.emplace_back(spec);
+		cur_pos.moveRight(runewidth);
 	}
 
-	return numspecs;
+	m_next_font_spec = m_font_specs.begin();
 }
 
-void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos loc) {
+void X11::drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos loc) {
+
+	auto pos = m_twin.toDrawPos(loc);
+	const auto win = m_twin.winExtent();
+	const auto chr = m_twin.chrExtent();
+	const auto tty = m_twin.TTYExtent();
+	const int textwidth = count * base.width() * chr.width;
+	constexpr auto BORDERPX = config::BORDERPX;
+	const bool reaches_bottom_border = pos.y + chr.height >= BORDERPX + tty.height;
 
 	m_font_manager.sanitize(base);
 	m_color_manager.configureFor(base);
-
-	auto pos = m_twin.toDrawPos(loc);
-	const auto &win = m_twin.winExtent();
-	const auto &chr = m_twin.chrExtent();
-	const auto &tty = m_twin.TTYExtent();
-	const int textwidth = len * (base.mode[Attr::WIDE] ? 2 : 1) * chr.width;
-	constexpr auto BORDERPX = config::BORDERPX;
-	const bool reaches_bottom_border = pos.y + chr.height >= BORDERPX + tty.height;
 
 	/* Intelligent cleaning up of the borders. */
 
@@ -417,7 +413,7 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 	const auto &front_color = m_color_manager.frontColor();
 
 	/* Render the glyphs. */
-	XftDrawGlyphFontSpec(m_font_draw_ctx.raw(), &front_color, specs, len);
+	::XftDrawGlyphFontSpec(m_font_draw_ctx.raw(), &front_color, &(*m_next_font_spec), count);
 
 	/* Render underline and strikethrough. */
 	if (base.mode[Attr::UNDERLINE]) {
@@ -430,43 +426,58 @@ void X11::drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t l
 
 	/* Reset clip to none. */
 	m_font_draw_ctx.resetClip();
+
+	m_next_font_spec += count;
 }
 
-void X11::drawGlyph(Glyph g, const CharPos loc) {
-	XftGlyphFontSpec spec;
-
-	auto numspecs = makeGlyphFontSpecs(&spec, &g, 1, loc);
-	drawGlyphFontSpecs(&spec, g, numspecs, loc);
+void X11::drawGlyph(Glyph g, const CharPos pos) {
+	makeGlyphFontSpecs(&g, 1, pos);
+	drawGlyphFontSpecs(g, 1, pos);
 }
 
-void X11::drawLine(const Line &line, const CharPos start, const int count) {
-	Glyph base, newone;
-	auto *specs = m_font_specs.data();
-	size_t numcols = 0;
-	CharPos curpos{0, start.y};
-	auto &selection = m_nst.selection();
+void X11::drawGlyphs(Line::const_iterator it, const Line::const_iterator end, CharPos start_pos) {
+	// NOTE: in C++20 we can use a std::span here to pass in a sub-vector
+	// instead of the more complicated iterator range.
+	const auto &selection = m_nst.selection();
+	Glyph base = *it;
+	size_t num_specs = 0;
+	CharPos cur_pos{start_pos};
 
-	auto numspecs = makeGlyphFontSpecs(specs, &line[start.x], count, start);
-	for (int x = start.x; x < start.x + count && numcols < numspecs; x++) {
-		newone = line[x];
-		if (newone.mode.only(Attr::WDUMMY))
+	makeGlyphFontSpecs(&(*it), end - it, start_pos);
+
+	size_t specs_left = m_font_specs.end() - m_next_font_spec;
+
+	// Collect series of Glyphs that share the same drawing features and
+	// feed them into drawGlyphFontSpecs until we're done with the given
+	// range.
+
+	for (
+			Glyph glyph = *it;
+			it < end && num_specs < specs_left;
+			glyph = *++it, cur_pos.moveRight()) {
+
+		if (glyph.isDummy()) {
 			continue;
-		if (selection.isSelected(CharPos{x, start.y}))
-			newone.mode.flip(Attr::REVERSE);
-		if (numcols > 0 && base.attrsDiffer(newone)) {
-			drawGlyphFontSpecs(specs, base, numcols, curpos);
-			specs += numcols;
-			numspecs -= numcols;
-			numcols = 0;
+		} else if (selection.isSelected(cur_pos)) {
+			glyph.mode.flip(Attr::REVERSE);
 		}
-		if (numcols == 0) {
-			curpos.x = x;
-			base = newone;
+
+		// a change in drawing features occured, draw the series we collected so far
+		if (num_specs != 0 && base.featuresDiffer(glyph)) {
+			drawGlyphFontSpecs(base, num_specs, start_pos);
+			specs_left = m_font_specs.end() - m_next_font_spec;
+			num_specs = 0;
+			// a new series started, remember its properties
+			start_pos = cur_pos;
+			base = glyph;
 		}
-		numcols++;
+
+		num_specs++;
 	}
-	if (numcols > 0)
-		drawGlyphFontSpecs(specs, base, numcols, curpos);
+
+	if (num_specs != 0) {
+		drawGlyphFontSpecs(base, num_specs, start_pos);
+	}
 }
 
 void X11::clearCursor(const CharPos pos, Glyph glyph) {

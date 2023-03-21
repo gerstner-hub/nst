@@ -52,7 +52,7 @@ public: // functions
 	bool isBgTrueColor() const {
 		return is_true_color(bg);
 	}
-	bool attrsDiffer(const Glyph &other) const {
+	bool featuresDiffer(const Glyph &other) const {
 		return mode != other.mode || fg != other.fg || bg != other.bg;
 	}
 	bool needBrightColor() const {
@@ -85,6 +85,8 @@ public: // functions
 	bool isDummy() const { return mode[Attr::WDUMMY]; }
 	bool isWide() const { return mode[Attr::WIDE]; }
 	bool isWrapped() const { return mode[Attr::WRAP]; }
+
+	size_t width() const { return isWide() ? 2 : 1; }
 };
 
 using Attr = Glyph::Attr;

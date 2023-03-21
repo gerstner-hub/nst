@@ -490,8 +490,13 @@ void Term::drawRegion(const Range &range) const {
 		if (!m_dirty_lines[y])
 			continue;
 
+		auto &line = m_screen[y];
+
+		m_x11.drawGlyphs(
+				line.begin() + range.begin.x,
+				line.begin() + range.end.x,
+				CharPos{range.begin.x, y});
 		m_dirty_lines[y] = false;
-		m_x11.drawLine(m_screen[y], CharPos{range.begin.x, y}, cosmos::to_integral(range.width()));
 	}
 }
 

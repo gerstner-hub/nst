@@ -370,6 +370,12 @@ Font* FontManager::fontForMode(const Glyph::AttrBitMask mode) {
 	}
 }
 
+void FontManager::assignFont(const Rune rune, Font &font, XftGlyphFontSpec &spec) {
+	auto [xftfont, glyphidx] = lookupFontEntry(rune, font);
+	spec.font = xftfont;
+	spec.glyph = glyphidx;
+}
+
 std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font &font) {
 	/* Lookup character index with default font. */
 	auto glyphidx = ::XftCharIndex(xpp::display, font.match(), rune);

@@ -57,9 +57,9 @@ public: // functions
 	void setDefaultIconTitle();
 	void setTitle(const std::string_view title);
 	void setDefaultTitle();
-	void drawLine(const Line &line, const CharPos start, const int count);
 	void clearCursor(const CharPos pos, Glyph glyph);
 	void drawCursor(const CharPos pos, Glyph glyph);
+	void drawGlyphs(Line::const_iterator it, const Line::const_iterator end, CharPos start_pos);
 	void setMode(const WinMode flag, const bool set);
 	void setCursorStyle(const CursorStyle cursor);
 	void ringBell();
@@ -98,9 +98,9 @@ protected: // functions
 	void clearWindow();
 	void setForeground(const FontColor &color);
 	void unloadFonts();
-	/// udpates the specs in \c specs to display the \c len glyphs found and \c glyphs
-	size_t makeGlyphFontSpecs(XftGlyphFontSpec *specs, const Glyph *glyphs, size_t len, const CharPos loc);
-	void drawGlyphFontSpecs(const XftGlyphFontSpec *specs, Glyph base, size_t len, const CharPos loc);
+	/// loads specs into \c m_font_specs to display the \c len glyphs found and \c glyphs
+	void makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos ch_pos);
+	void drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos loc);
 	void drawGlyph(Glyph g, const CharPos loc);
 	void embeddedFocusChange(const bool in_focus);
 	void focusChange(const bool in_focus);
@@ -132,7 +132,9 @@ protected: // data
 	xpp::Pixmap m_pixmap;
 	xpp::GcSharedPtr m_graphics_context;
 
-	std::vector<XftGlyphFontSpec> m_font_specs; /* font spec buffer used for rendering */
+	using GlyphFontSpecVector = std::vector<XftGlyphFontSpec>;
+	GlyphFontSpecVector m_font_specs;
+	GlyphFontSpecVector::iterator m_next_font_spec;
 	XSelection m_xsel;
 };
 

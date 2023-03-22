@@ -418,27 +418,27 @@ void X11::drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos ch_po
 	m_font_manager.sanitize(base);
 	m_color_manager.configureFor(base);
 
-	/* Clean up the region we want to draw to. */
+	// Clean up the region we want to draw to.
 	m_font_draw_ctx.drawRect(m_color_manager.backColor(), pos, Extent{textwidth, chr.height});
 
-	/* Set the clip region because Xft is sometimes dirty. */
+	// Set the clip region because Xft is sometimes dirty.
 	m_font_draw_ctx.setClipRectangle(pos, Extent{textwidth, chr.height});
 
 	const auto &front_color = m_color_manager.frontColor();
 
-	/* Render the glyphs. */
+	// Render the glyphs.
 	::XftDrawGlyphFontSpec(m_font_draw_ctx.raw(), &front_color, &(*m_next_font_spec), count);
 
-	/* Render underline and strikethrough. */
-	if (base.mode[Attr::UNDERLINE]) {
+	// Render underline and strikethrough.
+	if (base.isUnderlined()) {
 		m_font_draw_ctx.drawRect(front_color, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
 	}
 
-	if (base.mode[Attr::STRUCK]) {
+	if (base.isStruck()) {
 		m_font_draw_ctx.drawRect(front_color, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
 	}
 
-	/* Reset clip to none. */
+	// Reset clip to none.
 	m_font_draw_ctx.resetClip();
 
 	m_next_font_spec += count;

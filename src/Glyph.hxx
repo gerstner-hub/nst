@@ -85,6 +85,8 @@ public: // functions
 	bool isDummy() const { return mode[Attr::WDUMMY]; }
 	bool isWide() const { return mode[Attr::WIDE]; }
 	bool isWrapped() const { return mode[Attr::WRAP]; }
+	bool isUnderlined() const { return mode[Attr::UNDERLINE]; }
+	bool isStruck() const { return mode[Attr::STRUCK]; }
 
 	size_t width() const { return isWide() ? 2 : 1; }
 };

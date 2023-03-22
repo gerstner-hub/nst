@@ -557,7 +557,7 @@ void X11::finishDraw() {
 	auto extent = m_twin.winExtent();
 	m_window.copyArea(m_graphics_context, m_pixmap, extent);
 	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor());
-	::XSetForeground(xpp::display, m_graphics_context, color.pixel);
+	m_graphics_context.setForeground(color.index());
 }
 
 void X11::changeEventMask(const xpp::EventMask event, bool on_off) {

@@ -78,6 +78,10 @@ public: // functions
 
 	static void init();
 
+	xpp::ColormapIndex index() const {
+		return xpp::ColormapIndex{this->pixel};
+	}
+
 protected: // functions
 
 	void destroy();

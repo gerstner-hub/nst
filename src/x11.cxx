@@ -1,15 +1,11 @@
-// X11
-#include <X11/Xlib.h>
-
 // cosmos
 #include "cosmos/algs.hxx"
-#include "cosmos/types.hxx"
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
 #include "cosmos/proc/process.hxx"
+#include "cosmos/types.hxx"
 
 // X++
-#include "X++/atoms.hxx"
 #include "X++/Event.hxx"
 #include "X++/helpers.hxx"
 #include "X++/keyboard.hxx"
@@ -17,19 +13,11 @@
 #include "X++/SizeHints.hxx"
 #include "X++/XColor.hxx"
 #include "X++/XCursor.hxx"
-#include "X++/XDisplay.hxx"
-#include "X++/Xpp.hxx"
 
 // nst
-#include "codecs.hxx"
-#include "nst_config.hxx"
 #include "nst.hxx"
-#include "Selection.hxx"
-#include "Term.hxx"
-#include "TTY.hxx"
 #include "types.hxx"
 #include "x11.hxx"
-#include "XSelection.hxx"
 
 namespace nst {
 
@@ -38,8 +26,8 @@ X11::X11(Nst &nst) :
 		m_cmdline{nst.cmdline()},
 		m_input{m_window},
 		m_color_manager{m_twin},
-		m_display{xpp::display},
-		m_xsel{nst} {
+		m_xsel{nst},
+		m_display{xpp::display} {
 	setCursorStyle(config::CURSORSHAPE);
 }
 
@@ -57,10 +45,6 @@ void X11::createGraphicsContext(xpp::XWindow &parent) {
 		xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
 		gcvalues
 	);
-}
-
-void X11::setForeground(const FontColor &color) {
-	::XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
 }
 
 void X11::copyToClipboard() {
@@ -118,7 +102,6 @@ void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
 }
 
 void X11::setupWinAttrs() {
-	/* Events */
 	m_win_attrs.background_pixel = m_color_manager.defaultBack().pixel;
 	m_win_attrs.border_pixel = m_win_attrs.background_pixel;
 	m_win_attrs.setBitGravity(xpp::Gravity::NorthWest);
@@ -253,28 +236,6 @@ xpp::XWindow X11::parent() const {
 	return ret;
 }
 
-void X11::setupCursor() {
-	xpp::XCursor cursor{config::MOUSE_SHAPE};
-
-	xpp::XColor fg, bg;
-
-	auto parseColor = [this](ColorIndex idx, xpp::XColor &out, const unsigned short fallback) {
-		auto name = config::get_color_name(idx);
-		try {
-			m_display.parseColor(out, name);
-		} catch (const cosmos::CosmosError &) {
-			out.setAll(fallback);
-		}
-	};
-
-	// white cursor, black outline
-	parseColor(config::MOUSE_FG, fg, 0xFFFF);
-	parseColor(config::MOUSE_BG, bg, 0x0000);
-
-	cursor.recolorCursor(fg, bg);
-	m_window.defineCursor(cursor);
-}
-
 void X11::init() {
 	const auto &fontspec = m_cmdline.font.getValue();
 
@@ -309,7 +270,6 @@ void X11::init() {
 	createGraphicsContext(parent);
 	resize(tsize);
 
-	/* input methods */
 	m_input.tryOpen();
 
 	setupCursor();
@@ -494,8 +454,29 @@ void X11::drawGlyphs(Line::const_iterator it, const Line::const_iterator end, Ch
 	}
 }
 
+void X11::setupCursor() {
+	xpp::XCursor cursor{config::MOUSE_SHAPE};
+
+	xpp::XColor fg, bg;
+
+	auto parseColor = [this](ColorIndex idx, xpp::XColor &out, const unsigned short fallback) {
+		auto name = config::get_color_name(idx);
+		try {
+			m_display.parseColor(out, name);
+		} catch (const cosmos::CosmosError &) {
+			out.setAll(fallback);
+		}
+	};
+
+	// white cursor, black outline
+	parseColor(config::MOUSE_FG, fg, 0xFFFF);
+	parseColor(config::MOUSE_BG, bg, 0x0000);
+
+	cursor.recolorCursor(fg, bg);
+	m_window.defineCursor(cursor);
+}
+
 void X11::clearCursor(const CharPos pos, Glyph glyph) {
-	/* remove the old cursor */
 	if (m_nst.selection().isSelected(pos))
 		glyph.mode.flip(Attr::REVERSE);
 	drawGlyph(glyph, pos);
@@ -575,7 +556,8 @@ void X11::setTitle(const std::string_view title) {
 void X11::finishDraw() {
 	auto extent = m_twin.winExtent();
 	m_window.copyArea(m_graphics_context, m_pixmap, extent);
-	setForeground(m_color_manager.fontColor(m_twin.activeForegroundColor()));
+	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor());
+	::XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
 }
 
 void X11::changeEventMask(const xpp::EventMask event, bool on_off) {

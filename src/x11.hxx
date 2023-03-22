@@ -2,16 +2,13 @@
 #define NST_X_HXX
 
 // C++
-#include <string>
+#include <string_view>
 #include <vector>
 
-// X11
-#include <X11/cursorfont.h>
-
 // X++
+#include "X++/Pixmap.hxx"
 #include "X++/types.hxx"
 #include "X++/utils.hxx"
-#include "X++/Pixmap.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
 
@@ -96,7 +93,6 @@ protected: // functions
 	//! clear a rectangular font area using absolute coordinates, using the current background color
 	void clearRect(const DrawPos pos1, const DrawPos pos2);
 	void clearWindow();
-	void setForeground(const FontColor &color);
 	void unloadFonts();
 	/// loads specs into \c m_font_specs to display the \c len glyphs found and \c glyphs
 	void makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos ch_pos);
@@ -125,6 +121,7 @@ protected: // data
 	FontManager m_font_manager;
 	FontDrawContext m_font_draw_ctx;
 	ColorManager m_color_manager;
+	XSelection m_xsel;
 
 	xpp::XDisplay &m_display;
 	xpp::GeometrySettingsMask m_geometry_mask;
@@ -136,7 +133,6 @@ protected: // data
 	using GlyphFontSpecVector = std::vector<XftGlyphFontSpec>;
 	GlyphFontSpecVector m_font_specs;
 	GlyphFontSpecVector::iterator m_next_font_spec;
-	XSelection m_xsel;
 };
 
 } // end ns

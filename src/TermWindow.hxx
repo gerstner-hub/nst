@@ -94,6 +94,8 @@ struct TermWindow {
 	void flipFlag(const WinMode &flag) { m_mode.flip(flag); }
 
 	bool inReverseMode() const { return checkFlag(WinMode::REVERSE); }
+	bool hideCursor() const { return checkFlag(WinMode::HIDE_CURSOR); }
+	bool isFocused() const { return checkFlag(WinMode::FOCUSED); }
 
 protected: // data
 

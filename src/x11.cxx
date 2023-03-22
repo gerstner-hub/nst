@@ -484,52 +484,55 @@ void X11::clearCursor(const CharPos pos, Glyph glyph) {
 
 void X11::drawCursor(const CharPos pos, Glyph glyph) {
 
-	if (m_twin.checkFlag(WinMode::HIDE_CURSOR))
+	if (m_twin.hideCursor())
 		return;
 
-	auto &drawcol = m_color_manager.cursorColor(m_nst.selection().isSelected(pos), glyph);
-	auto &chr = m_twin.chrExtent();
+	auto &color = m_color_manager.cursorColor(m_nst.selection().isSelected(pos), glyph);
+	const auto chr = m_twin.chrExtent();
 	constexpr auto CURSOR_THICKNESS = config::CURSOR_THICKNESS;
 
-	/* draw the new one */
-	if (m_twin.checkFlag(WinMode::FOCUSED)) {
+	// draw the new one
+	if (m_twin.isFocused()) {
 		switch (m_twin.getCursorStyle()) {
-		case CursorStyle::SNOWMAN: /* st extension */
-			glyph.u = 0x2603; /* snowman (U+2603) */
-		/* FALLTHROUGH */
-		case CursorStyle::BLINKING_BLOCK:
-		case CursorStyle::BLINKING_BLOCK_DEFAULT:
-		case CursorStyle::STEADY_BLOCK:
-			drawGlyph(glyph, pos);
-			break;
-		case CursorStyle::BLINKING_UNDERLINE:
-		case CursorStyle::STEADY_UNDERLINE: {
-			auto dpos = m_twin.toDrawPos(pos.nextLine());
-			dpos.moveUp(CURSOR_THICKNESS);
-			m_font_draw_ctx.drawRect(drawcol, dpos, Extent{chr.width, CURSOR_THICKNESS});
-			break;
-		}
-		case CursorStyle::BLINKING_BAR:
-		case CursorStyle::STEADY_BAR: {
-			auto dpos = m_twin.toDrawPos(pos);
-			m_font_draw_ctx.drawRect(drawcol, dpos, Extent{CURSOR_THICKNESS, chr.height});
-			break;
-		}
-		default:
-			break;
+			case CursorStyle::SNOWMAN: // st extension
+				glyph.u = 0x2603; // snowman (U+2603)
+			/* FALLTHROUGH */
+			case CursorStyle::BLINKING_BLOCK:
+			case CursorStyle::BLINKING_BLOCK_DEFAULT:
+			case CursorStyle::STEADY_BLOCK:
+				drawGlyph(glyph, pos);
+				break;
+			case CursorStyle::BLINKING_UNDERLINE:
+			case CursorStyle::STEADY_UNDERLINE: {
+				auto dpos = m_twin.toDrawPos(pos.nextLine());
+				dpos.moveUp(CURSOR_THICKNESS);
+				m_font_draw_ctx.drawRect(color, dpos, Extent{chr.width, CURSOR_THICKNESS});
+				break;
+			}
+			case CursorStyle::BLINKING_BAR:
+			case CursorStyle::STEADY_BAR: {
+				auto dpos = m_twin.toDrawPos(pos);
+				m_font_draw_ctx.drawRect(color, dpos, Extent{CURSOR_THICKNESS, chr.height});
+				break;
+			}
+			default:
+				break;
 		}
 	} else {
-		// only draw a non-solid rectangle outline of the cursor, if
-		// there's no focus
+		// only draw a non-solid rectangle outline of the cursor, if there's no focus
 		auto dpos = m_twin.toDrawPos(pos);
-		m_font_draw_ctx.drawRect(drawcol, dpos, Extent{chr.width - 1, 1});
-		m_font_draw_ctx.drawRect(drawcol, dpos, Extent{1, chr.height - 1});
+		// upper part
+		m_font_draw_ctx.drawRect(color, dpos, Extent{chr.width - 1, 1});
+		// left part
+		m_font_draw_ctx.drawRect(color, dpos, Extent{1, chr.height - 1});
 
+		// right part
 		auto nextcol = m_twin.nextCol(dpos).atLeft(1);
-		m_font_draw_ctx.drawRect(drawcol, nextcol, Extent{1, chr.height - 1});
+		m_font_draw_ctx.drawRect(color, nextcol, Extent{1, chr.height - 1});
 
+		// lower part
 		auto nextline = m_twin.nextLine(dpos).atAbove(1);
-		m_font_draw_ctx.drawRect(drawcol, nextline, Extent{chr.width, 1});
+		m_font_draw_ctx.drawRect(color, nextline, Extent{chr.width, 1});
 	}
 }
 

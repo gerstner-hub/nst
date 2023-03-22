@@ -6,6 +6,7 @@
 #include <vector>
 
 // X++
+#include "X++/GraphicsContext.hxx"
 #include "X++/Pixmap.hxx"
 #include "X++/types.hxx"
 #include "X++/utils.hxx"
@@ -128,7 +129,7 @@ protected: // data
 	xpp::WindowSpec m_win_geometry;
 	xpp::SetWindowAttributes m_win_attrs;
 	xpp::Pixmap m_pixmap;
-	xpp::GcSharedPtr m_graphics_context;
+	xpp::GraphicsContext m_graphics_context;
 
 	using GlyphFontSpecVector = std::vector<XftGlyphFontSpec>;
 	GlyphFontSpecVector m_font_specs;

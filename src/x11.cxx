@@ -34,17 +34,17 @@ X11::X11(Nst &nst) :
 X11::~X11() {
 	m_font_draw_ctx.destroy();
 	m_pixmap.destroy();
-	m_graphics_context.reset();
+	m_graphics_context.destroy();
 }
 
 void X11::createGraphicsContext(xpp::XWindow &parent) {
 	XGCValues gcvalues = {};
 	gcvalues.graphics_exposures = False;
-	m_graphics_context = xpp::display.createGraphicsContext(
+	m_graphics_context = xpp::GraphicsContext{
 		xpp::to_drawable(parent),
 		xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
 		gcvalues
-	);
+	};
 }
 
 void X11::copyToClipboard() {
@@ -557,7 +557,7 @@ void X11::finishDraw() {
 	auto extent = m_twin.winExtent();
 	m_window.copyArea(m_graphics_context, m_pixmap, extent);
 	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor());
-	::XSetForeground(xpp::display, m_graphics_context.get(), color.pixel);
+	::XSetForeground(xpp::display, m_graphics_context, color.pixel);
 }
 
 void X11::changeEventMask(const xpp::EventMask event, bool on_off) {

@@ -1,5 +1,6 @@
 // cosmos
 #include "cosmos/formatting.hxx"
+#include "cosmos/error/RuntimeError.hxx"
 
 // X++
 #include "X++/XDisplay.hxx"

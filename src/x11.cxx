@@ -361,48 +361,62 @@ void X11::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const Char
 	m_next_font_spec = m_font_specs.begin();
 }
 
-void X11::drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos loc) {
-
-	auto pos = m_twin.toDrawPos(loc);
-	const auto win = m_twin.winExtent();
+void X11::cleanupWindowBorders(int textwidth, const CharPos ch_pos, const DrawPos draw_pos) {
+	constexpr auto BORDERPX = config::BORDERPX;
 	const auto chr = m_twin.chrExtent();
 	const auto tty = m_twin.TTYExtent();
-	const int textwidth = count * base.width() * chr.width;
-	constexpr auto BORDERPX = config::BORDERPX;
-	const bool reaches_bottom_border = pos.y + chr.height >= BORDERPX + tty.height;
-
-	m_font_manager.sanitize(base);
-	m_color_manager.configureFor(base);
-
-	/* Intelligent cleaning up of the borders. */
+	const auto win = m_twin.winExtent();
+	const bool reaches_bottom_border =
+		draw_pos.y + chr.height >= BORDERPX + tty.height;
 
 	// left border
-	if (loc.x == 0) {
-		const auto pos1 = DrawPos{0, loc.y ? pos.y : 0};
+	if (ch_pos.x == 0) {
+		const auto pos1 = DrawPos{0, ch_pos.y ? draw_pos.y : 0};
 		const auto pos2 = DrawPos{
 			BORDERPX,
-			pos.y + chr.height + (reaches_bottom_border ? win.height : 0)
+			ch_pos.y + chr.height + (reaches_bottom_border ? win.height : 0)
 		};
 		clearRect(pos1, pos2);
 	}
 
 	// right border
-	if (pos.x + textwidth >= BORDERPX + tty.width) {
-		const auto pos1 = DrawPos{pos.x + textwidth, loc.y ? pos.y : 0};
+	if (draw_pos.x + textwidth >= BORDERPX + tty.width) {
+		const auto pos1 = DrawPos{
+			draw_pos.x + textwidth,
+			ch_pos.y ? draw_pos.y : 0};
 		const auto pos2 = DrawPos{
 			win.width,
-			reaches_bottom_border ? win.height : pos.y + chr.height
+			reaches_bottom_border ? win.height : draw_pos.y + chr.height
 		};
 		clearRect(pos1, pos2);
 	}
 
 	// top border
-	if (loc.y == 0)
-		clearRect(DrawPos{pos.x, 0}, DrawPos{pos.x + textwidth, BORDERPX});
+	if (ch_pos.y == 0) {
+		clearRect(
+				DrawPos{draw_pos.x, 0},
+				DrawPos{draw_pos.x + textwidth, BORDERPX});
+	}
 
 	// bottom border
-	if (pos.y + chr.height >= BORDERPX + tty.height)
-		clearRect(DrawPos{pos.x, pos.y + chr.height}, DrawPos{pos.x + textwidth, win.height});
+	if (draw_pos.y + chr.height >= BORDERPX + tty.height) {
+		clearRect(
+				DrawPos{draw_pos.x, draw_pos.y + chr.height},
+				DrawPos{draw_pos.x + textwidth, win.height});
+	}
+}
+
+void X11::drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos ch_pos) {
+
+	const auto pos = m_twin.toDrawPos(ch_pos);
+	const auto chr = m_twin.chrExtent();
+	const int textwidth = count * base.width() * chr.width;
+
+	// Intelligent cleaning up of the borders.
+	cleanupWindowBorders(textwidth, ch_pos, pos);
+
+	m_font_manager.sanitize(base);
+	m_color_manager.configureFor(base);
 
 	/* Clean up the region we want to draw to. */
 	m_font_draw_ctx.drawRect(m_color_manager.backColor(), pos, Extent{textwidth, chr.height});

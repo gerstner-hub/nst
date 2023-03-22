@@ -102,6 +102,7 @@ protected: // functions
 	void makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos ch_pos);
 	void drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos loc);
 	void drawGlyph(Glyph g, const CharPos loc);
+	void cleanupWindowBorders(int textwidth, const CharPos ch_pos, const DrawPos draw_pos);
 	void embeddedFocusChange(const bool in_focus);
 	void focusChange(const bool in_focus);
 	void setVisible(const bool visible) {

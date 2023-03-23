@@ -21,11 +21,28 @@ namespace nst {
 
 namespace {
 
-/* XEMBED messages */
-constexpr long XEMBED_FOCUS_IN  = 4;
-constexpr long XEMBED_FOCUS_OUT = 5;
+	/// xembed protocol message types
+	enum class XEmbedMessage : long {
+		FOCUS_IN = 4,
+		FOCUS_OUT = 5
+	};
 
-}
+	bool stateMatches(unsigned mask, unsigned state) {
+		return mask == config::XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
+	}
+
+	unsigned buttonMask(unsigned button) {
+		switch(button) {
+			default: return 0;
+			case Button1: return Button1Mask;
+			case Button2: return Button2Mask;
+			case Button3: return Button3Mask;
+			case Button4: return Button4Mask;
+			case Button5: return Button5Mask;
+		};
+	}
+
+} // end anon ns
 
 XEventHandler::XEventHandler(Nst &nst) :
 		m_nst{nst},
@@ -40,76 +57,30 @@ void XEventHandler::process(xpp::Event &ev) {
 
 	switch(ev.type()) {
 		default: return;
-		case Event::Ev_KeyPress:         return keyPress(ev.toKeyEvent());
-		case Event::Ev_ClientMessage:    return clientMessage(ev.toClientMessage());
-		case Event::Ev_ConfigureNotify:  return resize(ev.toConfigureNotify());
-		case Event::Ev_VisibilityNotify: return visibilityChange(ev.toVisibilityNotify());
-		case Event::Ev_UnmapNotify:      return unmap();
-		case Event::Ev_Expose:           return expose();
-		case Event::Ev_FocusIn:          /* fallthrough */
-		case Event::Ev_FocusOut:         return focus(ev);
-		case Event::Ev_MotionNotify:     return motionEvent(ev);
-		case Event::Ev_ButtonPress:      return buttonPress(ev.toButtonEvent());
-		case Event::Ev_ButtonRelease:    return buttonRelease(ev.toButtonEvent());
-		case Event::Ev_SelectionNotify:  return selectionNotify(ev);
+		case Event::KEY_PRESS:         return keyPress(ev.toKeyEvent());
+		case Event::CLIENT_MESSAGE:    return clientMessage(ev.toClientMessage());
+		case Event::CONFIGURE_NOTIFY:  return resize(ev.toConfigureNotify());
+		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{ev});
+		case Event::UNMAP_NOTIFY:      return unmap();
+		case Event::EXPOSE:            return expose();
+		case Event::FOCUS_IN:          /* fallthrough */
+		case Event::FOCUS_OUT:         return focus(xpp::FocusChangeEvent{ev});
+		case Event::MOTION_NOTIFY:     return motionEvent(ev);
+		case Event::BUTTON_PRESS:      return buttonPress(ev.toButtonEvent());
+		case Event::BUTTON_RELEASE:    return buttonRelease(ev.toButtonEvent());
+		case Event::SELECTION_NOTIFY:  return selectionNotify(ev);
 		/*
 		 * PropertyNotify is only turned on when there is some
 		 * INCR transfer happening for the selection retrieval.
 		 */
-		case Event::Ev_PropertyNotify:   return propertyNotify(ev);
-		case Event::Ev_SelectionClear:   return selectionClear();
-		case Event::Ev_SelectionRequest: return selectionRequest(ev.toSelectionRequest());
+		case Event::PROPERTY_NOTIFY:   return propertyNotify(ev);
+		case Event::SELECTION_CLEAR:   return selectionClear();
+		case Event::SELECTION_REQUEST: return selectionRequest(ev.toSelectionRequest());
 	}
-}
-
-bool XEventHandler::stateMatches(unsigned mask, unsigned state) {
-	return mask == config::XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
-}
-
-std::optional<std::string_view>
-XEventHandler::customKeyMapping(KeySym k, unsigned state) const {
-	/* Check for mapped keys out of X11 function keys. */
-	const bool found = config::MAPPED_KEYS.count(k) != 0;
-
-	// if the key is not explicitly mapped and it is outside the range of
-	// X11 function keys, don't continue
-	if (!found && ((k & 0xFFFF) < 0xFD00)) {
-		return {};
-	}
-
-	const auto &tmode = m_x11.termWin().mode();
-
-	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
-		auto &key = *it;
-
-		if (!stateMatches(key.mask, state))
-			continue;
-		if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
-			continue;
-		if (tmode[WinMode::NUMLOCK] && key.appkey == 2)
-			continue;
-		if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
-			continue;
-
-		return key.s;
-	}
-
-	return {};
-}
-
-unsigned XEventHandler::buttonMask(unsigned button) {
-	switch(button) {
-		default: return 0;
-		case Button1: return Button1Mask;
-		case Button2: return Button2Mask;
-		case Button3: return Button3Mask;
-		case Button4: return Button4Mask;
-		case Button5: return Button5Mask;
-	};
 }
 
 bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
-	/* ignore Button<N>mask for Button<N> - it's set on release */
+	// ignore Button<N>mask for Button<N> - it's set on release
 	const unsigned state = ev.state & ~buttonMask(ev.button);
 
 	for (auto &ms: m_mouse_shortcuts) {
@@ -223,19 +194,50 @@ void XEventHandler::expose() {
 	m_nst.term().redraw();
 }
 
-void XEventHandler::visibilityChange(const XVisibilityEvent &ev) {
-	m_x11.setVisible(ev.state != VisibilityFullyObscured);
+void XEventHandler::visibilityChange(const xpp::VisibilityEvent &ev) {
+	m_x11.setVisible(ev.state() != xpp::VisibilityState::FULLY_OBSCURED);
 }
 
 void XEventHandler::unmap() {
 	m_x11.setVisible(false);
 }
 
-void XEventHandler::focus(const xpp::Event &ev) {
-	if (ev.toFocusChangeEvent().mode == NotifyGrab)
+void XEventHandler::focus(const xpp::FocusChangeEvent &ev) {
+	if (ev.mode() == xpp::NotifyMode::GRAB)
 		return;
 
-	m_x11.focusChange(/*in_focus=*/ev.type() == xpp::EventType::Ev_FocusIn);
+	m_x11.focusChange(ev.haveFocus());
+}
+
+std::optional<std::string_view>
+XEventHandler::customKeyMapping(KeySym k, unsigned state) const {
+	// Check for mapped keys out of X11 function keys.
+	const bool found = config::MAPPED_KEYS.count(k) != 0;
+
+	// if the key is not explicitly mapped and it is outside the range of
+	// X11 function keys, don't continue
+	if (!found && ((k & 0xFFFF) < 0xFD00)) {
+		return {};
+	}
+
+	const auto &tmode = m_x11.termWin().mode();
+
+	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
+		auto &key = *it;
+
+		if (!stateMatches(key.mask, state))
+			continue;
+		if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
+			continue;
+		if (tmode[WinMode::NUMLOCK] && key.appkey == 2)
+			continue;
+		if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
+			continue;
+
+		return key.s;
+	}
+
+	return {};
 }
 
 void XEventHandler::keyPress(const XKeyEvent &ev) {
@@ -288,12 +290,12 @@ void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
 	 *  http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
 	 */
 	if (xpp::AtomID{msg.message_type} == atoms::xembed && msg.format == 32) {
-		switch (msg.data.l[1]) {
-			case XEMBED_FOCUS_IN: {
+		switch (XEmbedMessage{msg.data.l[1]}) {
+			case XEmbedMessage::FOCUS_IN: {
 				m_x11.embeddedFocusChange(true);
 				break;
 			}
-			case XEMBED_FOCUS_OUT: {
+			case XEmbedMessage::FOCUS_OUT: {
 				m_x11.embeddedFocusChange(false);
 				break;
 			}
@@ -351,9 +353,9 @@ void XEventHandler::propertyNotify(const xpp::Event &ev) {
 void XEventHandler::selectionNotify(const xpp::Event &ev) {
 	const xpp::AtomID atom = [&ev]() {
 		switch (ev.type()) {
-			case xpp::EventType::Ev_SelectionNotify:
+			case xpp::EventType::SELECTION_NOTIFY:
 				return xpp::AtomID{ev.toSelectionNotify().property};
-			case xpp::EventType::Ev_PropertyNotify:
+			case xpp::EventType::PROPERTY_NOTIFY:
 				return xpp::AtomID{ev.toProperty().atom};
 			default:
 				return xpp::AtomID::INVALID;
@@ -385,7 +387,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			 * data has been transferred. We won't need to receive
 			 * PropertyNotify events anymore.
 			 */
-			m_x11.changeEventMask(xpp::EventMask::PropertyChange, false);
+			m_x11.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, false);
 		}
 
 		if (info.type == atoms::incr) {
@@ -394,7 +396,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			 * when the selection owner does send us the next
 			 * chunk of data.
 			 */
-			m_x11.changeEventMask(xpp::EventMask::PropertyChange, true);
+			m_x11.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, true);
 
 			/*
 			 * Deleting the property is the transfer start signal.

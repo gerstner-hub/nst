@@ -3,7 +3,6 @@
 
 // nst
 #include "nst.hxx"
-#include "Selection.hxx"
 #include "x11.hxx"
 
 /*
@@ -40,7 +39,7 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 	/* Internal keyboard shortcuts. */
 	//constexpr auto MODKEY = Mod1Mask;
-	constexpr auto TERMMOD = ControlMask|ShiftMask;
+	constexpr unsigned int TERMMOD = ControlMask|ShiftMask;
 
 	auto &tty = nst.tty();
 	auto &x11 = nst.x11();

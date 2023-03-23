@@ -49,7 +49,7 @@ public: // functions
 		m_color_manager.resetColors();
 	}
 	void setPointerMotion(bool on_off) {
-		changeEventMask(xpp::EventMask::PointerMotion, on_off);
+		changeEventMask(xpp::EventMask::POINTER_MOTION, on_off);
 	}
 	void finishDraw();
 	void setIconTitle(const std::string_view title);

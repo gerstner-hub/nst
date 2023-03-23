@@ -45,7 +45,7 @@ void X11::createGraphicsContext(xpp::XWindow &parent) {
 	gcvalues.graphics_exposures = False;
 	m_graphics_context = xpp::GraphicsContext{
 		xpp::to_drawable(parent),
-		xpp::GcOptMask{xpp::GcOpts::GraphicsExposures},
+		xpp::GcOptMask{xpp::GcOpts::GRAPHICS_EXPOSURES},
 		gcvalues
 	};
 }
@@ -107,14 +107,14 @@ void X11::clearRect(const DrawPos pos1, const DrawPos pos2) {
 void X11::setupWinAttrs() {
 	m_win_attrs.background_pixel = m_color_manager.defaultBack().pixel;
 	m_win_attrs.border_pixel = m_win_attrs.background_pixel;
-	m_win_attrs.setBitGravity(xpp::Gravity::NorthWest);
+	m_win_attrs.setBitGravity(xpp::Gravity::NORTH_WEST);
 	using Event = xpp::EventMask;
 	m_win_attrs.setEventMask(xpp::EventSelectionMask{
-			Event::FocusChange, Event::Exposure,
-			Event::KeyPresses, Event::KeyReleases,
-			Event::VisibilityChange, Event::StructureNotify,
-			Event::ButtonMotion,
-			Event::ButtonPresses, Event::ButtonReleases
+			Event::FOCUS_CHANGE, Event::EXPOSURE,
+			Event::KEY_PRESSES, Event::KEY_RELEASES,
+			Event::VISIBILITY_CHANGE, Event::STRUCTURE_NOTIFY,
+			Event::BUTTON_MOTION,
+			Event::BUTTON_PRESSES, Event::BUTTON_RELEASES
 	});
 	m_win_attrs.setColormap(xpp::colormap);
 }
@@ -125,13 +125,13 @@ void X11::setupWindow(xpp::XWindow &parent) {
 	m_window = m_display.createWindow(
 		m_win_geometry,
 		/*border_width=*/0,
-		xpp::WindowClass::InOut,
+		xpp::WindowClass::INPUT_OUTPUT,
 		&parent,
 		m_display.defaultDepth(),
 		xpp::visual,
 		xpp::WindowAttrMask({
-			WinAttr::BackPixel, WinAttr::BorderPixel, WinAttr::BitGravity,
-			WinAttr::EventMask, WinAttr::Colormap}),
+			WinAttr::BACK_PIXEL, WinAttr::BORDER_PIXEL, WinAttr::BIT_GRAVITY,
+			WinAttr::EVENT_MASK, WinAttr::COLORMAP}),
 		&m_win_attrs
 	);
 
@@ -165,10 +165,10 @@ void X11::setSizeHints() {
 	const auto win = m_twin.winExtent();
 	xpp::SizeHints size_hints;
 	xpp::SizeHints::Mask mask{
-			Flags::ProgSize,
-			Flags::ProgResizeIncrements,
-			Flags::ProgBaseSize,
-			Flags::ProgMinSize
+			Flags::PROG_SIZE,
+			Flags::PROG_RESIZE_INCREMENTS,
+			Flags::PROG_BASE_SIZE,
+			Flags::PROG_MIN_SIZE
 	};
 
 	size_hints.clear();
@@ -178,13 +178,13 @@ void X11::setSizeHints() {
 	size_hints.setMinDimensions(chr.width + BORDER_PIXELS, chr.height + BORDER_PIXELS);
 
 	if (m_cmdline.fixed_geometry.isSet()) {
-		mask.set(Flags::ProgMaxSize);
+		mask.set(Flags::PROG_MAX_SIZE);
 		size_hints.setMinDimensions(win.width, win.height);
 		size_hints.setMaxDimensions(win.width, win.height);
 	}
 
-	if (m_geometry_mask.anyOf({xpp::GeometrySettings::NegativeX, xpp::GeometrySettings::NegativeY})) {
-		mask.set({Flags::UserPos, Flags::ProgWinGravity});
+	if (m_geometry_mask.anyOf({xpp::GeometrySettings::X_NEGATIVE, xpp::GeometrySettings::Y_NEGATIVE})) {
+		mask.set({Flags::USER_POS, Flags::PROG_WIN_GRAVITY});
 		size_hints.setPosition(xpp::Coord{m_win_geometry.x, m_win_geometry.y});
 		size_hints.setWinGravity(gravity());
 	}
@@ -198,15 +198,15 @@ xpp::Gravity X11::gravity() const {
 	using Geometry = xpp::GeometrySettings;
 	using Gravity = xpp::Gravity;
 
-	switch (m_geometry_mask & xpp::GeometrySettingsMask({Geometry::NegativeX, Geometry::NegativeY})) {
-	case Geometry::HaveNone:
-		return Gravity::NorthWest;
-	case Geometry::NegativeX:
-		return Gravity::NorthEast;
-	case Geometry::NegativeY:
-		return Gravity::SouthWest;
+	switch (m_geometry_mask & xpp::GeometrySettingsMask({Geometry::X_NEGATIVE, Geometry::Y_NEGATIVE})) {
+	case Geometry::HAVE_NONE:
+		return Gravity::NORTH_WEST;
+	case Geometry::X_NEGATIVE:
+		return Gravity::NORTH_EAST;
+	case Geometry::Y_NEGATIVE:
+		return Gravity::SOUTH_WEST;
 	default: // both are negative
-		return Gravity::SouthEast;
+		return Gravity::SOUTH_EAST;
 	}
 }
 
@@ -217,9 +217,9 @@ void X11::setGeometry(const std::string_view str, TermSize &tsize) {
 	tsize.cols = m_win_geometry.width;
 	m_twin.setWinExtent(tsize);
 	const auto &win = m_twin.winExtent();
-	if (m_geometry_mask[xpp::GeometrySettings::NegativeX])
+	if (m_geometry_mask[xpp::GeometrySettings::X_NEGATIVE])
 		m_win_geometry.x += m_display.displayWidth() - win.width - 2;
-	if (m_geometry_mask[xpp::GeometrySettings::NegativeY])
+	if (m_geometry_mask[xpp::GeometrySettings::Y_NEGATIVE])
 		m_win_geometry.y += m_display.displayHeight() - win.height - 2;
 }
 
@@ -568,7 +568,7 @@ void X11::finishDraw() {
 
 void X11::changeEventMask(const xpp::EventMask event, bool on_off) {
 	m_win_attrs.changeEventMask(event, on_off);
-	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EventMask});
+	m_window.setWindowAttrs(m_win_attrs, xpp::WindowAttrMask{xpp::WindowAttr::EVENT_MASK});
 }
 
 void X11::setMode(const WinMode flag, const bool set) {
@@ -589,7 +589,7 @@ void X11::setUrgency(const bool have_urgency) {
 	if (!hints)
 		return;
 
-	hints->changeFlag(xpp::WindowManagerHints::Flags::Urgency, have_urgency);
+	hints->changeFlag(xpp::WindowManagerHints::Flags::URGENCY, have_urgency);
 
 	m_window.setWMHints(*hints);
 }

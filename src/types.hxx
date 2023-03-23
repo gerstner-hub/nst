@@ -3,7 +3,6 @@
 
 // C++
 #include <algorithm>
-#include <bitset>
 #include <climits>
 #include <functional>
 #include <stdexcept>
@@ -292,41 +291,6 @@ struct Key {
 	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
 	signed char appkey = 0;    /* application keypad */
 	signed char appcursor = 0; /* application cursor */
-};
-
-class PressedButtons :
-		public std::bitset<11> {
-public: // data
-
-	static constexpr size_t NO_BUTTON = 12;
-
-public:
-
-	/// returns the position of the lowest button pressed, or NO_BUTTON
-	size_t firstButton() const {
-		for (size_t bit = 0; bit < size(); bit++) {
-			if (this->test(bit))
-				return bit + 1;
-		}
-
-		return NO_BUTTON;
-	}
-
-	bool valid(const size_t button) const {
-		return button >= 1 && button <= size();
-	}
-
-	void setPressed(const size_t button) {
-		this->set(button - 1, true);
-	}
-
-	void setReleased(const size_t button) {
-		this->set(button - 1, false);
-	}
-
-	static bool isScrollWheel(const size_t button) {
-		return button == 4 || button == 5;
-	}
 };
 
 /// various X11 and drawing related window settings

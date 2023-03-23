@@ -197,7 +197,7 @@ static_assert(ROWS > 1);
 /*
  * Default colour and shape of the mouse cursor
  */
-constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::Xterm};
+constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::XTERM};
 constexpr ColorIndex MOUSE_FG{7};
 constexpr ColorIndex MOUSE_BG{0};
 

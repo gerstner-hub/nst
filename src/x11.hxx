@@ -10,6 +10,7 @@
 #include "X++/Pixmap.hxx"
 #include "X++/types.hxx"
 #include "X++/utils.hxx"
+#include "X++/SetWindowAttributes.hxx"
 #include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
 

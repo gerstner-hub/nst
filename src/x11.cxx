@@ -6,11 +6,14 @@
 #include "cosmos/types.hxx"
 
 // X++
+#include "X++/atoms.hxx"
 #include "X++/Event.hxx"
 #include "X++/helpers.hxx"
 #include "X++/keyboard.hxx"
+#include "X++/Property.hxx"
 #include "X++/RootWin.hxx"
 #include "X++/SizeHints.hxx"
+#include "X++/WindowManagerHints.hxx"
 #include "X++/XColor.hxx"
 #include "X++/XCursor.hxx"
 

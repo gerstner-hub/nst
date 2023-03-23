@@ -5,6 +5,10 @@
 #include "cosmos/algs.hxx"
 #include "cosmos/formatting.hxx"
 
+// X++
+#include "X++/atoms.hxx"
+#include "X++/Property.hxx"
+
 // nst
 #include "atoms.hxx"
 #include "nst_config.hxx"

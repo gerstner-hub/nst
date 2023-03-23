@@ -7,6 +7,7 @@
 
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/error/ApiError.hxx"
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/types.hxx"
 

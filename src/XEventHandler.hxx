@@ -8,8 +8,9 @@
 
 // X++
 #include "X++/Event.hxx"
-#include "X++/event/VisibilityEvent.hxx"
+#include "X++/event/ClientMessageEvent.hxx"
 #include "X++/event/FocusChangeEvent.hxx"
+#include "X++/event/VisibilityEvent.hxx"
 #include "X++/types.hxx"
 
 // nst
@@ -76,7 +77,7 @@ protected: // functions
 	void visibilityChange(const xpp::VisibilityEvent&);
 	void unmap();
 	void keyPress(const XKeyEvent &);
-	void clientMessage(const XClientMessageEvent &);
+	void clientMessage(const xpp::ClientMessageEvent &);
 	void resize(const XConfigureEvent &);
 	void focus(const xpp::FocusChangeEvent&);
 	void buttonRelease(const XButtonEvent &);

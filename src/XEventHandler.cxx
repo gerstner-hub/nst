@@ -58,7 +58,7 @@ void XEventHandler::process(xpp::Event &ev) {
 	switch(ev.type()) {
 		default: return;
 		case Event::KEY_PRESS:         return keyPress(ev.toKeyEvent());
-		case Event::CLIENT_MESSAGE:    return clientMessage(ev.toClientMessage());
+		case Event::CLIENT_MESSAGE:    return clientMessage(xpp::ClientMessageEvent{ev});
 		case Event::CONFIGURE_NOTIFY:  return resize(ev.toConfigureNotify());
 		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{ev});
 		case Event::UNMAP_NOTIFY:      return unmap();
@@ -284,35 +284,34 @@ void XEventHandler::keyPress(const XKeyEvent &ev) {
 	m_nst.tty().write(buf, TTY::MayEcho(true));
 }
 
-void XEventHandler::clientMessage(const XClientMessageEvent &msg) {
-	/*
-	 * See xembed specs
-	 *  http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
-	 */
-	if (xpp::AtomID{msg.message_type} == atoms::xembed && msg.format == 32) {
-		switch (XEmbedMessage{msg.data.l[1]}) {
-			case XEmbedMessage::FOCUS_IN: {
-				m_x11.embeddedFocusChange(true);
-				break;
-			}
-			case XEmbedMessage::FOCUS_OUT: {
-				m_x11.embeddedFocusChange(false);
-				break;
-			}
+void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
+	if (msg.type() == atoms::xembed && msg.format() == 32) {
+		// See xembed specs: http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
+		const XEmbedMessage xembed{XEmbedMessage{msg.data().l[1]}};
+
+		if (xembed == XEmbedMessage::FOCUS_IN) {
+			m_x11.embeddedFocusChange(true);
+		} else if (xembed == XEmbedMessage::FOCUS_OUT) {
+			m_x11.embeddedFocusChange(false);
 		}
-	} else if (xpp::AtomID(msg.data.l[0]) == xpp::atoms::icccm_wm_delete_window) {
-		m_nst.tty().hangup();
-		exit(0);
+	} else if (msg.type() == xpp::atoms::icccm_wm_protocols && msg.format() == 32) {
+		// we indicated that we support the delete window WM protocol,
+		// so react to them - these occur e.g. if you click the window
+		// close button rendered by the WM.
+		const xpp::AtomID protocol(static_cast<xpp::AtomID>(msg.data().l[0]));
+
+		if (protocol == xpp::atoms::icccm_wm_delete_window) {
+			m_nst.tty().hangup();
+		}
 	}
 }
 
 void XEventHandler::resize(const XConfigureEvent &config) {
-	auto new_size = Extent{config.width, config.height};
+	const auto new_size = Extent{config.width, config.height};
 
-	if (new_size == m_x11.termWin().winExtent())
-		return;
-
-	m_nst.resizeConsole(new_size);
+	if (new_size != m_x11.termWin().winExtent()) {
+		m_nst.resizeConsole(new_size);
+	}
 }
 
 void XEventHandler::buttonPress(const XButtonEvent &ev) {

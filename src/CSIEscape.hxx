@@ -54,7 +54,9 @@ public: // functions
 	}
 
 	/// If focus reporting was enabled, report focus state change on TTY.
-	void reportFocus(bool in_focus);
+	void reportFocus(const bool in_focus);
+
+	void reportPaste(const bool started);
 
 protected: // functions
 

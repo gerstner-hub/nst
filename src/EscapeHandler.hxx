@@ -53,8 +53,12 @@ public: // functions
 	 **/
 	WasProcessed process(const RuneInfo &r);
 
-	void reportFocus(bool in_focus) {
+	void reportFocus(const bool in_focus) {
 		m_csi_escape.reportFocus(in_focus);
+	}
+
+	void reportPaste(const bool started) {
+		m_csi_escape.reportPaste(started);
 	}
 
 protected: // functions

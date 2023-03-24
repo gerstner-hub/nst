@@ -45,7 +45,7 @@ public: // types
 		UTF8        = 1 << 6, /// UTF8 input support
 	};
 
-	using ModeBitMask =  cosmos::BitMask<Mode>;
+	using ModeBitMask = cosmos::BitMask<Mode>;
 
 	/// different terminal character sets (we don't support them all)
 	enum class Charset {
@@ -87,7 +87,7 @@ public: // types
 
 	protected: // data
 
-		CharPos pos; /// current cursor position (not yet rendered)
+		CharPos pos;   /// current cursor position (not yet rendered)
 		Glyph m_attrs; /// contains the currently active font attributes for newly input characters
 		StateBitMask m_state;
 
@@ -403,7 +403,8 @@ public: // functions
 
 	auto& screen() const { return m_screen; }
 
-	void reportFocus(bool in_focus) { m_esc_handler.reportFocus(in_focus); }
+	void reportFocus(const bool in_focus) { m_esc_handler.reportFocus(in_focus); }
+	void reportPaste(const bool started) { m_esc_handler.reportPaste(started); }
 
 protected: // functions
 

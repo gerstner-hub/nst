@@ -615,12 +615,22 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	}
 }
 
-void CSIEscape::reportFocus(bool in_focus) {
+void CSIEscape::reportFocus(const bool in_focus) {
 	auto &tty = m_nst.tty();
 	if (in_focus)
 		tty.write("\033[I", TTY::MayEcho{false});
 	else
 		tty.write("\033[O", TTY::MayEcho{false});
+}
+
+void CSIEscape::reportPaste(const bool started) {
+	// this is the result of the BRKT_PASTE mode also enabled via escape
+	// sequences
+	auto &tty = m_nst.tty();
+	if (started)
+		tty.write("\033[200~", TTY::MayEcho{false});
+	else
+		tty.write("\033[201~", TTY::MayEcho{false});
 }
 
 } // end ns

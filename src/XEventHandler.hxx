@@ -97,7 +97,8 @@ protected: // functions
 	void selectionClear();
 	void selectionRequest(const XSelectionRequestEvent &);
 
-	void handleSelectionEvent(const xpp::AtomID selection);
+	/// Handles a selection input event provided in the property \c selprop
+	void handleSelectionEvent(const xpp::AtomID selprop);
 	void handleMouseSelection(const XButtonEvent &, const bool done = false);
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);

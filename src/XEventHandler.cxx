@@ -1,4 +1,5 @@
 // C++
+#include <iostream>
 #include <algorithm>
 
 // cosmos
@@ -368,22 +369,22 @@ void XEventHandler::selectionNotify(const xpp::SelectionEvent &ev) {
 	return handleSelectionEvent(ev.property());
 }
 
-void XEventHandler::handleSelectionEvent(const xpp::AtomID selection) {
-	auto &tty = m_nst.tty();
+void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 	auto &win = m_x11.window();
+	auto &term = m_nst.term();
 	xpp::XWindow::PropertyInfo info;
-	xpp::RawProperty prop;
+	xpp::RawProperty prop{BUFSIZ};
+	const bool bracketed_paste = m_x11.termWin().checkFlag(WinMode::BRKT_PASTE);
 
-	if (selection == xpp::AtomID::INVALID)
+	if (selprop == xpp::AtomID::INVALID)
 		return;
-
-	prop.length = BUFSIZ;
 
 	do {
 		try {
-			win.getRawProperty(selection, info, prop);
+			win.getRawProperty(selprop, info, prop);
 		} catch (const std::exception &ex) {
-			std::cerr << "Clipboard property retrieval failed: " << ex.what() << std::endl;
+			std::cerr << "Clipboard property retrieval failed: "
+				<< ex.what() << std::endl;
 			return;
 		}
 
@@ -398,6 +399,8 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selection) {
 		}
 
 		if (info.type == atoms::incr) {
+			// an incremental selection content transfer started,
+			// see https://tronche.com/gui/x/icccm/sec-2.html#s-2.7.2
 			/*
 			 * Activate the PropertyNotify events so we receive
 			 * when the selection owner does send us the next
@@ -405,10 +408,8 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selection) {
 			 */
 			m_x11.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, true);
 
-			/*
-			 * Deleting the property is the transfer start signal.
-			 */
-			win.delProperty(selection);
+			/// Deleting the property is the transfer start signal.
+			win.delProperty(selprop);
 			continue;
 		}
 
@@ -417,27 +418,24 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selection) {
 		 * Line endings are inconsistent in the terminal and GUI world
 		 * copy and pasting. When receiving some selection data,
 		 * replace all '\n' with '\r'.
-		 * FIXME: Fix the computer world.
 		 */
 		auto ptr = prop.data.get();
 		std::replace(ptr, ptr + prop.length, '\n', '\r');
 
-		const bool brcktpaste = m_x11.termWin().checkFlag(WinMode::BRKT_PASTE);
+		if (bracketed_paste && prop.offset == 0)
+			term.reportPaste(true);
 
-		if (brcktpaste && prop.offset == 0)
-			tty.write("\033[200~", TTY::MayEcho{false});
-		tty.write(std::string_view{reinterpret_cast<const char*>(ptr), prop.length}, TTY::MayEcho{true});
-		if (brcktpaste && prop.left == 0)
-			tty.write("\033[201~", TTY::MayEcho{false});
+		m_nst.tty().write(prop.view(), TTY::MayEcho{true});
+
+		if (bracketed_paste && prop.left == 0)
+			term.reportPaste(false);
 		/* number of 32-bit chunks returned */
 		prop.offset += prop.length;
 	} while (prop.left > 0);
 
-	/*
-	 * Deleting the property again tells the selection owner to send the
-	 * next data chunk in the property.
-	 */
-	win.delProperty(selection);
+	// Deleting the property again tells the selection owner to send the
+	// next data chunk in the property.
+	win.delProperty(selprop);
 }
 
 void XEventHandler::selectionClear() {

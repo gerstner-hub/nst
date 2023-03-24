@@ -52,30 +52,41 @@ XEventHandler::XEventHandler(Nst &nst) :
 		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)}
 {}
 
-void XEventHandler::process(xpp::Event &ev) {
+bool XEventHandler::checkEvents() {
+	auto &display = xpp::display;
+	bool ret = false;
+
+	while (display.hasPendingEvents()) {
+		display.nextEvent(m_event);
+		ret = true;
+		if (!m_event.filterEvent()) {
+			process();
+		}
+	}
+
+	return ret;
+}
+
+void XEventHandler::process() {
 	using Event = xpp::EventType;
 
-	switch(ev.type()) {
+	switch(m_event.type()) {
 		default: return;
-		case Event::KEY_PRESS:         return keyPress(ev.toKeyEvent());
-		case Event::CLIENT_MESSAGE:    return clientMessage(xpp::ClientMessageEvent{ev});
-		case Event::CONFIGURE_NOTIFY:  return resize(ev.toConfigureNotify());
-		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{ev});
+		case Event::KEY_PRESS:         return keyPress(m_event.toKeyEvent());
+		case Event::CLIENT_MESSAGE:    return clientMessage(xpp::ClientMessageEvent{m_event});
+		case Event::CONFIGURE_NOTIFY:  return resize(m_event.toConfigureNotify());
+		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{m_event});
 		case Event::UNMAP_NOTIFY:      return unmap();
 		case Event::EXPOSE:            return expose();
 		case Event::FOCUS_IN:          /* fallthrough */
-		case Event::FOCUS_OUT:         return focus(xpp::FocusChangeEvent{ev});
-		case Event::MOTION_NOTIFY:     return motionEvent(ev);
-		case Event::BUTTON_PRESS:      return buttonPress(ev.toButtonEvent());
-		case Event::BUTTON_RELEASE:    return buttonRelease(ev.toButtonEvent());
-		case Event::SELECTION_NOTIFY:  return selectionNotify(ev);
-		/*
-		 * PropertyNotify is only turned on when there is some
-		 * INCR transfer happening for the selection retrieval.
-		 */
-		case Event::PROPERTY_NOTIFY:   return propertyNotify(ev);
+		case Event::FOCUS_OUT:         return focus(xpp::FocusChangeEvent{m_event});
+		case Event::MOTION_NOTIFY:     return motionEvent(m_event);
+		case Event::BUTTON_PRESS:      return buttonPress(m_event.toButtonEvent());
+		case Event::BUTTON_RELEASE:    return buttonRelease(m_event.toButtonEvent());
+		case Event::SELECTION_NOTIFY:  return selectionNotify(xpp::SelectionEvent{m_event});
+		case Event::PROPERTY_NOTIFY:   return propertyNotify(xpp::PropertyEvent{m_event});
 		case Event::SELECTION_CLEAR:   return selectionClear();
-		case Event::SELECTION_REQUEST: return selectionRequest(ev.toSelectionRequest());
+		case Event::SELECTION_REQUEST: return selectionRequest(m_event.toSelectionRequest());
 	}
 }
 
@@ -336,50 +347,47 @@ void XEventHandler::buttonPress(const XButtonEvent &ev) {
 	m_nst.selection().start(pos, snap);
 }
 
-void XEventHandler::propertyNotify(const xpp::Event &ev) {
-	const auto &prop = ev.toProperty();
+void XEventHandler::propertyNotify(const xpp::PropertyEvent &ev) {
+	/*
+	 * PropertyNotify is only turned on when there is some
+	 * INCR transfer happening for the selection retrieval.
+	 */
 
-	if (prop.state != PropertyNewValue)
+	if (ev.state() != xpp::PropertyNotification::NEW_VALUE)
 	       return;
 
-	const auto prop_id = xpp::AtomID{prop.atom};
+	const auto property = ev.property();
 
-	if (prop_id == xpp::atoms::primary_selection || prop_id == xpp::atoms::clipboard) {
-		selectionNotify(ev);
+	if (property == xpp::atoms::primary_selection ||
+			property == xpp::atoms::clipboard) {
+		handleSelectionEvent(property);
 	}
 }
 
-void XEventHandler::selectionNotify(const xpp::Event &ev) {
-	const xpp::AtomID atom = [&ev]() {
-		switch (ev.type()) {
-			case xpp::EventType::SELECTION_NOTIFY:
-				return xpp::AtomID{ev.toSelectionNotify().property};
-			case xpp::EventType::PROPERTY_NOTIFY:
-				return xpp::AtomID{ev.toProperty().atom};
-			default:
-				return xpp::AtomID::INVALID;
-		}
-	}();
+void XEventHandler::selectionNotify(const xpp::SelectionEvent &ev) {
+	return handleSelectionEvent(ev.property());
+}
 
+void XEventHandler::handleSelectionEvent(const xpp::AtomID selection) {
 	auto &tty = m_nst.tty();
 	auto &win = m_x11.window();
 	xpp::XWindow::PropertyInfo info;
 	xpp::RawProperty prop;
 
-	if (atom == xpp::AtomID::INVALID)
+	if (selection == xpp::AtomID::INVALID)
 		return;
 
 	prop.length = BUFSIZ;
 
 	do {
 		try {
-			win.getRawProperty(atom, info, prop);
+			win.getRawProperty(selection, info, prop);
 		} catch (const std::exception &ex) {
 			std::cerr << "Clipboard property retrieval failed: " << ex.what() << std::endl;
 			return;
 		}
 
-		if (ev.isPropertyNotify() && prop.length == 0 && prop.left == 0) {
+		if (m_event.isPropertyNotify() && prop.length == 0 && prop.left == 0) {
 			/*
 			 * If there is some PropertyNotify with no data, then
 			 * this is the signal of the selection owner that all
@@ -400,7 +408,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 			/*
 			 * Deleting the property is the transfer start signal.
 			 */
-			win.delProperty(atom);
+			win.delProperty(selection);
 			continue;
 		}
 
@@ -429,7 +437,7 @@ void XEventHandler::selectionNotify(const xpp::Event &ev) {
 	 * Deleting the property again tells the selection owner to send the
 	 * next data chunk in the property.
 	 */
-	win.delProperty(atom);
+	win.delProperty(selection);
 }
 
 void XEventHandler::selectionClear() {

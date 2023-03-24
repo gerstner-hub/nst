@@ -74,7 +74,6 @@ void Nst::mainLoop() {
 		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
 	}
 
-	xpp::Event ev;
 	bool drawing = false;
 	cosmos::MonotonicStopWatch draw_watch;
 	cosmos::MonotonicStopWatch blink_watch{cosmos::MonotonicStopWatch::InitialMark{true}};
@@ -103,13 +102,7 @@ void Nst::mainLoop() {
 			}
 		}
 
-		while (display.hasPendingEvents()) {
-			draw_event = true;
-			display.nextEvent(ev);
-			if (ev.filterEvent())
-				continue;
-			m_event_handler.process(ev);
-		}
+		draw_event |= m_event_handler.checkEvents();
 
 		/*
 		 * To reduce flicker and tearing, when new content or event

@@ -10,6 +10,8 @@
 #include "X++/Event.hxx"
 #include "X++/event/ClientMessageEvent.hxx"
 #include "X++/event/FocusChangeEvent.hxx"
+#include "X++/event/PropertyEvent.hxx"
+#include "X++/event/SelectionEvent.hxx"
 #include "X++/event/VisibilityEvent.hxx"
 #include "X++/types.hxx"
 
@@ -68,10 +70,17 @@ public: // functions
 
 	explicit XEventHandler(Nst &nst);
 
-	/// processes the given single X11 event
-	void process(xpp::Event &ev);
+	/// Checks for and processes X11 events
+	/**
+	 * This returns \c true if any type of event occured, otherwise \c
+	 * false.
+	 **/
+	bool checkEvents();
 
 protected: // functions
+
+	/// processes the currently set X11 event
+	void process();
 
 	void expose();
 	void visibilityChange(const xpp::VisibilityEvent&);
@@ -83,11 +92,12 @@ protected: // functions
 	void buttonRelease(const XButtonEvent &);
 	void buttonPress(const XButtonEvent&);
 	void motionEvent(const xpp::Event &);
-	void propertyNotify(const xpp::Event &);
-	void selectionNotify(const xpp::Event &);
+	void propertyNotify(const xpp::PropertyEvent &);
+	void selectionNotify(const xpp::SelectionEvent &);
 	void selectionClear();
 	void selectionRequest(const XSelectionRequestEvent &);
 
+	void handleSelectionEvent(const xpp::AtomID selection);
 	void handleMouseSelection(const XButtonEvent &, const bool done = false);
 	void handleMouseReport(const XButtonEvent &);
 	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
@@ -109,6 +119,7 @@ protected: // data
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
 	PressedButtons m_buttons; /// Bit field of pressed buttons.
 	CharPos m_old_mouse_pos;
+	xpp::Event m_event; /// The currently handled event
 };
 
 } // end ns

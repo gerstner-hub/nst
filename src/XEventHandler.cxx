@@ -472,8 +472,14 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 		try {
 			auto seltext = m_xsel.getSelection(req.selection());
 			if (!seltext.empty()) {
-				xpp::Property<xpp::utf8_string> sel_utf8{xpp::utf8_string(seltext)};
-				requestor.setProperty(req_prop, sel_utf8);
+
+				if (target == xpp::atoms::string_type) {
+					xpp::Property<const char *> sel_ascii{seltext.c_str()};
+					requestor.setProperty(req_prop, sel_ascii);
+				} else {
+					xpp::Property<xpp::utf8_string> sel_utf8{xpp::utf8_string(seltext)};
+					requestor.setProperty(req_prop, sel_utf8);
+				}
 			}
 		} catch (const std::exception &ex) {
 			std::cerr << "Failed to handle clipboard selection " << req.selection() << ": " << ex.what() << std::endl;

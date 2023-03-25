@@ -8,6 +8,7 @@
 
 // X++
 #include "X++/atoms.hxx"
+#include "X++/formatting.hxx"
 #include "X++/Property.hxx"
 
 // nst
@@ -87,7 +88,7 @@ void XEventHandler::process() {
 		case Event::SELECTION_NOTIFY:  return selectionNotify(xpp::SelectionEvent{m_event});
 		case Event::PROPERTY_NOTIFY:   return propertyNotify(xpp::PropertyEvent{m_event});
 		case Event::SELECTION_CLEAR:   return selectionClear();
-		case Event::SELECTION_REQUEST: return selectionRequest(m_event.toSelectionRequest());
+		case Event::SELECTION_REQUEST: return selectionRequest(xpp::SelectionRequestEvent{m_event});
 	}
 }
 
@@ -444,35 +445,32 @@ void XEventHandler::selectionClear() {
 	}
 }
 
-void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
-	XEvent ev;
-	XSelectionEvent &xev = ev.xselection;
-	xev.type = SelectionNotify;
-	xev.requestor = req.requestor;
-	xev.selection = req.selection;
-	xev.target = req.target;
-	xev.time = req.time;
-	/* reject by default, if nothing matches below */
-	xev.property = None;
+void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
+	xpp::Event raw_response{xpp::EventType::SELECTION_NOTIFY};
+	xpp::SelectionEvent response{raw_response};
+	response.setRequestor(req.requestor());
+	response.setSelection(req.selection());
+	response.setTarget(req.target());
+	response.setTime(req.time());
+	// reject by default, if nothing matches below
+	response.setProperty(xpp::AtomID::INVALID);
 
-	xpp::XWindow requestor{xpp::WinID{req.requestor}};
-	const xpp::AtomID target{xpp::AtomID{req.target}};
-	const xpp::AtomID req_prop = req.property == None ? target : xpp::AtomID{req.property};
+	xpp::XWindow requestor{req.requestor()};
+	const xpp::AtomID target{req.target()};
+	const xpp::AtomID req_prop = req.property() == xpp::AtomID::INVALID ?
+			target : req.property();
 
 	if (target == atoms::targets) {
-		/* respond with the supported type */
-		xpp::Property<xpp::AtomID> tgt_format(m_xsel.targetFormat());
+		// respond with the supported type.
+		xpp::Property<xpp::AtomID> tgt_format{m_xsel.targetFormat()};
 
 		requestor.setProperty(req_prop, tgt_format);
-		xev.property = xpp::raw_atom(req_prop);
+		response.setProperty(req_prop);
 	} else if (target == m_xsel.targetFormat() || target == xpp::atoms::string_type) {
-		/*
-		 * with XA_STRING (string_type) non ascii characters may be
-		 * incorrect in the requestor. It is not our problem, use
-		 * utf8.
-		 */
+		// with XA_STRING (string_type) non ascii characters may be
+		// incorrect in the requestor. It is not our problem, use utf8.
 		try {
-			auto seltext = m_xsel.getSelection(xpp::AtomID{req.selection});
+			auto seltext = m_xsel.getSelection(req.selection());
 			if (!seltext.empty()) {
 				// TODO: this potentially needlessly copies the
 				// selection string, because we need to turn it into
@@ -484,16 +482,16 @@ void XEventHandler::selectionRequest(const XSelectionRequestEvent &req) {
 				requestor.setProperty(req_prop, sel_utf8);
 			}
 		} catch (const std::exception &ex) {
-			std::cerr << "Failed to handle clipboard selection " << cosmos::HexNum{req.selection, 0} << ": " << ex.what() << std::endl;
+			std::cerr << "Failed to handle clipboard selection " << req.selection() << ": " << ex.what() << std::endl;
 			return;
 		}
 
-		xev.property = xpp::raw_atom(req_prop);
+		response.setProperty(req_prop);
 	}
 
 	try {
-		/* all done, send a notification to the listener */
-		requestor.sendEvent(ev);
+		// all done, send a notification to the listener.
+		requestor.sendEvent(raw_response);
 	} catch(const std::exception &ex) {
 		std::cerr << "Error sending SelectionNotify event: " << ex.what() << std::endl;
 	}

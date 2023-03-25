@@ -12,6 +12,7 @@
 #include "X++/event/FocusChangeEvent.hxx"
 #include "X++/event/PropertyEvent.hxx"
 #include "X++/event/SelectionEvent.hxx"
+#include "X++/event/SelectionRequestEvent.hxx"
 #include "X++/event/VisibilityEvent.hxx"
 #include "X++/types.hxx"
 
@@ -95,7 +96,7 @@ protected: // functions
 	void propertyNotify(const xpp::PropertyEvent &);
 	void selectionNotify(const xpp::SelectionEvent &);
 	void selectionClear();
-	void selectionRequest(const XSelectionRequestEvent &);
+	void selectionRequest(const xpp::SelectionRequestEvent &);
 
 	/// Handles a selection input event provided in the property \c selprop
 	void handleSelectionEvent(const xpp::AtomID selprop);

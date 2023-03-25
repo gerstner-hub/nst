@@ -472,12 +472,6 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 		try {
 			auto seltext = m_xsel.getSelection(req.selection());
 			if (!seltext.empty()) {
-				// TODO: this potentially needlessly copies the
-				// selection string, because we need to turn it into
-				// an utf8_string wrapper object.
-				// either keep utf8_string within XSelection right
-				// away or use string_view in utf8_string to avoid
-				// this.
 				xpp::Property<xpp::utf8_string> sel_utf8{xpp::utf8_string(seltext)};
 				requestor.setProperty(req_prop, sel_utf8);
 			}

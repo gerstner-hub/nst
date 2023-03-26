@@ -8,15 +8,8 @@
 
 // X++
 #include "X++/Event.hxx"
-#include "X++/event/ButtonEvent.hxx"
-#include "X++/event/ClientMessageEvent.hxx"
-#include "X++/event/FocusChangeEvent.hxx"
-#include "X++/event/PointerMovedEvent.hxx"
-#include "X++/event/PropertyEvent.hxx"
-#include "X++/event/SelectionEvent.hxx"
-#include "X++/event/SelectionRequestEvent.hxx"
-#include "X++/event/VisibilityEvent.hxx"
 #include "X++/types.hxx"
+#include "X++/fwd.hxx"
 
 // nst
 #include "types.hxx"
@@ -27,6 +20,7 @@ class Nst;
 class XSelection;
 class X11;
 
+/// Represents the current mouse button press state.
 class PressedButtons :
 		public std::bitset<11> {
 public: // data

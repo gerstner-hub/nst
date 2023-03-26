@@ -8,6 +8,14 @@
 
 // X++
 #include "X++/atoms.hxx"
+#include "X++/event/ButtonEvent.hxx"
+#include "X++/event/ClientMessageEvent.hxx"
+#include "X++/event/FocusChangeEvent.hxx"
+#include "X++/event/PointerMovedEvent.hxx"
+#include "X++/event/PropertyEvent.hxx"
+#include "X++/event/SelectionEvent.hxx"
+#include "X++/event/SelectionRequestEvent.hxx"
+#include "X++/event/VisibilityEvent.hxx"
 #include "X++/formatting.hxx"
 #include "X++/Property.hxx"
 

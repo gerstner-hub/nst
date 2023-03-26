@@ -39,7 +39,7 @@ void Nst::waitForWindowMapping() {
 		}
 	} while (!ev.isMapNotify());
 
-	resizeConsole(m_x11.termWin().winExtent());
+	resizeConsole();
 }
 
 void Nst::run(int argc, const char **argv) {
@@ -149,8 +149,7 @@ void Nst::mainLoop() {
 	}
 }
 
-void Nst::resizeConsole(const Extent &win) {
-	m_x11.setWinSize(win);
+void Nst::resizeConsole() {
 	const auto &twin = m_x11.termWin();
 	auto tdim = twin.getTermDim();
 

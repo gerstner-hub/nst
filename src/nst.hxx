@@ -38,7 +38,7 @@ public: // functions
 	X11& x11() { return m_x11; }
 	const Cmdline& cmdline() const { return m_cmdline; }
 
-	void resizeConsole(const Extent &win = {0,0});
+	void resizeConsole();
 
 protected: // functions
 

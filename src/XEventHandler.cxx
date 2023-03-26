@@ -364,7 +364,8 @@ void XEventHandler::resize(const XConfigureEvent &config) {
 	const auto new_size = Extent{config.width, config.height};
 
 	if (new_size != m_x11.termWin().winExtent()) {
-		m_nst.resizeConsole(new_size);
+		m_x11.setWinSize(new_size);
+		m_nst.resizeConsole();
 	}
 }
 

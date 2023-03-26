@@ -18,6 +18,7 @@
 // X++
 #include "X++/XCursor.hxx"
 #include "X++/keyboard.hxx"
+#include "X++/types.hxx"
 
 // nst
 #include "Selection.hxx"
@@ -29,7 +30,7 @@ class Nst; // fwd. decl
 
 namespace config {
 
-/* X modifiers */
+// X modifiers
 inline constexpr unsigned int XK_ANY_MOD = UINT_MAX;
 inline constexpr unsigned int XK_NO_MOD = 0;
 inline constexpr unsigned int XK_SWITCH_MOD = (1<<13|1<<14);
@@ -212,7 +213,7 @@ constexpr ColorIndex DEFAULT_ATTR{11};
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to 0 to not use it.
  */
-constexpr unsigned int FORCE_MOUSE_MOD = ShiftMask;
+constexpr xpp::InputMask FORCE_MOUSE_MOD{xpp::InputModifier::SHIFT};
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -493,9 +494,9 @@ constexpr std::string_view ASCII_PRINTABLE{
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
  */
-constexpr std::array<std::pair<Selection::Type, unsigned>, 2> SEL_MASKS = {
-	std::pair{Selection::Type::REGULAR,     0},
-	         {Selection::Type::RECTANGULAR, Mod1Mask},
+constexpr std::array<std::pair<Selection::Type, xpp::InputMask>, 2> SEL_MASKS = {
+	std::pair{Selection::Type::REGULAR,     xpp::InputMask{}},
+	         {Selection::Type::RECTANGULAR, xpp::InputMask{xpp::InputModifier::MOD1}}
 };
 
 // see implementation file

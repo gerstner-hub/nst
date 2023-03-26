@@ -33,14 +33,15 @@ namespace {
 		return mask == config::XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 	}
 
-	unsigned buttonMask(unsigned button) {
+	xpp::InputModifier button_mask(unsigned button) {
+		using xpp::InputModifier;
 		switch(button) {
-			default: return 0;
-			case Button1: return Button1Mask;
-			case Button2: return Button2Mask;
-			case Button3: return Button3Mask;
-			case Button4: return Button4Mask;
-			case Button5: return Button5Mask;
+			default: return InputModifier{0};
+			case Button1: return InputModifier::BUTTON1;
+			case Button2: return InputModifier::BUTTON2;
+			case Button3: return InputModifier::BUTTON3;
+			case Button4: return InputModifier::BUTTON4;
+			case Button5: return InputModifier::BUTTON5;
 		};
 	}
 
@@ -82,9 +83,9 @@ void XEventHandler::process() {
 		case Event::EXPOSE:            return expose();
 		case Event::FOCUS_IN:          /* fallthrough */
 		case Event::FOCUS_OUT:         return focus(xpp::FocusChangeEvent{m_event});
-		case Event::MOTION_NOTIFY:     return motionEvent(m_event);
-		case Event::BUTTON_PRESS:      return buttonPress(m_event.toButtonEvent());
-		case Event::BUTTON_RELEASE:    return buttonRelease(m_event.toButtonEvent());
+		case Event::MOTION_NOTIFY:     return pointerMovedEvent(xpp::PointerMovedEvent{m_event});
+		case Event::BUTTON_PRESS:      return buttonPress(xpp::ButtonEvent{m_event});
+		case Event::BUTTON_RELEASE:    return buttonRelease(xpp::ButtonEvent{m_event});
 		case Event::SELECTION_NOTIFY:  return selectionNotify(xpp::SelectionEvent{m_event});
 		case Event::PROPERTY_NOTIFY:   return propertyNotify(xpp::PropertyEvent{m_event});
 		case Event::SELECTION_CLEAR:   return selectionClear();
@@ -92,16 +93,19 @@ void XEventHandler::process() {
 	}
 }
 
-bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
+bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 	// ignore Button<N>mask for Button<N> - it's set on release
-	const unsigned state = ev.state & ~buttonMask(ev.button);
+	const auto state = ev.state() - button_mask(ev.buttonNr());
+	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
+	const auto forced_state = state - config::FORCE_MOUSE_MOD;
 
 	for (auto &ms: m_mouse_shortcuts) {
-		if (ms.release != is_release || ms.button != ev.button)
+		if (ms.release != is_release || ms.button != ev.buttonNr())
 			continue;
 
-		if ( stateMatches(ms.mod, state) ||  /* exact or forced */
-		     stateMatches(ms.mod, state & ~config::FORCE_MOUSE_MOD)) {
+		// exact or forced match
+		if (stateMatches(ms.mod, state.raw()) ||
+				stateMatches(ms.mod, forced_state.raw())) {
 			ms.func();
 			return true;
 		}
@@ -110,64 +114,91 @@ bool XEventHandler::handleMouseAction(const XButtonEvent &ev, bool is_release) {
 	return false;
 }
 
-void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
-	size_t btn;
-	// the escape code to report for the mouse motion
-	int code;
+bool XEventHandler::checkMouseReport(const xpp::PointerMovedEvent &ev,
+		size_t &button, int &code) {
 	const auto &twin = m_x11.termWin();
-	const auto &tmode = twin.mode();
-	const auto pos = twin.toCharPos(DrawPos{ev.x, ev.y});
+	const auto pos = twin.toCharPos(DrawPos{ev.pos()});
 
-	if (ev.type == MotionNotify) {
-		if (pos == m_old_mouse_pos)
-			return;
-		else if (!tmode[WinMode::MOUSEMOTION] && !tmode[WinMode::MOUSEMANY])
-			return;
-		/* WinMode::MOUSEMOTION: no reporting if no button is pressed */
-		else if (tmode[WinMode::MOUSEMOTION] && m_buttons.none())
-			return;
-		btn = m_buttons.firstButton();
-		code = 32;
-	} else {
-		btn = ev.button;
-		/* Only buttons 1 through 11 can be encoded */
-		if (!m_buttons.valid(btn))
-			return;
-		if (ev.type == ButtonRelease) {
-			/* MODE_MOUSEX10: no button release reporting */
-			if (tmode[WinMode::MOUSEX10])
-				return;
-			/* Don't send release events for the scroll wheel */
-			else if (m_buttons.isScrollWheel(btn))
-				return;
-		}
-		code = 0;
+	if (pos == m_old_mouse_pos) {
+		return false;
+	} else if (!twin.reportMouseMotion() && !twin.reportMouseMany()) {
+		return false;
+	} else if (twin.reportMouseMotion() && m_buttons.none()) {
+		// FIXME: doesn't this mean that MOUSEMANY won't work
+		// if reportMouseMotion() is also set and no button is pressed?
+		// WinMode::MOUSEMOTION: no reporting if no button is pressed
+		return false;
 	}
 
+	button = m_buttons.firstButton();
+	code = 32;
+	m_old_mouse_pos = pos;
+	return true;
+}
+
+bool XEventHandler::checkMouseReport(const xpp::ButtonEvent &ev, size_t &button, int &code) {
+	const auto &twin = m_x11.termWin();
+	const auto pos = twin.toCharPos(DrawPos{ev.pos()});
+
+	button = ev.buttonNr();
+	// Only buttons 1 through 11 can be encoded.
+	if (!m_buttons.valid(button)) {
+		return false;
+	} else if (ev.type() == xpp::EventType::BUTTON_RELEASE) {
+		if (twin.doX10Compatibility()) {
+			// MODE_MOUSEX10: no button release reporting.
+			return false;
+		} else if (m_buttons.isScrollWheel(button)) {
+			// Don't send release events for the scroll wheel.
+			return false;
+		}
+	}
+
+	code = 0;
 	m_old_mouse_pos = pos;
 
-	/* Encode btn into code. If no button is pressed for a motion event in
-	 * WinMode::MOUSEMANY, then encode it as a release. */
-	if ((!tmode[WinMode::MOUSE_SGR] && ev.type == ButtonRelease) || btn == PressedButtons::NO_BUTTON)
-		code += 3;
-	else if (btn >= 8)
-		code += 128 + btn - 8;
-	else if (btn >= 4)
-		code += 64 + btn - 4;
-	else
-		code += btn - 1;
+	return true;
+}
 
-	if (!tmode[WinMode::MOUSEX10]) {
-		auto state = ev.state;
-		code += ((state & ShiftMask  ) ?  4 : 0)
-		      + ((state & Mod1Mask   ) ?  8 : 0) /* meta key: alt */
-		      + ((state & ControlMask) ? 16 : 0);
+template <typename EVENT>
+void XEventHandler::handleMouseReport(const EVENT &ev) {
+	size_t button;
+	int code; // the escape code to report for the mouse motion
+
+	if (!checkMouseReport(ev, button, code)) {
+		return;
+	}
+
+	const auto &twin = m_x11.termWin();
+	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
+	const bool report_sgr = twin.reportMouseSGR();
+	const auto pos = m_old_mouse_pos;
+
+	// Encode button into a report code.
+	// If no button is pressed for a motion event in WinMode::MOUSEMANY, then encode it as a release.
+	if ((!report_sgr && is_release) ||
+			button == PressedButtons::NO_BUTTON)
+		code += 3;
+	else if (button >= 8)
+		code += 128 + button - 8;
+	else if (button >= 4)
+		code += 64 + button - 4;
+	else
+		code += button - 1;
+
+	using xpp::InputModifier;
+
+	if (!twin.doX10Compatibility()) {
+		const auto state = ev.state();
+		code += (state[InputModifier::SHIFT]   ?  4 : 0)
+		      + (state[InputModifier::MOD1]    ?  8 : 0) // meta key: alt
+		      + (state[InputModifier::CONTROL] ? 16 : 0);
 	}
 
 	std::string report;
 
-	if (tmode[WinMode::MOUSE_SGR]) {
-		const auto ch = ev.type == ButtonRelease ? 'm' : 'M';
+	if (report_sgr) {
+		const auto ch = is_release ? 'm' : 'M';
 		report = cosmos::sprintf(
 				"\033[<%d;%d;%d%c",
 				code, pos.x+1, pos.y+1, ch);
@@ -182,24 +213,26 @@ void XEventHandler::handleMouseReport(const XButtonEvent &ev) {
 	m_nst.tty().write(report, TTY::MayEcho(false));
 }
 
-void XEventHandler::handleMouseSelection(const XButtonEvent &ev, const bool done) {
+template <typename EVENT>
+void XEventHandler::handleMouseSelection(const EVENT &ev, const bool done) {
 	auto seltype = Selection::Type::REGULAR;
-	const unsigned state = ev.state & ~(Button1Mask | config::FORCE_MOUSE_MOD);
+	const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
 
 	for (auto [type, mask]: config::SEL_MASKS) {
-		if (stateMatches(mask, state)) {
+		if (stateMatches(mask.raw(), state.raw())) {
 			seltype = type;
 			break;
 		}
 	}
 
 	auto &sel = m_nst.selection();
-	const auto pos = m_x11.termWin().toCharPos(DrawPos{ev.x, ev.y});
+	const auto pos = m_x11.termWin().toCharPos(DrawPos{ev.pos()});
 	sel.extend(pos, seltype, done);
 
 	if (done) {
+		// button was released, only now set the actual X selection
 		auto selection = sel.selection();
-		m_xsel.setSelection(selection, ev.time);
+		m_xsel.setSelection(selection, ev.time());
 	}
 }
 
@@ -325,28 +358,6 @@ void XEventHandler::resize(const XConfigureEvent &config) {
 	if (new_size != m_x11.termWin().winExtent()) {
 		m_nst.resizeConsole(new_size);
 	}
-}
-
-void XEventHandler::buttonPress(const XButtonEvent &ev) {
-	const auto btn = ev.button;
-	const auto &twin = m_x11.termWin();
-
-	if (m_buttons.valid(btn))
-		m_buttons.setPressed(btn);
-
-	if (twin.checkFlag(WinMode::MOUSE) && !(ev.state & config::FORCE_MOUSE_MOD)) {
-		handleMouseReport(ev);
-		return;
-	}
-
-	if (handleMouseAction(ev, /*is_release=*/false))
-		return;
-	else if (btn != Button1)
-		return;
-
-	const auto snap = m_xsel.handleClick();
-	const auto pos = twin.toCharPos(DrawPos{ev.x, ev.y});
-	m_nst.selection().start(pos, snap);
 }
 
 void XEventHandler::propertyNotify(const xpp::PropertyEvent &ev) {
@@ -497,38 +508,50 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 	}
 }
 
-void XEventHandler::buttonRelease(const XButtonEvent &ev) {
-	int btn = ev.button;
+void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
+	const auto button = ev.buttonNr();
+	const auto &twin = m_x11.termWin();
+	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
 
-	if (m_buttons.valid(btn))
-		m_buttons.setReleased(btn);
+	m_buttons.setPressed(button);
 
-	const auto &tmode = m_x11.termWin().mode();
-
-	if (tmode[WinMode::MOUSE] && !(ev.state & config::FORCE_MOUSE_MOD)) {
+	if (twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);
 		return;
-	} else if (handleMouseAction(ev, true)) {
+	} else if (handleMouseAction(ev)) {
 		return;
-	} else if (btn == Button1) {
+	} else if (button == Button1) {
+		const auto snap = m_xsel.handleClick();
+		const auto pos = twin.toCharPos(DrawPos{ev.pos()});
+		m_nst.selection().start(pos, snap);
+	}
+}
+
+void XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
+	const auto button = ev.buttonNr();
+	const auto &twin = m_x11.termWin();
+	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
+
+	m_buttons.setReleased(button);
+
+	if (twin.inMouseMode() && !force_mouse) {
+		handleMouseReport(ev);
+		return;
+	} else if (handleMouseAction(ev)) {
+		return;
+	} else if (button == Button1) {
 		handleMouseSelection(ev, /*done =*/ true);
 	}
 }
 
-void XEventHandler::motionEvent(const xpp::Event &ev) {
-	// NOTE: the code currently exploits the fact that XMotionEvent and
-	// XButtonEvent share most of the fields, but the type notion behind
-	// this is flawed.
-	// avoid the xpp::Event type check from biting us here by accessing the
-	// raw structure
-	// TODO: maybe fix this using a template function
-	const auto &bev = ev.raw()->xbutton;
-	const auto &tmode = m_x11.termWin().mode();
+void XEventHandler::pointerMovedEvent(const xpp::PointerMovedEvent &ev) {
+	const auto &twin = m_x11.termWin();
+	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
 
-	if (tmode[WinMode::MOUSE] && !(bev.state & config::FORCE_MOUSE_MOD)) {
-		handleMouseReport(bev);
+	if (twin.inMouseMode() && !force_mouse) {
+		handleMouseReport(ev);
 	} else {
-		handleMouseSelection(bev);
+		handleMouseSelection(ev);
 	}
 }
 

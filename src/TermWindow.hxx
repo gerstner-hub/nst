@@ -93,9 +93,14 @@ struct TermWindow {
 	void resetFlag(const WinMode &flag) { m_mode.reset(flag); }
 	void flipFlag(const WinMode &flag) { m_mode.flip(flag); }
 
-	bool inReverseMode() const { return checkFlag(WinMode::REVERSE); }
-	bool hideCursor() const { return checkFlag(WinMode::HIDE_CURSOR); }
-	bool isFocused() const { return checkFlag(WinMode::FOCUSED); }
+	bool inReverseMode()      const { return checkFlag(WinMode::REVERSE); }
+	bool hideCursor()         const { return checkFlag(WinMode::HIDE_CURSOR); }
+	bool isFocused()          const { return checkFlag(WinMode::FOCUSED); }
+	bool inMouseMode()        const { return checkFlag(WinMode::MOUSE); }
+	bool reportMouseMotion()  const { return checkFlag(WinMode::MOUSEMOTION); }
+	bool reportMouseMany()    const { return checkFlag(WinMode::MOUSEMANY); }
+	bool reportMouseSGR()     const { return checkFlag(WinMode::MOUSE_SGR); }
+	bool doX10Compatibility() const { return checkFlag(WinMode::MOUSEX10); }
 
 protected: // data
 

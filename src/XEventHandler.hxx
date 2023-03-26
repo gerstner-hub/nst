@@ -8,8 +8,10 @@
 
 // X++
 #include "X++/Event.hxx"
+#include "X++/event/ButtonEvent.hxx"
 #include "X++/event/ClientMessageEvent.hxx"
 #include "X++/event/FocusChangeEvent.hxx"
+#include "X++/event/PointerMovedEvent.hxx"
 #include "X++/event/PropertyEvent.hxx"
 #include "X++/event/SelectionEvent.hxx"
 #include "X++/event/SelectionRequestEvent.hxx"
@@ -48,11 +50,15 @@ public:
 	}
 
 	void setPressed(const size_t button) {
-		this->set(button - 1, true);
+		if (valid(button)) {
+			this->set(button - 1, true);
+		}
 	}
 
 	void setReleased(const size_t button) {
-		this->set(button - 1, false);
+		if (valid(button)) {
+			this->set(button - 1, false);
+		}
 	}
 
 	static bool isScrollWheel(const size_t button) {
@@ -90,9 +96,9 @@ protected: // functions
 	void clientMessage(const xpp::ClientMessageEvent &);
 	void resize(const XConfigureEvent &);
 	void focus(const xpp::FocusChangeEvent&);
-	void buttonRelease(const XButtonEvent &);
-	void buttonPress(const XButtonEvent&);
-	void motionEvent(const xpp::Event &);
+	void buttonRelease(const xpp::ButtonEvent &);
+	void buttonPress(const xpp::ButtonEvent&);
+	void pointerMovedEvent(const xpp::PointerMovedEvent &);
 	void propertyNotify(const xpp::PropertyEvent &);
 	void selectionNotify(const xpp::SelectionEvent &);
 	void selectionClear();
@@ -100,9 +106,13 @@ protected: // functions
 
 	/// Handles a selection input event provided in the property \c selprop
 	void handleSelectionEvent(const xpp::AtomID selprop);
-	void handleMouseSelection(const XButtonEvent &, const bool done = false);
-	void handleMouseReport(const XButtonEvent &);
-	bool handleMouseAction(const XButtonEvent &ev, bool is_release);
+	template <typename EVENT>
+	void handleMouseSelection(const EVENT &, const bool done = false);
+	template <typename EVENT>
+	void handleMouseReport(const EVENT &);
+	bool checkMouseReport(const xpp::ButtonEvent &ev, size_t &button, int &code);
+	bool checkMouseReport(const xpp::PointerMovedEvent &ev, size_t &button, int &code);
+	bool handleMouseAction(const xpp::ButtonEvent &ev);
 
 	/// Returns an output sequence mapped to the given input event.
 	/**

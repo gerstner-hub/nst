@@ -117,6 +117,16 @@ public: // functions
 	operator xpp::Coord() const {
 		return xpp::Coord{x, y};
 	}
+
+	DrawPos() = default;
+
+	DrawPos(const int _x, const int _y) {
+		set(_x, _y);
+	}
+
+	explicit DrawPos(const xpp::Coord coord) {
+		set(coord.x, coord.y);
+	}
 };
 
 /// A rectangular range of characters between a begin and and end CharPos.

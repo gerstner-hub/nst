@@ -41,15 +41,16 @@ namespace {
 		return mask == config::XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
 	}
 
-	xpp::InputModifier button_mask(unsigned button) {
+	xpp::InputModifier button_mask(xpp::Button button) {
 		using xpp::InputModifier;
+		using xpp::Button;
 		switch(button) {
 			default: return InputModifier{0};
-			case Button1: return InputModifier::BUTTON1;
-			case Button2: return InputModifier::BUTTON2;
-			case Button3: return InputModifier::BUTTON3;
-			case Button4: return InputModifier::BUTTON4;
-			case Button5: return InputModifier::BUTTON5;
+			case Button::BUTTON1: return InputModifier::BUTTON1;
+			case Button::BUTTON2: return InputModifier::BUTTON2;
+			case Button::BUTTON3: return InputModifier::BUTTON3;
+			case Button::BUTTON4: return InputModifier::BUTTON4;
+			case Button::BUTTON5: return InputModifier::BUTTON5;
 		};
 	}
 
@@ -123,7 +124,7 @@ bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 }
 
 bool XEventHandler::checkMouseReport(const xpp::PointerMovedEvent &ev,
-		size_t &button, int &code) {
+		xpp::Button &button, int &code) {
 	const auto &twin = m_x11.termWin();
 	const auto pos = twin.toCharPos(DrawPos{ev.pos()});
 
@@ -144,7 +145,7 @@ bool XEventHandler::checkMouseReport(const xpp::PointerMovedEvent &ev,
 	return true;
 }
 
-bool XEventHandler::checkMouseReport(const xpp::ButtonEvent &ev, size_t &button, int &code) {
+bool XEventHandler::checkMouseReport(const xpp::ButtonEvent &ev, xpp::Button &button, int &code) {
 	const auto &twin = m_x11.termWin();
 	const auto pos = twin.toCharPos(DrawPos{ev.pos()});
 
@@ -170,7 +171,7 @@ bool XEventHandler::checkMouseReport(const xpp::ButtonEvent &ev, size_t &button,
 
 template <typename EVENT>
 void XEventHandler::handleMouseReport(const EVENT &ev) {
-	size_t button;
+	xpp::Button button;
 	int code; // the escape code to report for the mouse motion
 
 	if (!checkMouseReport(ev, button, code)) {
@@ -187,12 +188,12 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 	if ((!report_sgr && is_release) ||
 			button == PressedButtons::NO_BUTTON)
 		code += 3;
-	else if (button >= 8)
-		code += 128 + button - 8;
-	else if (button >= 4)
-		code += 64 + button - 4;
+	else if (button >= xpp::Button{8})
+		code += 128 + xpp::raw_button(button) - 8;
+	else if (button >= xpp::Button{4})
+		code += 64 + xpp::raw_button(button) - 4;
 	else
-		code += button - 1;
+		code += xpp::raw_button(button) - 1;
 
 	using xpp::InputModifier;
 
@@ -529,7 +530,7 @@ void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 		return;
 	} else if (handleMouseAction(ev)) {
 		return;
-	} else if (button == Button1) {
+	} else if (button == xpp::Button::BUTTON1) {
 		const auto snap = m_xsel.handleClick();
 		const auto pos = twin.toCharPos(DrawPos{ev.pos()});
 		m_nst.selection().start(pos, snap);
@@ -548,7 +549,7 @@ void XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 		return;
 	} else if (handleMouseAction(ev)) {
 		return;
-	} else if (button == Button1) {
+	} else if (button == xpp::Button::BUTTON1) {
 		handleMouseSelection(ev, /*done =*/ true);
 	}
 }

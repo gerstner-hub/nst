@@ -26,13 +26,15 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 
 	auto &x11 = nst.x11();
 
+	using xpp::Button;
+
 	return {
-			    /* mask                  button   function                              release */
-		MouseShortcut{ XK_ANY_MOD,           Button2, std::bind(&X11::pasteSelection, &x11), true },
-		MouseShortcut{ ShiftMask,            Button4, std::bind(ttysend, "\033[5;2~"),      false },
-		MouseShortcut{ XK_ANY_MOD,           Button4, std::bind(ttysend, "\031"),           false },
-		MouseShortcut{ ShiftMask,            Button5, std::bind(ttysend, "\033[6;2~"),      false },
-		MouseShortcut{ XK_ANY_MOD,           Button5, std::bind(ttysend, "\005"),           false },
+		//             mask                  button           function                              release
+		MouseShortcut{ XK_ANY_MOD,           Button::BUTTON2, std::bind(&X11::pasteSelection, &x11), true },
+		MouseShortcut{ ShiftMask,            Button::BUTTON4, std::bind(ttysend, "\033[5;2~"),      false },
+		MouseShortcut{ XK_ANY_MOD,           Button::BUTTON4, std::bind(ttysend, "\031"),           false },
+		MouseShortcut{ ShiftMask,            Button::BUTTON5, std::bind(ttysend, "\033[6;2~"),      false },
+		MouseShortcut{ XK_ANY_MOD,           Button::BUTTON5, std::bind(ttysend, "\005"),           false },
 	};
 }
 

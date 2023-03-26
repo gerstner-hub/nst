@@ -8,6 +8,7 @@
 
 // X++
 #include "X++/Event.hxx"
+#include "X++/helpers.hxx"
 #include "X++/types.hxx"
 #include "X++/fwd.hxx"
 
@@ -25,38 +26,43 @@ class PressedButtons :
 		public std::bitset<11> {
 public: // data
 
-	static constexpr size_t NO_BUTTON = 12;
+	static constexpr xpp::Button NO_BUTTON{12};
 
 public:
 
 	/// returns the position of the lowest button pressed, or NO_BUTTON
-	size_t firstButton() const {
+	xpp::Button firstButton() const {
 		for (size_t bit = 0; bit < size(); bit++) {
 			if (this->test(bit))
-				return bit + 1;
+				return xpp::Button{static_cast<unsigned int>(bit) + 1};
 		}
 
 		return NO_BUTTON;
 	}
 
-	bool valid(const size_t button) const {
-		return button >= 1 && button <= size();
+	bool valid(const xpp::Button button) const {
+		return button >= xpp::Button::BUTTON1 && button < NO_BUTTON;
 	}
 
-	void setPressed(const size_t button) {
+	void setPressed(const xpp::Button button) {
 		if (valid(button)) {
-			this->set(button - 1, true);
+			this->set(index(button), true);
 		}
 	}
 
-	void setReleased(const size_t button) {
+	void setReleased(const xpp::Button button) {
 		if (valid(button)) {
-			this->set(button - 1, false);
+			this->set(index(button), false);
 		}
 	}
 
-	static bool isScrollWheel(const size_t button) {
-		return button == 4 || button == 5;
+	static bool isScrollWheel(const xpp::Button button) {
+		return button == xpp::Button::BUTTON4 || button == xpp::Button::BUTTON5;
+	}
+protected:
+
+	size_t index(const xpp::Button button) const {
+		return xpp::raw_button(button) - 1;
 	}
 };
 
@@ -104,8 +110,8 @@ protected: // functions
 	void handleMouseSelection(const EVENT &, const bool done = false);
 	template <typename EVENT>
 	void handleMouseReport(const EVENT &);
-	bool checkMouseReport(const xpp::ButtonEvent &ev, size_t &button, int &code);
-	bool checkMouseReport(const xpp::PointerMovedEvent &ev, size_t &button, int &code);
+	bool checkMouseReport(const xpp::ButtonEvent &ev, xpp::Button &button, int &code);
+	bool checkMouseReport(const xpp::PointerMovedEvent &ev, xpp::Button &button, int &code);
 	bool handleMouseAction(const xpp::ButtonEvent &ev);
 
 	/// Returns an output sequence mapped to the given input event.

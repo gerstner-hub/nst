@@ -289,7 +289,7 @@ struct KbdShortcut {
 
 struct MouseShortcut {
 	unsigned int mod;
-	unsigned int button;
+	xpp::Button button;
 	Callback func;
 	bool  release;
 };

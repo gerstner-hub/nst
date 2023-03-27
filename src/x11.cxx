@@ -429,9 +429,10 @@ void X11::drawGlyphs(Line::const_iterator it, const Line::const_iterator end, Ch
 	// range.
 
 	for (
-			Glyph glyph = *it;
+			Glyph glyph;
 			it < end && num_specs < specs_left;
-			glyph = *++it, cur_pos.moveRight()) {
+			++it, cur_pos.moveRight()) {
+		glyph = *it;
 
 		if (glyph.isDummy()) {
 			continue;

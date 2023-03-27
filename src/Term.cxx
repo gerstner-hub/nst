@@ -492,9 +492,11 @@ void Term::drawRegion(const Range &range) const {
 
 		auto &line = m_screen[y];
 
+		// beware that we need to point past the last valid position,
+		// `range` has inclusive end coordinates!
 		m_x11.drawGlyphs(
 				line.begin() + range.begin.x,
-				line.begin() + range.end.x,
+				line.begin() + cosmos::to_integral(range.width()),
 				CharPos{range.begin.x, y});
 		m_dirty_lines[y] = false;
 	}

@@ -10,6 +10,7 @@
 #include "X++/atoms.hxx"
 #include "X++/event/ButtonEvent.hxx"
 #include "X++/event/ClientMessageEvent.hxx"
+#include "X++/event/ConfigureEvent.hxx"
 #include "X++/event/FocusChangeEvent.hxx"
 #include "X++/event/PointerMovedEvent.hxx"
 #include "X++/event/PropertyEvent.hxx"
@@ -86,7 +87,7 @@ void XEventHandler::process() {
 		default: return;
 		case Event::KEY_PRESS:         return keyPress(m_event.toKeyEvent());
 		case Event::CLIENT_MESSAGE:    return clientMessage(xpp::ClientMessageEvent{m_event});
-		case Event::CONFIGURE_NOTIFY:  return resize(m_event.toConfigureNotify());
+		case Event::CONFIGURE_NOTIFY:  return resize(xpp::ConfigureEvent{m_event});
 		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{m_event});
 		case Event::UNMAP_NOTIFY:      return unmap();
 		case Event::EXPOSE:            return expose();
@@ -361,8 +362,8 @@ void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
 	}
 }
 
-void XEventHandler::resize(const XConfigureEvent &config) {
-	const auto new_size = Extent{config.width, config.height};
+void XEventHandler::resize(const xpp::ConfigureEvent &config) {
+	const auto new_size = Extent{config.extent()};
 
 	if (new_size != m_x11.termWin().winExtent()) {
 		m_x11.setWinSize(new_size);
@@ -371,10 +372,8 @@ void XEventHandler::resize(const XConfigureEvent &config) {
 }
 
 void XEventHandler::propertyNotify(const xpp::PropertyEvent &ev) {
-	/*
-	 * PropertyNotify is only turned on when there is some
-	 * INCR transfer happening for the selection retrieval.
-	 */
+	// PropertyNotify is only turned on when there is some
+	// INCR transfer happening for the selection retrieval.
 
 	if (ev.state() != xpp::PropertyNotification::NEW_VALUE)
 	       return;

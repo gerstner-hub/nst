@@ -94,7 +94,7 @@ protected: // functions
 	void unmap();
 	void keyPress(const XKeyEvent &);
 	void clientMessage(const xpp::ClientMessageEvent &);
-	void resize(const XConfigureEvent &);
+	void resize(const xpp::ConfigureEvent &);
 	void focus(const xpp::FocusChangeEvent&);
 	void buttonRelease(const xpp::ButtonEvent &);
 	void buttonPress(const xpp::ButtonEvent&);

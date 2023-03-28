@@ -255,6 +255,17 @@ public: // data
 
 public: // functions
 
+	Extent() = default;
+
+	explicit Extent(const xpp::Extent ex) :
+			width{ex.width < INT_MAX ? static_cast<int>(ex.width) : INT_MAX},
+			height{ex.height < INT_MAX ? static_cast<int>(ex.height) : INT_MAX}
+	{}
+
+	explicit Extent(int p_width, int p_height) :
+			width{p_width}, height{p_height}
+	{}
+
 	bool operator==(const Extent &o) const {
 		return width == o.width && height == o.height;
 	}

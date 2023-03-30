@@ -2,8 +2,9 @@
 #include <iostream>
 
 // X++
-#include "X++/XDisplay.hxx"
+#include "X++/event/KeyEvent.hxx"
 #include "X++/helpers.hxx"
+#include "X++/XDisplay.hxx"
 
 // nst
 #include "Input.hxx"
@@ -139,24 +140,23 @@ void Input::unsetFocus() {
 	XUnsetICFocus(m_ctx);
 }
 
-KeySym Input::lookupString(const XKeyEvent &ev, std::string &s) {
+xpp::KeySymID Input::lookupString(const xpp::KeyEvent &ev, std::string &s) {
 	int len;
 	KeySym sym;
+
+	auto raw = const_cast<XKeyEvent*>(&ev.raw());
 
 	s.resize(64);
 
 	if (haveContext()) {
 		Status status;
-		len = XmbLookupString(
-				m_ctx, const_cast<XKeyEvent*>(&ev),
-				&s[0], s.size() + 1,
-				&sym, &status);
+		len = XmbLookupString(m_ctx, raw, &s[0], s.size() + 1, &sym, &status);
 	} else {
-		len = XLookupString(const_cast<XKeyEvent*>(&ev), &s[0], s.size() + 1, &sym, nullptr);
+		len = XLookupString(raw, &s[0], s.size() + 1, &sym, nullptr);
 	}
 
 	s.resize(len);
-	return sym;
+	return xpp::KeySymID{sym};
 }
 
 } // end ns

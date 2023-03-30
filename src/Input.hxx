@@ -8,7 +8,10 @@
 #include <X11/Xlib.h>
 
 // X++
+#include "X++/fwd.hxx"
 #include "X++/XWindow.hxx"
+
+// nst
 #include "types.hxx"
 
 namespace nst {
@@ -36,7 +39,7 @@ public: // functions
 	void setFocus();
 	void unsetFocus();
 	/// Looks up a KeySym and string representation of the given event.
-	KeySym lookupString(const XKeyEvent &ev, std::string &s);
+	xpp::KeySymID lookupString(const xpp::KeyEvent &ev, std::string &s);
 
 protected: // functions
 

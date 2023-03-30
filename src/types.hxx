@@ -8,15 +8,13 @@
 #include <stdexcept>
 #include <string_view>
 
-// X
-#include <X11/X.h>
-
 // cosmos
 #include "cosmos/algs.hxx"
 #include "cosmos/BitMask.hxx"
 
 // X++
 #include "X++/types.hxx"
+#include "X++/keyboard.hxx"
 
 namespace nst {
 
@@ -287,14 +285,11 @@ public: // functions
 	}
 };
 
-
-/* types used in nst_config.h */
-
 using Callback = std::function<void ()>;
 
 struct KbdShortcut {
 	unsigned int mod;
-	KeySym keysym;
+	xpp::KeySymID keysym;
 	Callback func;
 };
 
@@ -306,12 +301,12 @@ struct MouseShortcut {
 };
 
 struct Key {
-	KeySym k;
+	xpp::KeySymID k;
 	unsigned int mask = 0;
 	std::string_view s{};
-	/* three-valued logic variables: 0 indifferent, 1 on, -1 off */
-	signed char appkey = 0;    /* application keypad */
-	signed char appcursor = 0; /* application cursor */
+	// three-valued logic variables: 0 indifferent, 1 on, -1 off, 2 is for keymad keys
+	signed char appkey = 0;    // application keypad
+	signed char appcursor = 0; // application cursor
 };
 
 /// various X11 and drawing related window settings

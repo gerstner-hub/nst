@@ -92,7 +92,7 @@ protected: // functions
 	void expose();
 	void visibilityChange(const xpp::VisibilityEvent&);
 	void unmap();
-	void keyPress(const XKeyEvent &);
+	void keyPress(const xpp::KeyEvent &);
 	void clientMessage(const xpp::ClientMessageEvent &);
 	void resize(const xpp::ConfigureEvent &);
 	void focus(const xpp::FocusChangeEvent&);
@@ -120,7 +120,7 @@ protected: // functions
 	 * 	The string sequence associated with the key input event or
 	 * 	nullopt_t if nothing is mapped.
 	 **/
-	std::optional<std::string_view> customKeyMapping(KeySym k, unsigned state) const;
+	std::optional<std::string_view> customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask state) const;
 
 protected: // data
 
@@ -132,6 +132,7 @@ protected: // data
 	PressedButtons m_buttons; /// Bit field of pressed buttons.
 	CharPos m_old_mouse_pos;
 	xpp::Event m_event; /// The currently handled event
+	std::string m_key_buf;
 };
 
 } // end ns

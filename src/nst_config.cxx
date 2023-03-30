@@ -39,7 +39,7 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 }
 
 std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
-	/* Internal keyboard shortcuts. */
+	// Internal keyboard shortcuts.
 	//constexpr auto MODKEY = Mod1Mask;
 	constexpr unsigned int TERMMOD = ControlMask|ShiftMask;
 
@@ -53,19 +53,19 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 	auto printSel = [&]() { nst.selection().dump(); };
 
 	return {
-		/* mask                 keysym          function */
-		{ XK_ANY_MOD,           XK_Break,       std::bind(&TTY::sendBreak, &tty) },
-		{ ControlMask,          XK_Print,       togglePrinter       },
-		{ ShiftMask,            XK_Print,       printScreen         },
-		{ XK_ANY_MOD,           XK_Print,       printSel            },
-		{ TERMMOD,              XK_Prior,       std::bind(&X11::zoomFont, &x11, +1) },
-		{ TERMMOD,              XK_Next,        std::bind(&X11::zoomFont, &x11, -1) },
-		{ TERMMOD,              XK_Home,        std::bind(&X11::resetFont, &x11) },
-		{ TERMMOD,              XK_C,           std::bind(&X11::copyToClipboard, &x11) },
-		{ TERMMOD,              XK_V,           std::bind(&X11::pasteClipboard, &x11) },
-		{ TERMMOD,              XK_Y,           selPaste            },
-		{ ShiftMask,            XK_Insert,      selPaste            },
-		{ TERMMOD,              XK_Num_Lock,    std::bind(&X11::toggleNumlock, &x11) },
+		// mask                 keysym              function
+		{ XK_ANY_MOD,           KeyID::BREAK,       std::bind(&TTY::sendBreak, &tty) },
+		{ ControlMask,          KeyID::PRINT,       togglePrinter       },
+		{ ShiftMask,            KeyID::PRINT,       printScreen         },
+		{ XK_ANY_MOD,           KeyID::PRINT,       printSel            },
+		{ TERMMOD,              KeyID::PRIOR,       std::bind(&X11::zoomFont, &x11, +1) },
+		{ TERMMOD,              KeyID::NEXT,        std::bind(&X11::zoomFont, &x11, -1) },
+		{ TERMMOD,              KeyID::HOME,        std::bind(&X11::resetFont, &x11) },
+		{ TERMMOD,              KeyID::C,           std::bind(&X11::copyToClipboard, &x11) },
+		{ TERMMOD,              KeyID::V,           std::bind(&X11::pasteClipboard, &x11) },
+		{ TERMMOD,              KeyID::Y,           selPaste            },
+		{ ShiftMask,            KeyID::INSERT,      selPaste            },
+		{ TERMMOD,              KeyID::NUM_LOCK,    std::bind(&X11::toggleNumlock, &x11) },
 	};
 }
 

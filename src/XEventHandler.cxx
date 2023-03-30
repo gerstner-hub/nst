@@ -12,6 +12,7 @@
 #include "X++/event/ClientMessageEvent.hxx"
 #include "X++/event/ConfigureEvent.hxx"
 #include "X++/event/FocusChangeEvent.hxx"
+#include "X++/event/KeyEvent.hxx"
 #include "X++/event/PointerMovedEvent.hxx"
 #include "X++/event/PropertyEvent.hxx"
 #include "X++/event/SelectionEvent.hxx"
@@ -85,7 +86,7 @@ void XEventHandler::process() {
 
 	switch(m_event.type()) {
 		default: return;
-		case Event::KEY_PRESS:         return keyPress(m_event.toKeyEvent());
+		case Event::KEY_PRESS:         return keyPress(xpp::KeyEvent{m_event});
 		case Event::CLIENT_MESSAGE:    return clientMessage(xpp::ClientMessageEvent{m_event});
 		case Event::CONFIGURE_NOTIFY:  return resize(xpp::ConfigureEvent{m_event});
 		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{m_event});
@@ -266,28 +267,28 @@ void XEventHandler::focus(const xpp::FocusChangeEvent &ev) {
 }
 
 std::optional<std::string_view>
-XEventHandler::customKeyMapping(KeySym k, unsigned state) const {
+XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask state) const {
 	// Check for mapped keys out of X11 function keys.
-	const bool found = config::MAPPED_KEYS.count(k) != 0;
-
-	// if the key is not explicitly mapped and it is outside the range of
-	// X11 function keys, don't continue
-	if (!found && ((k & 0xFFFF) < 0xFD00)) {
-		return {};
+	if (const bool found = config::MAPPED_KEYS.count(keysym); found == 0) {
+		// if the key is not explicitly mapped and it is outside the range of
+		// X11 function keys, don't continue
+		if ((xpp::raw_key(keysym) & 0xFFFF) < 0xFD00) {
+			return {};
+		}
 	}
 
-	const auto &tmode = m_x11.termWin().mode();
+	const auto tmode = m_x11.termWin().mode();
 
-	for (auto [it, end] = config::KEYS.equal_range(Key{k}); it != end; it++) {
+	for (auto [it, end] = config::KEYS.equal_range(Key{keysym}); it != end; it++) {
 		auto &key = *it;
 
-		if (!stateMatches(key.mask, state))
+		if (!stateMatches(key.mask, state.raw()))
 			continue;
-		if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
+		else if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
 			continue;
-		if (tmode[WinMode::NUMLOCK] && key.appkey == 2)
+		else if (tmode[WinMode::NUMLOCK] && key.appkey == 2)
 			continue;
-		if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
+		else if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
 			continue;
 
 		return key.s;
@@ -296,48 +297,47 @@ XEventHandler::customKeyMapping(KeySym k, unsigned state) const {
 	return {};
 }
 
-void XEventHandler::keyPress(const XKeyEvent &ev) {
-	const auto &tmode = m_x11.termWin().mode();
+void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
+	const auto tmode = m_x11.termWin().mode();
 
 	if (tmode[WinMode::KBDLOCK])
 		return;
 
-	std::string buf;
-	const auto ksym = m_x11.m_input.lookupString(ev, buf);
+	const auto ksym = m_x11.m_input.lookupString(ev, m_key_buf);
 
-	/* 1. shortcuts */
+	// 1. shortcuts
 	for (auto &sc: m_kbd_shortcuts) {
-		if (ksym == sc.keysym && stateMatches(sc.mod, ev.state)) {
+		if (ksym == sc.keysym && stateMatches(sc.mod, ev.state().raw())) {
 			sc.func();
 			return;
 		}
 	}
 
-	/* 2. custom keys from nst_config.hxx */
-	if (auto seq = customKeyMapping(ksym, ev.state); seq) {
-		m_nst.tty().write(*seq, TTY::MayEcho(true));
+	// 2. custom keys from nst_config.hxx
+	if (auto seq = customKeyMapping(ksym, ev.state()); seq) {
+		m_nst.tty().write(*seq, TTY::MayEcho{true});
 		return;
 	}
 
-	/* 3. composed string from input method */
-	if (buf.empty())
+	// 3. composed string from input method
+	if (m_key_buf.empty())
 		return;
 
-	if (buf.size() == 1 && (ev.state & Mod1Mask)) {
+	if (m_key_buf.size() == 1 && ev.state()[xpp::InputModifier::MOD1]) {
 		if (tmode[WinMode::EIGHT_BIT]) {
-			if (buf[0] < 0177) {
-				Rune c = buf[0] | 0x80;
-				buf.clear();
-				utf8::encode(c, buf);
+			if (m_key_buf[0] < 0177) {
+				Rune c = m_key_buf[0] | 0x80;
+				m_key_buf.clear();
+				utf8::encode(c, m_key_buf);
 			}
 		} else {
-			buf[1] = buf[0];
-			buf[0] = '\033';
-			buf.resize(2);
+			m_key_buf.resize(2);
+			m_key_buf[1] = m_key_buf[0];
+			m_key_buf[0] = '\033';
 		}
 	}
 
-	m_nst.tty().write(buf, TTY::MayEcho(true));
+	m_nst.tty().write(m_key_buf, TTY::MayEcho{true});
 }
 
 void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {

@@ -300,15 +300,6 @@ struct MouseShortcut {
 	bool release;
 };
 
-struct Key {
-	xpp::KeySymID k;
-	xpp::InputMask mask{};
-	std::string_view s{};
-	// three-valued logic variables: 0 indifferent, 1 on, -1 off, 2 is for keymad keys
-	signed char appkey = 0;    // application keypad
-	signed char appcursor = 0; // application cursor
-};
-
 /// various X11 and drawing related window settings
 enum class WinMode {
 	VISIBLE     = 1 << 0,  /// whether the window is currently visible
@@ -327,11 +318,44 @@ enum class WinMode {
 	MOUSEX10    = 1 << 13, /// X10 mouse backwards compatibility
 	MOUSEMANY   = 1 << 14, /// report mouse motion events as CSI escape sequences independently of button press
 	BRKT_PASTE  = 1 << 15, /// "bracketed" paste mode, an Xterm feature where pasted X selection is surrounded by special escape codes
-	NUMLOCK     = 1 << 16, /// Numlock enable status, somehow interpreted for key mappings
+	NUMLOCK     = 1 << 16, /// Numlock enable status, used for key binding interpretation
 	MOUSE       = MOUSEBTN|MOUSEMOTION|MOUSEX10|MOUSEMANY
 };
 
 using WinModeMask = cosmos::BitMask<WinMode>;
+
+struct Key {
+public: // types
+
+	enum class AppKeypad {
+		DISABLED   = -1,
+		IGNORE     =  0,
+		ENABLED    =  1,
+		NO_NUMLOCK =  2
+	};
+
+public: // functions
+	
+	bool matchesAppKeypad(const WinModeMask mode) const {
+		const auto appkey_enabled = mode[WinMode::APPKEYPAD];
+
+		if (appkey_enabled && appkeypad == AppKeypad::DISABLED)
+			return false;
+		else if (!appkey_enabled && appkeypad == AppKeypad::ENABLED)
+			return false;
+		else if (mode[WinMode::NUMLOCK] && appkeypad == AppKeypad::NO_NUMLOCK)
+			return false;
+
+		return true;
+	}
+
+public: // data
+	xpp::KeySymID k;
+	xpp::InputMask mask{};
+	std::string_view s{};
+	AppKeypad appkeypad{AppKeypad::IGNORE}; // application keypad
+	signed char appcursor = 0; // application cursor
+};
 
 enum class CursorStyle {
 	BLINKING_BLOCK = 0,

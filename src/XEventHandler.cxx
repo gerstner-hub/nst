@@ -61,7 +61,6 @@ namespace {
 XEventHandler::XEventHandler(Nst &nst) :
 		m_nst{nst},
 		m_x11{nst.x11()},
-		m_xsel{m_x11.selection()},
 		m_mouse_shortcuts{config::get_mouse_shortcuts(nst)},
 		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)}
 {}
@@ -242,7 +241,7 @@ void XEventHandler::handleMouseSelection(const EVENT &ev, const bool done) {
 	if (done) {
 		// button was released, only now set the actual X selection
 		auto selection = sel.selection();
-		m_xsel.setSelection(selection, ev.time());
+		m_x11.selection().setSelection(selection, ev.time());
 	}
 }
 
@@ -479,17 +478,19 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 	const xpp::AtomID req_prop = req.property() == xpp::AtomID::INVALID ?
 			target : req.property();
 
+	auto &xsel = m_x11.selection();
+
 	if (target == atoms::targets) {
 		// respond with the supported type.
-		xpp::Property<xpp::AtomID> tgt_format{m_xsel.targetFormat()};
+		xpp::Property<xpp::AtomID> tgt_format{xsel.targetFormat()};
 
 		requestor.setProperty(req_prop, tgt_format);
 		response.setProperty(req_prop);
-	} else if (target == m_xsel.targetFormat() || target == xpp::atoms::string_type) {
+	} else if (target == xsel.targetFormat() || target == xpp::atoms::string_type) {
 		// with XA_STRING (string_type) non ascii characters may be
 		// incorrect in the requestor. It is not our problem, use utf8.
 		try {
-			auto seltext = m_xsel.getSelection(req.selection());
+			auto seltext = xsel.getSelection(req.selection());
 			if (!seltext.empty()) {
 
 				if (target == xpp::atoms::string_type) {
@@ -529,7 +530,7 @@ void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (handleMouseAction(ev)) {
 		return;
 	} else if (button == xpp::Button::BUTTON1) {
-		const auto snap = m_xsel.handleClick();
+		const auto snap = m_x11.selection().handleClick();
 		const auto pos = twin.toCharPos(DrawPos{ev.pos()});
 		m_nst.selection().start(pos, snap);
 	}

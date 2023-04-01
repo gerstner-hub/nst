@@ -18,7 +18,6 @@
 namespace nst {
 
 class Nst;
-class XSelection;
 class X11;
 
 /// Represents the current mouse button press state.
@@ -126,7 +125,6 @@ protected: // data
 
 	Nst &m_nst;
 	X11 &m_x11;
-	XSelection &m_xsel;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
 	PressedButtons m_buttons; /// Bit field of pressed buttons.

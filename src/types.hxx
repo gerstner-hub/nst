@@ -297,7 +297,7 @@ struct MouseShortcut {
 	xpp::InputMask mod;
 	xpp::Button button;
 	Callback func;
-	bool  release;
+	bool release;
 };
 
 struct Key {

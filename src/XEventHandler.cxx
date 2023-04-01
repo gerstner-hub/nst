@@ -282,7 +282,7 @@ XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask
 			continue;
 		else if (!key.matchesAppKeypad(tmode))
 			continue;
-		else if (tmode[WinMode::APPCURSOR] ? key.appcursor < 0 : key.appcursor > 0)
+		else if (!key.matchesAppCursor(tmode))
 			continue;
 
 		return key.s;

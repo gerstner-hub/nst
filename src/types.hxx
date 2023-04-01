@@ -324,6 +324,11 @@ enum class WinMode {
 
 using WinModeMask = cosmos::BitMask<WinMode>;
 
+/// Key binding configuration.
+/**
+ * This structure keeps state data that, if matched upon input events, will
+ * cause the sending of the designated control sequence to the TTY.
+ **/
 struct Key {
 public: // types
 
@@ -332,6 +337,12 @@ public: // types
 		IGNORE     =  0,
 		ENABLED    =  1,
 		NO_NUMLOCK =  2
+	};
+
+	enum class AppCursor {
+		ENABLED =   1,
+		IGNORE  =   0,
+		DISABLED = -1
 	};
 
 public: // functions
@@ -349,12 +360,23 @@ public: // functions
 		return true;
 	}
 
+	bool matchesAppCursor(const WinModeMask mode) const {
+		const auto appcursor_enabled = mode[WinMode::APPCURSOR];
+
+		if (appcursor_enabled && appcursor == AppCursor::DISABLED)
+			return false;
+		else if(!appcursor_enabled && appcursor == AppCursor::ENABLED)
+			return false;
+
+		return true;
+	}
+
 public: // data
 	xpp::KeySymID k;
 	xpp::InputMask mask{};
 	std::string_view s{};
-	AppKeypad appkeypad{AppKeypad::IGNORE}; // application keypad
-	signed char appcursor = 0; // application cursor
+	AppKeypad appkeypad{AppKeypad::IGNORE};
+	AppCursor appcursor{AppCursor::IGNORE};
 };
 
 enum class CursorStyle {

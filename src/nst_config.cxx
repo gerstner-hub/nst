@@ -29,19 +29,19 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 	using xpp::Button;
 
 	return {
-		//             mask                  button           function                              release
-		MouseShortcut{ XK_ANY_MOD,           Button::BUTTON2, std::bind(&X11::pasteSelection, &x11), true },
-		MouseShortcut{ ShiftMask,            Button::BUTTON4, std::bind(ttysend, "\033[5;2~"),      false },
-		MouseShortcut{ XK_ANY_MOD,           Button::BUTTON4, std::bind(ttysend, "\031"),           false },
-		MouseShortcut{ ShiftMask,            Button::BUTTON5, std::bind(ttysend, "\033[6;2~"),      false },
-		MouseShortcut{ XK_ANY_MOD,           Button::BUTTON5, std::bind(ttysend, "\005"),           false },
+		//             mask              button           function                              release
+		MouseShortcut{ Mask{Mod::ANY},   Button::BUTTON2, std::bind(&X11::pasteSelection, &x11), true },
+		MouseShortcut{ Mask{Mod::SHIFT}, Button::BUTTON4, std::bind(ttysend, "\033[5;2~"),      false },
+		MouseShortcut{ Mask{Mod::ANY},   Button::BUTTON4, std::bind(ttysend, "\031"),           false },
+		MouseShortcut{ Mask{Mod::SHIFT}, Button::BUTTON5, std::bind(ttysend, "\033[6;2~"),      false },
+		MouseShortcut{ Mask{Mod::ANY},   Button::BUTTON5, std::bind(ttysend, "\005"),           false },
 	};
 }
 
 std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 	// Internal keyboard shortcuts.
 	//constexpr auto MODKEY = Mod1Mask;
-	constexpr unsigned int TERMMOD = ControlMask|ShiftMask;
+	constexpr xpp::InputMask TERMMOD{Mod::CONTROL, Mod::SHIFT};
 
 	auto &tty = nst.tty();
 	auto &x11 = nst.x11();
@@ -54,17 +54,17 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 
 	return {
 		// mask                 keysym              function
-		{ XK_ANY_MOD,           KeyID::BREAK,       std::bind(&TTY::sendBreak, &tty) },
-		{ ControlMask,          KeyID::PRINT,       togglePrinter       },
-		{ ShiftMask,            KeyID::PRINT,       printScreen         },
-		{ XK_ANY_MOD,           KeyID::PRINT,       printSel            },
+		{ Mask{Mod::ANY},       KeyID::BREAK,       std::bind(&TTY::sendBreak, &tty) },
+		{ Mask{Mod::CONTROL},   KeyID::PRINT,       togglePrinter       },
+		{ Mask{Mod::SHIFT},     KeyID::PRINT,       printScreen         },
+		{ Mask{Mod::ANY},       KeyID::PRINT,       printSel            },
 		{ TERMMOD,              KeyID::PRIOR,       std::bind(&X11::zoomFont, &x11, +1) },
 		{ TERMMOD,              KeyID::NEXT,        std::bind(&X11::zoomFont, &x11, -1) },
 		{ TERMMOD,              KeyID::HOME,        std::bind(&X11::resetFont, &x11) },
 		{ TERMMOD,              KeyID::C,           std::bind(&X11::copyToClipboard, &x11) },
 		{ TERMMOD,              KeyID::V,           std::bind(&X11::pasteClipboard, &x11) },
 		{ TERMMOD,              KeyID::Y,           selPaste            },
-		{ ShiftMask,            KeyID::INSERT,      selPaste            },
+		{ Mask{Mod::SHIFT},     KeyID::INSERT,      selPaste            },
 		{ TERMMOD,              KeyID::NUM_LOCK,    std::bind(&X11::toggleNumlock, &x11) },
 	};
 }

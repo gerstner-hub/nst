@@ -288,13 +288,13 @@ public: // functions
 using Callback = std::function<void ()>;
 
 struct KbdShortcut {
-	unsigned int mod;
+	xpp::InputMask mod;
 	xpp::KeySymID keysym;
 	Callback func;
 };
 
 struct MouseShortcut {
-	unsigned int mod;
+	xpp::InputMask mod;
 	xpp::Button button;
 	Callback func;
 	bool  release;
@@ -302,7 +302,7 @@ struct MouseShortcut {
 
 struct Key {
 	xpp::KeySymID k;
-	unsigned int mask = 0;
+	xpp::InputMask mask{};
 	std::string_view s{};
 	// three-valued logic variables: 0 indifferent, 1 on, -1 off, 2 is for keymad keys
 	signed char appkey = 0;    // application keypad

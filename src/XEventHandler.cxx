@@ -39,8 +39,8 @@ namespace {
 		FOCUS_OUT = 5
 	};
 
-	bool stateMatches(unsigned mask, unsigned state) {
-		return mask == config::XK_ANY_MOD || mask == (state & ~config::IGNOREMOD);
+	bool state_matches(const xpp::InputMask mask, const xpp::InputMask state) {
+		return mask[xpp::InputModifier::ANY] || mask == (state - config::IGNOREMOD);
 	}
 
 	xpp::InputModifier button_mask(xpp::Button button) {
@@ -115,8 +115,7 @@ bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 			continue;
 
 		// exact or forced match
-		if (stateMatches(ms.mod, state.raw()) ||
-				stateMatches(ms.mod, forced_state.raw())) {
+		if (state_matches(ms.mod, state) || state_matches(ms.mod, forced_state)) {
 			ms.func();
 			return true;
 		}
@@ -230,7 +229,7 @@ void XEventHandler::handleMouseSelection(const EVENT &ev, const bool done) {
 	const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
 
 	for (auto [type, mask]: config::SEL_MASKS) {
-		if (stateMatches(mask.raw(), state.raw())) {
+		if (state_matches(mask, state)) {
 			seltype = type;
 			break;
 		}
@@ -282,7 +281,7 @@ XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask
 	for (auto [it, end] = config::KEYS.equal_range(Key{keysym}); it != end; it++) {
 		auto &key = *it;
 
-		if (!stateMatches(key.mask, state.raw()))
+		if (!state_matches(key.mask, state))
 			continue;
 		else if (tmode[WinMode::APPKEYPAD] ? key.appkey < 0 : key.appkey > 0)
 			continue;
@@ -307,7 +306,7 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 
 	// 1. shortcuts
 	for (auto &sc: m_kbd_shortcuts) {
-		if (ksym == sc.keysym && stateMatches(sc.mod, ev.state().raw())) {
+		if (ksym == sc.keysym && state_matches(sc.mod, ev.state())) {
 			sc.func();
 			return;
 		}

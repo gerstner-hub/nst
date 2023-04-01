@@ -19,6 +19,7 @@ namespace nst {
 
 class Nst;
 class X11;
+struct TermWindow;
 
 /// Represents the current mouse button press state.
 class PressedButtons :
@@ -125,6 +126,7 @@ protected: // data
 
 	Nst &m_nst;
 	X11 &m_x11;
+	const TermWindow &m_twin;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
 	PressedButtons m_buttons; /// Bit field of pressed buttons.

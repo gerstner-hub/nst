@@ -372,9 +372,9 @@ public: // functions
 	}
 
 public: // data
-	xpp::KeySymID k;
+	xpp::KeySymID id;
 	xpp::InputMask mask{};
-	std::string_view s{};
+	std::string_view seq{};
 	AppKeypad appkeypad{AppKeypad::IGNORE};
 	AppCursor appcursor{AppCursor::IGNORE};
 };

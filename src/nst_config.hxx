@@ -244,7 +244,7 @@ const std::set<xpp::KeySymID> MAPPED_KEYS{
 // combinations that share the same keysym.
 struct KeyCmp {
 	bool operator()(const Key &a, const Key &b) const {
-		return a.k < b.k;
+		return a.id < b.id;
 	}
 };
 

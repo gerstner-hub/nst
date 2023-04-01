@@ -285,7 +285,7 @@ XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask
 		else if (!key.matchesAppCursor(tmode))
 			continue;
 
-		return key.s;
+		return key.seq;
 	}
 
 	return {};

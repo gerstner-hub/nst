@@ -2,8 +2,8 @@
 #define NST_XEVENT_HANDLER_HXX
 
 // C++
-#include <bitset>
 #include <optional>
+#include <tuple>
 #include <vector>
 
 // X++
@@ -14,6 +14,7 @@
 
 // nst
 #include "types.hxx"
+#include "PressedButtons.hxx"
 
 namespace nst {
 
@@ -21,56 +22,11 @@ class Nst;
 class X11;
 struct TermWindow;
 
-/// Represents the current mouse button press state.
-class PressedButtons :
-		public std::bitset<11> {
-public: // data
-
-	static constexpr xpp::Button NO_BUTTON{12};
-
-public:
-
-	/// returns the position of the lowest button pressed, or NO_BUTTON
-	xpp::Button firstButton() const {
-		for (size_t bit = 0; bit < size(); bit++) {
-			if (this->test(bit))
-				return xpp::Button{static_cast<unsigned int>(bit) + 1};
-		}
-
-		return NO_BUTTON;
-	}
-
-	bool valid(const xpp::Button button) const {
-		return button >= xpp::Button::BUTTON1 && button < NO_BUTTON;
-	}
-
-	void setPressed(const xpp::Button button) {
-		if (valid(button)) {
-			this->set(index(button), true);
-		}
-	}
-
-	void setReleased(const xpp::Button button) {
-		if (valid(button)) {
-			this->set(index(button), false);
-		}
-	}
-
-	static bool isScrollWheel(const xpp::Button button) {
-		return button == xpp::Button::BUTTON4 || button == xpp::Button::BUTTON5;
-	}
-protected:
-
-	size_t index(const xpp::Button button) const {
-		return xpp::raw_button(button) - 1;
-	}
-};
-
 /// Implementation of XEvent callback handlers
 /**
  * This class reacts to X11 events related to the input system, the windowing
- * system etc. As a result of the events a close interaction with the X11 type
- * and other components of Nst is necessary.
+ * system etc. As a result of this a close interaction with the X11 type
+ * is necessary.
  **/
 class XEventHandler {
 public: // functions
@@ -104,14 +60,33 @@ protected: // functions
 	void selectionClear();
 	void selectionRequest(const xpp::SelectionRequestEvent &);
 
-	/// Handles a selection input event provided in the property \c selprop
+	/// Handles a selection input event provided in the property \c selprop.
 	void handleSelectionEvent(const xpp::AtomID selprop);
+
 	template <typename EVENT>
 	void handleMouseSelection(const EVENT &, const bool done = false);
+
+	/// Handles mouse event reporting on TTY level for both PointerMovedEvent and ButtonEvent.
 	template <typename EVENT>
 	void handleMouseReport(const EVENT &);
-	bool checkMouseReport(const xpp::ButtonEvent &ev, xpp::Button &button, int &code);
-	bool checkMouseReport(const xpp::PointerMovedEvent &ev, xpp::Button &button, int &code);
+
+	/// Checks whether the given event should be reported on TTY level via escape codes.
+	/**
+	 * If a value is returned then mouse reporting should be performed.
+	 * m_old_mouse_pos will be set to the new terminal mouse position
+	 * reported by the event.
+	 *
+	 * The returned tuple contains the event button number to report
+	 * and the base escape code to be used for the reporting.
+	 **/
+	std::optional<std::tuple<xpp::Button, int>> checkMouseReport(const xpp::ButtonEvent &ev);
+	/// \c see checkMouseReport(const xpp::ButtonEvent&)
+	std::optional<std::tuple<xpp::Button, int>> checkMouseReport(const xpp::PointerMovedEvent &ev);
+
+	/// Check mouse shortcuts and execute a possibly configured action for the given event.
+	/**
+	 * \return Whether a mouse action was found and executed.
+	 **/
 	bool handleMouseAction(const xpp::ButtonEvent &ev);
 
 	/// Returns an output sequence mapped to the given input event.
@@ -130,9 +105,9 @@ protected: // data
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
 	PressedButtons m_buttons; /// Bit field of pressed buttons.
-	CharPos m_old_mouse_pos;
-	xpp::Event m_event; /// The currently handled event
-	std::string m_key_buf;
+	CharPos m_old_mouse_pos; /// The last seen mouse position in terminal coordinates
+	xpp::Event m_event; /// The currently handled event.
+	std::string m_key_buf; /// reused input sequence string for XInput
 };
 
 } // end ns

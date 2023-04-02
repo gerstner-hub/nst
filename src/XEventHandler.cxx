@@ -1,6 +1,5 @@
 // C++
 #include <iostream>
-#include <algorithm>
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -37,11 +36,11 @@ namespace {
 		return mask[xpp::InputModifier::ANY] || mask == (state - config::IGNOREMOD);
 	}
 
-	xpp::InputModifier button_mask(xpp::Button button) {
+	xpp::InputModifier button_mask(const xpp::Button button) {
 		using xpp::InputModifier;
 		using xpp::Button;
 		switch(button) {
-			default: return InputModifier{0};
+			default: return InputModifier::NONE;
 			case Button::BUTTON1: return InputModifier::BUTTON1;
 			case Button::BUTTON2: return InputModifier::BUTTON2;
 			case Button::BUTTON3: return InputModifier::BUTTON3;
@@ -78,23 +77,23 @@ bool XEventHandler::checkEvents() {
 void XEventHandler::process() {
 	using Event = xpp::EventType;
 
-	switch(m_event.type()) {
+	switch (m_event.type()) {
 		default: return;
-		case Event::KEY_PRESS:         return keyPress(xpp::KeyEvent{m_event});
-		case Event::CLIENT_MESSAGE:    return clientMessage(xpp::ClientMessageEvent{m_event});
-		case Event::CONFIGURE_NOTIFY:  return resize(xpp::ConfigureEvent{m_event});
-		case Event::VISIBILITY_NOTIFY: return visibilityChange(xpp::VisibilityEvent{m_event});
+		case Event::KEY_PRESS:         return keyPress         (xpp::KeyEvent{m_event});
+		case Event::CLIENT_MESSAGE:    return clientMessage    (xpp::ClientMessageEvent{m_event});
+		case Event::CONFIGURE_NOTIFY:  return resize           (xpp::ConfigureEvent{m_event});
+		case Event::VISIBILITY_NOTIFY: return visibilityChange (xpp::VisibilityEvent{m_event});
 		case Event::UNMAP_NOTIFY:      return unmap();
 		case Event::EXPOSE:            return expose();
 		case Event::FOCUS_IN:          /* fallthrough */
-		case Event::FOCUS_OUT:         return focus(xpp::FocusChangeEvent{m_event});
+		case Event::FOCUS_OUT:         return focus            (xpp::FocusChangeEvent{m_event});
 		case Event::MOTION_NOTIFY:     return pointerMovedEvent(xpp::PointerMovedEvent{m_event});
-		case Event::BUTTON_PRESS:      return buttonPress(xpp::ButtonEvent{m_event});
-		case Event::BUTTON_RELEASE:    return buttonRelease(xpp::ButtonEvent{m_event});
-		case Event::SELECTION_NOTIFY:  return selectionNotify(xpp::SelectionEvent{m_event});
-		case Event::PROPERTY_NOTIFY:   return propertyNotify(xpp::PropertyEvent{m_event});
+		case Event::BUTTON_PRESS:      return buttonPress      (xpp::ButtonEvent{m_event});
+		case Event::BUTTON_RELEASE:    return buttonRelease    (xpp::ButtonEvent{m_event});
+		case Event::SELECTION_NOTIFY:  return selectionNotify  (xpp::SelectionEvent{m_event});
+		case Event::PROPERTY_NOTIFY:   return propertyNotify   (xpp::PropertyEvent{m_event});
 		case Event::SELECTION_CLEAR:   return selectionClear();
-		case Event::SELECTION_REQUEST: return selectionRequest(xpp::SelectionRequestEvent{m_event});
+		case Event::SELECTION_REQUEST: return selectionRequest (xpp::SelectionRequestEvent{m_event});
 	}
 }
 
@@ -102,14 +101,14 @@ bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 	// ignore Button<N>mask for Button<N> - it's set on release
 	const auto state = ev.state() - button_mask(ev.buttonNr());
 	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
-	const auto forced_state = state - config::FORCE_MOUSE_MOD;
+	const auto force_mouse = state - config::FORCE_MOUSE_MOD;
 
 	for (auto &ms: m_mouse_shortcuts) {
 		if (ms.release != is_release || ms.button != ev.buttonNr())
 			continue;
 
 		// exact or forced match
-		if (state_matches(ms.mod, state) || state_matches(ms.mod, forced_state)) {
+		if (state_matches(ms.mod, state) || state_matches(ms.mod, force_mouse)) {
 			ms.func();
 			return true;
 		}
@@ -118,58 +117,61 @@ bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 	return false;
 }
 
-bool XEventHandler::checkMouseReport(const xpp::PointerMovedEvent &ev,
-		xpp::Button &button, int &code) {
+std::optional<std::tuple<xpp::Button, int>>
+XEventHandler::checkMouseReport(const xpp::PointerMovedEvent &ev) {
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 
 	if (pos == m_old_mouse_pos) {
-		return false;
+		// no new terminal position has been reached.
+		return {};
 	} else if (!m_twin.reportMouseMotion() && !m_twin.reportMouseMany()) {
-		return false;
+		// mouse reporting has not been enabled.
+		return {};
 	} else if (m_twin.reportMouseMotion() && m_buttons.none()) {
 		// FIXME: doesn't this mean that MOUSEMANY won't work
 		// if reportMouseMotion() is also set and no button is pressed?
 		// WinMode::MOUSEMOTION: no reporting if no button is pressed
-		return false;
+		return {};
 	}
 
-	button = m_buttons.firstButton();
-	code = 32;
 	m_old_mouse_pos = pos;
-	return true;
+	return std::make_tuple(m_buttons.firstButton(), 32);
 }
 
-bool XEventHandler::checkMouseReport(const xpp::ButtonEvent &ev, xpp::Button &button, int &code) {
+std::optional<std::tuple<xpp::Button, int>>
+XEventHandler::checkMouseReport(const xpp::ButtonEvent &ev) {
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
+	auto button = ev.buttonNr();
 
-	button = ev.buttonNr();
 	// Only buttons 1 through 11 can be encoded.
 	if (!m_buttons.valid(button)) {
-		return false;
+		return {};
 	} else if (ev.type() == xpp::EventType::BUTTON_RELEASE) {
 		if (m_twin.doX10Compatibility()) {
 			// MODE_MOUSEX10: no button release reporting.
-			return false;
+			return {};
 		} else if (m_buttons.isScrollWheel(button)) {
 			// Don't send release events for the scroll wheel.
-			return false;
+			return {};
 		}
 	}
 
-	code = 0;
 	m_old_mouse_pos = pos;
-
-	return true;
+	return std::make_tuple(button, 0);
 }
 
 template <typename EVENT>
 void XEventHandler::handleMouseReport(const EVENT &ev) {
-	xpp::Button button;
-	int code; // the escape code to report for the mouse motion
 
-	if (!checkMouseReport(ev, button, code)) {
+	auto context = checkMouseReport(ev);
+
+	if (!context) {
 		return;
 	}
+
+	// the button and escape code to report for the mouse motion
+	const auto button = std::get<0>(*context);
+	int code = std::get<1>(*context);
 
 	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
 	const bool report_sgr = m_twin.reportMouseSGR();
@@ -177,8 +179,7 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 
 	// Encode button into a report code.
 	// If no button is pressed for a motion event in WinMode::MOUSEMANY, then encode it as a release.
-	if ((!report_sgr && is_release) ||
-			button == PressedButtons::NO_BUTTON)
+	if ((!report_sgr && is_release) || button == PressedButtons::NO_BUTTON)
 		code += 3;
 	else if (button >= xpp::Button{8})
 		code += 128 + xpp::raw_button(button) - 8;
@@ -196,6 +197,9 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 		      + (state[InputModifier::CONTROL] ? 16 : 0);
 	}
 
+	// NOTE: this here breaks a bit the encapsulation, we have the choice
+	// to pass X11 data into EscapeHandler or to generate CSI sequences
+	// in here.
 	std::string report;
 
 	if (report_sgr) {
@@ -208,6 +212,7 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 				"\033[M%c%c%c",
 				32 + code, 32 + pos.x + 1, 32 + pos.y + 1);
 	} else {
+		// position out of range for mouse reporting
 		return;
 	}
 

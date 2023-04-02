@@ -233,26 +233,21 @@ inline constexpr xpp::InputMask IGNOREMOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
 
 /*
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
- * to be mapped below, add them to this array.
+ * to work, add them to this array. This array only determines
+ * whether the given keys will be processed at all. Individual key
+ * mappings still need to be entered below into KEYS.
  */
-const std::set<xpp::KeySymID> MAPPED_KEYS{
-};
-
-// we use a multiset for the key definitions below
-// the keysym is the comparison key, so we don't have to iterate over the
-// complete list of keys linearly, but only over a small list of key
-// combinations that share the same keysym.
-struct KeyCmp {
-	bool operator()(const Key &a, const Key &b) const {
-		return a.id < b.id;
-	}
-};
+const std::set<xpp::KeySymID> MAPPED_KEYS{};
 
 /*
  * This is the huge list of keys which defines all compatibility to the Linux
  * world. Please decide about changes wisely.
+ *
+ * We use a multiset for the key definitions. The keysym is the comparison
+ * key, so we don't have to iterate over the complete list of keys linearly,
+ * but only over a small list of key combinations that share the same keysym.
  */
-const std::multiset<Key, KeyCmp> KEYS{{
+const std::multiset<Key> KEYS{{
 	// keysym               mask                              string          appkey             appcursor
 	{ KeyID::KP_HOME,       Mask{Mod::SHIFT},                 "\033[2J",      AppKey::IGNORE,    AppCursor::DISABLED},
 	{ KeyID::KP_HOME,       Mask{Mod::SHIFT},                 "\033[1;2H",    AppKey::IGNORE,    AppCursor::ENABLED},

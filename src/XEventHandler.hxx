@@ -58,13 +58,15 @@ protected: // functions
 	void propertyNotify(const xpp::PropertyEvent &);
 	void selectionNotify(const xpp::SelectionEvent &);
 	void selectionClear();
+	/// Another X client requests the selection held by us.
 	void selectionRequest(const xpp::SelectionRequestEvent &);
 
 	/// Handles a selection input event provided in the property \c selprop.
 	void handleSelectionEvent(const xpp::AtomID selprop);
 
+	/// Handles mouse selection events for both PointerMovedEvent and ButtonEvent.
 	template <typename EVENT>
-	void handleMouseSelection(const EVENT &, const bool done = false);
+	void handleMouseSelection(const EVENT &);
 
 	/// Handles mouse event reporting on TTY level for both PointerMovedEvent and ButtonEvent.
 	template <typename EVENT>
@@ -96,6 +98,9 @@ protected: // functions
 	 * 	nullopt_t if nothing is mapped.
 	 **/
 	std::optional<std::string_view> customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask state) const;
+
+	/// Determines whether the given key symbol should be processed for custom key mappings.
+	bool isMapped(const xpp::KeySymID keysym) const;
 
 protected: // data
 

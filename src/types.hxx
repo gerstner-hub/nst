@@ -371,6 +371,10 @@ public: // functions
 		return true;
 	}
 
+	bool operator<(const Key &other) const {
+		return id < other.id;
+	}
+
 public: // data
 	xpp::KeySymID id;
 	xpp::InputMask mask{};

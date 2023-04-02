@@ -220,7 +220,7 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 }
 
 template <typename EVENT>
-void XEventHandler::handleMouseSelection(const EVENT &ev, const bool done) {
+void XEventHandler::handleMouseSelection(const EVENT &ev) {
 	auto seltype = Selection::Type::REGULAR;
 	const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
 
@@ -232,10 +232,11 @@ void XEventHandler::handleMouseSelection(const EVENT &ev, const bool done) {
 	}
 
 	auto &sel = m_nst.selection();
+	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-	sel.extend(pos, seltype, done);
+	sel.extend(pos, seltype, /*done=*/is_release);
 
-	if (done) {
+	if (is_release) {
 		// button was released, only now set the actual X selection
 		auto selection = sel.selection();
 		m_x11.selection().setSelection(selection, ev.time());
@@ -261,16 +262,27 @@ void XEventHandler::focus(const xpp::FocusChangeEvent &ev) {
 	m_x11.focusChange(ev.haveFocus());
 }
 
+bool XEventHandler::isMapped(const xpp::KeySymID keysym) const {
+	const bool is_x11_function = cosmos::in_range(
+		xpp::raw_key(keysym) & 0xFFFF, 0xFD00, 0xFFFF);
+
+	if (is_x11_function)
+		return true;
+
+	// Check for mapped keys out of X11 function keys.
+	const bool is_mapped = config::MAPPED_KEYS.count(keysym) != 0;
+	if (is_mapped)
+		return true;
+
+	// if the key is not explicitly mapped and it is outside the range of
+	// X11 function keys, don't continue.
+	return false;
+}
+
 std::optional<std::string_view>
 XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask state) const {
-	// Check for mapped keys out of X11 function keys.
-	if (const bool found = config::MAPPED_KEYS.count(keysym); found == 0) {
-		// if the key is not explicitly mapped and it is outside the range of
-		// X11 function keys, don't continue
-		if ((xpp::raw_key(keysym) & 0xFFFF) < 0xFD00) {
-			return {};
-		}
-	}
+	if (!isMapped(keysym))
+		return {};
 
 	const auto tmode = m_twin.mode();
 
@@ -312,13 +324,13 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 		return;
 	}
 
-	// 3. composed string from input method
 	if (m_key_buf.empty())
 		return;
 
+	// 3. composed string from input method
 	if (m_key_buf.size() == 1 && ev.state()[xpp::InputModifier::MOD1]) {
 		if (tmode[WinMode::EIGHT_BIT]) {
-			if (m_key_buf[0] < 0177) {
+			if ((m_key_buf[0] & 0x80) == 0) {
 				Rune c = m_key_buf[0] | 0x80;
 				m_key_buf.clear();
 				utf8::encode(c, m_key_buf);
@@ -336,12 +348,11 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
 	if (msg.type() == atoms::xembed && msg.format() == 32) {
 		using XEmbed = xpp::XEmbedMessageType;
-		const XEmbed xembed{msg.data().l[1]};
 
-		if (xembed == XEmbed::FOCUS_IN) {
-			m_x11.embeddedFocusChange(true);
-		} else if (xembed == XEmbed::FOCUS_OUT) {
-			m_x11.embeddedFocusChange(false);
+		switch (XEmbed{msg.data().l[1]}) {
+			default: return;
+			case XEmbed::FOCUS_IN:  return m_x11.embeddedFocusChange(true);
+			case XEmbed::FOCUS_OUT: return m_x11.embeddedFocusChange(false);
 		}
 	} else if (msg.type() == xpp::atoms::icccm_wm_protocols && msg.format() == 32) {
 		// we indicated that we support the delete window WM protocol,
@@ -356,7 +367,7 @@ void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
 }
 
 void XEventHandler::resize(const xpp::ConfigureEvent &config) {
-	const auto new_size = Extent{config.extent()};
+	const Extent new_size{config.extent()};
 
 	if (new_size != m_twin.winExtent()) {
 		m_x11.setWinSize(new_size);
@@ -397,7 +408,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 		try {
 			win.getRawProperty(selprop, info, prop);
 		} catch (const std::exception &ex) {
-			std::cerr << "Clipboard property retrieval failed: "
+			std::cerr << "Selection property retrieval failed: "
 				<< ex.what() << std::endl;
 			return;
 		}
@@ -443,7 +454,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 
 		if (bracketed_paste && prop.left == 0)
 			term.reportPaste(false);
-		/* number of 32-bit chunks returned */
+		// number of 32-bit chunks returned
 		prop.offset += prop.length;
 	} while (prop.left > 0);
 
@@ -497,7 +508,7 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 				}
 			}
 		} catch (const std::exception &ex) {
-			std::cerr << "Failed to handle clipboard selection " << req.selection() << ": " << ex.what() << std::endl;
+			std::cerr << "Failed to handle selection request for " << req.selection() << ": " << ex.what() << std::endl;
 			return;
 		}
 
@@ -520,7 +531,6 @@ void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 
 	if (m_twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);
-		return;
 	} else if (handleMouseAction(ev)) {
 		return;
 	} else if (button == xpp::Button::BUTTON1) {
@@ -538,11 +548,10 @@ void XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 
 	if (m_twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);
-		return;
 	} else if (handleMouseAction(ev)) {
 		return;
 	} else if (button == xpp::Button::BUTTON1) {
-		handleMouseSelection(ev, /*done =*/ true);
+		handleMouseSelection(ev);
 	}
 }
 

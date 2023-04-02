@@ -33,12 +33,6 @@ namespace nst {
 
 namespace {
 
-	/// xembed protocol message types
-	enum class XEmbedMessage : long {
-		FOCUS_IN = 4,
-		FOCUS_OUT = 5
-	};
-
 	bool state_matches(const xpp::InputMask mask, const xpp::InputMask state) {
 		return mask[xpp::InputModifier::ANY] || mask == (state - config::IGNOREMOD);
 	}
@@ -336,12 +330,12 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 
 void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
 	if (msg.type() == atoms::xembed && msg.format() == 32) {
-		// See xembed specs: http://standards.freedesktop.org/xembed-spec/xembed-spec-latest.html
-		const XEmbedMessage xembed{XEmbedMessage{msg.data().l[1]}};
+		using XEmbed = xpp::XEmbedMessageType;
+		const XEmbed xembed{msg.data().l[1]};
 
-		if (xembed == XEmbedMessage::FOCUS_IN) {
+		if (xembed == XEmbed::FOCUS_IN) {
 			m_x11.embeddedFocusChange(true);
-		} else if (xembed == XEmbedMessage::FOCUS_OUT) {
+		} else if (xembed == XEmbed::FOCUS_OUT) {
 			m_x11.embeddedFocusChange(false);
 		}
 	} else if (msg.type() == xpp::atoms::icccm_wm_protocols && msg.format() == 32) {

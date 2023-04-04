@@ -1,9 +1,6 @@
 #ifndef NST_CONFIG_H
 #define NST_CONFIG_H
 
-// libc
-#include <limits.h>
-
 // C++
 #include <array>
 #include <chrono>
@@ -11,9 +8,9 @@
 #include <string_view>
 
 // X++
-#include "X++/XCursor.hxx"
 #include "X++/keyboard.hxx"
 #include "X++/types.hxx"
+#include "X++/XCursor.hxx"
 
 // nst
 #include "Selection.hxx"
@@ -25,48 +22,50 @@ class Nst; // fwd. decl
 
 namespace config {
 
-/*
- * appearance
- *
- * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
- */
+/// Default character font to use.
+/**
+ * \see http://freedesktop.org/software/fontconfig/fontconfig-user.html
+ **/
 constexpr std::string_view FONT{"Liberation Mono:pixelsize=12:antialias=true:autohint=true"};
+/// Font default pixel size to use, if not specified in FONT
 constexpr double FONT_DEFAULT_SIZE_PX = 12;
 
-/*
- * word delimiter string
- *
+/// Word delimiter string for expanding selection upon double/triple clicking
+/**
  * More advanced example: L" `'\"()[]{}"
- */
+ **/
 constexpr const std::wstring_view WORD_DELIMITERS{L" "};
 
-constexpr std::array<std::string_view, 8> STTY_ARGS{{"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"}};
+/// How stty will be invoked when operating on real TTY lines.
+constexpr std::array<std::string_view, 8> STTY_ARGS{{
+	"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"
+}};
 
 /*
- * What program is execed by st depends on these precedence rules:
+ * What program is executeed by st depends on these precedence rules:
  * 1: program passed with -e
  * 2: scroll and/or utmp
  * 3: SHELL environment variable
  * 4: value of shell in /etc/passwd
- * 5: value of shell in config.h
+ * 5: value of SHELL in here
  */
+
+/// Shell to execute if none found in environment or on command line
 constexpr std::string_view SHELL{"/bin/sh"};
 constexpr std::string_view UTMP{};
-/* scroll program: to enable use a string like "scroll" */
+/// Scroll program: to enable use a string like "scroll"
 constexpr std::string_view SCROLL{};
-/* default TERM value */
+/// Default TERM value
 constexpr std::string_view TERM_NAME{"st-256color"};
 
-/* identification sequence returned in DA and DECID */
+/// Identification sequence returned in DA and DECID escape sequences
 constexpr std::string_view VT_IDENT{"\033[?6c"};
 
-/* allow certain non-interactive (insecure) window operations such as:
-   setting the clipboard text */
+/// Allow certain non-interactive (insecure) window operations such as setting the clipboard text
 constexpr bool ALLOW_WINDOW_OPS = false;
 
-/*
- * spaces per tab
- *
+/// Spaces per tab.
+/**
  * When you are changing this value, don't forget to adapt the »it« value in
  * the st.info and appropriately install the st.info in the environment where
  * you use this st version.
@@ -81,60 +80,70 @@ constexpr bool ALLOW_WINDOW_OPS = false;
  */
 constexpr int TABSPACES = 8;
 
-/*
- * Default colors (colorname index)
- * foreground, background, cursor, reverse cursor
- */
+/// Default foreground color (colorname index).
 constexpr ColorIndex DEFAULT_FG{258};
+/// Default background color (colorname index).
 constexpr ColorIndex DEFAULT_BG{259};
+/// Default cursor color (colorname index).
 constexpr ColorIndex DEFAULT_CS{256};
+/// Default reverse color (colorname index).
 constexpr ColorIndex DEFAULT_RCS{257};
 
-/* alt screens */
+/// Allow alternative screen usage
 constexpr bool ALLOW_ALTSCREEN = true;
 
+/// Number of border pixels between window frame and actual terminal characters
 constexpr int BORDERPX = 2;
 
 /* Kerning / character bounding-box multipliers */
 constexpr float CW_SCALE = 1.0;
 constexpr float CH_SCALE = 1.0;
 
-/* selection timeouts (in milliseconds) */
+/// Double click selection timeout.
 constexpr std::chrono::milliseconds DOUBLE_CLICK_TIMEOUT{300};
+/// Triple click selectin timeout.
 constexpr std::chrono::milliseconds TRIPLE_CLICK_TIMEOUT{600};
 
-/*
+/// Automatically clear selection when selection ownership is lost.
+/**
  * Set this to true if you want the selection to disappear when you select
  * something different in another window.
- */
+ **/
 constexpr bool SEL_CLEAR = false;
 
+/// Minimum draw latency.
 /*
- * draw latency range - from new content/keypress/etc until drawing.
- * within this range, nst draws when content stops arriving (idle). mostly it's
- * near MINLATENCY, but it waits longer for slow updates to avoid partial draw.
- * low MINLATENCY Will tear/flicker more, as it can "detect" idle too early.
+ * Time from new content/keypress/etc until drawing.
+ *
+ * Within this range, nst draws when content stops arriving (idle). mostly
+ * it's near MINLATENCY, but it waits longer for slow updates to avoid partial
+ * draw.  low MINLATENCY Will tear/flicker more, as it can "detect" idle too
+ * early.
  */
 constexpr std::chrono::milliseconds MIN_LATENCY{8};
+/// Maximum draw latency.
+/**
+ * \see MIN_LATENCY
+ **/
 constexpr std::chrono::milliseconds MAX_LATENCY{33};
 
-/*
- * blinking timeout (set to 0 to disable blinking) for the terminal blinking
+/// Blinking timeout.
+/**
+ * Set to 0 to disable blinking. This is used for the terminal blinking
  * attribute.
- */
+ **/
 constexpr std::chrono::milliseconds BLINK_TIMEOUT{800};
 
-/*
- * thickness of underline and bar cursors
- */
-constexpr unsigned int CURSOR_THICKNESS = 2;
+/// Thickness of underline attribute and bar cursors.
+constexpr int CURSOR_THICKNESS = 2;
 
-/*
- * bell volume. It must be a value between -100 and 100. Use 0 for disabling
- * it
- */
+/// Terminal bell volume.
+/**
+ * It must be a value between -100 and 100. Use 0 for disabling it.
+ **/
 constexpr xpp::BellVolume BELL_VOLUME{0};
 
+/// Extended color palette beyond index 255.
 constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 	/* more colors can be added after 255 to use with DefaultXX */
 	"#cccccc",
@@ -143,7 +152,7 @@ constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 	"black"   /* default background colour */
 }};
 
-/* Terminal colors (16 first used in escape sequence) */
+/// Basic terminal colors (16 first used in escape sequence)
 constexpr std::array<std::string_view, 16> COLORNAMES{{
 	/* 8 normal colors */
 	"black",
@@ -166,56 +175,50 @@ constexpr std::array<std::string_view, 16> COLORNAMES{{
 	"white",
 }};
 
-/// returns the color name for a color number taking into account extended color configuration
-/**
- * \return The according color name or nullptr if none is configured for the number
- **/
-const std::string_view get_color_name(ColorIndex idx);
-
 /// Default shape of cursor
 static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
 
-/*
- * Default columns and rows numbers
- */
-
+/// Default number of columns.
 static constexpr unsigned int COLS = 80;
+/// Default number of rows.
 static constexpr unsigned int ROWS = 24;
 
-static_assert(COLS > 1);
-static_assert(ROWS > 1);
-
-/*
- * Default colour and shape of the mouse cursor
- */
+/// Default shape of the mouse cursor.
 constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::XTERM};
+/// Default foreground color of the mouse cursor.
 constexpr ColorIndex MOUSE_FG{7};
+/// Default background color of the mouse cursor.
 constexpr ColorIndex MOUSE_BG{0};
 
-/*
+/// Fallback color to use if no matching font is found.
+/**
  * Color used to display font attributes when fontconfig selected a font which
  * doesn't match the ones requested.
- */
+ **/
 constexpr ColorIndex DEFAULT_ATTR{11};
 
-/*
+/// Input modifier mask which forces mouse select/shortcuts in WinMode::MOUSE.
+/**
  * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).
  * Note that if you want to use ShiftMask with selmasks, set this to an other
  * modifier, set to InputModifier::NONE to not use it.
- */
+ **/
 constexpr xpp::InputMask FORCE_MOUSE_MOD{xpp::InputModifier::SHIFT};
 
+// shorthands for shorter definitions below
 using KeyID     = xpp::KeySymID;
 using Mod       = xpp::InputModifier;
 using Mask      = xpp::InputMask;
 using AppKey    = Key::AppKeypad;
 using AppCursor = Key::AppCursor;
 
-/*
- * State bits to ignore when matching key or button events.  By default,
- * numlock (MOD2) and keyboard layout (XKB_GROUP_INDEX) are ignored.
- */
-inline constexpr xpp::InputMask IGNOREMOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
+/// Modifier state to ignore when matching key or button events.
+/**
+ * By default, numlock (MOD2) and keyboard layout (XKB_GROUP_INDEX) are
+ * ignored. The latter is an implementation detail when using multiple
+ * keyboard (layouts).
+ **/
+inline constexpr xpp::InputMask IGNORE_MOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
 
 /*
  * Special keys (change & recompile st.info accordingly)
@@ -231,22 +234,24 @@ inline constexpr xpp::InputMask IGNOREMOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
  * position for a key.
  */
 
-/*
+/// Additionally mapped keys.
+/**
  * If you want keys other than the X11 function keys (0xFD00 - 0xFFFF)
- * to work, add them to this array. This array only determines
+ * to work, add them to this array. This set only determines
  * whether the given keys will be processed at all. Individual key
  * mappings still need to be entered below into KEYS.
- */
+ **/
 const std::set<xpp::KeySymID> MAPPED_KEYS{};
 
-/*
+/// List of special function key definitions.
+/**
  * This is the huge list of keys which defines all compatibility to the Linux
  * world. Please decide about changes wisely.
  *
- * We use a multiset for the key definitions. The keysym is the comparison
+ * We use a multiset for the key definitions. The KeyID is the comparison
  * key, so we don't have to iterate over the complete list of keys linearly,
- * but only over a small list of key combinations that share the same keysym.
- */
+ * but only over a small list of key combinations that share the same KeyID.
+ **/
 const std::multiset<Key> KEYS{{
 	// keysym               mask                              string          appkey             appcursor
 	{ KeyID::KP_HOME,       Mask{Mod::SHIFT},                 "\033[2J",      AppKey::IGNORE,    AppCursor::DISABLED},
@@ -320,7 +325,8 @@ const std::multiset<Key> KEYS{{
 	{ KeyID::DOWN,          Mask{Mod::CONTROL},               "\033[1;5B",    AppKey::IGNORE,    AppCursor::IGNORE},
 	{ KeyID::DOWN,          Mask{Mod::SHIFT, Mod::CONTROL},   "\033[1;6B",    AppKey::IGNORE,    AppCursor::IGNORE},
 	{ KeyID::DOWN,          Mask{Mod::CONTROL, Mod::MOD1},    "\033[1;7B",    AppKey::IGNORE,    AppCursor::IGNORE},
-	{ KeyID::DOWN,          Mask{Mod::SHIFT, Mod::CONTROL, Mod::MOD1}, "\033[1;8B",    AppKey::IGNORE,    AppCursor::IGNORE},
+	{ KeyID::DOWN,          Mask{Mod::SHIFT, Mod::CONTROL, Mod::MOD1},
+		                                                  "\033[1;8B",    AppKey::IGNORE,    AppCursor::IGNORE},
 	{ KeyID::DOWN,          Mask{Mod::ANY},                   "\033[B",       AppKey::IGNORE,    AppCursor::DISABLED},
 	{ KeyID::DOWN,          Mask{Mod::ANY},                   "\033OB",       AppKey::IGNORE,    AppCursor::ENABLED},
 	{ KeyID::LEFT,          Mask{Mod::SHIFT},                 "\033[1;2D",    AppKey::IGNORE,    AppCursor::IGNORE},
@@ -463,23 +469,23 @@ const std::multiset<Key> KEYS{{
 	{ KeyID::F35,           Mask{Mod::NONE},                  "\033[23;5~",   AppKey::IGNORE,    AppCursor::IGNORE},
 }};
 
-/*
- * Printable characters in ASCII, used to estimate the advance width
- * of single wide characters.
- */
+/// List of printable ASCII characters.
+/**
+ * This is used to estimate the advance width of single wide characters.
+ **/
 constexpr std::string_view ASCII_PRINTABLE{
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	"`abcdefghijklmnopqrstuvwxyz{|}~"
 };
 
-/*
- * Selection types' masks.
+/// Input modifiers to influence the selection type.
+/**
  * Use the same masks as usual.
  * Button1Mask is always unset, to make masks match between ButtonPress.
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
- */
+ **/
 constexpr std::array<std::pair<Selection::Type, xpp::InputMask>, 2> SEL_MASKS = {
 	std::pair{Selection::Type::REGULAR,     xpp::InputMask{}},
 	         {Selection::Type::RECTANGULAR, xpp::InputMask{xpp::InputModifier::MOD1}}

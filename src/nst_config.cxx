@@ -13,18 +13,21 @@
 
 namespace nst::config {
 
-/*
- * Internal mouse shortcuts.
- * Beware that overloading Button1 will disable the selection.
- */
+static_assert(COLS > 1);
+static_assert(ROWS > 1);
+
+/// Internal mouse shortcuts.
+/**
+ * Beware that overloading Button1 will disable the selection behaviour.
+ **/
 std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 
-	auto ttysend = [&](const char *s) {
-		auto &tty = nst.tty();
+	auto &tty = nst.tty();
+	auto &x11 = nst.x11();
+
+	auto ttysend = [&](const std::string_view s) {
 		tty.write(s, TTY::MayEcho{true});
 	};
-
-	auto &x11 = nst.x11();
 
 	using xpp::Button;
 
@@ -38,8 +41,8 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 	};
 }
 
+/// Internal keyboard shortcuts.
 std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
-	// Internal keyboard shortcuts.
 	//constexpr auto MODKEY = Mod1Mask;
 	constexpr xpp::InputMask TERMMOD{Mod::CONTROL, Mod::SHIFT};
 
@@ -49,8 +52,8 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 	auto selPaste = std::bind(&X11::pasteSelection, &x11);
 
 	auto togglePrinter = [&]() { term.setPrintMode(!term.isPrintMode()); };
-	auto printScreen = [&]() { term.dump(); };
-	auto printSel = [&]() { nst.selection().dump(); };
+	auto printScreen   = [&]() { term.dump(); };
+	auto printSel      = [&]() { nst.selection().dump(); };
 
 	return {
 		// mask                 keysym              function
@@ -67,21 +70,6 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 		{ Mask{Mod::SHIFT},     KeyID::INSERT,      selPaste            },
 		{ TERMMOD,              KeyID::NUM_LOCK,    std::bind(&X11::toggleNumlock, &x11) },
 	};
-}
-
-const std::string_view get_color_name(const ColorIndex idx) {
-	if (auto raw = cosmos::to_integral(idx); raw < COLORNAMES.size()) {
-		return COLORNAMES[raw];
-	} else if (idx >= ColorIndex::START_EXTENDED) {
-		const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
-		// check for extended colors
-		if (ext < EXTENDED_COLORS.size())
-			return EXTENDED_COLORS[ext];
-	}
-
-	// unassigned
-	// NOTE: the libX functions that consume this are tolerant against null pointers
-	return {};
 }
 
 } // ns nst::config

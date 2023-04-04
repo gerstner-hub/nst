@@ -22,6 +22,13 @@ namespace nst {
 
 struct TermWindow;
 
+/// Returns the color name for a color number taking into account extended color configuration.
+/**
+ * \return
+ * 	The according color name or an empty string if none is configured for the given index.
+ **/
+const std::string_view get_color_name(ColorIndex idx);
+
 /// Wrapper around the XftColor type which is a composite of XRenderColor and additional "pixel" info.
 /**
  * The additional "pixel" info is potentially allocated from the XServer via

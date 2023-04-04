@@ -23,7 +23,7 @@ void FontColor::load(ColorIndex idx, std::string_view name) {
 			load256(idx);
 			return;
 		} else {
-			name = config::get_color_name(idx);
+			name = get_color_name(idx);
 		}
 	}
 
@@ -37,7 +37,7 @@ void FontColor::load(ColorIndex idx, std::string_view name) {
 		m_loaded = true;
 		return;
 	} else {
-		auto colorname = config::get_color_name(idx);
+		auto colorname = get_color_name(idx);
 
 		cosmos_throw (cosmos::RuntimeError(
 				cosmos::sprintf("could not allocate color %d ('%s')", cosmos::to_integral(idx),
@@ -234,6 +234,21 @@ const FontColor& ColorManager::cursorColor(const bool is_selected, Glyph &glyph)
 
 		return fontColor(glyph.bg);
 	}
+}
+
+const std::string_view get_color_name(const ColorIndex idx) {
+	if (auto raw = cosmos::to_integral(idx); raw < config::COLORNAMES.size()) {
+		return config::COLORNAMES[raw];
+	} else if (idx >= ColorIndex::START_EXTENDED) {
+		const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
+		// check for extended colors
+		if (ext < config::EXTENDED_COLORS.size())
+			return config::EXTENDED_COLORS[ext];
+	}
+
+	// unassigned
+	// NOTE: the libX functions that consume this are tolerant against null pointers
+	return {};
 }
 
 } // end ns

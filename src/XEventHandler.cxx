@@ -33,7 +33,7 @@ namespace nst {
 namespace {
 
 	bool state_matches(const xpp::InputMask mask, const xpp::InputMask state) {
-		return mask[xpp::InputModifier::ANY] || mask == (state - config::IGNOREMOD);
+		return mask[xpp::InputModifier::ANY] || mask == (state - config::IGNORE_MOD);
 	}
 
 	xpp::InputModifier button_mask(const xpp::Button button) {

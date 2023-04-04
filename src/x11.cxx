@@ -464,7 +464,7 @@ void X11::setupCursor() {
 	xpp::XColor fg, bg;
 
 	auto parseColor = [this](ColorIndex idx, xpp::XColor &out, const unsigned short fallback) {
-		auto name = config::get_color_name(idx);
+		auto name = get_color_name(idx);
 		try {
 			m_display.parseColor(out, name);
 		} catch (const cosmos::CosmosError &) {

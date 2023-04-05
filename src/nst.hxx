@@ -17,9 +17,9 @@
 
 namespace nst {
 
-/// Nst main application class
+/// Nst main application class.
 /**
- * This type holds instances of all the other types that make up nst. It also
+ * This type holds instances of all the other types that make up nst. It
  * implements the main loop and is invoked from the main function of the
  * program.
  **/
@@ -38,13 +38,14 @@ public: // functions
 	X11& x11() { return m_x11; }
 	const Cmdline& cmdline() const { return m_cmdline; }
 
+	/// resize all necessary structures after the window or font size changed
 	void resizeConsole();
 
 protected: // functions
 
 	void mainLoop();
 	void waitForWindowMapping();
-	/// sets up environment variables for the terminal process
+	/// sets up predefined environment variables for the terminal process
 	void setEnv();
 
 protected: // data

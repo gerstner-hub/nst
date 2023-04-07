@@ -84,33 +84,34 @@ public: // functions
 struct CharPos :
 		public PosT<class char_pos_t> {
 public: // functions
-	CharPos nextCol(const int n=1)  const { return CharPos{x + n, y    }; }
-	CharPos prevCol(const int n=1)  const { return CharPos{x - n, y    }; }
+	auto& moveLeft( const int n=1) { x -= n; return *this; }
+	auto& moveRight(const int n=1) { x += n; return *this; }
+	auto& moveDown( const int n=1) { y += n; return *this; }
+	auto& moveUp(   const int n=1) { y -= n; return *this; }
+
+	CharPos nextCol( const int n=1) const { return CharPos{x + n, y    }; }
+	CharPos prevCol( const int n=1) const { return CharPos{x - n, y    }; }
 	CharPos nextLine(const int n=1) const { return CharPos{x,     y + n}; }
 	CharPos prevLine(const int n=1) const { return CharPos{x,     y - n}; }
 	CharPos startOfLine() const { return CharPos{0, y}; }
 
-	CharPos& moveLeft(const int n=1)  { x -= n; return *this; }
-	CharPos& moveRight(const int n=1) { x += n; return *this; }
-	CharPos& moveDown(const int n=1)  { y += n; return *this; }
-	CharPos& moveUp(const int n=1)    { y -= n; return *this; }
 
 	CharPos& moveToStartOfLine() { x = 0; return *this; }
 };
 
-/// represents a drawing position in a window in pixel units
+/// represents a drawing position in a window in pixel units.
 struct DrawPos :
 		public PosT<class draw_pos_t> {
 public: // functions
-	auto& moveDown( int px) { y += px; return *this; }
-	auto& moveUp(   int px) { y -= px; return *this; }
-	auto& moveLeft( int px) { x -= px; return *this; }
-	auto& moveRight(int px) { x += px; return *this; }
+	auto& moveDown( const int px) { y += px; return *this; }
+	auto& moveUp(   const int px) { y -= px; return *this; }
+	auto& moveLeft( const int px) { x -= px; return *this; }
+	auto& moveRight(const int px) { x += px; return *this; }
 
-	DrawPos atBelow(int px) const { return DrawPos(*this).moveDown(px); }
-	DrawPos atAbove(int px) const { return DrawPos(*this).moveUp(px); }
-	DrawPos atLeft( int px) const { return DrawPos(*this).moveLeft(px); }
-	DrawPos atRight(int px) const { return DrawPos(*this).moveRight(px); }
+	DrawPos atBelow(const int px) const { return DrawPos{*this}.moveDown(px); }
+	DrawPos atAbove(const int px) const { return DrawPos{*this}.moveUp(px); }
+	DrawPos atLeft( const int px) const { return DrawPos{*this}.moveLeft(px); }
+	DrawPos atRight(const int px) const { return DrawPos{*this}.moveRight(px); }
 
 	operator xpp::Coord() const {
 		return xpp::Coord{x, y};
@@ -127,9 +128,9 @@ public: // functions
 	}
 };
 
-/// A rectangular range of characters between a begin and and end CharPos.
+/// A rectangular range of characters between a begin and an end CharPos.
 /**
- * the begin and end coordinates are *inclusive*.
+ * The begin and end coordinates are *inclusive*.
  **/
 struct Range {
 public: // data
@@ -139,26 +140,29 @@ public: // data
 public: // types
 
 	/// strong type to represent widths
-	enum class Width : int {};
+	enum class Width  : int {};
 	/// strong type to represent heights
 	enum class Height : int {};
+
+	static inline auto raw_width  = cosmos::to_integral<Width>;
+	static inline auto raw_height = cosmos::to_integral<Height>;
 
 public: // functions
 
 	Range() = default;
 
-	Range(const CharPos &b, const CharPos &e) :
+	Range(const CharPos b, const CharPos e) :
 			begin{b}, end{e}
 	{}
 
-	Range(const CharPos &b, const Width &w) :
+	Range(const CharPos b, const Width w) :
 			Range{b, b} {
-		end.x += static_cast<int>(w);
+		end.x += raw_width(w);
 	}
 
-	Range(const CharPos &b, const Height &h) :
+	Range(const CharPos b, const Height h) :
 			Range{b, b} {
-		end.y += static_cast<int>(h);
+		end.y += raw_height(h);
 	}
 
 	void invalidate() { begin.x = -1; }
@@ -167,7 +171,7 @@ public: // functions
 	Width width() const { return static_cast<Width>(end.x - begin.x + 1); }
 	Height height() const { return static_cast<Height>(end.y - begin.y + 1); }
 
-	void clamp(const CharPos &max) {
+	void clamp(const CharPos max) {
 		begin.clampX(max.x);
 		begin.clampY(max.y);
 
@@ -182,14 +186,14 @@ public: // functions
 			std::swap(begin.y, end.y);
 	}
 
-	/// returns whether the given coordinate is within the current range setting
-	bool inRange(const CharPos &pos) const {
+	/// Returns whether the given coordinate is within the current range setting.
+	bool inRange(const CharPos pos) const {
 		return
 			cosmos::in_range(pos.y, begin.y, end.y) &&
 			cosmos::in_range(pos.x, begin.x, end.x);
 	}
 
-	void scroll(int nlines) {
+	void scroll(const int nlines) {
 		begin.y += nlines;
 		end.y += nlines;
 	}
@@ -209,7 +213,7 @@ public: // functions
 	}
 };
 
-/// A span over one or more terminal lines.
+/// A span over a number of terminal lines.
 struct LineSpan {
 public: // data
 
@@ -233,18 +237,18 @@ public: // functions
 	}
 
 	/// returns whether the given position's y coordinate in within this LineSpan range
-	bool inRange(const CharPos &pos) const {
+	bool inRange(const CharPos pos) const {
 		return top <= pos.y && pos.y <= bottom;
 	}
 };
 
-/// A span over one or more terminal columns.
+/// A span over a number of terminal columns.
 struct ColSpan {
 	int left = 0;
 	int right = 0;
 };
 
-/// a two-dimensional extent in pixels e.g. for characters, windows etc.
+/// A two-dimensional extent in pixels e.g. for character bounding box, window dimensions etc.
 struct Extent {
 public: // data
 
@@ -278,25 +282,24 @@ public: // functions
 		}
 	}
 
-	// TODO: consider switching to unsigned here and use xpp::Extent instead
 	operator xpp::Extent() const {
 		assertPositive();
 		return xpp::Extent{static_cast<unsigned int>(width), static_cast<unsigned int>(height)};
 	}
 };
 
-using Callback = std::function<void ()>;
+using InputCallback = std::function<void ()>;
 
 struct KbdShortcut {
 	xpp::InputMask mod;
 	xpp::KeySymID keysym;
-	Callback func;
+	InputCallback func;
 };
 
 struct MouseShortcut {
 	xpp::InputMask mod;
 	xpp::Button button;
-	Callback func;
+	InputCallback func;
 	bool release;
 };
 
@@ -376,6 +379,7 @@ public: // functions
 	}
 
 public: // data
+
 	xpp::KeySymID id;
 	xpp::InputMask mask{};
 	std::string_view seq{};
@@ -431,6 +435,7 @@ inline ColorIndex operator-(const ColorIndex a, const ColorIndex b) {
 	return ColorIndex{cosmos::to_integral(a) - cosmos::to_integral(b)};
 }
 
+/// Returns whether the given index actually represents a 24-bit RGB true color value
 inline bool is_true_color(const ColorIndex idx) {
 	auto raw = cosmos::to_integral(idx);
 	auto flag = cosmos::to_integral(ColorIndex::TRUE_COLOR_FLAG);
@@ -438,6 +443,7 @@ inline bool is_true_color(const ColorIndex idx) {
 	return (raw & flag) != 0;
 }
 
+/// Sets the true color flag for the given index
 inline ColorIndex to_true_color(const ColorIndex idx) {
 	auto raw = cosmos::to_integral(idx);
 	raw |= cosmos::to_integral(ColorIndex::TRUE_COLOR_FLAG);

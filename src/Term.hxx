@@ -13,6 +13,7 @@
 // nst
 #include "EscapeHandler.hxx"
 #include "Glyph.hxx"
+#include "Screen.hxx"
 #include "types.hxx"
 
 namespace nst {

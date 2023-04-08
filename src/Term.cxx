@@ -445,14 +445,14 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 }
 
 void Term::dumpLine(const CharPos &pos) const {
-	char buf[utf8::UTF_SIZE];
+	std::string enc_rune;
 
 	auto left = lineLen(pos);
 	const auto line = m_screen.line(pos);
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
-		auto len = utf8::encode(it->u, buf);
-		m_tty.printToIoFile({buf, len});
+		utf8::encode(it->u, enc_rune);
+		m_tty.printToIoFile(enc_rune);
 	}
 	m_tty.printToIoFile("\n");
 }
@@ -540,15 +540,17 @@ Rune Term::translateChar(Rune u) {
 	constexpr auto VT100_GR_START = 0x41;
 	constexpr auto VT100_GR_END = 0x7e;
 
-	constexpr const char *VT100_0[VT100_GR_END - VT100_GR_START + 1] = { /* 0x41 - 0x7e */
-		"↑", "↓", "→", "←", "█", "▚", "☃", /* A - G */
-		0, 0, 0, 0, 0, 0, 0, 0, /* H - O */
-		0, 0, 0, 0, 0, 0, 0, 0, /* P - W */
-		0, 0, 0, 0, 0, 0, 0, " ", /* X - _ */
-		"◆", "▒", "␉", "␌", "␍", "␊", "°", "±", /* ` - g */
-		"␤", "␋", "┘", "┐", "┌", "└", "┼", "⎺", /* h - o */
-		"⎻", "─", "⎼", "⎽", "├", "┤", "┴", "┬", /* p - w */
-		"│", "≤", "≥", "π", "≠", "£", "·", /* x - ~ */
+	// these have to be strings, not characters, because these are
+	// multi-byte characters that don't fit into char.
+	constexpr std::string_view VT100_0[VT100_GR_END - VT100_GR_START + 1] = { /* 0x41 - 0x7e */
+		u8"↑", u8"↓", u8"→", u8"←", u8"█", u8"▚", u8"☃",        // A - G
+		   {},    {},    {},    {},    {},    {},    {},    {}, // H - O
+		   {},    {},    {},    {},    {},    {},    {},    {}, // P - W
+		   {},    {},    {},    {},    {},    {},    {}, u8" ", // X - _
+		u8"◆", u8"▒", u8"␉", u8"␌", u8"␍", u8"␊", u8"°", u8"±", // ` - g
+		u8"␤", u8"␋", u8"┘", u8"┐", u8"┌", u8"└", u8"┼", u8"⎺", // h - o
+		u8"⎻", u8"─", u8"⎼", u8"⎽", u8"├", u8"┤", u8"┴", u8"┬", // p - w
+		u8"│", u8"≤", u8"≥", u8"π", u8"≠", u8"£", u8"·",        // x - ~
 	};
 
 	switch (m_charsets[m_active_charset]) {
@@ -558,8 +560,8 @@ Rune Term::translateChar(Rune u) {
 			 if (cosmos::in_range(u, VT100_GR_START, VT100_GR_END)) {
 				 const auto TRANS_CHAR = VT100_0[u - VT100_GR_START];
 
-				 if (TRANS_CHAR) {
-					utf8::decode(TRANS_CHAR, &u, utf8::UTF_SIZE);
+				 if (!TRANS_CHAR.empty()) {
+					utf8::decode(TRANS_CHAR, u);
 				 }
 			 }
 			 break;
@@ -683,7 +685,7 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	for (size_t pos = 0; pos < data.size(); pos += charsize) {
 		if (use_utf8) {
 			/* process a complete utf8 char */
-			charsize = utf8::decode(data.data() + pos, &u, data.size() - pos);
+			charsize = utf8::decode(data.substr(pos), u);
 			if (charsize == 0)
 				return pos;
 		} else {

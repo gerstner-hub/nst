@@ -21,7 +21,6 @@ namespace nst {
 class Selection;
 class TTY;
 class X11;
-class RuneInfo;
 
 /// Internal representation of the screen.
 /**

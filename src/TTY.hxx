@@ -15,13 +15,13 @@ namespace nst {
 
 class Nst;
 
-/// Pseudo Terminal I/O.
+/// (Pseudo) Terminal I/O.
 /**
  * This class covers the PTY/TTY interfacing towards the operating system.
  * It's job is mainly the raw I/O handling and handling of low level TTY
  * aspects.
  *
- * It holds the sub process that is running in the terminal. It sends
+ * It holds the sub process that is running on the terminal. It sends
  * keyboard input and out-of-band data to the child process and receives data
  * from it to display on the terminal.
  **/
@@ -54,12 +54,12 @@ public: // functions
 	/// Provide input to the child process e.g. character input from key presses.
 	/**
 	 * \param[in] echo If set then the input will also be forwarded to the
-	 * Term class to display on the window.
+	 * Term class to display on the terminal window.
 	 **/
 	void write(const std::string_view sv, const MayEcho echo);
 
-	/// Inform the TTY device (and thus the child process) about a size change.
-	void resize(const Extent &size);
+	/// Inform the TTY device (and thus the child process) about a terminal size change.
+	void resize(const Extent size);
 
 	/// Sends SIGHUP to the child process, informing it that we're quitting.
 	void hangup();
@@ -77,7 +77,7 @@ public: // functions
 	/// To be called when a SIGCHLD was received in the main loop.
 	/**
 	 * This will throw an exception if the child process did not exit
-	 * cleanly
+	 * cleanly.
 	 **/
 	void handleSigChildEvent();
 
@@ -86,7 +86,7 @@ public: // functions
 
 protected: // functions
 
-	/// Opens a real TTY.
+	/// Opens the real TTY specified by \c line.
 	void openTTY(const std::string &line);
 	/// Runs stty to configure a real TTY device if specified on the cmdline.
 	void configureTTY();

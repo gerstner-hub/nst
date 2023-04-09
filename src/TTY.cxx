@@ -82,16 +82,17 @@ void TTY::createPTY() {
 }
 
 void TTY::setupPoller() {
-	if (!m_cmd_poller.valid()) {
-		m_cmd_poller.create();
-		m_cmd_poller.addFD(
-			m_cmd_file.fd(),
-			cosmos::Poller::MonitorMask({
-				cosmos::Poller::MonitorSetting::INPUT,
-				cosmos::Poller::MonitorSetting::OUTPUT
-			})
-		);
-	}
+	if (m_cmd_poller.valid())
+		return;
+
+	m_cmd_poller.create();
+	m_cmd_poller.addFD(
+		m_cmd_file.fd(),
+		cosmos::Poller::MonitorMask({
+			cosmos::Poller::MonitorSetting::INPUT,
+			cosmos::Poller::MonitorSetting::OUTPUT
+		})
+	);
 }
 
 void TTY::setupIOFile(const std::string &path) {
@@ -127,8 +128,7 @@ void TTY::configureTTY() {
 	}
 
 	try {
-		auto stty = cloner.run();
-		auto res = stty.wait();
+		auto res = cloner.run().wait();
 
 		if (!res.exitedSuccessfully()) {
 			cosmos_throw (cosmos::RuntimeError("stty returned non-zero"));
@@ -163,13 +163,16 @@ size_t TTY::read() {
 			return 0;
 		}
 
-		/* append read bytes to unprocessed bytes */
+		// append read bytes to unprocessed bytes
 		m_buf_bytes += read_bytes;
 		const auto view = std::string_view{m_buf, m_buf_bytes};
 		const auto written = m_nst.term().write(view, Term::ShowCtrlChars(false));
 		m_buf_bytes -= written;
-		/* keep any incomplete UTF-8 byte sequence for the next call */
+		// keep any incomplete UTF-8 byte sequence for the next call
 		if (m_buf_bytes > 0)
+			// NOTE: using a ringbuffer (e.g. via memmap) we could
+			// probably avoid this memmove with the trade off of
+			// added complexity.
 			std::memmove(m_buf, m_buf + written, m_buf_bytes);
 		return read_bytes;
 	} catch (const std::exception &ex) {
@@ -195,7 +198,7 @@ void TTY::write(const std::string_view sv, const MayEcho echo) {
 
 	// otherwise we need to translate newlines
 
-	/* This is similar to how the kernel handles ONLCR for ttys */
+	// This is similar to how the kernel handles ONLCR for ttys
 	for (auto it = sv.begin(); it < sv.end();) {
 		if (*it == '\r') {
 			it++;
@@ -210,13 +213,9 @@ void TTY::write(const std::string_view sv, const MayEcho echo) {
 }
 
 void TTY::writeRaw(const std::string_view sv) {
-	/*
-	 * Remember that we are potentially using a real TTY, which might be a
-	 * modem line.
-	 * Writing too much will clog the line. That's why we are doing this
-	 * dance.
-	 * FIXME: Migrate the world to Plan 9.
-	 */
+	// Remember that we are potentially using a real TTY, which might be a modem line.
+	// Writing too much will clog the line. That's why we are doing this dance.
+	// FIXME: Migrate the world to Plan 9.
 	using Event = cosmos::Poller::Event;
 	const char *data = sv.data();
 	size_t written;
@@ -226,26 +225,24 @@ void TTY::writeRaw(const std::string_view sv) {
 
 			const auto events = event.getEvents();
 
-			if (events.test(Event::OUTPUT_READY)) {
-				/*
-				 * Only write the bytes written by write() or the
-				 * default of 256. This seems to be a reasonable value
-				 * for a serial line. Bigger values might clog the I/O.
-				 *
-				 * NOTE: since Modem lines are not likely any
-				 * more this is causing a lot of system call
-				 * overhead in case of a PTY.
-				 */
+			if (events & Event::OUTPUT_READY) {
+				// Only write the bytes written by write() or the
+				// default of 256. This seems to be a reasonable value
+				// for a serial line. Bigger values might clog the I/O.
+				//
+				// TODO: since Modem lines are not likely to
+				// be used any more this is causing a lot of
+				// system call overhead in case of a PTY.
+				// Using a simpler algorithm for PTYs might be
+				// more efficient.
 				written = m_cmd_file.write(data, std::min(left, limit));
 				if (written == left)
-					/* All bytes have been written. */
+					// All bytes have been written.
 					return;
 
-				/*
-				 * We weren't able to write out everything.
-				 * This means the buffer is getting full
-				 * again. Empty it.
-				 */
+				// We weren't able to write out everything.
+				// This means the buffer is getting full
+				// again. Empty it.
 				if (left < limit)
 					limit = this->read();
 				left -= written;
@@ -256,14 +253,14 @@ void TTY::writeRaw(const std::string_view sv) {
 			// need to prefer writes, otherwise we clog our own
 			// input buffer until it's full, and nothing is ever
 			// written out.
-			if (events.test(Event::INPUT_READY)) {
+			if (events & Event::INPUT_READY) {
 				limit = this->read();
 			}
 		}
 	}
 }
 
-void TTY::resize(const Extent &size) {
+void TTY::resize(const Extent size) {
 	const auto &term = m_nst.term();
 	cosmos::TermDimension dim(term.numCols(), term.numRows());
 	// according to the man page these fields are unused on Linux, but it
@@ -279,7 +276,7 @@ void TTY::resize(const Extent &size) {
 }
 
 void TTY::hangup() {
-	/* Send SIGHUP to shell */
+	// Send SIGHUP to shell
 	m_child_proc.kill(cosmos::signal::HANGUP);
 }
 
@@ -288,7 +285,7 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 	// we want to receive SIGCHLD synchronously via a signal FD, so block it
 	cosmos::signal::block(cosmos::SigSet{cosmos::signal::CHILD});
 
-	cosmos::PasswdInfo pw_info(cosmos::proc::get_real_user_id());
+	cosmos::PasswdInfo pw_info{cosmos::proc::get_real_user_id()};
 	if (!pw_info.valid()) {
 		cosmos_throw (cosmos::InternalError("who are you?"));
 	}
@@ -309,15 +306,14 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 
 	// code executed in the child before we execute the new program
 	cloner.setPostForkCB([this, &slave, pw_info, shell](const cosmos::ChildCloner &) {
-		// close file descriptors unnecessary in the child
+		// close unnecessary file descriptors in the child
 		m_io_file.close();
 		m_cmd_file.close();
 
 		// create a new process group
 		cosmos::proc::create_new_session();
 
-		// make the slave end of the TTY the new default file
-		// descriptors for the child
+		// make the slave end of the TTY the new default file descriptors for the child
 		for (auto stdfd: {cosmos::stdin, cosmos::stdout, cosmos::stderr}) {
 			slave.duplicate(stdfd, cosmos::CloseOnExec(false));
 		}
@@ -331,22 +327,24 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 
 		using namespace cosmos;
 
-		// setup default signal handlers again
+		// restore default signal handlers
 		for (auto sig: {
 				signal::CHILD, signal::HANGUP, signal::INTERRUPT,
 				signal::QUIT, signal::TERMINATE, signal::ALARM}) {
 			cosmos::signal::restore(cosmos::Signal{sig});
 		}
 
-		for (const auto &var: {"COLUMNS", "LINES", "TERMCAP"}) {
+		for (const auto var: {"COLUMNS", "LINES", "TERMCAP"}) {
 			unsetenv(var);
 		}
 
-		setenv("LOGNAME", pw_info.name().data(), 1);
-		setenv("USER",    pw_info.name().data(), 1);
-		setenv("SHELL",   shell.data(), 1);
-		setenv("HOME",    pw_info.homeDir().data(), 1);
-		setenv("TERM",    config::TERM_NAME.data(), 1);
+		const proc::OverwriteEnv overwrite{true};
+
+		proc::set_env_var("LOGNAME", pw_info.name(),    overwrite);
+		proc::set_env_var("USER",    pw_info.name(),    overwrite);
+		proc::set_env_var("SHELL",   shell,             overwrite);
+		proc::set_env_var("HOME",    pw_info.homeDir(), overwrite);
+		proc::set_env_var("TERM",    config::TERM_NAME, overwrite);
 	});
 
 	if (auto &args = m_nst.cmdline().rest.getValue(); !args.empty()) {
@@ -390,7 +388,7 @@ void TTY::sendBreak() {
 
 void TTY::doPrintToIoFile(const std::string_view s) {
 	try {
-		m_io_file.writeAll(s.data(), s.size());
+		m_io_file.writeAll(s);
 	} catch (const std::exception &ex) {
 		std::cerr << "error writing to output file: " << ex.what() << std::endl;
 		m_io_file.close();

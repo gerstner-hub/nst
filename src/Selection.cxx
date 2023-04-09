@@ -1,8 +1,5 @@
-// stdlib
+// C++
 #include <algorithm>
-
-// libc
-#include <string.h>
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -14,7 +11,6 @@
 #include "nst.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
-#include "TTY.hxx"
 
 namespace nst {
 
@@ -23,7 +19,7 @@ Selection::Selection(Nst &nst) :
 	m_orig.invalidate();
 }
 
-bool Selection::isDelim(const Glyph &g) const {
+bool Selection::isDelimiter(const Glyph &g) const {
 	auto &DELIMITERS = config::WORD_DELIMITERS;
 	return g.u && DELIMITERS.find_first_of(g.u) != DELIMITERS.npos;
 }
@@ -41,25 +37,27 @@ bool Selection::hasScreenChanged() const {
 	return m_alt_screen != m_term.mode().test(Term::Mode::ALTSCREEN);
 }
 
-bool Selection::isSelected(const CharPos &pos) const {
+bool Selection::isSelected(const CharPos pos) const {
 	if (inEmptyState() || !m_orig.isValid() || hasScreenChanged())
 		return false;
 	else if (isRectType())
 		return m_range.inRange(pos);
-	else
+	else // regular type
+		// make sure it is a line between the start/end line and if pos
+		// is exactly on the start or end line, make sure that the X
+		// coordinate is in range
 		return cosmos::in_range(pos.y, m_range.begin.y, m_range.end.y) &&
 			(pos.y != m_range.begin.y || pos.x >= m_range.begin.x) &&
 			(pos.y != m_range.end.y || pos.x <= m_range.end.x);
 }
 
-void Selection::start(const CharPos &pos, Snap snap) {
+void Selection::start(const CharPos pos, const Snap snap) {
 	clear();
 	m_state = State::EMPTY;
 	m_type = Type::REGULAR;
 	m_alt_screen = m_term.mode().test(Term::Mode::ALTSCREEN);
 	m_snap = snap;
-	m_orig.begin = pos;
-	m_orig.end = pos;
+	m_orig = Range{pos, pos};
 
 	update();
 
@@ -76,8 +74,8 @@ void Selection::update() {
 }
 
 void Selection::normalizeRange() {
-	const auto &begin = m_orig.begin;
-	const auto &end = m_orig.end;
+	const auto begin = m_orig.begin;
+	const auto end = m_orig.end;
 
 	if (isRegularType() && m_orig.height() > Range::Height(1)) {
 		// regular selection over more than one line:
@@ -126,22 +124,22 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
 
 	const Glyph *prevgp = &screen[pos];
-	bool prev_delim = isDelim(*prevgp);
+	bool prev_is_delim = isDelimiter(*prevgp);
 	CharPos next;
 	while(true) {
 		next = pos.nextCol(move_offset);
 		// Snap around if the word wraps around at the end or beginning of a line.
 		if (!screen.validColumn(next)) {
-			next.moveDown(move_offset);
+			next = next.nextLine(move_offset);
 			// move to end of previous line of beginning of next line
 			next.x = next.x < 0 ? screen.numCols() - 1 : 0;
 
 			if (!screen.validLine(next))
-				// top or bottom of screen
+				// reached top or bottom of screen
 				break;
 
 			// inspect the final column if it wraps around
-			const auto &end_of_line = direction == Direction::FORWARD ? pos : next;
+			const auto end_of_line = direction == Direction::FORWARD ? pos : next;
 			if (!screen[end_of_line].mode[Attr::WRAP])
 				// no need to wrap the selection around
 				break;
@@ -152,20 +150,19 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 			break;
 
 		const Glyph &gp = screen[next];
-		const bool delim = isDelim(gp);
+		const bool is_delim = isDelimiter(gp);
 		// if this is just a dummy position then we need to move on to the next
 		if (!gp.isDummy()) {
-			// we support selecting not only words but also
-			// sequences of the same delimiter.
-			if (delim != prev_delim || (delim && !gp.isSameRune(*prevgp)))
+			// we support selecting not only words but also sequences of the same delimiter.
+			if (is_delim != prev_is_delim || (is_delim && !gp.isSameRune(*prevgp)))
 				break;
 		}
 
 		pos = next;
 		prevgp = &gp;
 		// TODO: this assignment should be unnecessary, since at this
-		// point `delim` will never be distinct from `prev_delim`
-		prev_delim = delim;
+		// point `is_delim` will never be distinct from `prev_is_delim`
+		prev_is_delim = is_delim;
 	}
 }
 
@@ -175,11 +172,9 @@ void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 	const auto last_col = m_term.numCols() - 1;
 	const auto last_row = m_term.numRows() - 1;
 
-	/*
-	 * Snap around if the the previous line or the current one
-	 * has set WRAP at its end. Then the whole next or previous
-	 * line will be selected.
-	 */
+	// Snap around if the the previous line or the current one has set
+	// WRAP at its end. Then the whole next or previous line will be
+	// selected.
 	switch (direction) {
 	default: break;
 	case Direction::FORWARD:
@@ -201,7 +196,7 @@ void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 	};
 }
 
-void Selection::extend(const CharPos &pos, const Type type, const bool done) {
+void Selection::extend(const CharPos pos, const Type type, const bool done) {
 	if (inIdleState()) {
 		return;
 	} else if (done && inEmptyState()) {
@@ -269,11 +264,11 @@ std::string Selection::selection() const {
 
 	{
 		// worst case calculation for unicode text plus newlines
-		const size_t bufsize = (screen.numCols()+1) * static_cast<size_t>(m_range.height()) * utf8::UTF_SIZE;
+		const size_t bufsize = (screen.numCols()+1) * Range::raw_height(m_range.height()) * utf8::UTF_SIZE;
 		ret.reserve(bufsize);
 	}
 
-	/* append every set & selected glyph to the selection */
+	// append every set & selected glyph to the selection
 	for (int y = m_range.begin.y; y <= m_range.end.y; y++) {
 		const int linelen = m_term.lineLen(y);
 		const bool is_last_line = m_range.end.y == y;
@@ -310,14 +305,12 @@ std::string Selection::selection() const {
 			utf8::encode(gp->u, ret);
 		}
 
-		/*
-		 * Copy and pasting of line endings is inconsistent in the
-		 * inconsistent terminal and GUI world.  The best solution
-		 * seems like to produce '\n' when something is copied from st
-		 * and convert '\n' to '\r', when something to be pasted is
-		 * received by st.
-		 * FIXME: Fix the computer world.
-		 */
+		// Copy and pasting of line endings is inconsistent in the
+		// inconsistent terminal and GUI world. The best solution
+		// seems like to produce '\n' when something is copied from st
+		// and convert '\n' to '\r', when something to be pasted is
+		// received by st.
+		// FIXME: Fix the computer world.
 		if ((!is_last_line || lastx >= linelen) && (!last->isWrapped() || isRectType()))
 			ret.push_back('\n');
 	}

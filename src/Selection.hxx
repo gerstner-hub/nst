@@ -13,7 +13,7 @@ struct Glyph;
 class Nst;
 class Term;
 
-/// This type handles the current copy/paste selection on a purely logical level (without X11 aspects)
+/// This type handles the current copy/paste selection on a purely logical level (without X11 aspects).
 class Selection {
 public: // types
 
@@ -22,7 +22,7 @@ public: // types
 		RECTANGULAR /// select a rectangular area from start to end coordinate
 	};
 
-	/// automatic selection or surrounding text
+	/// Automatic selection of surrounding text.
 	enum class Snap {
 		NONE, /// don't automatically select additional text
 		WORD, /// try to select a complete word at the given location (based on config::WORDDELIMITERS)
@@ -47,28 +47,29 @@ public: // functions
 
 	explicit Selection(Nst &nst);
 
-	/// removes the current selection and resets Selection state
+	/// Removes the current selection and resets Selection state.
 	void clear();
-	/// starts a new selection operation at the given start position using the given snap behaviour
-	void start(const CharPos &pos, Snap snap);
+
+	/// Starts a new selection operation at the given start position using the given snap behaviour.
+	void start(const CharPos pos, const Snap snap);
 
 	/// returns whether the given position is part of the current selection
-	bool isSelected(const CharPos &pos) const;
+	bool isSelected(const CharPos pos) const;
 
-	/// extends the current selection to the given position
+	/// Extends the current selection to the given position.
 	/**
 	 * The current selection range is changed towards the new end position
 	 * \c pos. The passed in selection \c type specifies how the new
-	 * selection will be caculated.
+	 * selection will be calculated.
 	 *
 	 * \param[in] done Whether the select operation is finished with this
 	 * call (e.g. due to button release).
 	 **/
-	void extend(const CharPos &pos, const Type type, const bool done);
+	void extend(const CharPos pos, const Type type, const bool done);
 
-	/// adjust the current selection to a scroll operation if possible
+	/// Adjust the current selection to a scroll operation, if possible.
 	/**
-	 * This scrolls num_lines beginning at origin_y. If possible the
+	 * This scrolls \c num_lines beginning at origin_y. If possible the
 	 * current selection will be adjusted accordingly, otherwise the
 	 * selection will be cleared.
 	 *
@@ -78,13 +79,13 @@ public: // functions
 	 **/
 	void scroll(const int origin_y, const int num_lines);
 
-	/// retrieves the content of the current selection
+	/// Retrieves the content of the current selection.
 	/**
 	 * If nothing is currently selected then an empty string is returned.
 	 **/
 	std::string selection() const;
 
-	/// dump current selection into I/O file
+	/// Dump current selection into the I/O file.
 	void dump() const;
 
 protected: // functions
@@ -96,7 +97,7 @@ protected: // functions
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }
 
-	/// updates the current selection after a change of m_orig
+	/// Updates the current selection after a change of m_orig.
 	void update();
 
 	/// normalize the current selection range coordinates
@@ -113,7 +114,7 @@ protected: // functions
 		extendSnap(m_range.begin, Direction::BACKWARD);
 		extendSnap(m_range.end,   Direction::FORWARD);
 	}
-	/// attempt to extend the selection in the given direction corresponding to the current snap setting
+	/// Attempt to extend the selection in the given direction corresponding to the current snap setting.
 	/**
 	 * \param[in-out] pos The position from which to start extending. Will
 	 * be updated with the new start/end of the selection, if applicable.
@@ -122,20 +123,20 @@ protected: // functions
 	void extendWordSnap(CharPos &pos, const Direction direction) const;
 	void extendLineSnap(CharPos &pos, const Direction direction) const;
 
-	/// extends the selection over line breaks for the regular selection type
+	/// Extends the selection over line breaks for the regular selection type.
 	void extendLineBreaks();
 
-	/// returns whether the given Glyph is a word delimiting character
-	bool isDelim(const Glyph &g) const;
+	/// Returns whether the given Glyph is a word delimiting character
+	bool isDelimiter(const Glyph &g) const;
 
-	/// returns whether the alt/screen was switched since start()
+	/// Returns whether the alt/screen was switched since start().
 	bool hasScreenChanged() const;
 
 protected: // data
 
 	Nst &m_nst;
 	Term &m_term;
-	bool m_alt_screen = false; /// alt screen setting when start() was invoked
+	bool m_alt_screen = false; /// alt screen setting seen when start() was invoked.
 	Snap m_snap = Snap::WORD;
 	Type m_type = Type::REGULAR;
 	State m_state = State::IDLE;

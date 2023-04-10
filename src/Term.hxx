@@ -11,6 +11,7 @@
 #include "cosmos/types.hxx"
 
 // nst
+#include "CursorState.hxx"
 #include "EscapeHandler.hxx"
 #include "Glyph.hxx"
 #include "Screen.hxx"
@@ -60,95 +61,6 @@ public: // types
 
 	using CarriageReturn = cosmos::NamedBool<struct carriage_t, true>;
 	using ShowCtrlChars = cosmos::NamedBool<struct show_ctrl_t, true>;
-
-	/// cursor related data
-	/**
-	 * This contains the current logical cursor position as well as cursor
-	 * attributes for newly inpurt characters and cursor specific control
-	 * settings.
-	 **/
-	struct TCursor { /* "Cursor" identifier conflicts with X headers */
-		friend class Term;
-	public: // types
-
-		/// cursor control operations
-		enum class Control {
-			SAVE, /// save current cursor position
-			LOAD /// restore previously saved cursor position
-		};
-
-		/// cursor runtime state flags
-		enum class State {
-			WRAPNEXT = 1, /// indicates that on next input automatic line wrap needs to occur
-			ORIGIN   = 2  /// if set then the cursor position is limited to the active scroll area
-		};
-
-		using StateBitMask = cosmos::BitMask<State>;
-
-	protected: // data
-
-		CharPos pos;   /// current cursor position (not yet rendered)
-		Glyph m_attrs; /// contains the currently active font attributes for newly input characters
-		StateBitMask m_state;
-
-	public: // functions
-
-		TCursor();
-
-		const auto& attrs() const { return m_attrs; }
-
-		const auto& position() const { return pos; }
-
-		void setFgColor(ColorIndex idx) {
-			m_attrs.fg = idx;
-		}
-
-		void setBgColor(ColorIndex idx) {
-			m_attrs.bg = idx;
-		}
-
-		/// resets all rendering related attributes (colors, markup)
-		void resetAttrs();
-
-		bool needWrapNext() const { return m_state[State::WRAPNEXT]; }
-
-		void setWrapNext(const bool on_off) {
-			m_state.set(State::WRAPNEXT, on_off);
-		}
-
-		bool useOrigin() const { return m_state[State::ORIGIN]; }
-
-		void setUseOrigin(const bool on_off) {
-			m_state.set(State::ORIGIN, on_off);
-		}
-	};
-
-protected: // data
-
-	Selection &m_selection;
-	TTY &m_tty;
-	X11 &m_x11;
-
-	TermSize m_size;    /// current terminal dimensions
-	ModeBitMask m_mode; /// terminal mode flags
-
-	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
-	LineSpan m_scroll_area;    /// region of lines that will be affected by scroll operations
-	Rune m_last_char = 0;      /// last printed char outside of sequence, 0 if control or otherwise unassigned
-
-	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
-	size_t m_active_charset = 0;       /// current charset used from m_charsets
-
-	TCursor m_cursor;             /// current cursor position and attributes
-	TCursor m_cached_main_cursor; /// save/load cursor for main screen
-	TCursor m_cached_alt_cursor;  /// ... and for alt screen
-
-	bool m_allowaltscreen = false;  /// whether altscreen support is enabled
-	EscapeHandler m_esc_handler;
-	Screen m_alt_screen; /// alt screen data
-	Screen m_screen; /// all the glyphs that make up the terminal screen
-	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
-	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 
 public: // functions
 
@@ -249,7 +161,7 @@ public: // functions
 
 	void setAltScreen(const bool enable, const bool with_cursor);
 
-	void cursorControl(const TCursor::Control &ctrl);
+	void cursorControl(const CursorState::Control &ctrl);
 
 	const auto& mode() const { return m_mode; }
 
@@ -364,7 +276,7 @@ public: // functions
 	/// provide new data to the terminal
 	size_t write(const std::string_view data, const ShowCtrlChars show_ctrl);
 
-	const TCursor& cursor() const { return m_cursor; }
+	const CursorState& cursor() const { return m_cursor; }
 
 	/// reset all cursor attrs to default
 	void resetCursorAttrs() {
@@ -466,6 +378,33 @@ protected: // functions
 	}
 
 	Glyph* curGlyph() { return &m_screen[m_cursor.pos]; }
+
+protected: // data
+
+	Selection &m_selection;
+	TTY &m_tty;
+	X11 &m_x11;
+
+	TermSize m_size;    /// current terminal dimensions
+	ModeBitMask m_mode; /// terminal mode flags
+
+	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
+	LineSpan m_scroll_area;    /// region of lines that will be affected by scroll operations
+	Rune m_last_char = 0;      /// last printed char outside of control sequence, 0 if control or otherwise unassigned
+
+	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
+	size_t m_active_charset = 0;       /// current charset used from m_charsets
+
+	CursorState m_cursor;             /// current cursor position and attributes
+	CursorState m_cached_main_cursor; /// save/load cursor for main screen
+	CursorState m_cached_alt_cursor;  /// ... and for alt screen
+
+	bool m_allowaltscreen = false;  /// whether altscreen support is enabled
+	EscapeHandler m_esc_handler; /// processes any kinds of terminal escape sequences
+	Screen m_screen;     /// all the glyphs that make up the terminal screen
+	Screen m_alt_screen; /// all the glyphs that make up the alternative terminal screen
+	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
+	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 };
 
 } // end ns

@@ -222,7 +222,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 			term.setAltScreen(set, /*with_cursor=*/arg == 1049);
 			break;
 		case 1048: // save/load cursor
-			term.cursorControl(set ? Term::TCursor::Control::SAVE : Term::TCursor::Control::LOAD);
+			term.cursorControl(set ? CursorState::Control::SAVE : CursorState::Control::LOAD);
 			break;
 		case 2004: /* 2004: bracketed paste mode */
 			x11.setMode(WinMode::BRKT_PASTE, set);
@@ -414,10 +414,10 @@ void CSIEscape::process() {
 		}
 		return;
 	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
-		term.cursorControl(Term::TCursor::Control::SAVE);
+		term.cursorControl(CursorState::Control::SAVE);
 		return;
 	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
-		term.cursorControl(Term::TCursor::Control::LOAD);
+		term.cursorControl(CursorState::Control::LOAD);
 		return;
 	case ' ':
 		// this comes with an intermediate character

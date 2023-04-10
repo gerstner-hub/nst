@@ -29,12 +29,12 @@ static_assert(std::is_pod<Glyph>::value, "Glyph type needs to be POD because of 
 
 namespace nst {
 
-Term::TCursor::TCursor() {
+CursorState::CursorState() {
 	m_attrs.fg = config::DEFAULT_FG;
 	m_attrs.bg = config::DEFAULT_BG;
 }
 
-void Term::TCursor::resetAttrs() {
+void CursorState::resetAttrs() {
 	m_attrs.mode.reset({
 		Attr::BOLD,
 		Attr::FAINT,
@@ -68,7 +68,7 @@ void Term::init(const Nst &nst) {
 }
 
 void Term::reset() {
-	m_cursor = TCursor{};
+	m_cursor = CursorState{};
 
 	clearAllTabs();
 	for (auto i = config::TABSPACES; i < m_size.cols; i += config::TABSPACES)
@@ -84,7 +84,7 @@ void Term::reset() {
 	// reset main and alt screen
 	for (size_t i = 0; i < 2; i++) {
 		moveCursorTo(topLeft());
-		cursorControl(TCursor::Control::SAVE);
+		cursorControl(CursorState::Control::SAVE);
 		clearScreen();
 		swapScreen();
 	}
@@ -159,7 +159,7 @@ void Term::resize(const TermSize &new_size) {
 			clearRegion({CharPos{0, old_size.rows}, bottomRight()});
 		}
 		swapScreen();
-		cursorControl(TCursor::Control::LOAD);
+		cursorControl(CursorState::Control::LOAD);
 	}
 	m_cursor = saved_cursor;
 }
@@ -255,7 +255,7 @@ void Term::setAltScreen(const bool enable, const bool with_cursor) {
 	if (!m_allowaltscreen)
 		return;
 
-	const auto cursor_ctrl = enable ? TCursor::Control::SAVE : TCursor::Control::LOAD;
+	const auto cursor_ctrl = enable ? CursorState::Control::SAVE : CursorState::Control::LOAD;
 
 	if (with_cursor)
 		cursorControl(cursor_ctrl);
@@ -279,14 +279,14 @@ void Term::swapScreen() {
 	setAllDirty();
 }
 
-void Term::cursorControl(const TCursor::Control &ctrl) {
+void Term::cursorControl(const CursorState::Control &ctrl) {
 	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_alt_cursor : m_cached_main_cursor;
 
 	switch(ctrl) {
-		case TCursor::Control::SAVE:
+		case CursorState::Control::SAVE:
 			cursor = m_cursor;
 			break;
-		case TCursor::Control::LOAD:
+		case CursorState::Control::LOAD:
 			m_cursor = cursor;
 			moveCursorTo(cursor.pos);
 			break;

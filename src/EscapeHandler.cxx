@@ -291,10 +291,10 @@ EscapeHandler::Escape EscapeHandler::handleInitialEscape(const char ch) {
 		x11.setMode(WinMode::APPKEYPAD, false);
 		break;
 	case '7': /* DECSC -- Save Cursor */
-		term.cursorControl(Term::TCursor::Control::SAVE);
+		term.cursorControl(CursorState::Control::SAVE);
 		break;
 	case '8': /* DECRC -- Restore Cursor */
-		term.cursorControl(Term::TCursor::Control::LOAD);
+		term.cursorControl(CursorState::Control::LOAD);
 		break;
 	case '\\': /* ST -- String Terminator for StringEscape (!) */
 		/* this likely is the second byte of the ST := ESC \ */

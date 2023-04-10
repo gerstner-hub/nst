@@ -56,7 +56,7 @@ public: // functions
 		m_attrs.bg = idx;
 	}
 
-	/// resets all rendering related attributes (colors, markup)
+	/// Resets all rendering related attributes (colors, markup).
 	void resetAttrs();
 
 	bool needWrapNext() const { return m_state[State::WRAPNEXT]; }

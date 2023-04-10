@@ -29,13 +29,12 @@ class X11;
  * containing the actual X11 drawing logic.
  *
  * It manages the dimensions of the terminal, each line and its contents,
- * processes input data and passes escape sequences to EscapeHandler
+ * processes input data and forwards escape sequences to EscapeHandler.
  **/
 class Term {
-
 public: // types
 
-	/// gobal terminal mode settings
+	/// Gobal terminal mode settings.
 	enum class Mode {
 		WRAP        = 1 << 0, /// automatically wrap to next line if cursor reaches end of line
 		INSERT      = 1 << 1, /// if set, on input, shift existing characters in a line to the right
@@ -48,7 +47,7 @@ public: // types
 
 	using ModeBitMask = cosmos::BitMask<Mode>;
 
-	/// different terminal character sets (we don't support them all)
+	/// Different terminal character sets (we don't support them all).
 	enum class Charset {
 		GRAPHIC0, /// DEC Special Graphics 7-bit character set
 		GRAPHIC1,
@@ -68,63 +67,77 @@ public: // functions
 
 	void init(const Nst &nst);
 
-	void resize(const TermSize &new_size);
+	/// Change the terminal dimensions.
+	/**
+	 * This performs rather complex adjustments to refit the scrolling
+	 * reagion, adjust the cursor position and maintainer internal
+	 * bookkeeping.
+	 **/
+	void resize(const TermSize new_size);
 
+	/// Clear all terminal content and restore sane defaults.
 	void reset();
 
+	/// Clears the given character range completely.
 	void clearRegion(Range range);
-	/// clears the given span of lines completely
-	void clearRegion(const LineSpan &span);
+
+	/// Clears the given span of lines completely.
+	void clearLines(const LineSpan span);
+
+	/// Clears the complete screen.
 	void clearScreen() {
 		clearRegion({topLeft(), bottomRight()});
 	}
 
-	/// clears all rows and cols after the current cursor position
+	/// Clears all rows and cols after the current cursor position.
 	/**
-	 * columns on the current line before the current cursor column will remain
+	 * Columns on the current line before the current cursor column will
+	 * remain.
 	 **/
 	void clearLinesBelowCursor();
 
-	/// clears all rows and cols up to the current cursor position
+	/// Clears all rows and cols up to the current cursor position.
 	/**
-	 * colums on the current line after the current cursor column will remain
+	 * Colums on the current line after the current cursor column will
+	 * remain
 	 **/
 	void clearLinesAboveCursor();
 
-	/// clears the current line up to and including the current cursor position
+	/// Clears the current line up to and including the current cursor position.
 	void clearColsBeforeCursor();
 
-	/// clears the current line from and including the current cursor position
+	/// Clears the current line from and including the current cursor position.
 	void clearColsAfterCursor();
 
-	/// clears the line the cursor is in completely
+	/// Clears the line the cursor is in completely.
 	void clearCursorLine();
 
+	/// Marks the given span of lines as dirty for redrawing.
 	void setDirty(LineSpan span);
 
-	void setAllDirty() {
-		setDirty(LineSpan{0, m_size.rows - 1});
-	}
-
+	/// Clears all currently defined tabstop positions.
 	void clearAllTabs() {
 		m_tabs.clear();
 		m_tabs.resize(m_size.cols);
 	}
 
-	void setCharset(size_t charset) {
+	/// Select one of the four configurable character sets by index.
+	void setCharset(const size_t charset) {
 		m_active_charset = std::clamp(charset, 0UL, m_charsets.size() - 1);
 	}
 
-	/// sets the given charset index to the given charset selection
-	void setCharsetMapping(const size_t index, const Charset &cs) {
+	/// Sets the given charset index to the given charset selection.
+	void setCharsetMapping(const size_t index, const Charset cs) {
 		if(index >= m_charsets.size())
 			return;
 
 		m_charsets[index] = cs;
 	}
 
-	void setScrollArea(const LineSpan &span);
+	/// Sets a span of lines on the screen that will be affected by scrolling operations.
+	void setScrollArea(const LineSpan span);
 
+	/// Move the cursor to the given screen position.
 	void moveCursorTo(CharPos pos);
 
 	void moveCursorUp(const size_t count, const CarriageReturn &cr = CarriageReturn(false)) {
@@ -156,14 +169,21 @@ public: // functions
 		moveCursorTo(CharPos{col, curpos.y});
 	}
 
-	/// move cursor ignoring scroll limit (in ORIGIN cursor state)
+	/// Move cursor ignoring scroll limit (if ORIGIN CursorState is active).
 	void moveCursorAbsTo(CharPos pos);
 
+	/// Switch to or away from alt screen.
+	/**
+	 * If alt screen handling is disabled then this function does nothing.
+	 *
+	 * \param[in] with_cursor If set then also the cursor position will be
+	 * saved (on enable) or restore (on disable).
+	 **/
 	void setAltScreen(const bool enable, const bool with_cursor);
 
-	void cursorControl(const CursorState::Control &ctrl);
+	void cursorControl(const CursorState::Control ctrl);
 
-	const auto& mode() const { return m_mode; }
+	auto mode() const { return m_mode; }
 
 	void setCarriageReturn(const bool enable) { m_mode.set(Mode::CRLF, enable); }
 
@@ -179,134 +199,167 @@ public: // functions
 
 	void setAutoWrap(const bool enable) { m_mode.set(Mode::WRAP, enable); }
 
-	/// returns the current implicit carriage return setting as a typesafe boolean type
+	/// Returns the current implicit carriage return setting as a typesafe boolean type.
 	CarriageReturn carriageReturn() const { return CarriageReturn{m_mode[Mode::CRLF]}; }
 
-	/// moves the cursor to the next `count` tab position(s)
+	/// Moves the cursor to the next `count` tab position(s).
 	void moveToNextTab(size_t count = 1);
-	/// moves the cursor to the previous `count` tab position(s)
+	/// Moves the cursor to the previous `count` tab position(s).
 	void moveToPrevTab(size_t count = 1);
-	/// moves the cursor the the next line (and also the first column, if set)
+	/// Moves the cursor the the next line (and also the first column, if set).
 	void moveToNewline(const CarriageReturn cr = CarriageReturn{});
 
+	/// Setup a tabstop at the current cursor position.
 	void setTabAtCursor(const bool on_off) {
 		m_tabs[m_cursor.pos.x] = on_off;
 	}
 
-	/// inserts a marker at the current cursor position indicating a SUB control sequence
+	/// Inserts a marker at the current cursor position indicating a SUB control sequence.
 	void showSubMarker() {
 		setChar('?', m_cursor.pos);
 	}
 
+	/// Resets the cached last insert character which is used for repeatChar().
 	void resetLastChar() {
 		m_last_char = 0;
 	}
 
-	/// perform a line feed operation (moving cursor down one line), possibly scrolling down one line
+	/// Perform a line feed operation (moving cursor down one line).
+	/**
+	 * If the cursor is currently at the bottom of the scroll area then
+	 * this causes scrolling down by one line.
+	 **/
 	void doLineFeed();
-	/// perform a reverse line feed operation (moving cursor up one line), possibly scrolling up one line
+	/// Perform a reverse line feed operation (moving cursor up one line).
+	/**
+	 * If the cursor is currently at the top of the scroll area then this
+	 * causes scrolling up by one line.
+	 **/
 	void doReverseLineFeed();
 
-	/// scrolls terminal lines downwards, creating empty lines at the top
+	/// Scrolls terminal lines downwards, creating empty lines at the top.
 	/**
 	 * The optional origin line can be used to scroll only part of the
-	 * scrolling area and keep the upper lines untouched.
+	 * scrolling area and keep the lines above \c origin untouched.
 	 **/
 	void scrollDown(int num_lines = 1, std::optional<int> origin = {});
-	/// scrolls terminal lines upwards, creating empty lines at the bottom
+	/// Scrolls terminal lines upwards, creating empty lines at the bottom.
 	/**
 	 * \see scrollDown()
 	 **/
 	void scrollUp(int num_lines = 1, std::optional<int> origin = {});
 
-	/// returns the number of characters found in the given line nr
-	int lineLen(int y) const { return lineLen(CharPos{0, y}); }
-	/// returns the number of characters found in the given line position
-	int lineLen(const CharPos &pos) const;
+	/// Returns the number of characters found in the given line nr.
+	int lineLen(const int y) const;
+	/// Returns the number of characters found in the given line nr.
+	int lineLen(const CharPos pos) const { return lineLen(pos.y); }
 
-	/// delete the given number of characters from the cursor position to the right
+	/// Delete the given number of characters from the cursor position to the right.
 	/**
 	 * this shifts remaining characters at the end of the line to the left
 	 **/
 	void deleteColsAfterCursor(int count);
+	/// Delete \c count lines below the current cursor position by scrolling.
+	/**
+	 * This only has an effect if the current cursor position is within
+	 * the current scrollArea().
+	 **/
 	void deleteLinesBelowCursor(int count);
-	/// insert blanks after the cursor, shifting remaining characters to the right
+	/// Insert blanks after the cursor, shifting remaining characters to the right.
 	void insertBlanksAfterCursor(int count);
+	/// Insert \c count blank lines below the current cursor position by scrolling.
+	/**
+	 * This only has an effect if the current cursor position is within
+	 * the current scrollArea().
+	 **/
 	void insertBlankLinesBelowCursor(int count);
 
+	/// Enables or disables the terminal's UTF8 mode.
 	void setUTF8(const bool on_off) {
 		m_mode.set(Mode::UTF8, on_off);
 	}
 
-	/// performs special DEC tests triggered by escape sequence code
+	/// Enables or disabled the terminal I/O file printing mode.
+	void setPrintMode(const bool on_off) {
+		m_mode.set(Mode::PRINT, on_off);
+	}
+
+	/// Returns whether currently the terminal I/O file printing mode is enabled.
+	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
+
+	/// Performs special DEC tests triggered by escape sequence code.
 	void runDECTest();
 
-	/// write all current lines into the I/O file
+	/// Write all current lines into the I/O file.
 	void dump() const {
-		for (int i = 0; i < m_size.rows; ++i)
+		for (int i = 0; i < m_size.rows; i++)
 			dumpLine(CharPos{0, i});
 	}
 
-	/// write the line the cursor is on into the I/O file
+	/// Write the line the cursor is on into the I/O file.
 	void dumpCursorLine() const {
 		dumpLine(cursor().pos);
 	}
 
-	/// write the given line into the I/O file
-	void dumpLine(const CharPos &pos) const;
+	/// Write the given line into the I/O file.
+	void dumpLine(const CharPos pos) const;
 
-	/// returns whether any glyph currently has this attribute set
+	/// Returns whether any glyph currently has the BLINK attribute set.
 	bool existsBlinkingGlyph() const;
 
-	/// sets all lines as dirty that have a glyph matching the given attribute
-	void setDirtyByAttr(const Glyph::Attr &attr);
+	/// Sets all lines as dirty that have a Glyph matching the given attribute.
+	void setDirtyByAttr(const Glyph::Attr attr);
 
-	/// draws the complete terminal (marking all dirty)
+	/// Draws the complete terminal (marking all lines dirty).
 	void redraw() {
 		setAllDirty();
 		draw();
 	}
 
-	/// draws only dirty lines
+	/// Draws all dirty lines.
 	void draw();
 
-	/// repeats the last input character the given number of times (if printable)
+	/// Repeats the last input character the given number of times (if printable).
 	void repeatChar(int count);
 
-	/// provide new data to the terminal
+	/// Provide new input data to the terminal.
+	/**
+	 * \param[in] show_ctrl If set then control character sequences will
+	 * be shown as symbolic annotations like ^[.
+	 * \return the number of processed input bytes which can be short on
+	 * UTF8 decoding errors.
+	 **/
 	size_t write(const std::string_view data, const ShowCtrlChars show_ctrl);
 
+	/// Returns the current cursor state of the terminal.
 	const CursorState& cursor() const { return m_cursor; }
 
-	/// reset all cursor attrs to default
+	/// Reset all cursor attrs to default.
 	void resetCursorAttrs() {
 		m_cursor.resetAttrs();
 	}
 
-	/// turn on the given cursor attribute
-	void setCursorAttr(const Glyph::Attr &attr) {
+	/// Turns on the given cursor attribute.
+	void setCursorAttr(const Glyph::Attr attr) {
 		m_cursor.m_attrs.mode.set(attr);
 	}
 
-	/// turn off the given cursor attribute
-	void resetCursorAttr(const Glyph::Attr &attr) {
+	/// Turns off the given cursor attribute.
+	void resetCursorAttr(const Glyph::Attr attr) {
 		m_cursor.m_attrs.mode.reset(attr);
 	}
 
+	/// Sets the cursor's foreground color to be used for newly input characters.
 	void setCursorFgColor(ColorIndex idx) {
 		m_cursor.setFgColor(idx);
 	}
 
+	/// Sets the cursor's background color to be used for newly input characters.
 	void setCursorBgColor(ColorIndex idx) {
 		m_cursor.setBgColor(idx);
 	}
 
-	void setPrintMode(const bool on_off) {
-		m_mode.set(Mode::PRINT, on_off);
-	}
-
-	bool isPrintMode() const { return m_mode[Mode::PRINT]; }
-
+	/// Returns the currently active scroll area.
 	LineSpan scrollArea() const { return m_scroll_area; }
 
 	auto size() const { return m_size; }
@@ -315,68 +368,78 @@ public: // functions
 
 	auto& screen() const { return m_screen; }
 
+	/// Report a focus change on TTY level via escape sequences.
 	void reportFocus(const bool in_focus) { m_esc_handler.reportFocus(in_focus); }
+	/// Report a paste event on TTY level via escape sequences.
 	void reportPaste(const bool started) { m_esc_handler.reportPaste(started); }
 
 protected: // functions
 
-	/// feeds the given single input rune as input
+	/// Feeds the given single input rune as input.
 	/**
-	 * this also potentially handles control codes without changing any
-	 * actual terminal content.
+	 * This also potentially handles control codes in which case the
+	 * terminal content might not be modified.
 	 **/
-	void putChar(Rune rune);
+	void putChar(const Rune rune);
 
+	/// Sets the default tab positions in \c m_tabs.
+	void setupTabs();
+
+	/// Resets the active scrolling area to use the whole screen.
 	void resetScrollArea() {
 		m_scroll_area = {0, m_size.rows - 1};
 	}
 
-	/// draws the given rectangular screen region
-	void drawRegion(const Range &range) const;
+	/// Draws the complete screen area.
+	void drawScreen() const;
 
-	void drawScreen() const { return drawRegion(Range{topLeft(), bottomRight()}); }
-
+	/// Swaps from main to alternative screen and vice versa.
 	void swapScreen();
 
-	/// place the given Rune at the given terminal position
-	void setChar(Rune u, const CharPos &pos);
-	/// checks whether the given input Rune needs to be translated and does so if necessary
-	Rune translateChar(Rune u);
+	/// Set all screen lines as dirty for redrawing.
+	void setAllDirty() {
+		setDirty(LineSpan{0, m_size.rows - 1});
+	}
 
-	//// returns how many columns are left after the current cursor position
-	int colsLeft() const { return m_size.cols - m_cursor.pos.x; }
+	/// Place the given Rune at the given terminal position.
+	void setChar(const Rune u, const CharPos pos);
+	/// Checks whether the given input Rune needs to be translated and does so if necessary.
+	Rune translateChar(Rune u) const;
 
 	bool isCursorAtBottom() const;
 	bool isCursorAtTop() const;
 
 	/// returns a position based on \c p but at the end of the line
-	CharPos atEndOfLine(const CharPos &p) const {
+	CharPos atEndOfLine(const CharPos p) const {
 		return CharPos{m_size.cols - 1, p.y};
 	}
 
 	CharPos topLeft() const { return {0, 0}; }
 	CharPos bottomRight() const { return {m_size.cols - 1, m_size.rows - 1}; }
-	bool isAtEndOfLine(const CharPos &pos) {
+	bool isAtEndOfLine(const CharPos pos) {
 		return pos.x >= m_size.cols - 1;
 	}
-	/// returns the number of Glyph position left in the current line with respect to the current cursor position
+	/// Returns the number of Glyph positions left in the current line with respect to the current cursor position
 	int lineSpaceLeft() const {
 		return m_size.cols - m_cursor.pos.x;
 	}
 
-	auto limitRow(int row) { return std::clamp(row, 0, m_size.rows - 1); }
-	auto limitCol(int col) { return std::clamp(col, 0, m_size.cols - 1); }
+	/// Returns the given row limited to the current screen dimensions.
+	auto limitRow(const int row) { return std::clamp(row, 0, m_size.rows - 1); }
+	/// Returns the given column limited to the current screen dimensions.
+	auto limitCol(const int col) { return std::clamp(col, 0, m_size.cols - 1); }
 	auto clampRow(int &row) { row = limitRow(row); return row; }
 	auto clampCol(int &col) { col = limitCol(col); return col; }
-	auto clampToScreen(CharPos &c) {
+	void clampToScreen(CharPos &c) {
 		clampRow(c.y);
 		clampCol(c.x);
 	}
-	auto clamp(LineSpan &span) {
+	void clamp(LineSpan &span) {
 		clampRow(span.top);
 		clampRow(span.bottom);
 	}
 
+	/// Returns the Glyph the cursor is currently positioned at.
 	Glyph* curGlyph() { return &m_screen[m_cursor.pos]; }
 
 protected: // data
@@ -399,11 +462,10 @@ protected: // data
 	CursorState m_cached_main_cursor; /// save/load cursor for main screen
 	CursorState m_cached_alt_cursor;  /// ... and for alt screen
 
-	bool m_allowaltscreen = false;  /// whether altscreen support is enabled
+	bool m_allow_altscreen = false;  /// whether altscreen support is enabled
 	EscapeHandler m_esc_handler; /// processes any kinds of terminal escape sequences
 	Screen m_screen;     /// all the glyphs that make up the terminal screen
 	Screen m_alt_screen; /// all the glyphs that make up the alternative terminal screen
-	mutable std::vector<bool> m_dirty_lines; /// marks dirty lines
 	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 };
 

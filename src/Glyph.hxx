@@ -1,9 +1,6 @@
 #ifndef NST_GLYPH_HXX
 #define NST_GLYPH_HXX
 
-// C++
-#include <vector>
-
 // cosmos
 #include "cosmos/BitMask.hxx"
 
@@ -79,6 +76,12 @@ public: // functions
 		return u == other.u;
 	}
 
+	/// Replace all attributes by WDUMMY, reset rune
+	void makeDummy() {
+		mode = AttrBitMask{Attr::WDUMMY};
+		u = '\0';
+	}
+
 	/// returns whether the Glyph is "empty", currently meaning "space"
 	bool isEmpty()      const { return u == ' '; }
 	bool hasValue()     const { return !isEmpty(); }
@@ -87,15 +90,19 @@ public: // functions
 	bool isWrapped()    const { return mode[Attr::WRAP]; }
 	bool isUnderlined() const { return mode[Attr::UNDERLINE]; }
 	bool isStruck()     const { return mode[Attr::STRUCK]; }
+	bool isBlinking()   const { return mode[Attr::BLINK]; }
+
+	void setWrapped()   { mode.set(Attr::WRAP); }
+	void setWide()      { mode.set(Attr::WIDE); }
+
+	void resetWide()    { mode.reset(Attr::WIDE); }
+	void resetDummy()   { mode.reset(Attr::WDUMMY); }
 
 	size_t width() const { return isWide() ? 2 : 1; }
 };
 
 /// Shorthand for attribute queries
 using Attr = Glyph::Attr;
-
-/// a series of Glyphs forming a line on the terminal
-using Line = std::vector<Glyph>;
 
 } // end ns
 

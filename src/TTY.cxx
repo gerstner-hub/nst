@@ -69,7 +69,7 @@ void TTY::createPTY() {
 	// create a pseudo TTY
 	auto [master, slave] = cosmos::openPTY();
 
-	m_cmd_file.open(master, cosmos::StreamFile::AutoClose{true});
+	m_cmd_file.open(master, cosmos::AutoCloseFD{true});
 
 	try {
 		executeShell(slave);
@@ -99,7 +99,7 @@ void TTY::setupIOFile(const std::string &path) {
 	m_io_file.close();
 
 	if (path == "-") {
-		m_io_file.open(cosmos::stdout, cosmos::StreamFile::AutoClose{false});
+		m_io_file.open(cosmos::stdout, cosmos::AutoCloseFD{false});
 	} else if (!path.empty()) {
 		try {
 			m_io_file.open(

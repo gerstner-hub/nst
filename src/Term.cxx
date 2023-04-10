@@ -1,8 +1,6 @@
-// C
-#include <string.h>
-
-// stdlib
+// C++
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <iostream>
 #include <type_traits>
@@ -53,26 +51,30 @@ Term::Term(Nst &nst) :
 		m_selection{nst.selection()},
 		m_tty{nst.tty()},
 		m_x11{nst.x11()},
-		m_allowaltscreen{config::ALLOW_ALTSCREEN},
+		m_allow_altscreen{config::ALLOW_ALTSCREEN},
 		m_esc_handler{nst}
 {}
 
 void Term::init(const Nst &nst) {
 
 	if (auto &cmdline = nst.cmdline(); cmdline.use_alt_screen.isSet()) {
-		m_allowaltscreen = cmdline.use_alt_screen.getValue();
+		m_allow_altscreen = cmdline.use_alt_screen.getValue();
 	}
 
 	resize(m_x11.termWin().getTermDim());
 	reset();
 }
 
-void Term::reset() {
-	m_cursor = CursorState{};
-
+void Term::setupTabs() {
 	clearAllTabs();
 	for (auto i = config::TABSPACES; i < m_size.cols; i += config::TABSPACES)
 		m_tabs[i] = true;
+}
+
+void Term::reset() {
+	m_cursor = CursorState{};
+
+	setupTabs();
 	resetScrollArea();
 	// TODO: A test with disabled WRAP mode showed that the screen kind of
 	// scrolls right and back left again (when deleting characters) but
@@ -91,63 +93,56 @@ void Term::reset() {
 }
 
 void Term::setDirty(LineSpan span) {
-	if (m_dirty_lines.empty())
+	if (m_screen.empty())
+		// not yet initialized
 		return;
 
 	clamp(span);
 
 	for (int i = span.top; i <= span.bottom; i++)
-		m_dirty_lines[i] = true;
+		m_screen[i].setDirty(true);
 }
 
-void Term::resize(const TermSize &new_size) {
+void Term::resize(const TermSize new_size) {
+	// remember the old size for updating new screen regions below
+	const auto old_size = m_size;
+
+	assert(new_size.valid());
 	if (!new_size.valid()) {
-		std::cerr << __FUNCTION__ << ": error resizing to " << new_size.cols << "x" << new_size.rows << "\n";
 		return;
 	}
 
-	/*
-	 * slide screen to keep cursor where we expect it - scrollUp would
-	 * work here, but we can optimize to std::move because we're freeing
-	 * the earlier lines.
-	 *
-	 * only do this if the new rows are smaller than the current cursor row
-	 */
+	// slide screen to keep cursor where we expect it - scrollUp would
+	// work here, but we can optimize to std::move because we're freeing
+	// the earlier lines.
+	//
+	// only do this if the new rows are smaller than the current cursor row
 	if(const auto shift = m_cursor.pos.y - new_size.rows; shift > 0) {
 		for (auto screen: {&m_screen, &m_alt_screen}) {
 			std::move(screen->begin() + shift, screen->begin() + shift + new_size.rows, screen->begin());
 		}
 	}
 
-	/* adjust dimensions of internal data structures */
-	m_dirty_lines.resize(new_size.rows);
+	// adjust dimensions of internal data structures
 	m_tabs.resize(new_size.cols);
 
 	for (auto screen: {&m_screen, &m_alt_screen}) {
 		screen->setDimension(new_size);
 	}
 
-	// extend tab markers if we have more columns now
-	if (new_size.cols > m_size.cols) {
-		auto it = m_tabs.begin() + m_size.cols;
-
-		// find last tab marker
-		while (it > m_tabs.begin() && !*it)
-			it--;
-		for (it += config::TABSPACES; it < m_tabs.end(); it += config::TABSPACES)
-			*it = true;
+	// recalculate tab markers if we have more columns now
+	if (new_size.cols > old_size.cols) {
+		setupTabs();
 	}
 
-	// remember the old size for updating new screen regions below
-	const auto old_size = m_size;
-	/* update terminal size */
+	// update terminal size
 	m_size = new_size;
-	/* reset scrolling region */
+	// reset scrolling region
 	resetScrollArea();
-	/* make use of the clamping in moveCursorTo() to get a valid cursor position again */
+	// make use of the clamping in moveCursorTo() to get a valid cursor position again
 	moveCursorTo(m_cursor.pos);
 
-	/* Clear both screens (it makes dirty all lines) */
+	// Clear both screens (it marks all lines drity)
 	auto saved_cursor = m_cursor;
 	for (size_t i = 0; i < 2; i++) {
 		// clear new cols if number of columns increased
@@ -169,10 +164,9 @@ void Term::clearRegion(Range range) {
 	range.sanitize();
 	range.clamp(bottomRight());
 
-	for (auto y = range.begin.y; y <= range.end.y; y++) {
-		m_dirty_lines[y] = true;
-		for (auto x = range.begin.x; x <= range.end.x; x++) {
-			const auto pos = CharPos{x, y};
+	for (auto pos = range.begin; pos.y <= range.end.y; pos.y++) {
+		m_screen.line(pos).setDirty(true);
+		for (pos.x = range.begin.x; pos.x <= range.end.x; pos.x++) {
 			if (m_selection.isSelected(pos))
 				m_selection.clear();
 			auto &gp = m_screen[pos];
@@ -181,7 +175,7 @@ void Term::clearRegion(Range range) {
 	}
 }
 
-void Term::clearRegion(const LineSpan &span) {
+void Term::clearLines(const LineSpan span) {
 	clearRegion({CharPos{0, span.top}, CharPos{m_size.cols - 1, span.bottom}});
 }
 
@@ -190,7 +184,7 @@ void Term::clearLinesBelowCursor() {
 		// nothing to do
 		return;
 
-	const auto &curpos = cursor().pos;
+	const auto curpos = cursor().pos;
 	clearRegion(Range{curpos.nextLine().startOfLine(), bottomRight()});
 }
 
@@ -199,22 +193,22 @@ void Term::clearLinesAboveCursor() {
 		// nothing to do
 		return;
 
-	const auto &curpos = cursor().pos;
+	const auto curpos = cursor().pos;
 	clearRegion(Range{topLeft(), atEndOfLine(curpos.prevLine())});
 }
 
 void Term::clearCursorLine() {
-	const auto &curpos = cursor().pos;
-	clearRegion(LineSpan{curpos.y, curpos.y});
+	const auto curpos = cursor().pos;
+	clearLines(LineSpan{curpos.y, curpos.y});
 }
 
 void Term::clearColsBeforeCursor() {
-	const auto &curpos = cursor().pos;
+	const auto curpos = cursor().pos;
 	clearRegion({curpos.startOfLine(), curpos});
 }
 
 void Term::clearColsAfterCursor() {
-	const auto &curpos = cursor().pos;
+	const auto curpos = cursor().pos;
 	clearRegion(Range{curpos, atEndOfLine(curpos)});
 }
 
@@ -226,7 +220,7 @@ bool Term::isCursorAtTop() const {
 	return cursor().pos.y == 0;
 }
 
-void Term::setScrollArea(const LineSpan &span) {
+void Term::setScrollArea(const LineSpan span) {
 	m_scroll_area = span;
 	clamp(m_scroll_area);
 	m_scroll_area.sanitize();
@@ -252,9 +246,19 @@ void Term::moveCursorAbsTo(CharPos pos) {
 }
 
 void Term::setAltScreen(const bool enable, const bool with_cursor) {
-	if (!m_allowaltscreen)
+	if (!m_allow_altscreen)
 		return;
 
+	// TODO: the exact order of events for this case are a bit unclear;
+	// whether to switch screen first and/or save/restore cursor first.
+	//
+	// What would make most sense in my mind is:
+	//
+	// Only if the mode actually changed save current cursor position
+	// before switching screen, only then restore the alternate cursor
+	// position.
+	//
+	// We should test original Xterm what is does in this regard.
 	const auto cursor_ctrl = enable ? CursorState::Control::SAVE : CursorState::Control::LOAD;
 
 	if (with_cursor)
@@ -279,7 +283,7 @@ void Term::swapScreen() {
 	setAllDirty();
 }
 
-void Term::cursorControl(const CursorState::Control &ctrl) {
+void Term::cursorControl(const CursorState::Control ctrl) {
 	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_alt_cursor : m_cached_main_cursor;
 
 	switch(ctrl) {
@@ -293,10 +297,10 @@ void Term::cursorControl(const CursorState::Control &ctrl) {
 	}
 }
 
-int Term::lineLen(const CharPos &pos) const {
-	const auto &line = m_screen[pos.y];
+int Term::lineLen(const int y) const {
+	const auto &line = m_screen[y];
 
-	if (line.back().mode[Attr::WRAP])
+	if (line.isWrapped())
 		return m_size.cols;
 
 	auto last_col = std::find_if(
@@ -331,7 +335,7 @@ void Term::moveToPrevTab(size_t count) {
 }
 
 void Term::moveToNewline(const CarriageReturn cr) {
-	CharPos new_pos = m_cursor.pos;
+	auto new_pos = m_cursor.pos;
 
 	if (cr)
 		new_pos.x = 0;
@@ -346,16 +350,18 @@ void Term::moveToNewline(const CarriageReturn cr) {
 }
 
 void Term::deleteColsAfterCursor(int count) {
-	count = std::clamp(count, 0, colsLeft());
+	count = std::clamp(count, 0, lineSpaceLeft());
 
-	const auto &cursor = m_cursor.pos;
+	const auto cursor = m_cursor.pos;
 	const int dst = cursor.x;
 	const int src = cursor.x + count;
 	const int left = m_size.cols - src;
 	auto &line = m_screen.line(cursor);
 
+	// NOTE: in C++20 there will be std::shift_left for this
+
 	// slide remaining line content count characters to the left
-	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
+	std::memmove(&line[dst], &line[src], left * sizeof(Line::value_type));
 	// clear count characters at end of line
 	clearRegion(Range{
 		CharPos{m_size.cols - count, cursor.y},
@@ -370,16 +376,16 @@ void Term::deleteLinesBelowCursor(int count) {
 }
 
 void Term::insertBlanksAfterCursor(int count) {
-	count = std::clamp(count, 0, colsLeft());
+	count = std::clamp(count, 0, lineSpaceLeft());
 
-	const auto &cursor = m_cursor.pos;
+	const auto cursor = m_cursor.pos;
 	const int dst = cursor.x + count;
 	const int src = cursor.x;
 	const int left = m_size.cols - dst;
 	auto &line = m_screen.line(cursor);
 
 	// slide remaining line content count characters to the right
-	std::memmove(&line[dst], &line[src], left * sizeof(Glyph));
+	std::memmove(&line[dst], &line[src], left * sizeof(Line::value_type));
 	clearRegion(Range{
 		CharPos{src, cursor.y},
 		Range::Width{count}
@@ -393,7 +399,7 @@ void Term::insertBlankLinesBelowCursor(int count) {
 }
 
 void Term::doLineFeed() {
-	const auto &curpos = cursor().pos;
+	const auto curpos = cursor().pos;
 
 	if (curpos.y == scrollArea().bottom) {
 		scrollUp(1);
@@ -403,7 +409,7 @@ void Term::doLineFeed() {
 }
 
 void Term::doReverseLineFeed() {
-	const auto &curpos = cursor().pos;
+	const auto curpos = cursor().pos;
 
 	if (curpos.y == scrollArea().top) {
 		scrollDown(1);
@@ -413,13 +419,15 @@ void Term::doReverseLineFeed() {
 }
 
 void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
-	const auto &area = m_scroll_area;
-	int origin = opt_origin ? *opt_origin : m_scroll_area.top;
+	const auto area = m_scroll_area;
+	const int origin = opt_origin ? *opt_origin : area.top;
 
 	num_lines = std::clamp(num_lines, 0, area.bottom - origin + 1);
 
 	setDirty(LineSpan{origin, area.bottom - num_lines});
-	clearRegion(LineSpan{area.bottom - num_lines + 1, area.bottom});
+	// clear the to-be-overwritten lines, which will end up at the top
+	// after scrolling finished below.
+	clearLines(LineSpan{area.bottom - num_lines + 1, area.bottom});
 
 	for (int i = area.bottom; i >= origin + num_lines; i--) {
 		std::swap(m_screen[i], m_screen[i-num_lines]);
@@ -429,13 +437,13 @@ void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
 }
 
 void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
-	const auto &area = m_scroll_area;
-	int origin = opt_origin ? *opt_origin : m_scroll_area.top;
+	const auto area = m_scroll_area;
+	int origin = opt_origin ? *opt_origin : area.top;
 
 	num_lines = std::clamp(num_lines, 0, area.bottom - origin + 1);
 
 	setDirty(LineSpan{origin + num_lines, area.bottom});
-	clearRegion(LineSpan{origin, origin + num_lines -1});
+	clearLines(LineSpan{origin, origin + num_lines -1});
 
 	for (int i = origin; i <= area.bottom - num_lines; i++) {
 		std::swap(m_screen[i], m_screen[i+num_lines]);
@@ -444,7 +452,7 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 	m_selection.scroll(origin, -num_lines);
 }
 
-void Term::dumpLine(const CharPos &pos) const {
+void Term::dumpLine(const CharPos pos) const {
 	std::string enc_rune;
 
 	auto left = lineLen(pos);
@@ -463,7 +471,7 @@ bool Term::existsBlinkingGlyph() const {
 
 	for (auto &line: m_screen) {
 		for (auto &glyph: line) {
-			if (glyph.mode[Attr::BLINK]) {
+			if (glyph.isBlinking()) {
 				return true;
 			}
 		}
@@ -472,33 +480,35 @@ bool Term::existsBlinkingGlyph() const {
 	return false;
 }
 
-void Term::setDirtyByAttr(const Glyph::Attr &attr) {
-	for (int y = 0; y < m_size.rows - 1; y++) {
-		const auto &line = m_screen[y];
-
+void Term::setDirtyByAttr(const Glyph::Attr attr) {
+	for (const auto &line: m_screen) {
 		for (const auto &glyph: line) {
 			if (glyph.mode[attr]) {
-				setDirty(LineSpan{y, y});
+				line.setDirty(true);
 				break;
 			}
 		}
 	}
 }
 
-void Term::drawRegion(const Range &range) const {
-	for (int y = range.begin.y; y <= range.end.y; y++) {
-		if (!m_dirty_lines[y])
-			continue;
+void Term::drawScreen() const {
 
+	const Range range{topLeft(), bottomRight()};
+
+	for (int y = range.begin.y; y <= range.end.y; y++) {
 		auto &line = m_screen[y];
+
+		if (!line.isDirty())
+			continue;
 
 		// beware that we need to point past the last valid position,
 		// `range` has inclusive end coordinates!
 		m_x11.drawGlyphs(
 				line.begin() + range.begin.x,
-				line.begin() + cosmos::to_integral(range.width()),
+				line.begin() + Range::raw_width(range.width()),
 				CharPos{range.begin.x, y});
-		m_dirty_lines[y] = false;
+
+		line.setDirty(false);
 	}
 }
 
@@ -509,7 +519,7 @@ void Term::draw() {
 	const auto orig_last_pos = m_last_cursor_pos;
 	auto new_pos = m_cursor.pos;
 
-	/* make sure the last cursor pos is still sane */
+	// make sure the last cursor pos is still sane
 	clampToScreen(m_last_cursor_pos);
 
 	// in case we point to a wide character dummy position, move one
@@ -531,18 +541,18 @@ void Term::draw() {
 		m_x11.setInputSpot(new_pos);
 }
 
-Rune Term::translateChar(Rune u) {
+Rune Term::translateChar(Rune u) const {
 	// GRAPHIC0 translation table for VT100 "special graphics mode"
-	/*
-	 * The table is proudly stolen from rxvt.
-	 */
+	// 
+	// The table is proudly stolen from rxvt.
+	// 
 
 	constexpr auto VT100_GR_START = 0x41;
-	constexpr auto VT100_GR_END = 0x7e;
+	constexpr auto VT100_GR_END   = 0x7e;
 
 	// these have to be strings, not characters, because these are
 	// multi-byte characters that don't fit into char.
-	constexpr std::string_view VT100_0[VT100_GR_END - VT100_GR_START + 1] = { /* 0x41 - 0x7e */
+	constexpr std::string_view VT100_0[VT100_GR_END - VT100_GR_START + 1] = { // 0x41 - 0x7e
 		u8"↑", u8"↓", u8"→", u8"←", u8"█", u8"▚", u8"☃",        // A - G
 		   {},    {},    {},    {},    {},    {},    {},    {}, // H - O
 		   {},    {},    {},    {},    {},    {},    {},    {}, // P - W
@@ -570,33 +580,32 @@ Rune Term::translateChar(Rune u) {
 	return u;
 }
 
-void Term::setChar(Rune u, const CharPos &pos) {
+void Term::setChar(const Rune u, const CharPos pos) {
 	auto &glyph = m_screen[pos];
 
-	// if we replace a WIDE/DUMMY position then correct the sibbling
-	// position
-	if (glyph.mode[Attr::WIDE]) {
+	// if we replace a WIDE/DUMMY position then correct the sibbling position
+	if (glyph.isWide()) {
 		if (!isAtEndOfLine(pos)) {
 			auto &next_glyph = m_screen[pos.nextCol()];
 			next_glyph.u = ' ';
-			next_glyph.mode.reset(Attr::WDUMMY);
+			next_glyph.resetDummy();
 		}
-	} else if (glyph.mode[Attr::WDUMMY]) {
+	} else if (glyph.isDummy()) {
 		auto &prev_glyph = m_screen[pos.prevCol()];
 		prev_glyph.u = ' ';
-		prev_glyph.mode.reset(Attr::WIDE);
+		prev_glyph.resetWide();
 	}
 
-	m_dirty_lines[pos.y] = true;
+	m_screen[pos.y].setDirty(true);
 	glyph = m_cursor.attrs();
 	glyph.u = translateChar(u);
 }
 
 void Term::runDECTest() {
-	/* DEC screen alignment test: fill screen with E's */
-	for (int x = 0; x < m_size.cols; ++x) {
-		for (int y = 0; y < m_size.rows; ++y)
-			setChar('E', CharPos{x, y});
+	// DEC screen alignment test: fill screen with E characters
+	for (auto pos = topLeft(); pos.y < m_size.rows; pos.y++) {
+		for (pos.x = 0; pos.x < m_size.cols; pos.x++)
+			setChar('E', pos);
 	}
 }
 
@@ -609,7 +618,7 @@ void Term::repeatChar(int count) {
 		putChar(m_last_char);
 }
 
-void Term::putChar(Rune rune) {
+void Term::putChar(const Rune rune) {
 	const auto rinfo = RuneInfo{rune, m_mode[Term::Mode::UTF8]};
 
 	if (isPrintMode()) {
@@ -627,7 +636,7 @@ void Term::putChar(Rune rune) {
 
 	// perform automatic line wrap, if necessary
 	if (m_mode[Mode::WRAP] && m_cursor.needWrapNext()) {
-		gp->mode.set(Attr::WRAP);
+		gp->setWrapped();
 		moveToNewline();
 		gp = curGlyph();
 	}
@@ -636,8 +645,11 @@ void Term::putChar(Rune rune) {
 
 	// shift any remaining Glyphs to the right
 	if (m_mode[Mode::INSERT]) {
+		// TODO: when there's not enough line space left and we move
+		// to newline below, then we won't shift the next line
+		// properly, no?
 		if (auto to_move = lineSpaceLeft() - req_width; to_move > 0) {
-			std::memmove(gp + req_width, gp, to_move * sizeof(Glyph));
+			std::memmove(gp + req_width, gp, to_move * sizeof(Line::value_type));
 		}
 	}
 
@@ -651,7 +663,11 @@ void Term::putChar(Rune rune) {
 	const auto left_chars = lineSpaceLeft();
 
 	if (rinfo.isWide()) {
-		gp->mode.set(Attr::WIDE);
+		gp->setWide();
+
+		// if there's only one left character space then we'd be
+		// operating in a miniscule terminal size and cannot
+		// properly display wide characters.
 
 		if (left_chars > 1) {
 			// mark the follow-up position as dummy
@@ -662,11 +678,10 @@ void Term::putChar(Rune rune) {
 			if (next.isWide() && left_chars > 2) {
 				auto &after_next = gp[2];
 				after_next.u = ' ';
-				after_next.mode.reset(Attr::WDUMMY);
+				after_next.resetDummy();
 			}
 
-			next.u = '\0';
-			next.mode = Glyph::AttrBitMask(Attr::WDUMMY);
+			next.makeDummy();
 		}
 	}
 
@@ -684,7 +699,7 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 
 	for (size_t pos = 0; pos < data.size(); pos += charsize) {
 		if (use_utf8) {
-			/* process a complete utf8 char */
+			// process a complete utf8 char
 			charsize = utf8::decode(data.substr(pos), u);
 			if (charsize == 0)
 				return pos;

@@ -1,10 +1,36 @@
 #ifndef NST_SCREEN_HXX
 #define NST_SCREEN_HXX
 
+// C++
+#include <vector>
+
 // nst
 #include "Glyph.hxx"
 
 namespace nst {
+
+/// a series of Glyphs forming a line on the terminal
+class Line :
+		public std::vector<Glyph> {
+public: // functions
+
+	/// Returns whether the line has a WRAP attribute set for the last element
+	bool isWrapped() const {
+		return back().mode[Attr::WRAP];
+	}
+
+	bool isDirty() const {
+		return m_dirty;
+	}
+
+	void setDirty(const bool dirty) const {
+		m_dirty = dirty;
+	}
+
+protected: // data
+
+	mutable bool m_dirty = false;
+};
 
 /// A terminal screen consisting of lines of Glyphs.
 /**
@@ -20,8 +46,8 @@ protected: // functions
 
 public: // functions
 
-	Line& line(const CharPos &pos)             { return base()[pos.y]; }
-	const Line& line(const CharPos &pos) const { return base()[pos.y]; }
+	Line& line(const CharPos pos)             { return base()[pos.y]; }
+	const Line& line(const CharPos pos) const { return base()[pos.y]; }
 
 	void setDimension(const TermSize size) {
 		resize(size.rows);

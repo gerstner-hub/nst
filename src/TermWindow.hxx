@@ -1,7 +1,7 @@
 #ifndef NST_TERM_WINDOW_HXX
 #define NST_TERM_WINDOW_HXX
 
-// libc
+// C
 #include <math.h>
 
 // nst
@@ -22,6 +22,7 @@ struct TermWindow {
 		m_chr_extent.height = ceilf(font.height() * config::CH_SCALE);
 	}
 
+	/// Sets an absolute window size in pixels (as ported by X11).
 	void setWinExtent(const Extent ext) {
 		if (ext.width != 0)
 			m_win_extent.width = ext.width;
@@ -29,14 +30,15 @@ struct TermWindow {
 			m_win_extent.height = ext.height;
 	}
 
+	/// Sets the window size in pixel based on the current configuration.
 	void setWinExtent(const TermSize size) {
 		m_win_extent.width  = 2 * config::BORDERPX + size.cols * m_chr_extent.width;
 		m_win_extent.height = 2 * config::BORDERPX + size.rows * m_chr_extent.height;
 	}
 
-	/// calculates the number of characters that fit into the current terminal window
+	/// Calculates the number of characters that fit into the current terminal window.
 	TermSize getTermDim() const {
-		auto EXTRA_PIXELS = 2 * config::BORDERPX;
+		constexpr auto EXTRA_PIXELS = 2 * config::BORDERPX;
 		int cols = (m_win_extent.width - EXTRA_PIXELS) / m_chr_extent.width;
 		int rows = (m_win_extent.height - EXTRA_PIXELS) / m_chr_extent.height;
 		cols = std::max(1, cols);
@@ -44,26 +46,31 @@ struct TermWindow {
 		return TermSize{cols, rows};
 	}
 
+	/// Set terminal size in characters.
 	void setTermDim(const TermSize chars) {
 		m_tty_extent.width = chars.cols * m_chr_extent.width;
 		m_tty_extent.height = chars.rows * m_chr_extent.height;
 	}
 
+	/// Converts a character position on the TTY into a pixel based DrawPos.
 	DrawPos toDrawPos(const CharPos cp) const {
-		DrawPos dp;
-		dp.x = config::BORDERPX + cp.x * m_chr_extent.width;
-		dp.y = config::BORDERPX + cp.y * m_chr_extent.height;
-		return dp;
+		return DrawPos{
+			config::BORDERPX + cp.x * m_chr_extent.width,
+			config::BORDERPX + cp.y * m_chr_extent.height
+		};
 	}
 
+	/// Returns the drawing position for the next character column.
 	DrawPos nextCol(const DrawPos pos) const {
 		return DrawPos{pos.x + m_chr_extent.width, pos.y};
 	}
 
+	/// Returns the drawing position for the next character line.
 	DrawPos nextLine(const DrawPos pos) const {
 		return DrawPos{pos.x, pos.y + m_chr_extent.height};
 	}
 
+	/// Converts a pixel based drawing position into the corresponding character position.
 	CharPos toCharPos(const DrawPos pos) const {
 		CharPos ret{pos.x - config::BORDERPX, pos.y - config::BORDERPX};
 
@@ -81,17 +88,18 @@ struct TermWindow {
 	}
 
 	auto getCursorStyle() const { return m_cursor_style; }
-	void setCursorStyle(const CursorStyle &s) { m_cursor_style = s; }
+	void setCursorStyle(const CursorStyle s) { m_cursor_style = s; }
 
-	const auto& TTYExtent() const { return m_tty_extent; }
-	const auto& chrExtent() const { return m_chr_extent; }
-	const auto& winExtent() const { return m_win_extent; }
+	auto TTYExtent() const { return m_tty_extent; }
+	auto chrExtent() const { return m_chr_extent; }
+	auto winExtent() const { return m_win_extent; }
 
-	const auto& mode() const { return m_mode; }
-	bool checkFlag(const WinMode &flag) const { return m_mode[flag]; }
-	void setFlag(const WinMode &flag, const bool on_off = true) { m_mode.set(flag, on_off); }
-	void resetFlag(const WinMode &flag) { m_mode.reset(flag); }
-	void flipFlag(const WinMode &flag) { m_mode.flip(flag); }
+	auto mode() const { return m_mode; }
+
+	bool checkFlag(const WinMode flag) const { return m_mode[flag]; }
+	void setFlag(const WinMode flag, const bool on_off = true) { m_mode.set(flag, on_off); }
+	void resetFlag(const WinMode flag) { m_mode.reset(flag); }
+	void flipFlag(const WinMode flag) { m_mode.flip(flag); }
 
 	bool inReverseMode()      const { return checkFlag(WinMode::REVERSE); }
 	bool hideCursor()         const { return checkFlag(WinMode::HIDE_CURSOR); }
@@ -106,7 +114,7 @@ protected: // data
 
 	CursorStyle m_cursor_style = CursorStyle::STEADY_BLOCK;
 	WinModeMask m_mode;  /// window state/mode flags
-	Extent m_tty_extent; /// (window minus border size)
+	Extent m_tty_extent; /// window minus border size
 	Extent m_chr_extent; /// single character dimensions
 	Extent m_win_extent; /// window width and height
 };

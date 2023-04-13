@@ -31,7 +31,7 @@ const std::string_view get_color_name(ColorIndex idx);
 
 /// Wrapper around the XftColor type which is a composite of XRenderColor and additional "pixel" info.
 /**
- * The additional "pixel" info is potentially allocated from the XServer via
+ * The additional "pixel" info is potentially allocated by the XServer via
  * the current colormap. Thus we need to manage this resource without creating
  * leaks or other trouble.
  **/
@@ -64,10 +64,10 @@ public: // functions
 		return *this;
 	}
 
-	/// reverse the color values
+	/// Reverse the color values.
 	void invert();
 
-	/// make faint color of a bright color
+	/// Make faint color of a bright color.
 	void makeFaint();
 
 	bool operator==(const FontColor &other) const {
@@ -77,13 +77,11 @@ public: // functions
 			color.blue == other.color.blue;
 	}
 
-	void load(ColorIndex idx, std::string_view name = std::string_view(""));
+	void load(const ColorIndex idx, std::string_view name = std::string_view(""));
 
 	void load(const XRenderColor &rc);
 
 	bool valid() const { return m_loaded; }
-
-	static void init();
 
 	xpp::ColormapIndex index() const {
 		return xpp::ColormapIndex{this->pixel};
@@ -93,7 +91,7 @@ protected: // functions
 
 	void destroy();
 
-	void load256(ColorIndex idx);
+	void load256(const ColorIndex idx);
 
 protected: // data
 
@@ -148,8 +146,14 @@ public: // functions
 		return m_colors.at(cosmos::to_integral(index));
 	}
 
+	/// Returns the RGB components of the given color index
+	/**
+	 * \return Whether a valid color index was selected and RGB have been
+	 * returned in the out parameter list.
+	 **/
 	bool toRGB(const ColorIndex idx, uint8_t &red, uint8_t &green, uint8_t &blue) const;
 
+	/// Assign the given name to the given color index.
 	bool setColorName(const ColorIndex idx, const std::string_view name);
 
 	void resetColors() {
@@ -163,6 +167,7 @@ public: // functions
 
 	const FontColor& frontColor() { return m_front_color; }
 	const FontColor& backColor() { return m_back_color; }
+	/// Applies cursor color settings to \c glyph and returns the FontColor to be used.
 	const FontColor& cursorColor(const bool is_selected, Glyph &glyph) const;
 
 protected: // data
@@ -172,7 +177,7 @@ protected: // data
 	FontColor m_front_color;
 	/// Current background color for drawing.
 	FontColor m_back_color;
-	/// colors corresponding to specific ColorIndex palette values.
+	/// Colors corresponding to specific ColorIndex palette values.
 	std::array<FontColor, 256UL + config::EXTENDED_COLORS.size()> m_colors;
 };
 

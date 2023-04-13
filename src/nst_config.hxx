@@ -85,9 +85,9 @@ constexpr ColorIndex DEFAULT_FG{258};
 /// Default background color (colorname index).
 constexpr ColorIndex DEFAULT_BG{259};
 /// Default cursor color (colorname index).
-constexpr ColorIndex DEFAULT_CS{256};
+constexpr ColorIndex DEFAULT_CURSOR_COLOR{256};
 /// Default reverse color (colorname index).
-constexpr ColorIndex DEFAULT_RCS{257};
+constexpr ColorIndex DEFAULT_CURSOR_REV_COLOR{257};
 
 /// Allow alternative screen usage
 constexpr bool ALLOW_ALTSCREEN = true;

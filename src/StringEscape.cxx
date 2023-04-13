@@ -143,7 +143,7 @@ bool StringEscape::processOSC() {
 		case 11: // change text BG color
 			return handle_color("background", par, config::DEFAULT_BG);
 		case 12: // change text cursor color
-			return handle_color("cursor", par, config::DEFAULT_CS);
+			return handle_color("cursor", par, config::DEFAULT_CURSOR_COLOR);
 		case SET_COLOR_INDEX: // change color number to RGB value
 			if (numargs < 3)
 				return false;

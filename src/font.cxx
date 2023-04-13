@@ -1,9 +1,5 @@
 // C++
 #include <iostream>
-#include <string>
-
-// X11
-#include <X11/Xft/Xft.h>
 
 // cosmos
 #include "cosmos/algs.hxx"
@@ -58,25 +54,21 @@ void FontPattern::setPixelSize(double size_px) {
 }
 
 std::optional<double> FontPattern::pointSize() const {
-	if(!m_pattern)
-		return {};
-
-	double ret;
-	auto res = FcPatternGetDouble(m_pattern, FC_SIZE, 0, &ret);
-	if (res == FcResultMatch)
-	       return ret;
-	else
-		return {};
+	return getDouble(FC_SIZE);
 }
 
 std::optional<double> FontPattern::pixelSize() const {
+	return getDouble(FC_PIXEL_SIZE);
+}
+
+std::optional<double> FontPattern::getDouble(const std::string_view which) const {
 	if(!m_pattern)
 		return {};
 
 	double ret;
-	auto res = FcPatternGetDouble(m_pattern, FC_PIXEL_SIZE, 0, &ret);
+	auto res = FcPatternGetDouble(m_pattern, which.data(), 0, &ret);
 	if (res == FcResultMatch)
-	       return ret;
+		return ret;
 	else
 		return {};
 }
@@ -90,14 +82,12 @@ void FontPattern::setSlant(const Slant slant) {
 }
 
 std::optional<Slant> FontPattern::getSlant() const {
-	int attr;
-	auto res = ::XftPatternGetInteger(m_pattern, "slant", 0, &attr);
+	auto ret = getInt(FC_SLANT);
 
-	if (res != XftResultMatch) {
+	if (!ret)
 		return {};
-	}
 
-	return Slant{attr};
+	return Slant{*ret};
 }
 
 void FontPattern::setWeight(const Weight weight) {
@@ -109,15 +99,25 @@ void FontPattern::setWeight(const Weight weight) {
 }
 
 std::optional<Weight> FontPattern::getWeight() const {
+	auto ret = getInt(FC_WEIGHT);
+
+	if (!ret)
+		return {};
+
+	return Weight{*ret};
+}
+
+std::optional<int> FontPattern::getInt(const std::string_view which) const {
 	int attr;
-	auto res = ::XftPatternGetInteger(m_pattern, "weight", 0, &attr);
+	auto res = ::XftPatternGetInteger(m_pattern, which.data(), 0, &attr);
 
 	if (res != XftResultMatch) {
 		return {};
 	}
 
-	return Weight{attr};
+	return attr;
 }
+
 
 void FontPattern::destroy() {
 	if (m_ext_pattern) {
@@ -147,12 +147,10 @@ void Font::unload() {
 	m_bad_weight = false;
 }
 
-bool Font::load(FontPattern &pattern) {
+bool Font::load(const FontPattern &pattern) {
 	unload();
-	/*
-	 * Manually configure instead of calling XftMatchFont so that we can
-	 * use the configured pattern for "missing glyph" lookups.
-	 */
+	// Manually configure instead of calling XftMatchFont so that we can
+	// use the configured pattern for "missing glyph" lookups.
 	auto &display = xpp::display;
 	FcPattern *configured = FcPatternDuplicate(pattern.raw());
 	if (!configured) {
@@ -174,7 +172,7 @@ bool Font::load(FontPattern &pattern) {
 
 		m_pattern = configured;
 
-		// ownership is transferred now to m_pattern
+		// ownership has been transferred to m_pattern
 		configured_guard.disarm();
 		// ... and to m_match
 		match_guard.disarm();
@@ -185,23 +183,23 @@ bool Font::load(FontPattern &pattern) {
 
 	XGlyphInfo extents;
 	::XftTextExtentsUtf8(display, m_match,
-		(const FcChar8 *)config::ASCII_PRINTABLE.data(),
+		(const FcChar8*)config::ASCII_PRINTABLE.data(),
 		config::ASCII_PRINTABLE.size(), &extents);
 
+	// pixels above and below the baseline of a character make up the
+	// character height
 	m_height = ascent() + descent();
 	m_width = (extents.xOff + config::ASCII_PRINTABLE.size() - 1) / config::ASCII_PRINTABLE.size();
 
 	return true;
 }
 
-void Font::checkSlant(FontPattern &pattern) {
+void Font::checkSlant(const FontPattern &pattern) {
 	const FontPattern opened = this->pattern();
 
 	if (auto wanted_slant = pattern.getSlant(); wanted_slant != std::nullopt) {
-		/*
-		 * Check if xft was unable to find a font with the appropriate
-		 * slant but gave us one anyway. Try to mitigate.
-		 */
+		// Check if xft was unable to find a font with the appropriate
+		// slant but gave us one anyway. Try to mitigate.
 		if (auto our_slant = opened.getSlant(); our_slant != std::nullopt && *our_slant < *wanted_slant) {
 			m_bad_slant = true;
 			std::cerr << "font slant does not match\n";
@@ -209,7 +207,7 @@ void Font::checkSlant(FontPattern &pattern) {
 	}
 }
 
-void Font::checkWeight(FontPattern &pattern) {
+void Font::checkWeight(const FontPattern &pattern) {
 	const FontPattern opened = this->pattern();
 
 	if (auto wanted_weight = pattern.getWeight(); wanted_weight != std::nullopt) {
@@ -220,19 +218,18 @@ void Font::checkWeight(FontPattern &pattern) {
 	}
 }
 
-FcPattern* Font::queryFontConfig(const Rune rune) {
+FcPattern* Font::queryFontConfig(const Rune rune) const {
 	FcResult fc_res;
 	if (!m_set) {
+		// TODO: error checking?
 		m_set = FcFontSort(nullptr, m_pattern, /*trim=*/FcTrue, nullptr, &fc_res);
 	}
 	FcFontSet *fc_sets[] = { m_set };
 
-	/*
-	 * Nothing was found in the cache. Now use some dozen of Fontconfig
-	 * calls to get the font for one single character.
-	 *
-	 * Xft and fontconfig are design failures.
-	 */
+	// Nothing was found in the cache. Now use some dozen of Fontconfig
+	// calls to get the font for one single character.
+	//
+	// Xft and fontconfig are design failures.
 	FcPattern *fc_pattern = FcPatternDuplicate(m_pattern);
 	FcPatternGuard fc_pattern_guard{fc_pattern};
 	FcCharSet *fc_charset = FcCharSetCreate();
@@ -257,14 +254,13 @@ void FontManager::clearCache() {
 }
 
 void FontManager::unloadFonts() {
-	/* Free the loaded fonts in the font cache.  */
+	// Free the loaded fonts in the font cache.
 	clearCache();
 
 	for (auto font: {&m_normal_font, &m_bold_font, &m_italic_font, &m_italic_bold_font}) {
 		font->unload();
 	}
 }
-
 
 FontManager::FontManager() :
 		m_normal_font{FontFlags::NORMAL},
@@ -293,7 +289,7 @@ FontManager::~FontManager() {
 #endif
 }
 
-void FontManager::zoom(double val) {
+void FontManager::zoom(const double val) {
 	*m_used_font_size += val;
 	loadFonts();
 }
@@ -322,10 +318,8 @@ bool FontManager::loadFonts() {
 			// leave to be determined after loading the first font below
 			;
 		else {
-			/*
-			 * Use default font size, if none given. This is to
-			 * have a known m_used_font_size value.
-			 */
+			// Use default font size, if none given. This is to
+			// have a known m_used_font_size value.
 			m_used_font_size = config::FONT_DEFAULT_SIZE_PX;
 			pattern.setPixelSize(*m_used_font_size);
 		}
@@ -377,29 +371,31 @@ void FontManager::assignFont(const Rune rune, Font &font, XftGlyphFontSpec &spec
 	spec.glyph = glyphidx;
 }
 
+// font cannot be const since libXft doesn't mark it const in XftCharIndex,
+// also the implementation actually changes data in it (caches)
 std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font &font) {
-	/* Lookup character index with default font. */
+	// Lookup character index with default font.
 	auto glyphidx = ::XftCharIndex(xpp::display, font.match(), rune);
 	if (glyphidx) {
 		return std::make_tuple(font.match(), glyphidx);
 	}
 
-	/* Fallback on font cache, search the font cache for match. */
+	// Fallback on font cache, search the font cache for match.
 	for (auto &entry: m_font_cache) {
 		glyphidx = ::XftCharIndex(xpp::display, entry.font, rune);
 		if (glyphidx && entry.flags == font.flags()) {
-			/* Everything correct. */
+			// Everything correct.
 			return std::make_tuple(entry.font, glyphidx);
 		} else if (!glyphidx && entry.flags == font.flags() && entry.rune == rune) {
-			/* We got a default font for a not found glyph. */
+			// We got a default font for a not found glyph.
 			return std::make_tuple(entry.font, glyphidx);
 		}
 	}
 
-	/* Nothing was found. Use fontconfig to find matching font. */
+	// Nothing was found. Use fontconfig to find matching font.
 	auto pattern = font.queryFontConfig(rune);
 
-	/* Allocate memory for the new cache entry. */
+	// Allocate memory for the new cache entry.
 	auto new_font = ::XftFontOpenPattern(xpp::display, pattern);
 	if (!new_font) {
 		cosmos_throw (cosmos::ApiError("XftFontOpenPattern() failed seeking fallback font"));
@@ -413,7 +409,7 @@ std::tuple<XftFont*, FT_UInt> FontManager::lookupFontEntry(const Rune rune, Font
 }
 
 void FontManager::sanitize(Glyph &g) const {
-	/* Fallback on color display for attributes not supported by the font */
+	// Fallback on color display for attributes not supported by the font
 	if (g.mode[Attr::ITALIC] && g.mode[Attr::BOLD]) {
 		if (m_italic_bold_font.hasBadSlant() || m_italic_bold_font.hasBadWeight()) {
 			g.fg = config::DEFAULT_ATTR;

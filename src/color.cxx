@@ -7,8 +7,6 @@
 
 // nst
 #include "color.hxx"
-#include "Glyph.hxx"
-#include "nst_config.hxx"
 #include "TermWindow.hxx"
 
 namespace nst {
@@ -17,9 +15,10 @@ inline auto cmap() {
 	return xpp::raw_cmap(xpp::colormap);
 }
 
-void FontColor::load(ColorIndex idx, std::string_view name) {
+void FontColor::load(const ColorIndex idx, std::string_view name) {
 	if (name.empty()) {
-		if (cosmos::in_range(idx, ColorIndex::START_256, ColorIndex::END_256)) { /* 256 color */
+		// 256 color range
+		if (cosmos::in_range(idx, ColorIndex::START_256, ColorIndex::END_256)) {
 			load256(idx);
 			return;
 		} else {
@@ -36,16 +35,16 @@ void FontColor::load(ColorIndex idx, std::string_view name) {
 	if (res == True) {
 		m_loaded = true;
 		return;
-	} else {
-		auto colorname = get_color_name(idx);
-
-		cosmos_throw (cosmos::RuntimeError(
-				cosmos::sprintf("could not allocate color %d ('%s')", cosmos::to_integral(idx),
-					colorname.empty() ? "unknown" : colorname.data())));
 	}
+
+	auto colorname = get_color_name(idx);
+
+	cosmos_throw (cosmos::RuntimeError(
+			cosmos::sprintf("could not allocate color %d ('%s')", cosmos::to_integral(idx),
+				colorname.empty() ? "unknown" : colorname.data())));
 }
 
-void FontColor::load256(ColorIndex idx) {
+void FontColor::load256(const ColorIndex idx) {
 	/*
 	 * xterm 256 color support has the following planes:
 	 *
@@ -61,12 +60,12 @@ void FontColor::load256(ColorIndex idx) {
 
 	XRenderColor tmp = { 0, 0, 0, 0xffff };
 
-	if (idx < ColorIndex::START_GREYSCALE) { /* same colors as xterm */
+	if (idx < ColorIndex::START_GREYSCALE) { // same colors as xterm
 		auto baseindex = cosmos::to_integral(idx - ColorIndex::START_256);
 		tmp.red   = sixd_to_16bit((baseindex/36)  % 6);
 		tmp.green = sixd_to_16bit((baseindex/ 6)  % 6);
 		tmp.blue  = sixd_to_16bit((baseindex/ 1)  % 6);
-	} else { /* greyscale */
+	} else { // greyscale
 		auto baseindex = cosmos::to_integral(idx - ColorIndex::START_GREYSCALE);
 		tmp.red = 0x0808 + 0x0a0a * baseindex;
 		tmp.green = tmp.blue = tmp.red;
@@ -217,19 +216,19 @@ const FontColor& ColorManager::cursorColor(const bool is_selected, Glyph &glyph)
 		glyph.mode.set(Attr::REVERSE);
 		glyph.bg = config::DEFAULT_FG;
 		if (is_selected) {
-			glyph.fg = config::DEFAULT_RCS;
-			return fontColor(config::DEFAULT_CS);
+			glyph.fg = config::DEFAULT_CURSOR_REV_COLOR;
+			return fontColor(config::DEFAULT_CURSOR_COLOR);
 		} else {
-			glyph.fg = config::DEFAULT_CS;
-			return fontColor(config::DEFAULT_RCS);
+			glyph.fg = config::DEFAULT_CURSOR_COLOR;
+			return fontColor(config::DEFAULT_CURSOR_REV_COLOR);
 		}
 	} else {
 		if (is_selected) {
 			glyph.fg = config::DEFAULT_FG;
-			glyph.bg = config::DEFAULT_RCS;
+			glyph.bg = config::DEFAULT_CURSOR_REV_COLOR;
 		} else {
 			glyph.fg = config::DEFAULT_BG;
-			glyph.bg = config::DEFAULT_CS;
+			glyph.bg = config::DEFAULT_CURSOR_COLOR;
 		}
 
 		return fontColor(glyph.bg);
@@ -247,7 +246,7 @@ const std::string_view get_color_name(const ColorIndex idx) {
 	}
 
 	// unassigned
-	// NOTE: the libX functions that consume this are tolerant against null pointers
+	// NOTE: the libX functions that consume this are tolerant towards null pointers
 	return {};
 }
 

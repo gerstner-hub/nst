@@ -16,7 +16,7 @@ class Nst;
 
 /// Handles STR (non CSI) escape sequences.
 /**
- * STR escape sequences follow the following model:
+ * STR escape sequences follow this model:
  *
  * ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
  *
@@ -36,24 +36,25 @@ struct StringEscape {
 public: // types
 
 	enum class Type : char {
-		NONE = '\0',
-		OSC = ']', // operating system command
-		DCS = 'P', // device control string
-		APC = '_', // application specific program command
-		PM = '^',  // privacy message
-		SET_TITLE = 'k' // old title set compatibility
+		NONE      = '\0',
+		OSC       = ']', // operating system command
+		DCS       = 'P', // device control string
+		APC       = '_', // application specific program command
+		PM        = '^', // privacy message
+		SET_TITLE = 'k'  // old title set compatibility
 	};
 
 public: // functions
 
 	explicit StringEscape(Nst &nst);
-	/// starts a new string escape sequence of the given type
-	void reset(const Type &type);
-	/// adds input characters to the current sequence
+	/// Starts a new string escape sequence of the given type.
+	void reset(const Type type);
+	/// Adds input characters to the current sequence.
 	void add(const std::string_view s);
-	/// processes a completed escape sequence, 
+	/// Processes a completed escape sequence.
 	void process();
 
+	/// Returns whether the given rune is a valid StringEscape terminator.
 	bool isTerminator(const RuneInfo &ri) const {
 		switch(ri.asChar()) {
 			case '\a':
@@ -68,22 +69,22 @@ public: // functions
 
 protected: // functions
 
-	/// prints the current escape status to stderr
+	/// Prints the current escape status to stderr.
 	void dump(const std::string_view prefix) const;
-	/// parses escape sequence arguments from m_str into m_args
+	/// Parses escape sequence arguments from m_str into m_args.
 	void parseArgs();
-	/// process an OSC (Operating System Command)
+	/// Process an OSC (Operating System Command).
 	bool processOSC();
 	void setIconTitle(const char *s);
 	void setTitle(const char *s);
-	/// reports back the current color mapping for color index
-	void oscColorResponse(ColorIndex idx, int code);
+	/// Reports back to the TTY the current color mapping for color index.
+	void oscColorResponse(const ColorIndex idx, const int code);
 
 protected: // data
 
-	std::string m_str; /// the escape sequence collected so far
-	std::vector<std::string_view> m_args; /// views into m_str that make up the arguments
-	Type m_esc_type = Type::NONE; // the active escape type being parsed
+	std::string m_str; /// the escape sequence collected so far.
+	std::vector<std::string_view> m_args; /// views into m_str that make up the arguments.
+	Type m_esc_type = Type::NONE; // the active escape type being parsed.
 	Nst &m_nst;
 };
 

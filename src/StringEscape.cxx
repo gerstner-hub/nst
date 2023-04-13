@@ -15,15 +15,19 @@
 
 namespace nst {
 
+namespace {
+
 constexpr size_t DEF_BUF_SIZE = 128 * utf8::UTF_SIZE;
 /// maximum number of string escape sequence arguments we support
 constexpr size_t MAX_STR_ARGS = 16;
+
+}
 
 StringEscape::StringEscape(Nst &nst) :
 		m_nst{nst}
 {}
 
-void StringEscape::oscColorResponse(ColorIndex idx, int code) {
+void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 	uint8_t r, g, b;
 
 	if (!m_nst.x11().colorManager().toRGB(idx, r, g, b)) {
@@ -63,35 +67,34 @@ void StringEscape::process() {
 	parseArgs();
 
 	switch (m_esc_type) {
-	case Type::OSC: /* Operating System Command */
-		if (!processOSC()) {
-			// error in OSC command, dump
-			dump("erresc: unknown str escape");
-		}
-		return;
-	case Type::SET_TITLE: /* old title set compatibility */
-		setTitle(m_args.empty() ? "" : m_args[0].data());
-		return;
-	case Type::DCS: /* Device Control String */
-	case Type::APC: /* Application Program Command */
-	case Type::PM:  /* Privacy Message */
-	case Type::NONE: /* should never happend */
-		return;
+		case Type::OSC: // Operating System Command
+			if (!processOSC()) {
+				// error in OSC command, dump
+				dump("erresc: unknown str escape");
+			}
+			return;
+		case Type::SET_TITLE: // old title set compatibility
+			setTitle(m_args.empty() ? "" : m_args[0].data());
+			return;
+		case Type::DCS:  // 
+		case Type::APC:  // Application Program Command
+		case Type::PM:   // Privacy Message
+		case Type::NONE: // should never happen
+			return;
 	}
 }
 
 bool StringEscape::processOSC() {
-	auto &term = m_nst.term();
 	auto &x11 = m_nst.x11();
 	const int par = m_args.empty() ? 0 : std::atoi(m_args[0].data());
 	const auto numargs = m_args.size();
 
 	// handles different color settings and reporting
-	auto handle_color = [&](const char *label, const int code, const ColorIndex idx) {
+	auto handle_color = [&](const std::string_view label, const int code, const ColorIndex idx) {
 		if (numargs < 2)
 			return false;
 
-		const auto &arg = m_args[1];
+		const auto arg = m_args[1];
 
 		if (arg == "?")
 			// report current color setting
@@ -99,16 +102,19 @@ bool StringEscape::processOSC() {
 		else if (!x11.colorManager().setColorName(idx, arg.data()))
 			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
 		else
-			term.redraw();
+			m_nst.term().redraw();
 
 		return true;
 	};
 
+	constexpr int SET_COLOR_INDEX = 4;
+	constexpr int RESET_COLOR_INDEX = 104;
+
 	// for reference see: https://www.xfree86.org/current/ctlseqs.html
 	switch (par) {
-		case 0: // change icon name and window title
+		case 0: // change icon name _and_ window title
 			if (numargs > 1) {
-				const auto &title = m_args[1].data();
+				const auto title = m_args[1].data();
 				setTitle(title);
 				setIconTitle(title);
 			}
@@ -138,24 +144,24 @@ bool StringEscape::processOSC() {
 			return handle_color("background", par, config::DEFAULT_BG);
 		case 12: // change text cursor color
 			return handle_color("cursor", par, config::DEFAULT_CS);
-		case 4: /* change color number to RGB value */
+		case SET_COLOR_INDEX: // change color number to RGB value
 			if (numargs < 3)
 				return false;
 			/* FALLTHROUGH */
-		case 104: /* color reset */ {
-			const auto name = (par == 4 ? m_args[2] : std::string_view(""));
+		case RESET_COLOR_INDEX: { // color reset
+			const auto name = (par == SET_COLOR_INDEX ? m_args[2] : std::string_view(""));
 			const int rawindex = (numargs > 1) ? atoi(m_args[1].data()) : -1;
 			const auto colindex = rawindex >= 0 ? ColorIndex(rawindex) : ColorIndex::INVALID;
 
 			if (name == "?")
-				oscColorResponse(colindex, 4);
+				oscColorResponse(colindex, SET_COLOR_INDEX);
 			else if (!x11.colorManager().setColorName(colindex, name.data())) {
-				if (par == 104 && numargs <= 1)
-					break; /* color reset without parameter */
+				if (par == RESET_COLOR_INDEX && numargs <= 1)
+					break; // color reset without parameter
 				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
 			} else {
 				// TODO if defaultbg color is changed, borders are dirty
-				term.redraw();
+				m_nst.term().redraw();
 			}
 			break;
 		}
@@ -174,15 +180,13 @@ void StringEscape::parseArgs() {
 	while (it != m_str.end() && m_args.size() < MAX_STR_ARGS) {
 		auto end = std::find(it, m_str.end(), ';');
 
-		// NOTE: c++20 has a better constructor using iterators
+		// NOTE: C++20 has a better constructor using iterators
 		std::string_view sv(&(*it), std::distance(it, end));
 		m_args.push_back(sv);
 
 		if (end != m_str.end()) {
 			// make sure the views we add to m_args are properly terminated
 			*end = '\0';
-			// advance to next arg
-			it++;
 		}
 
 		it = end;
@@ -215,7 +219,7 @@ void StringEscape::dump(const std::string_view prefix) const {
 	std::cerr << "ESC\\\n";
 }
 
-void StringEscape::reset(const Type &type) {
+void StringEscape::reset(const Type type) {
 	m_str.clear();
 	m_str.reserve(DEF_BUF_SIZE);
 	m_args.clear();

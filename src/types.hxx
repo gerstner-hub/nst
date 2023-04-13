@@ -315,7 +315,7 @@ enum class WinMode {
 	HIDE_CURSOR = 1 << 7,  /// hide the cursor when rendering
 	APPCURSOR   = 1 << 8,  /// cursor keys generate special events instead of ANSI escape codes
 	MOUSE_SGR   = 1 << 9,  /// extended SGR (select graphic randition) mouse reporting
-	EIGHT_BIT   = 1 << 10, /// handle meta key, set eighth bit of keyboard input (?)
+	EIGHT_BIT   = 1 << 10, /// encode meta (ALT) key by setting eighth bit of input characters
 	BLINK       = 1 << 11, /// whether blinking characters are currently shown or not
 	FOCUS       = 1 << 12, /// whether X11 focus changes should be reported on TTY level
 	MOUSEX10    = 1 << 13, /// X10 mouse backwards compatibility

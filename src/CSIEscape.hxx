@@ -2,7 +2,6 @@
 #define NST_CSIESCAPE_HXX
 
 // C++
-#include <cstddef>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,12 +18,12 @@ class Nst;
 
 /// Handles CSI and some other types of escape sequences.
 /**
- * CSI (Control Sequence Introducer) struct follow the following model:
+ * CSI (Control Sequence Introducer) structs follow this model:
  *
  * ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]]
  *
- * This class parses such sequences and triggers actions that result from the
- * sequences.
+ * This class parses such sequences and triggers actions that result from
+ * them.
  **/
 struct CSIEscape {
 public: // functions
@@ -56,6 +55,7 @@ public: // functions
 	/// If focus reporting was enabled, report focus state change on TTY.
 	void reportFocus(const bool in_focus);
 
+	/// Report a paste start/end action on TTY level
 	void reportPaste(const bool started);
 
 protected: // functions
@@ -67,7 +67,7 @@ protected: // functions
 	 * makes sure that if the value at the given index is <= 0 that \c
 	 * defval is assigned to it.
 	 *
-	 * \return The current value of the argument at index
+	 * \return The current value of the argument at index.
 	 **/
 	int ensureArg(size_t index, int defval);
 
@@ -75,22 +75,26 @@ protected: // functions
 	void dump(const std::string_view prefix) const;
 
 	bool isFinalByte(const char ch) const {
-		// this range is coming from the CSI spec
+		// this range is found in the CSI spec
 		return cosmos::in_range(ch, 0x40, 0x7E);
 	}
 
 	/// Calls setMode() or setPrivateMode() depending on current context.
 	void setModeGeneric(const bool enable);
 
-	/// Process a set terminal mode request.
+	/// Process a "set terminal mode" request.
 	void setMode(const bool set);
 
-	/// Process a private set terminal mode request.
+	/// Process a private "set terminal mode" request.
 	void setPrivateMode(const bool set);
 
-	/// Forwards a setCursorAttrs() call to Term.
+	/// Extended parsing of a cursor attribute change request.
 	bool setCursorAttrs() const;
 
+	/// Parses a color specification from the input args.
+	/**
+	 * This increments the iterator for the number of processed elements.
+	 **/
 	ColorIndex parseColor(std::vector<int>::const_iterator &it) const;
 
 	/// Handle fb/bg cursor color settings from dim/bright color ranges.
@@ -100,9 +104,10 @@ protected: // data
 
 	std::string m_str; /// The raw escape sequence bytes collected so far
 	bool m_is_private_csi = false; /// Whether a private CSI control was parsed
-	std::vector<int> m_args; /// Up to 16 integer parameter for the current CSI
+	std::vector<int> m_args; /// Up to 16 integer parameters for the current CSI
 	std::string m_mode_suffix; /// The intermediate and final characters of the sequence
 	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
+	static constexpr size_t MAX_ARG_SIZE = 16; /// maximum number of parameters for a CSI sequence
 	Nst &m_nst;
 };
 

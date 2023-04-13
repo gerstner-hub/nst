@@ -1,5 +1,4 @@
 // C++
-#include <limits>
 #include <cstring>
 #include <iostream>
 
@@ -11,18 +10,10 @@
 #include "nst_config.hxx"
 #include "nst.hxx"
 #include "Selection.hxx"
-#include "StringEscape.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
 
 namespace nst {
-
-namespace {
-
-/// maximum number of parameters for a CSI sequence
-constexpr size_t MAX_ARG_SIZE = 16;
-
-} // end anon ns
 
 CSIEscape::CSIEscape(Nst &nst) :
 		m_nst{nst} {
@@ -83,7 +74,7 @@ void CSIEscape::parse() {
 		it++;
 	}
 
-	m_mode_suffix = std::string(it, m_str.end());
+	m_mode_suffix = std::string{it, m_str.end()};
 	if (m_mode_suffix.empty())
 		// make sure there is always a zero terminator available for
 		// index based access
@@ -132,18 +123,18 @@ void CSIEscape::setMode(const bool set) {
 
 	for (const auto arg: m_args) {
 		switch (arg) {
-		case 0:  /* Error (IGNORED) */
+		case 0:  // Error (IGNORED)
 			break;
 		case 2:
 			m_nst.x11().setMode(WinMode::KBDLOCK, set);
 			break;
-		case 4:  /* IRM -- Insertion-replacement */
+		case 4:  // IRM -- Insertion-replacement
 			term.setInsertMode(set);
 			break;
-		case 12: /* SRM -- Send/Receive */
+		case 12: // SRM -- Send/Receive
 			term.setEcho(!set);
 			break;
-		case 20: /* LNM -- Linefeed/new line */
+		case 20: // LNM -- Linefeed/new line
 			term.setCarriageReturn(set);
 			break;
 		default:
@@ -160,63 +151,63 @@ void CSIEscape::setPrivateMode(const bool set) {
 
 	for (const auto arg: m_args) {
 		switch (arg) {
-		case 1: /* DECCKM -- Cursor key */
+		case 1: // DECCKM -- Cursor key
 			x11.setMode(WinMode::APPCURSOR, set);
 			break;
-		case 5: /* DECSCNM -- Reverse video */
+		case 5: // DECSCNM -- Reverse video
 			x11.setMode(WinMode::REVERSE, set);
 			break;
-		case 6: /* DECOM -- Origin */
+		case 6: // DECOM -- Origin
 			term.setCursorOriginMode(set);
 			break;
-		case 7: /* DECAWM -- Auto wrap */
+		case 7: // DECAWM -- Auto wrap
 			term.setAutoWrap(set);
 			break;
-		case 0:  /* Error (IGNORED) */
-		case 2:  /* DECANM -- ANSI/VT52 (IGNORED) */
-		case 3:  /* DECCOLM -- Column  (IGNORED) */
-		case 4:  /* DECSCLM -- Scroll (IGNORED) */
-		case 8:  /* DECARM -- Auto repeat (IGNORED) */
-		case 18: /* DECPFF -- Printer feed (IGNORED) */
-		case 19: /* DECPEX -- Printer extent (IGNORED) */
-		case 42: /* DECNRCM -- National characters (IGNORED) */
-		case 12: /* att610 -- Start blinking cursor (IGNORED) */
+		case 0:  // Error (IGNORED)
+		case 2:  // DECANM -- ANSI/VT52 (IGNORED)
+		case 3:  // DECCOLM -- Column  (IGNORED)
+		case 4:  // DECSCLM -- Scroll (IGNORED)
+		case 8:  // DECARM -- Auto repeat (IGNORED)
+		case 18: // DECPFF -- Printer feed (IGNORED)
+		case 19: // DECPEX -- Printer extent (IGNORED)
+		case 42: // DECNRCM -- National characters (IGNORED)
+		case 12: // att610 -- Start blinking cursor (IGNORED)
 			break;
-		case 25: /* DECTCEM -- Text Cursor Enable Mode */
+		case 25: // DECTCEM -- Text Cursor Enable Mode
 			x11.setMode(WinMode::HIDE_CURSOR, !set);
 			break;
-		case 9:    /* X10 mouse compatibility mode */
+		case 9:    // X10 mouse compatibility mode
 			x11.setPointerMotion(false);
 			x11.setMode(WinMode::MOUSE, false);
 			x11.setMode(WinMode::MOUSEX10, set);
 			break;
-		case 1000: /* 1000: report button press */
+		case 1000: // report button press
 			x11.setPointerMotion(false);
 			x11.setMode(WinMode::MOUSE, false);
 			x11.setMode(WinMode::MOUSEBTN, set);
 			break;
-		case 1002: /* 1002: report motion on button press */
+		case 1002: // report motion on button press
 			x11.setPointerMotion(false);
 			x11.setMode(WinMode::MOUSE, false);
 			x11.setMode(WinMode::MOUSEMOTION, set);
 			break;
-		case 1003: /* 1003: enable all mouse motions */
+		case 1003: // enable all mouse motions
 			x11.setPointerMotion(set);
 			x11.setMode(WinMode::MOUSE, false);
 			x11.setMode(WinMode::MOUSEMANY, set);
 			break;
-		case 1004: /* 1004: send focus events to tty */
+		case 1004: // send focus events to TTY
 			x11.setMode(WinMode::FOCUS, set);
 			break;
-		case 1006: /* 1006: extended reporting mode */
+		case 1006: // extended mouse reporting mode
 			x11.setMode(WinMode::MOUSE_SGR, set);
 			break;
-		case 1034:
+		case 1034: // signify META key press by setting eight bit on input
 			x11.setMode(WinMode::EIGHT_BIT, set);
 			break;
-		case 1049: /* swap screen & set/restore cursor as xterm */
+		case 1049: // swap screen & set/restore cursor as xterm
 			/* FALLTHROUGH */
-		case 47: /* both stand for swap screen (XTerm), clearing it first */
+		case 47: // both stand for swap screen (XTerm), clearing it first
 			/* FALLTHROUGH */
 		case 1047:
 			term.setAltScreen(set, /*with_cursor=*/arg == 1049);
@@ -224,18 +215,15 @@ void CSIEscape::setPrivateMode(const bool set) {
 		case 1048: // save/load cursor
 			term.cursorControl(set ? CursorState::Control::SAVE : CursorState::Control::LOAD);
 			break;
-		case 2004: /* 2004: bracketed paste mode */
+		case 2004: // bracketed paste mode
 			x11.setMode(WinMode::BRKT_PASTE, set);
 			break;
-		/* Not implemented mouse modes. See comments there. */
-		case 1001: /* mouse highlight mode; can hang the
-			      terminal by design when implemented. */
-		case 1005: /* UTF-8 mouse mode; will confuse
-			      applications not supporting UTF-8
-			      and luit. */
-		case 1015: /* urxvt mangled mouse mode; incompatible
-			      and can be mistaken for other control
-			      codes. */
+		// Not implemented mouse modes. See below.
+		case 1001: // mouse highlight mode; can hang the terminal by design when implemented.
+		case 1005: // UTF-8 mouse mode; will confuse applications not supporting UTF-8 and luit.
+		case 1015: // urxvt mangled mouse mode; incompatible
+			   // and can be mistaken for other control
+			   // codes.
 			break;
 		default:
 			std::cerr << "erresc: unknown private set/reset mode " << arg << "\n";
@@ -248,25 +236,28 @@ void CSIEscape::process() {
 
 	// spec reference: https://vt100.net/docs/vt510-rm/chapter4.html
 
+	if (m_mode_suffix.empty())
+		return;
+
+	const auto arg0 = ensureArg(0, 0);
 	auto &term = m_nst.term();
-	const auto arg0 = m_args[0];
-	const auto &curpos = term.cursor().position();
+	const auto curpos = term.cursor().position();
 
 	switch (m_mode_suffix.front()) {
 	default:
 		// ignore unsupported sequences
 		break;
-	case '@': /* ICH -- Insert <n> blank char */
+	case '@': // ICH -- Insert <n> blank char
 		term.insertBlanksAfterCursor(arg0 ? arg0 : 1);
 		return;
-	case 'A': /* CUU -- Cursor <n> Up */
+	case 'A': // CUU -- Cursor <n> Up
 		term.moveCursorUp(arg0 ? arg0 : 1);
 		return;
-	case 'B': /* CUD -- Cursor <n> Down */
-	case 'e': /* VPR --Cursor <n> Down */
+	case 'B': // CUD -- Cursor <n> Down
+	case 'e': // VPR -- Cursor <n> Down
 		term.moveCursorDown(arg0 ? arg0 : 1);
 		return;
-	case 'i': /* MC -- Media Copy */
+	case 'i': // MC -- Media Copy
 		switch (arg0) {
 			case 0: // print page
 				term.dump();
@@ -285,125 +276,125 @@ void CSIEscape::process() {
 				break;
 		}
 		return;
-	case 'c': /* DA -- Device Attributes */
+	case 'c': // DA -- Device Attributes
 		if (arg0 == 0)
 			m_nst.tty().write(config::VT_IDENT, TTY::MayEcho{false});
 		return;
-	case 'b': /* REP -- if last char is printable print it <n> more times */
+	case 'b': // REP -- if last char is printable print it <n> more times
 		term.repeatChar(arg0 ? arg0 : 1);
 		return;
-	case 'C': /* CUF -- Cursor <n> Forward */
-	case 'a': /* HPR -- Cursor <n> Forward */
+	case 'C': // CUF -- Cursor <n> Forward
+	case 'a': // HPR -- Cursor <n> Forward
 		term.moveCursorRight(arg0 ? arg0 : 1);
 		return;
-	case 'D': /* CUB -- Cursor <n> Backward */
+	case 'D': // CUB -- Cursor <n> Backward
 		term.moveCursorLeft(arg0 ? arg0 : 1);
 		return;
-	case 'E': /* CNL -- Cursor <n> Down and first col */
+	case 'E': // CNL -- Cursor <n> Down and to first col
 		term.moveCursorDown(arg0 ? arg0 : 1, Term::CarriageReturn{true});
 		return;
-	case 'F': /* CPL -- Cursor <n> Up and first col */
+	case 'F': // CPL -- Cursor <n> Up and to first col
 		term.moveCursorUp(arg0 ? arg0 : 1, Term::CarriageReturn{true});
 		return;
-	case 'g': /* TBC -- Tabulation clear */
+	case 'g': // TBC -- Tabulation clear
 		switch (arg0) {
-			case 0: /* clear current tab stop */
+			case 0: // clear current tab stop
 				term.setTabAtCursor(false);
 				return;
-			case 3: /* clear all the tabs */
+			case 3: // clear all the tabs
 				term.clearAllTabs();
 				return;
 			default:
 				break;
 		}
 		break;
-	case 'G': /* CHA -- Move to <col> */
-	case '`': /* HPA */
+	case 'G': // CHA -- Move to <col>
+	case '`': // HPA
 		term.moveCursorToCol(arg0 ? arg0 - 1 : 0);
 		return;
-	case 'H': /* CUP -- Move to absolute <row> <col> */
-	case 'f': /* HVP */ {
+	case 'H':   // CUP -- Move to absolute <row> <col>
+	case 'f': { // HVP
 		const auto row = arg0 ? arg0 - 1 : 0;
 		const auto col = ensureArg(1, 1) - 1;
 		term.moveCursorAbsTo({col, row});
 		return;
 	}
-	case 'I': /* CHT -- Cursor Forward Tabulation <n> tab stops */
+	case 'I': // CHT -- Cursor Forward Tabulation <n> tab stops
 		term.moveToNextTab(arg0 ? arg0 : 1);
 		return;
-	case 'J': /* ED -- Clear screen */
+	case 'J': // ED -- Clear screen
 		switch (arg0) {
-		case 0: /* below. from cursor to end of display */
+		case 0: // below. from cursor to end of display
 			term.clearLinesBelowCursor();
 			term.clearColsAfterCursor();
 			return;
-		case 1: /* above: from start to cursor */
+		case 1: // above: from start to cursor
 			term.clearLinesAboveCursor();
 			term.clearColsBeforeCursor();
 			return;
-		case 2: /* whole display */
-		case 3: /* including scroll-back buffer (which we don't have) */
+		case 2: // whole display
+		case 3: // including scroll-back buffer (which we don't have)
 			term.clearScreen();
 			return;
 		default:
 			break;
 		}
 		break;
-	case 'K': /* EL -- Clear line */
+	case 'K': // EL -- Clear line
 		switch (arg0) {
-		case 0: /* right of cursor */
+		case 0: // right of cursor
 			term.clearColsAfterCursor();
 			return;
-		case 1: /* left of cursor */
+		case 1: // left of cursor
 			term.clearColsBeforeCursor();
 			return;
-		case 2: /* complete cursor line */
+		case 2: // complete cursor line
 			term.clearCursorLine();
 			return;
 		}
 		return;
-	case 'S': /* SU -- Scroll <n> lines up */
+	case 'S': // SU -- Scroll <n> lines up
 		term.scrollUp(arg0 ? arg0 : 1);
 		return;
-	case 'T': /* SD -- Scroll <n> line down */
+	case 'T': // SD -- Scroll <n> line down
 		term.scrollDown(arg0 ? arg0 : 1);
 		return;
-	case 'L': /* IL -- Insert <n> blank lines */
+	case 'L': // IL -- Insert <n> blank lines
 		term.insertBlankLinesBelowCursor(arg0 ? arg0 : 1);
 		return;
-	case 'l': /* RM -- Reset Mode */
+	case 'l': // RM -- Reset Mode
 		setModeGeneric(/*enabled=*/false);
 		return;
-	case 'M': /* DL -- Delete <n> lines */
+	case 'M': // DL -- Delete <n> lines
 		term.deleteLinesBelowCursor(arg0 ? arg0 : 1);
 		return;
-	case 'X': /* ECH -- Erase <n> char */
+	case 'X': // ECH -- Erase <n> char
 		term.clearRegion({curpos, curpos.nextCol(arg0 ? arg0 - 1 : 0)});
 		return;
-	case 'P': /* DCH -- Delete <n> char (backspace like, remaining cols are shifted left) */
+	case 'P': // DCH -- Delete <n> char (backspace like, remaining cols are shifted left)
 		term.deleteColsAfterCursor(arg0 ? arg0 : 1);
 		return;
-	case 'Z': /* CBT -- Cursor Backward Tabulation <n> tab stops */
+	case 'Z': // CBT -- Cursor Backward Tabulation <n> tab stops
 		term.moveToPrevTab(arg0 ? arg0 : 1);
 		return;
-	case 'd': /* VPA -- Move to <row> */
+	case 'd': // VPA -- Move to <row>
 		term.moveCursorAbsTo({curpos.x, arg0 ? arg0 - 1 : 0});
 		return;
-	case 'h': /* SM -- Set terminal mode */
+	case 'h': // SM -- Set terminal mode
 		setModeGeneric(/*enabled=*/true);
 		return;
-	case 'm': /* SGR -- Terminal attribute (color) */
+	case 'm': // SGR -- Terminal attribute (color)
 		if (!setCursorAttrs()) {
 			dump("failed to set cursor attrs");
 		}
 		return;
-	case 'n': /* DSR – Device Status Report (cursor position) */
+	case 'n': // DSR – Device Status Report (cursor position)
 		if (arg0 == 6) {
 			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
 			m_nst.tty().write(buf, TTY::MayEcho{false});
 		}
 		return;
-	case 'r': /* DECSTBM -- Set Scrolling Region */
+	case 'r': // DECSTBM -- Set Scrolling Region
 		if (m_is_private_csi) {
 			break;
 		} else {
@@ -413,10 +404,10 @@ void CSIEscape::process() {
 			term.moveCursorAbsTo({0, 0});
 		}
 		return;
-	case 's': /* DECSC -- Save cursor position (ANSI.SYS) */
+	case 's': // DECSC -- Save cursor position (ANSI.SYS)
 		term.cursorControl(CursorState::Control::SAVE);
 		return;
-	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
+	case 'u': // DECRC -- Restore cursor position (ANSI.SYS)
 		term.cursorControl(CursorState::Control::LOAD);
 		return;
 	case ' ':
@@ -425,11 +416,11 @@ void CSIEscape::process() {
 			break;
 
 		switch (m_mode_suffix[1]) {
-		case 'q': /* DECSCUSR -- Set Cursor Style */
+		case 'q': // DECSCUSR -- Set Cursor Style
 			if (arg0 < 0 || static_cast<unsigned>(arg0) >= static_cast<unsigned>(CursorStyle::END))
 				// cursor style out of range
 				break;
-			m_nst.x11().setCursorStyle(static_cast<CursorStyle>(arg0));
+			m_nst.x11().setCursorStyle(CursorStyle{arg0});
 			return;
 		default:
 			break;
@@ -445,7 +436,7 @@ bool CSIEscape::setCursorAttrs() const {
 	auto &term = m_nst.term();
 
 	for (auto it = m_args.begin(); it < m_args.end(); it++) {
-		const auto &attr = *it;
+		const auto attr = *it;
 		switch (attr) {
 		case 0:
 			term.resetCursorAttrs();
@@ -462,9 +453,9 @@ bool CSIEscape::setCursorAttrs() const {
 		case 4:
 			term.setCursorAttr(Attr::UNDERLINE);
 			break;
-		case 5: /* slow blink */
+		case 5: // slow blink
 			/* FALLTHROUGH */
-		case 6: /* rapid blink */
+		case 6: // rapid blink
 			term.setCursorAttr(Attr::BLINK);
 			break;
 		case 7:
@@ -561,11 +552,10 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 
 	auto toTrueColor = [](unsigned int r, unsigned int g, unsigned int b) -> ColorIndex {
 		std::underlying_type<ColorIndex>::type raw = (r << 16) | (g << 8) | b;
-		raw |= cosmos::to_integral(ColorIndex::TRUE_COLOR_FLAG);
 		return to_true_color(ColorIndex{raw});
 	};
 
-	auto badPars = [&]() {
+	auto badPars = [num_pars]() {
 		std::cerr << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
 		return ColorIndex::INVALID;
 	};
@@ -577,7 +567,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	const auto left = num_pars - 1;
 
 	switch (color_type) {
-	case 2: /* direct color in RGB space */ {
+	case 2: { // direct color in RGB space
 		if (left < 3)
 			return badPars();
 
@@ -592,7 +582,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 			return ColorIndex::INVALID;
 		}
 	}
-	case 5: /* indexed color */ {
+	case 5: { // indexed color
 		if (left < 1)
 			return badPars();
 
@@ -605,10 +595,10 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 			return ColorIndex::INVALID;
 		}
 	}
-	case 0: /* implementation defined (only foreground) */
-	case 1: /* transparent */
-	case 3: /* direct color in CMY space */
-	case 4: /* direct color in CMYK space */
+	case 0: // implementation defined (only foreground)
+	case 1: // transparent
+	case 3: // direct color in CMY space
+	case 4: // direct color in CMYK space
 	default:
 		std::cerr << "erresc(38): gfx attr " << color_type << " unknown" << std::endl;
 		return ColorIndex::INVALID;

@@ -13,7 +13,7 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 #include "XEventHandler.hxx"
-#include "x11.hxx"
+#include "WindowSystem.hxx"
 
 namespace nst {
 
@@ -35,7 +35,7 @@ public: // functions
 	TTY& tty() { return m_tty; }
 	Term& term() { return m_term; }
 	Selection& selection() { return m_selection; }
-	X11& x11() { return m_x11; }
+	WindowSystem& wsys() { return m_wsys; }
 	const Cmdline& cmdline() const { return m_cmdline; }
 
 	/// resize all necessary structures after the window or font size changed
@@ -53,7 +53,7 @@ protected: // data
 	cosmos::Init m_init;
 	xpp::Init m_xpp;
 	Cmdline m_cmdline;
-	X11 m_x11;
+	WindowSystem m_wsys;
 	Term m_term;
 	TTY m_tty;
 	Selection m_selection;

@@ -1,5 +1,5 @@
-#ifndef NST_X_HXX
-#define NST_X_HXX
+#ifndef NST_WINDOW_SYSTEM_HXX
+#define NST_WINDOW_SYSTEM_HXX
 
 // C++
 #include <string_view>
@@ -24,13 +24,13 @@
 
 namespace nst {
 
-/// This contains central X11 graphics, input and font handling
-class X11 {
+/// This is the central interace towards X11 graphics, input and font handling.
+class WindowSystem {
 	friend class XEventHandler;
 public: // functions
 
-	explicit X11(Nst &nst);
-	~X11();
+	explicit WindowSystem(Nst &nst);
+	~WindowSystem();
 
 	void pasteSelection();
 	void pasteClipboard();

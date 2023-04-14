@@ -15,7 +15,7 @@
 namespace nst {
 
 Nst::Nst() :
-		m_x11{*this},
+		m_wsys{*this},
 		m_term{*this},
 		m_tty{*this},
 		m_selection{*this},
@@ -34,7 +34,7 @@ void Nst::waitForWindowMapping() {
 			continue;
 		else if (ev.isConfigureNotify()) {
 			xpp::ConfigureEvent configure{ev};
-			m_x11.setWinSize(Extent{configure.extent()});
+			m_wsys.setWinSize(Extent{configure.extent()});
 		}
 	} while (!ev.isMapNotify());
 
@@ -48,14 +48,14 @@ void Nst::run(int argc, const char **argv) {
 	::XSetLocaleModifiers("");
 
 	m_cmdline.parse(argc, argv);
-	m_x11.init();
+	m_wsys.init();
 	m_term.init(*this);
 	setEnv();
 	mainLoop();
 }
 
 void Nst::setEnv() {
-	auto win = m_x11.window().id();
+	auto win = m_wsys.window().id();
 	cosmos::proc::set_env_var(
 			"WINDOWID",
 			std::to_string(cosmos::to_integral(win)).c_str(),
@@ -135,8 +135,8 @@ void Nst::mainLoop() {
 			timeout = config::BLINK_TIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINK_TIMEOUT.count()) // start visible
-					m_x11.setBlinking(true);
-				m_x11.switchBlinking();
+					m_wsys.setBlinking(true);
+				m_wsys.switchBlinking();
 				m_term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
 				timeout = config::BLINK_TIMEOUT;
@@ -150,11 +150,11 @@ void Nst::mainLoop() {
 }
 
 void Nst::resizeConsole() {
-	const auto &twin = m_x11.termWin();
+	const auto &twin = m_wsys.termWin();
 	auto tdim = twin.getTermDim();
 
 	m_term.resize(tdim);
-	m_x11.resize(tdim);
+	m_wsys.resize(tdim);
 	m_tty.resize(twin.TTYExtent());
 }
 

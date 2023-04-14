@@ -50,7 +50,7 @@ void CursorState::resetAttrs() {
 Term::Term(Nst &nst) :
 		m_selection{nst.selection()},
 		m_tty{nst.tty()},
-		m_x11{nst.x11()},
+		m_wsys{nst.wsys()},
 		m_allow_altscreen{config::ALLOW_ALTSCREEN},
 		m_esc_handler{nst}
 {}
@@ -61,7 +61,7 @@ void Term::init(const Nst &nst) {
 		m_allow_altscreen = cmdline.use_alt_screen.getValue();
 	}
 
-	resize(m_x11.termWin().getTermDim());
+	resize(m_wsys.termWin().getTermDim());
 	reset();
 }
 
@@ -503,7 +503,7 @@ void Term::drawScreen() const {
 
 		// beware that we need to point past the last valid position,
 		// `range` has inclusive end coordinates!
-		m_x11.drawGlyphs(
+		m_wsys.drawGlyphs(
 				line.begin() + range.begin.x,
 				line.begin() + Range::raw_width(range.width()),
 				CharPos{range.begin.x, y});
@@ -513,7 +513,7 @@ void Term::drawScreen() const {
 }
 
 void Term::draw() {
-	if (!m_x11.canDraw())
+	if (!m_wsys.canDraw())
 		return;
 
 	const auto orig_last_pos = m_last_cursor_pos;
@@ -530,15 +530,15 @@ void Term::draw() {
 		new_pos.moveLeft();
 
 	drawScreen();
-	m_x11.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
-	m_x11.drawCursor(new_pos, m_screen[new_pos]);
+	m_wsys.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
+	m_wsys.drawCursor(new_pos, m_screen[new_pos]);
 
 	const bool cursor_pos_changed = orig_last_pos != new_pos;
 	m_last_cursor_pos = new_pos;
-	m_x11.finishDraw();
+	m_wsys.finishDraw();
 
 	if (cursor_pos_changed)
-		m_x11.setInputSpot(new_pos);
+		m_wsys.setInputSpot(new_pos);
 }
 
 Rune Term::translateChar(Rune u) const {

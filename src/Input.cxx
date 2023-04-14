@@ -118,7 +118,7 @@ void Input::setSpot(const DrawPos dp) {
 	if (!haveContext())
 		return;
 
-	//const auto dp = m_x11.termWin().toDrawPos(chp.nextLine());
+	//const auto dp = m_wsys.termWin().toDrawPos(chp.nextLine());
 
 	m_spot.x = dp.x;
 	m_spot.y = dp.y;

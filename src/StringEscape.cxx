@@ -30,7 +30,7 @@ StringEscape::StringEscape(Nst &nst) :
 void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 	uint8_t r, g, b;
 
-	if (!m_nst.x11().colorManager().toRGB(idx, r, g, b)) {
+	if (!m_nst.wsys().colorManager().toRGB(idx, r, g, b)) {
 		std::cerr << "erresc: failed to fetch osc color " << cosmos::to_integral(idx) << "\n";
 		return;
 	}
@@ -48,19 +48,19 @@ void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 }
 
 void StringEscape::setTitle(const char *s) {
-	auto &x11 = m_nst.x11();
+	auto &wsys = m_nst.wsys();
 	if (s && s[0])
-		x11.setTitle(s);
+		wsys.setTitle(s);
 	else
-		x11.setDefaultTitle();
+		wsys.setDefaultTitle();
 }
 
 void StringEscape::setIconTitle(const char *s) {
-	auto &x11 = m_nst.x11();
+	auto &wsys = m_nst.wsys();
 	if (s && s[0])
-		x11.setIconTitle(s);
+		wsys.setIconTitle(s);
 	else
-		x11.setDefaultIconTitle();
+		wsys.setDefaultIconTitle();
 }
 
 void StringEscape::process() {
@@ -85,7 +85,7 @@ void StringEscape::process() {
 }
 
 bool StringEscape::processOSC() {
-	auto &x11 = m_nst.x11();
+	auto &wsys = m_nst.wsys();
 	const int par = m_args.empty() ? 0 : std::atoi(m_args[0].data());
 	const auto numargs = m_args.size();
 
@@ -99,7 +99,7 @@ bool StringEscape::processOSC() {
 		if (arg == "?")
 			// report current color setting
 			oscColorResponse(idx, code);
-		else if (!x11.colorManager().setColorName(idx, arg.data()))
+		else if (!wsys.colorManager().setColorName(idx, arg.data()))
 			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
 		else
 			m_nst.term().redraw();
@@ -131,8 +131,8 @@ bool StringEscape::processOSC() {
 			if (numargs > 2 && config::ALLOW_WINDOW_OPS) {
 				auto decoded = base64::decode(m_args[2]);
 				if (!decoded.empty()) {
-					x11.selection().setSelection(decoded);
-					x11.copyToClipboard();
+					wsys.selection().setSelection(decoded);
+					wsys.copyToClipboard();
 				} else {
 					std::cerr << "erresc: invalid base64\n";
 				}
@@ -155,7 +155,7 @@ bool StringEscape::processOSC() {
 
 			if (name == "?")
 				oscColorResponse(colindex, SET_COLOR_INDEX);
-			else if (!x11.colorManager().setColorName(colindex, name.data())) {
+			else if (!wsys.colorManager().setColorName(colindex, name.data())) {
 				if (par == RESET_COLOR_INDEX && numargs <= 1)
 					break; // color reset without parameter
 				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";

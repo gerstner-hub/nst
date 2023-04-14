@@ -13,10 +13,10 @@
 
 namespace nst {
 
-class X11;
+class WindowSystem;
 class Nst;
 
-/// This type manages the X11 specific parts of selection/clipboard buffer handling
+/// This type manages the WindowSystem specific parts of selection/clipboard buffer handling
 class XSelection {
 public: // functions
 
@@ -51,7 +51,7 @@ public: // functions
 protected: // data
 
 	Nst &m_nst;
-	X11 &m_x11;
+	WindowSystem &m_wsys;
 	xpp::AtomID m_target_fmt; /// the X11 format used for the selection text
 	cosmos::MonotonicStopWatch m_last_click;
 	cosmos::MonotonicStopWatch m_penultimate_click;

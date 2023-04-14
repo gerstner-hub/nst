@@ -21,7 +21,7 @@ namespace nst {
 
 class Selection;
 class TTY;
-class X11;
+class WindowSystem;
 
 /// Internal representation of the screen.
 /**
@@ -446,7 +446,7 @@ protected: // data
 
 	Selection &m_selection;
 	TTY &m_tty;
-	X11 &m_x11;
+	WindowSystem &m_wsys;
 
 	TermSize m_size;    /// current terminal dimensions
 	ModeBitMask m_mode; /// terminal mode flags

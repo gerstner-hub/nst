@@ -52,7 +52,7 @@ void EscapeHandler::handleControlCode(const RuneInfo &rinfo) {
 		const auto handled = handleCommandTerminator();
 		if (!handled)
 			// otherwise process as a regular bell
-			m_nst.x11().ringBell();
+			m_nst.wsys().ringBell();
 		break;
 	}
 	case '\033': // ESC
@@ -227,7 +227,7 @@ bool EscapeHandler::checkCSISequence(const RuneInfo &rinfo) {
 
 std::optional<EscapeHandler::Escape> EscapeHandler::handleInitialEscape(const char ch) {
 	auto &term = m_nst.term();
-	auto &x11 = m_nst.x11();
+	auto &wsys = m_nst.wsys();
 
 	// for reference see `man 4 console_codes`
 
@@ -277,13 +277,13 @@ std::optional<EscapeHandler::Escape> EscapeHandler::handleInitialEscape(const ch
 		break;
 	case 'c': // RIS -- Reset to initial state
 		term.reset();
-		x11.resetState();
+		wsys.resetState();
 		break;
 	case '=': // DECPAM -- Application keypad
-		x11.setMode(WinMode::APPKEYPAD, true);
+		wsys.setMode(WinMode::APPKEYPAD, true);
 		break;
 	case '>': // DECPNM -- Normal keypad
-		x11.setMode(WinMode::APPKEYPAD, false);
+		wsys.setMode(WinMode::APPKEYPAD, false);
 		break;
 	case '7': // DECSC -- Save Cursor
 		term.cursorControl(CursorState::Control::SAVE);

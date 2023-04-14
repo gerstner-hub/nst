@@ -126,7 +126,7 @@ void CSIEscape::setMode(const bool set) {
 		case 0:  // Error (IGNORED)
 			break;
 		case 2:
-			m_nst.x11().setMode(WinMode::KBDLOCK, set);
+			m_nst.wsys().setMode(WinMode::KBDLOCK, set);
 			break;
 		case 4:  // IRM -- Insertion-replacement
 			term.setInsertMode(set);
@@ -146,16 +146,16 @@ void CSIEscape::setMode(const bool set) {
 
 void CSIEscape::setPrivateMode(const bool set) {
 
-	auto &x11 = m_nst.x11();
+	auto &wsys = m_nst.wsys();
 	auto &term = m_nst.term();
 
 	for (const auto arg: m_args) {
 		switch (arg) {
 		case 1: // DECCKM -- Cursor key
-			x11.setMode(WinMode::APPCURSOR, set);
+			wsys.setMode(WinMode::APPCURSOR, set);
 			break;
 		case 5: // DECSCNM -- Reverse video
-			x11.setMode(WinMode::REVERSE, set);
+			wsys.setMode(WinMode::REVERSE, set);
 			break;
 		case 6: // DECOM -- Origin
 			term.setCursorOriginMode(set);
@@ -174,36 +174,36 @@ void CSIEscape::setPrivateMode(const bool set) {
 		case 12: // att610 -- Start blinking cursor (IGNORED)
 			break;
 		case 25: // DECTCEM -- Text Cursor Enable Mode
-			x11.setMode(WinMode::HIDE_CURSOR, !set);
+			wsys.setMode(WinMode::HIDE_CURSOR, !set);
 			break;
 		case 9:    // X10 mouse compatibility mode
-			x11.setPointerMotion(false);
-			x11.setMode(WinMode::MOUSE, false);
-			x11.setMode(WinMode::MOUSEX10, set);
+			wsys.setPointerMotion(false);
+			wsys.setMode(WinMode::MOUSE, false);
+			wsys.setMode(WinMode::MOUSEX10, set);
 			break;
 		case 1000: // report button press
-			x11.setPointerMotion(false);
-			x11.setMode(WinMode::MOUSE, false);
-			x11.setMode(WinMode::MOUSEBTN, set);
+			wsys.setPointerMotion(false);
+			wsys.setMode(WinMode::MOUSE, false);
+			wsys.setMode(WinMode::MOUSEBTN, set);
 			break;
 		case 1002: // report motion on button press
-			x11.setPointerMotion(false);
-			x11.setMode(WinMode::MOUSE, false);
-			x11.setMode(WinMode::MOUSEMOTION, set);
+			wsys.setPointerMotion(false);
+			wsys.setMode(WinMode::MOUSE, false);
+			wsys.setMode(WinMode::MOUSEMOTION, set);
 			break;
 		case 1003: // enable all mouse motions
-			x11.setPointerMotion(set);
-			x11.setMode(WinMode::MOUSE, false);
-			x11.setMode(WinMode::MOUSEMANY, set);
+			wsys.setPointerMotion(set);
+			wsys.setMode(WinMode::MOUSE, false);
+			wsys.setMode(WinMode::MOUSEMANY, set);
 			break;
 		case 1004: // send focus events to TTY
-			x11.setMode(WinMode::FOCUS, set);
+			wsys.setMode(WinMode::FOCUS, set);
 			break;
 		case 1006: // extended mouse reporting mode
-			x11.setMode(WinMode::MOUSE_SGR, set);
+			wsys.setMode(WinMode::MOUSE_SGR, set);
 			break;
 		case 1034: // signify META key press by setting eight bit on input
-			x11.setMode(WinMode::EIGHT_BIT, set);
+			wsys.setMode(WinMode::EIGHT_BIT, set);
 			break;
 		case 1049: // swap screen & set/restore cursor as xterm
 			/* FALLTHROUGH */
@@ -216,7 +216,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 			term.cursorControl(set ? CursorState::Control::SAVE : CursorState::Control::LOAD);
 			break;
 		case 2004: // bracketed paste mode
-			x11.setMode(WinMode::BRKT_PASTE, set);
+			wsys.setMode(WinMode::BRKT_PASTE, set);
 			break;
 		// Not implemented mouse modes. See below.
 		case 1001: // mouse highlight mode; can hang the terminal by design when implemented.
@@ -420,7 +420,7 @@ void CSIEscape::process() {
 			if (arg0 < 0 || static_cast<unsigned>(arg0) >= static_cast<unsigned>(CursorStyle::END))
 				// cursor style out of range
 				break;
-			m_nst.x11().setCursorStyle(CursorStyle{arg0});
+			m_nst.wsys().setCursorStyle(CursorStyle{arg0});
 			return;
 		default:
 			break;

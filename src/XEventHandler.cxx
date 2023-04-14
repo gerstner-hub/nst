@@ -24,9 +24,9 @@
 #include "atoms.hxx"
 #include "nst_config.hxx"
 #include "nst.hxx"
-#include "x11.hxx"
 #include "XEventHandler.hxx"
 #include "XSelection.hxx"
+#include "WindowSystem.hxx"
 
 namespace nst {
 
@@ -53,8 +53,8 @@ namespace {
 
 XEventHandler::XEventHandler(Nst &nst) :
 		m_nst{nst},
-		m_x11{nst.x11()},
-		m_twin{m_x11.termWin()},
+		m_wsys{nst.wsys()},
+		m_twin{m_wsys.termWin()},
 		m_mouse_shortcuts{config::get_mouse_shortcuts(nst)},
 		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)}
 {}
@@ -239,7 +239,7 @@ void XEventHandler::handleMouseSelection(const EVENT &ev) {
 	if (is_release) {
 		// button was released, only now set the actual X selection
 		auto selection = sel.selection();
-		m_x11.selection().setSelection(selection, ev.time());
+		m_wsys.selection().setSelection(selection, ev.time());
 	}
 }
 
@@ -248,18 +248,18 @@ void XEventHandler::expose() {
 }
 
 void XEventHandler::visibilityChange(const xpp::VisibilityEvent &ev) {
-	m_x11.setVisible(ev.state() != xpp::VisibilityState::FULLY_OBSCURED);
+	m_wsys.setVisible(ev.state() != xpp::VisibilityState::FULLY_OBSCURED);
 }
 
 void XEventHandler::unmap() {
-	m_x11.setVisible(false);
+	m_wsys.setVisible(false);
 }
 
 void XEventHandler::focus(const xpp::FocusChangeEvent &ev) {
 	if (ev.mode() == xpp::NotifyMode::GRAB)
 		return;
 
-	m_x11.focusChange(ev.haveFocus());
+	m_wsys.focusChange(ev.haveFocus());
 }
 
 bool XEventHandler::isMapped(const xpp::KeySymID keysym) const {
@@ -308,7 +308,7 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 	if (tmode[WinMode::KBDLOCK])
 		return;
 
-	const auto ksym = m_x11.m_input.lookupString(ev, m_key_buf);
+	const auto ksym = m_wsys.m_input.lookupString(ev, m_key_buf);
 
 	// 1. shortcuts
 	for (auto &sc: m_kbd_shortcuts) {
@@ -351,8 +351,8 @@ void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
 
 		switch (XEmbed{msg.data().l[1]}) {
 			default: return;
-			case XEmbed::FOCUS_IN:  return m_x11.embeddedFocusChange(true);
-			case XEmbed::FOCUS_OUT: return m_x11.embeddedFocusChange(false);
+			case XEmbed::FOCUS_IN:  return m_wsys.embeddedFocusChange(true);
+			case XEmbed::FOCUS_OUT: return m_wsys.embeddedFocusChange(false);
 		}
 	} else if (msg.type() == xpp::atoms::icccm_wm_protocols && msg.format() == 32) {
 		// we indicated that we support the delete window WM protocol,
@@ -370,7 +370,7 @@ void XEventHandler::resize(const xpp::ConfigureEvent &config) {
 	const Extent new_size{config.extent()};
 
 	if (new_size != m_twin.winExtent()) {
-		m_x11.setWinSize(new_size);
+		m_wsys.setWinSize(new_size);
 		m_nst.resizeConsole();
 	}
 }
@@ -395,7 +395,7 @@ void XEventHandler::selectionNotify(const xpp::SelectionEvent &ev) {
 }
 
 void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
-	auto &win = m_x11.window();
+	auto &win = m_wsys.window();
 	auto &term = m_nst.term();
 	xpp::XWindow::PropertyInfo info;
 	xpp::RawProperty prop{BUFSIZ};
@@ -420,7 +420,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 			 * data has been transferred. We won't need to receive
 			 * PropertyNotify events anymore.
 			 */
-			m_x11.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, false);
+			m_wsys.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, false);
 		}
 
 		if (info.type == atoms::incr) {
@@ -431,7 +431,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 			 * when the selection owner does send us the next
 			 * chunk of data.
 			 */
-			m_x11.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, true);
+			m_wsys.changeEventMask(xpp::EventMask::PROPERTY_CHANGE, true);
 
 			/// Deleting the property is the transfer start signal.
 			win.delProperty(selprop);
@@ -484,7 +484,7 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 	const xpp::AtomID req_prop = req.property() == xpp::AtomID::INVALID ?
 			target : req.property();
 
-	auto &xsel = m_x11.selection();
+	auto &xsel = m_wsys.selection();
 
 	if (target == atoms::targets) {
 		// respond with the supported type.
@@ -534,7 +534,7 @@ void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (handleMouseAction(ev)) {
 		return;
 	} else if (button == xpp::Button::BUTTON1) {
-		const auto snap = m_x11.selection().handleClick();
+		const auto snap = m_wsys.selection().handleClick();
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 		m_nst.selection().start(pos, snap);
 	}

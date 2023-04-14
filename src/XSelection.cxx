@@ -5,12 +5,12 @@
 // nst
 #include "nst.hxx"
 #include "XSelection.hxx"
-#include "x11.hxx"
+#include "WindowSystem.hxx"
 
 namespace nst {
 
 XSelection::XSelection(Nst &nst) :
-		m_nst{nst}, m_x11{nst.x11()}
+		m_nst{nst}, m_wsys{nst.wsys()}
 {}
 
 void XSelection::init() {
@@ -32,7 +32,7 @@ void XSelection::setSelection(const std::string_view str, Time t) {
 	m_primary = str;
 
 	const auto &primary = xpp::atoms::primary_selection;
-	auto &our_window = m_x11.window();
+	auto &our_window = m_wsys.window();
 
 	our_window.makeSelectionOwner(primary, t);
 	if (auto owner = xpp::display.selectionOwner(primary); !owner || *owner != our_window)
@@ -47,7 +47,7 @@ void XSelection::copyPrimaryToClipboard() {
 		return;
 
 	const auto &clipboard = xpp::atoms::clipboard;
-	m_x11.window().makeSelectionOwner(clipboard);
+	m_wsys.window().makeSelectionOwner(clipboard);
 }
 
 const std::string& XSelection::getSelection(const xpp::AtomID which) const {

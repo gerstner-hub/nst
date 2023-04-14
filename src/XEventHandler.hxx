@@ -19,13 +19,13 @@
 namespace nst {
 
 class Nst;
-class X11;
+class WindowSystem;
 struct TermWindow;
 
 /// Implementation of XEvent callback handlers
 /**
  * This class reacts to X11 events related to the input system, the windowing
- * system etc. As a result of this a close interaction with the X11 type
+ * system etc. As a result of this a close interaction with the WindowSystem type
  * is necessary.
  **/
 class XEventHandler {
@@ -105,7 +105,7 @@ protected: // functions
 protected: // data
 
 	Nst &m_nst;
-	X11 &m_x11;
+	WindowSystem &m_wsys;
 	const TermWindow &m_twin;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;

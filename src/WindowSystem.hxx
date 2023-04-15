@@ -55,7 +55,10 @@ public: // functions
 
 	/// Report the current input (cursor) location to XInput.
 	void setInputSpot(const CharPos pos) {
-		m_input.setSpot(m_twin.toDrawPos(pos));
+		// it seems the input spot should be set at the bottom of the
+		// cursor, so jump to the next line coordinate (see original
+		// xximpot() in ST).
+		m_input.setSpot(m_twin.toDrawPos(pos.nextLine()));
 	}
 
 	/// reset colors and titles to the initial state

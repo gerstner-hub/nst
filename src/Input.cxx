@@ -59,6 +59,7 @@ bool Input::open() {
 
 	if (!m_ctx) {
 		std::cerr << "XCreateIC: Could not create input context.\n";
+		return false;
 	}
 
 	return true;
@@ -68,8 +69,8 @@ void Input::installCallback() {
 	/*
 	 * NOTE: it's unclear in which context exactly these callbacks are
 	 * invoked. The documentation is sparse on this. I believe it doesn't
-	 * happend in a multithreaded way, which would be problematic for the
-	 * current code without synchronization primitves.
+	 * happen in a multithreaded way, which would be problematic for the
+	 * current code without synchronization primitives.
 	 *
 	 * Instead it looks like XNextEvent(), XFilterEvent() are the drivers
 	 * for this, which is good, because no multithreading is involved.
@@ -118,8 +119,6 @@ void Input::setSpot(const DrawPos dp) {
 	if (!haveContext())
 		return;
 
-	//const auto dp = m_wsys.termWin().toDrawPos(chp.nextLine());
-
 	m_spot.x = dp.x;
 	m_spot.y = dp.y;
 
@@ -144,6 +143,8 @@ xpp::KeySymID Input::lookupString(const xpp::KeyEvent &ev, std::string &s) {
 	int len;
 	KeySym sym;
 
+	// These calls don't seem to modify the event, they just miss a const
+	// modifier, so const_cast it.
 	auto raw = const_cast<XKeyEvent*>(&ev.raw());
 
 	s.resize(64);

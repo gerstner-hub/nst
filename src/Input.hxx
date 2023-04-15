@@ -18,15 +18,16 @@ namespace nst {
 
 /// X11 Input Method Handling.
 struct Input {
+	Input(const Input &) = delete;
+	Input& operator=(const Input&) = delete;
 public: // functions
 
 	explicit Input(xpp::XWindow &win) :
 		m_win{win}
 	{}
-	Input(const Input &) = delete;
-	Input& operator=(const Input&) = delete;
+
 	~Input();
-	void close();
+
 	bool open();
 	/// Tries to open an input method or installs a callback handler otherwise.
 	void tryOpen() {
@@ -35,9 +36,13 @@ public: // functions
 		}
 	}
 
+	void close();
+
 	void setSpot(const DrawPos dp);
+
 	void setFocus();
 	void unsetFocus();
+
 	/// Looks up a KeySym and string representation of the given event.
 	xpp::KeySymID lookupString(const xpp::KeyEvent &ev, std::string &s);
 

@@ -387,6 +387,11 @@ public: // data
 	AppCursor appcursor{AppCursor::IGNORE};
 };
 
+/// Different cursor styles that can be configured.
+/**
+ * \note The blinking styles are not yet implemented properly, they don't
+ * actually blink.
+ **/
 enum class CursorStyle {
 	BLINKING_BLOCK = 0,
 	BLINKING_BLOCK_DEFAULT,

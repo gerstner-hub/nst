@@ -4,6 +4,7 @@
 // C++
 #include <optional>
 #include <string_view>
+#include <vector>
 
 // X11
 #include <X11/Xft/Xft.h>
@@ -154,6 +155,17 @@ protected: // data
 	const FontFlags m_flags;
 };
 
+/// Simple wrapper over the Xft GlyphFontSpec struct
+struct GlyphFontSpec :
+		public XftGlyphFontSpec {
+	void setPos(const DrawPos pos) {
+		this->x = static_cast<short>(pos.x);
+		this->y = static_cast<short>(pos.y);
+	}
+};
+
+using GlyphFontSpecVector = std::vector<GlyphFontSpec>;
+
 /// Manages loading, changing and properties of fonts.
 class FontManager {
 public: // functions
@@ -175,7 +187,7 @@ public: // functions
 	/// Drops Glyph attributes in case no proper font is available for them.
 	void sanitize(Glyph &g) const;
 
-	void assignFont(const Rune rune, Font &font, XftGlyphFontSpec &spec);
+	void assignFont(const Rune rune, Font &font, GlyphFontSpec &spec);
 
 	auto& normalFont() { return m_normal_font; }
 	auto ascent() { return normalFont().ascent(); }
@@ -223,6 +235,9 @@ public: // functions
 
 	/// Draw a rectangular font area using a starting point and extent.
 	void drawRect(const FontColor &color, const DrawPos start, const Extent ext);
+
+	/// Draw a range of GlyphFontSpec entries from a vector.
+	void drawSpecs(const FontColor &color, GlyphFontSpecVector::iterator start, GlyphFontSpecVector::iterator end);
 
 	void setClipRectangle(const DrawPos pos, const Extent ext);
 

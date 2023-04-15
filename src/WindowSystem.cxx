@@ -29,7 +29,7 @@ WindowSystem::WindowSystem(Nst &nst) :
 		m_cmdline{nst.cmdline()},
 		m_input{m_window},
 		m_color_manager{m_twin},
-		m_xsel{nst},
+		m_selection{nst},
 		m_display{xpp::display} {
 	setCursorStyle(config::CURSORSHAPE);
 }
@@ -40,8 +40,9 @@ WindowSystem::~WindowSystem() {
 	m_graphics_context.destroy();
 }
 
-void WindowSystem::createGraphicsContext(xpp::XWindow &parent) {
+void WindowSystem::createGraphicsContext(const xpp::XWindow &parent) {
 	XGCValues gcvalues = {};
+	// we don't want to receive exposure events for the context
 	gcvalues.graphics_exposures = False;
 	m_graphics_context = xpp::GraphicsContext{
 		xpp::to_drawable(parent),
@@ -51,18 +52,18 @@ void WindowSystem::createGraphicsContext(xpp::XWindow &parent) {
 }
 
 void WindowSystem::copyToClipboard() {
-	m_xsel.copyPrimaryToClipboard();
+	m_selection.copyPrimaryToClipboard();
 }
 
 void WindowSystem::pasteClipboard() {
-	const auto &clipboard = xpp::atoms::clipboard;
+	const auto clipboard = xpp::atoms::clipboard;
 
-	m_window.convertSelection(clipboard, m_xsel.targetFormat(), clipboard);
+	m_window.convertSelection(clipboard, m_selection.targetFormat(), clipboard);
 }
 
 void WindowSystem::pasteSelection() {
-	const auto &primary = xpp::atoms::primary_selection;
-	m_window.convertSelection(primary, m_xsel.targetFormat(), primary);
+	const auto primary = xpp::atoms::primary_selection;
+	m_window.convertSelection(primary, m_selection.targetFormat(), primary);
 }
 
 void WindowSystem::toggleNumlock() {
@@ -95,7 +96,7 @@ void WindowSystem::resize(const TermSize dim) {
 }
 
 void WindowSystem::clearWindow() {
-	const auto &win = m_twin.winExtent();
+	const auto win = m_twin.winExtent();
 	clearRect(DrawPos{0,0}, DrawPos{win.width, win.height});
 }
 
@@ -119,7 +120,7 @@ void WindowSystem::setupWinAttrs() {
 	m_win_attrs.setColormap(xpp::colormap);
 }
 
-void WindowSystem::setupWindow(xpp::XWindow &parent) {
+void WindowSystem::setupWindow(const xpp::XWindow &parent) {
 	using WinAttr = xpp::WindowAttr;
 
 	m_window = m_display.createWindow(
@@ -145,8 +146,7 @@ void WindowSystem::setupWindow(xpp::XWindow &parent) {
 	};
 	m_window.setClassHints(winclass);
 
-	m_window.setProtocols(
-			xpp::AtomIDVector{xpp::atoms::icccm_wm_delete_window});
+	m_window.setProtocols(xpp::AtomIDVector{xpp::atoms::icccm_wm_delete_window});
 
 	static_assert(sizeof(cosmos::ProcessID) == 4, "NET_WM_PID requires a 32-bit pid type");
 	xpp::Property<int> pid_prop(
@@ -227,12 +227,12 @@ xpp::XWindow WindowSystem::parent() const {
 	xpp::XWindow ret;
 
 	if (m_cmdline.embed_window.isSet()) {
-		// use window ID passed on command line as parent
+		// use window ID passed on command line as parent.
 		ret = xpp::XWindow(xpp::WinID{m_cmdline.embed_window.getValue()});
 	}
 
 	if (!ret.valid()) {
-		// either not embedded or the command line parsing failed
+		// either not embedded or the parsing failed, use the root window.
 		ret = xpp::RootWin{m_display, xpp::screen};
 	}
 
@@ -254,7 +254,7 @@ void WindowSystem::init() {
 
 	TermSize tsize{config::COLS, config::ROWS};
 
-	/* adjust fixed window geometry */
+	// adjust fixed window geometry
 	if (m_cmdline.window_geometry.isSet()) {
 		setGeometry(m_cmdline.window_geometry.getValue(), tsize);
 	} else {
@@ -263,7 +263,7 @@ void WindowSystem::init() {
 
 	setupWinAttrs();
 
-	auto parent = this->parent();
+	const auto parent = this->parent();
 	const auto win = m_twin.winExtent();
 
 	m_win_geometry.width = win.width;
@@ -280,21 +280,21 @@ void WindowSystem::init() {
 	m_display.mapWindow(m_window);
 	m_display.sync();
 
-	m_xsel.init();
+	m_selection.init();
 
 	if (m_cmdline.useXSync()) {
 		m_display.setSynchronized(true);
 	}
 }
 
-void WindowSystem::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos ch_pos) {
+void WindowSystem::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos char_pos) {
 	const auto chr = m_twin.chrExtent();
-	const auto start_pos = m_twin.toDrawPos(ch_pos);
-	Glyph::AttrBitMask prevmode{Glyph::AttrBitMask::all};
+	const auto start_pos = m_twin.toDrawPos(char_pos);
+	Glyph::AttrBitMask prev_mode{Glyph::AttrBitMask::all};
 	DrawPos cur_pos{start_pos};
 	Font *font = nullptr;
 	int runewidth = 0;
-	XftGlyphFontSpec spec;
+	GlyphFontSpec spec;
 
 	m_font_specs.clear();
 
@@ -306,16 +306,15 @@ void WindowSystem::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, c
 			continue;
 
 		// Determine font for glyph if different from previous glyph.
-		if (const auto mode = glyph.mode; prevmode != mode) {
-			prevmode = mode;
+		if (const auto mode = glyph.mode; prev_mode != mode) {
+			prev_mode = mode;
 			font = m_font_manager.fontForMode(mode);
 			runewidth = chr.width * glyph.width();
 			cur_pos.y = start_pos.y + font->ascent();
 		}
 
 		m_font_manager.assignFont(glyph.u, *font, spec);
-		spec.x = static_cast<short>(cur_pos.x);
-		spec.y = static_cast<short>(cur_pos.y);
+		spec.setPos(cur_pos);
 
 		m_font_specs.emplace_back(spec);
 		cur_pos.moveRight(runewidth);
@@ -324,59 +323,12 @@ void WindowSystem::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, c
 	m_next_font_spec = m_font_specs.begin();
 }
 
-void WindowSystem::cleanupWindowBorders(int textwidth, const CharPos ch_pos, const DrawPos draw_pos) {
-	constexpr auto BORDERPX = config::BORDERPX;
-	const auto chr = m_twin.chrExtent();
-	const auto tty = m_twin.TTYExtent();
-	const auto win = m_twin.winExtent();
-	const bool reaches_bottom_border =
-		draw_pos.y + chr.height >= BORDERPX + tty.height;
-
-	// left border
-	if (ch_pos.x == 0) {
-		const auto pos1 = DrawPos{0, ch_pos.y ? draw_pos.y : 0};
-		const auto pos2 = DrawPos{
-			BORDERPX,
-			ch_pos.y + chr.height + (reaches_bottom_border ? win.height : 0)
-		};
-		clearRect(pos1, pos2);
-	}
-
-	// right border
-	if (draw_pos.x + textwidth >= BORDERPX + tty.width) {
-		const auto pos1 = DrawPos{
-			draw_pos.x + textwidth,
-			ch_pos.y ? draw_pos.y : 0};
-		const auto pos2 = DrawPos{
-			win.width,
-			reaches_bottom_border ? win.height : draw_pos.y + chr.height
-		};
-		clearRect(pos1, pos2);
-	}
-
-	// top border
-	if (ch_pos.y == 0) {
-		clearRect(
-				DrawPos{draw_pos.x, 0},
-				DrawPos{draw_pos.x + textwidth, BORDERPX});
-	}
-
-	// bottom border
-	if (draw_pos.y + chr.height >= BORDERPX + tty.height) {
-		clearRect(
-				DrawPos{draw_pos.x, draw_pos.y + chr.height},
-				DrawPos{draw_pos.x + textwidth, win.height});
-	}
-}
-
-void WindowSystem::drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos ch_pos) {
-
-	const auto pos = m_twin.toDrawPos(ch_pos);
+void WindowSystem::drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos char_pos) {
+	const auto pos = m_twin.toDrawPos(char_pos);
 	const auto chr = m_twin.chrExtent();
 	const int textwidth = count * base.width() * chr.width;
 
-	// Intelligent cleaning up of the borders.
-	cleanupWindowBorders(textwidth, ch_pos, pos);
+	cleanupWindowBorders(textwidth, char_pos, pos);
 
 	m_font_manager.sanitize(base);
 	m_color_manager.configureFor(base);
@@ -390,7 +342,7 @@ void WindowSystem::drawGlyphFontSpecs(Glyph base, const size_t count, const Char
 	const auto &front_color = m_color_manager.frontColor();
 
 	// Render the glyphs.
-	::XftDrawGlyphFontSpec(m_font_draw_ctx.raw(), &front_color, &(*m_next_font_spec), count);
+	m_font_draw_ctx.drawSpecs(front_color, m_next_font_spec, m_next_font_spec + count);
 
 	// Render underline and strikethrough.
 	if (base.isUnderlined()) {
@@ -401,13 +353,12 @@ void WindowSystem::drawGlyphFontSpecs(Glyph base, const size_t count, const Char
 		m_font_draw_ctx.drawRect(front_color, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
 	}
 
-	// Reset clip to none.
 	m_font_draw_ctx.resetClip();
 
 	m_next_font_spec += count;
 }
 
-void WindowSystem::drawGlyph(Glyph g, const CharPos pos) {
+void WindowSystem::drawGlyph(const Glyph g, const CharPos pos) {
 	makeGlyphFontSpecs(&g, 1, pos);
 	drawGlyphFontSpecs(g, 1, pos);
 }
@@ -432,6 +383,8 @@ void WindowSystem::drawGlyphs(Line::const_iterator it, const Line::const_iterato
 			Glyph glyph;
 			it < end && num_specs < specs_left;
 			++it, cur_pos.moveRight()) {
+		// we need to copy, because of the possible mode
+		// flip below
 		glyph = *it;
 
 		if (glyph.isDummy()) {
@@ -458,24 +411,72 @@ void WindowSystem::drawGlyphs(Line::const_iterator it, const Line::const_iterato
 	}
 }
 
+void WindowSystem::cleanupWindowBorders(const int textwidth, const CharPos char_pos, const DrawPos draw_pos) {
+	constexpr auto BORDERPX = config::BORDERPX;
+	const auto chr = m_twin.chrExtent();
+	const auto tty = m_twin.TTYExtent();
+	const auto win = m_twin.winExtent();
+	const bool reaches_bottom_border = draw_pos.y + chr.height >= BORDERPX + tty.height;
+
+	// NOTE: it is not fully clear why the window borders should get dirty
+	// in the first place.
+
+	// left border
+	if (char_pos.x == 0) {
+		const auto pos1 = DrawPos{0, char_pos.y ? draw_pos.y : 0};
+		const auto pos2 = DrawPos{
+			BORDERPX,
+			char_pos.y + chr.height + (reaches_bottom_border ? win.height : 0)
+		};
+		clearRect(pos1, pos2);
+	}
+
+	// right border
+	if (draw_pos.x + textwidth >= BORDERPX + tty.width) {
+		const auto pos1 = DrawPos{
+			draw_pos.x + textwidth,
+			char_pos.y ? draw_pos.y : 0};
+		const auto pos2 = DrawPos{
+			win.width,
+			reaches_bottom_border ? win.height : draw_pos.y + chr.height
+		};
+		clearRect(pos1, pos2);
+	}
+
+	// top border
+	if (char_pos.y == 0) {
+		clearRect(
+				DrawPos{draw_pos.x, 0},
+				DrawPos{draw_pos.x + textwidth, BORDERPX});
+	}
+
+	// bottom border
+	if (draw_pos.y + chr.height >= BORDERPX + tty.height) {
+		clearRect(
+				DrawPos{draw_pos.x, draw_pos.y + chr.height},
+				DrawPos{draw_pos.x + textwidth, win.height});
+	}
+}
+
 void WindowSystem::setupCursor() {
-	xpp::XCursor cursor{config::MOUSE_SHAPE};
 
-	xpp::XColor fg, bg;
-
-	auto parseColor = [this](ColorIndex idx, xpp::XColor &out, const unsigned short fallback) {
+	auto parseColor = [this](const ColorIndex idx, const unsigned short fallback) {
+		xpp::XColor ret;
 		auto name = get_color_name(idx);
 		try {
-			m_display.parseColor(out, name);
+			m_display.parseColor(ret, name);
 		} catch (const cosmos::CosmosError &) {
-			out.setAll(fallback);
+			ret.setAll(fallback);
 		}
+
+		return ret;
 	};
 
 	// white cursor, black outline
-	parseColor(config::MOUSE_FG, fg, 0xFFFF);
-	parseColor(config::MOUSE_BG, bg, 0x0000);
+	const auto fg = parseColor(config::MOUSE_FG, 0xFFFF);
+	const auto bg = parseColor(config::MOUSE_BG, 0x0000);
 
+	xpp::XCursor cursor{config::MOUSE_SHAPE};
 	cursor.recolorCursor(fg, bg);
 	m_window.defineCursor(cursor);
 }
@@ -488,17 +489,18 @@ void WindowSystem::clearCursor(const CharPos pos, Glyph glyph) {
 
 void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 
-	if (m_twin.hideCursor())
-		return;
-
 	auto &color = m_color_manager.cursorColor(m_nst.selection().isSelected(pos), glyph);
 	const auto chr = m_twin.chrExtent();
 	constexpr auto CURSOR_THICKNESS = config::CURSOR_THICKNESS;
 
-	// draw the new one
-	if (m_twin.isFocused()) {
+	if (m_twin.hideCursor())
+		return;
+	else if (m_twin.isFocused()) {
 		switch (m_twin.getCursorStyle()) {
 			case CursorStyle::SNOWMAN: // st extension
+				// NOTE: this means when moving the cursor
+				// over existing text, that the text will no
+				// longer be visible.
 				glyph.u = 0x2603; // snowman (U+2603)
 			/* FALLTHROUGH */
 			case CursorStyle::BLINKING_BLOCK:
@@ -519,7 +521,7 @@ void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 				m_font_draw_ctx.drawRect(color, dpos, Extent{CURSOR_THICKNESS, chr.height});
 				break;
 			}
-			default:
+			default: // unknown cursor style
 				break;
 		}
 	} else {
@@ -561,9 +563,10 @@ void WindowSystem::setTitle(const std::string_view title) {
 }
 
 void WindowSystem::finishDraw() {
-	auto extent = m_twin.winExtent();
-	m_window.copyArea(m_graphics_context, m_pixmap, extent);
+	const auto extent = m_twin.winExtent();
 	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor());
+
+	m_window.copyArea(m_graphics_context, m_pixmap, extent);
 	m_graphics_context.setForeground(color.index());
 }
 
@@ -575,7 +578,7 @@ void WindowSystem::changeEventMask(const xpp::EventMask event, bool on_off) {
 void WindowSystem::setMode(const WinMode flag, const bool set) {
 	const auto prevmode = m_twin.mode();
 	m_twin.setFlag(flag, set);
-	if (m_twin.checkFlag(WinMode::REVERSE) != prevmode[WinMode::REVERSE])
+	if (m_twin.mode()[WinMode::REVERSE] != prevmode[WinMode::REVERSE])
 		m_nst.term().redraw();
 }
 
@@ -584,9 +587,9 @@ void WindowSystem::setCursorStyle(const CursorStyle cursor) {
 }
 
 void WindowSystem::setUrgency(const bool have_urgency) {
-	// should never be nullptr, since we've set hints initially
 	auto hints = m_window.getWMHints();
 
+	// should never be nullptr, since we've set hints initially
 	if (!hints)
 		return;
 

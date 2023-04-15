@@ -365,7 +365,7 @@ Font* FontManager::fontForMode(const Glyph::AttrBitMask mode) {
 	}
 }
 
-void FontManager::assignFont(const Rune rune, Font &font, XftGlyphFontSpec &spec) {
+void FontManager::assignFont(const Rune rune, Font &font, GlyphFontSpec &spec) {
 	auto [xftfont, glyphidx] = lookupFontEntry(rune, font);
 	spec.font = xftfont;
 	spec.glyph = glyphidx;
@@ -437,6 +437,11 @@ void FontDrawContext::setup(xpp::XDisplay &disp, xpp::Pixmap &pixmap) {
 
 void FontDrawContext::drawRect(const FontColor &color, const DrawPos start, const Extent ext) {
 	::XftDrawRect(m_ctx, &color, start.x, start.y, ext.width, ext.height);
+}
+
+void FontDrawContext::drawSpecs(
+		const FontColor &color, GlyphFontSpecVector::iterator start, GlyphFontSpecVector::iterator end) {
+	::XftDrawGlyphFontSpec(m_ctx, &color, &(*start), end - start);
 }
 
 void FontDrawContext::setClipRectangle(const DrawPos pos, const Extent ext) {

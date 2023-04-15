@@ -459,7 +459,7 @@ void Term::dumpLine(const CharPos pos) const {
 	const auto line = m_screen.line(pos);
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
-		utf8::encode(it->u, enc_rune);
+		utf8::encode(it->rune, enc_rune);
 		m_tty.printToIoFile(enc_rune);
 	}
 	m_tty.printToIoFile("\n");
@@ -541,7 +541,7 @@ void Term::draw() {
 		m_wsys.setInputSpot(new_pos);
 }
 
-Rune Term::translateChar(Rune u) const {
+Rune Term::translateChar(Rune rune) const {
 	// GRAPHIC0 translation table for VT100 "special graphics mode"
 	// 
 	// The table is proudly stolen from rxvt.
@@ -567,38 +567,38 @@ Rune Term::translateChar(Rune u) const {
 		// nothing to do or not implemented
 		default: break;
 		case Charset::GRAPHIC0:
-			 if (cosmos::in_range(u, VT100_GR_START, VT100_GR_END)) {
-				 const auto TRANS_CHAR = VT100_0[u - VT100_GR_START];
+			 if (cosmos::in_range(rune, VT100_GR_START, VT100_GR_END)) {
+				 const auto TRANS_CHAR = VT100_0[rune - VT100_GR_START];
 
 				 if (!TRANS_CHAR.empty()) {
-					utf8::decode(TRANS_CHAR, u);
+					utf8::decode(TRANS_CHAR, rune);
 				 }
 			 }
 			 break;
 	}
 
-	return u;
+	return rune;
 }
 
-void Term::setChar(const Rune u, const CharPos pos) {
+void Term::setChar(const Rune rune, const CharPos pos) {
 	auto &glyph = m_screen[pos];
 
 	// if we replace a WIDE/DUMMY position then correct the sibbling position
 	if (glyph.isWide()) {
 		if (!isAtEndOfLine(pos)) {
 			auto &next_glyph = m_screen[pos.nextCol()];
-			next_glyph.u = ' ';
+			next_glyph.rune = ' ';
 			next_glyph.resetDummy();
 		}
 	} else if (glyph.isDummy()) {
 		auto &prev_glyph = m_screen[pos.prevCol()];
-		prev_glyph.u = ' ';
+		prev_glyph.rune = ' ';
 		prev_glyph.resetWide();
 	}
 
 	m_screen[pos.y].setDirty(true);
 	glyph = m_cursor.attrs();
-	glyph.u = translateChar(u);
+	glyph.rune = translateChar(rune);
 }
 
 void Term::runDECTest() {
@@ -677,7 +677,7 @@ void Term::putChar(const Rune rune) {
 			// up the dummy follow-up
 			if (next.isWide() && left_chars > 2) {
 				auto &after_next = gp[2];
-				after_next.u = ' ';
+				after_next.rune = ' ';
 				after_next.resetDummy();
 			}
 
@@ -693,34 +693,34 @@ void Term::putChar(const Rune rune) {
 }
 
 size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
-	Rune u;
+	Rune rune;
 	size_t charsize = 0;
 	const bool use_utf8 = m_mode[Mode::UTF8];
 
 	for (size_t pos = 0; pos < data.size(); pos += charsize) {
 		if (use_utf8) {
 			// process a complete utf8 char
-			charsize = utf8::decode(data.substr(pos), u);
+			charsize = utf8::decode(data.substr(pos), rune);
 			if (charsize == 0)
 				return pos;
 		} else {
-			u = data[pos] & 0xFF;
+			rune = data[pos] & 0xFF;
 			charsize = 1;
 		}
 
-		if (show_ctrl && RuneInfo::isControlChar(u)) {
+		if (show_ctrl && RuneInfo::isControlChar(rune)) {
 			// add symbolic annotation for control chars
-			if (u & 0x80) {
-				u &= 0x7f;
+			if (rune & 0x80) {
+				rune &= 0x7f;
 				putChar('^');
 				putChar('[');
-			} else if (!cosmos::in_list(static_cast<char>(u), {'\n', '\r', '\t'})) {
-				u ^= 0x40;
+			} else if (!cosmos::in_list(static_cast<char>(rune), {'\n', '\r', '\t'})) {
+				rune ^= 0x40;
 				putChar('^');
 			}
 		}
 
-		putChar(u);
+		putChar(rune);
 	}
 
 	return data.size();

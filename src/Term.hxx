@@ -402,9 +402,9 @@ protected: // functions
 	}
 
 	/// Place the given Rune at the given terminal position.
-	void setChar(const Rune u, const CharPos pos);
+	void setChar(const Rune rune, const CharPos pos);
 	/// Checks whether the given input Rune needs to be translated and does so if necessary.
-	Rune translateChar(Rune u) const;
+	Rune translateChar(Rune rune) const;
 
 	bool isCursorAtBottom() const;
 	bool isCursorAtTop() const;

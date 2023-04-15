@@ -313,7 +313,7 @@ void WindowSystem::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, c
 			cur_pos.y = start_pos.y + font->ascent();
 		}
 
-		m_font_manager.assignFont(glyph.u, *font, spec);
+		m_font_manager.assignFont(glyph.rune, *font, spec);
 		spec.setPos(cur_pos);
 
 		m_font_specs.emplace_back(spec);
@@ -501,7 +501,7 @@ void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 				// NOTE: this means when moving the cursor
 				// over existing text, that the text will no
 				// longer be visible.
-				glyph.u = 0x2603; // snowman (U+2603)
+				glyph.rune = 0x2603; // snowman (U+2603)
 			/* FALLTHROUGH */
 			case CursorStyle::BLINKING_BLOCK:
 			case CursorStyle::BLINKING_BLOCK_DEFAULT:

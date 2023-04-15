@@ -36,7 +36,7 @@ public: // types
 
 public: // data
 
-	Rune u = 0;       /// character code
+	Rune rune = 0;    /// character code
 	AttrBitMask mode; /// attribute flags
 	ColorIndex fg = ColorIndex::INVALID; /// foreground color
 	ColorIndex bg = ColorIndex::INVALID; /// background color
@@ -69,21 +69,21 @@ public: // functions
 		fg = templ.fg;
 		bg = templ.bg;
 		mode.reset();
-		u = ' ';
+		rune = ' ';
 	}
 
 	bool isSameRune(const Glyph &other) const {
-		return u == other.u;
+		return rune == other.rune;
 	}
 
 	/// Replace all attributes by WDUMMY, reset rune
 	void makeDummy() {
 		mode = AttrBitMask{Attr::WDUMMY};
-		u = '\0';
+		rune = '\0';
 	}
 
 	/// returns whether the Glyph is "empty", currently meaning "space"
-	bool isEmpty()      const { return u == ' '; }
+	bool isEmpty()      const { return rune == ' '; }
 	bool hasValue()     const { return !isEmpty(); }
 	bool isDummy()      const { return mode[Attr::WDUMMY]; }
 	bool isWide()       const { return mode[Attr::WIDE]; }

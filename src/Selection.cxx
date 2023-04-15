@@ -21,7 +21,7 @@ Selection::Selection(Nst &nst) :
 
 bool Selection::isDelimiter(const Glyph &g) const {
 	auto &DELIMITERS = config::WORD_DELIMITERS;
-	return g.u && DELIMITERS.find_first_of(g.u) != DELIMITERS.npos;
+	return g.rune && DELIMITERS.find_first_of(g.rune) != DELIMITERS.npos;
 }
 
 void Selection::clear() {
@@ -302,7 +302,7 @@ std::string Selection::selection() const {
 			if (gp->isDummy())
 				continue;
 
-			utf8::encode(gp->u, ret);
+			utf8::encode(gp->rune, ret);
 		}
 
 		// Copy and pasting of line endings is inconsistent in the

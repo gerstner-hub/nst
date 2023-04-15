@@ -50,8 +50,8 @@ constexpr Rune UTF_INVALID = 0xFFFD;
 // encodes a single UTF-8 byte for an encoding byte sequence
 // \c u should contain six bits of data for which == TRAILING_BYTE or the
 // available number of bits depending on the leader byte for which > 0.
-char encodebyte(const Rune u, const size_t which) {
-	return UTF_BYTE[which] | (u & ~UTF_MASK[which]);
+char encodebyte(const Rune rune, const size_t which) {
+	return UTF_BYTE[which] | (rune & ~UTF_MASK[which]);
 }
 
 /// Decodes a single byte of a UTF8 byte sequence.
@@ -97,8 +97,8 @@ size_t calc_bytes(const Rune r) {
 
 } // end anon ns
 
-size_t decode(const std::string_view encoded, Rune &u) {
-	u = UTF_INVALID;
+size_t decode(const std::string_view encoded, Rune &rune) {
+	rune = UTF_INVALID;
 	if (encoded.empty())
 		return 0;
 	size_t numbytes;
@@ -125,31 +125,31 @@ size_t decode(const std::string_view encoded, Rune &u) {
 		// incomplete sequence we return 0?
 		return 0;
 
-	u = decoded;
-	validate(u, numbytes);
+	rune = decoded;
+	validate(rune, numbytes);
 
 	return numbytes;
 }
 
-size_t encode(Rune u, char out[UTF_SIZE]) {
-	const size_t num_bytes = calc_bytes(u);
+size_t encode(Rune rune, char out[UTF_SIZE]) {
+	const size_t num_bytes = calc_bytes(rune);
 	if (!num_bytes)
 		return 0;
 
 	for (size_t byte = num_bytes - 1; byte != 0; byte--) {
-		out[byte] = encodebyte(u, TRAILING_BYTE);
+		out[byte] = encodebyte(rune, TRAILING_BYTE);
 		// each trailing byte can encode 6 bits
-		u >>= 6;
+		rune >>= 6;
 	}
 
 	// only now encode the leader byte at the beginning
-	out[0] = encodebyte(u, num_bytes);
+	out[0] = encodebyte(rune, num_bytes);
 
 	return num_bytes;
 }
 
-void encode(Rune u, std::string &s) {
-	const size_t num_bytes = calc_bytes(u);
+void encode(Rune rune, std::string &s) {
+	const size_t num_bytes = calc_bytes(rune);
 	if (!num_bytes) {
 		return;
 	}
@@ -161,11 +161,11 @@ void encode(Rune u, std::string &s) {
 	auto out = s.data() + oldlen;
 
 	for (size_t byte = num_bytes - 1; byte != 0; byte--) {
-		out[byte] = encodebyte(u, 0);
-		u >>= 6;
+		out[byte] = encodebyte(rune, 0);
+		rune >>= 6;
 	}
 
-	out[0] = encodebyte(u, num_bytes);
+	out[0] = encodebyte(rune, num_bytes);
 }
 
 } // end ns utf8

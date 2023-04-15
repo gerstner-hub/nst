@@ -36,9 +36,9 @@ namespace utf8 {
 	/**
 	 * \return the number of bytes placed in \c out
 	 **/
-	size_t encode(Rune u, char out[UTF_SIZE]);
+	size_t encode(Rune rune, char out[UTF_SIZE]);
 	/// Encodes the given rune into utf8 and appends the result in \c s
-	void encode(Rune u, std::string &s);
+	void encode(Rune rune, std::string &s);
 
 } // end utf8
 

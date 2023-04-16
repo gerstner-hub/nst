@@ -346,11 +346,11 @@ void WindowSystem::drawGlyphFontSpecs(Glyph base, const size_t count, const Char
 
 	// Render underline and strikethrough.
 	if (base.isUnderlined()) {
-		m_font_draw_ctx.drawRect(front_color, pos.atBelow(m_font_manager.ascent() + 1), Extent{textwidth, 1});
+		m_font_draw_ctx.drawRect(front_color, pos.atBelow(m_font_manager.ascent() * config::CH_SCALE + 1), Extent{textwidth, 1});
 	}
 
 	if (base.isStruck()) {
-		m_font_draw_ctx.drawRect(front_color, pos.atBelow(2 * m_font_manager.ascent() / 3), Extent{textwidth, 1});
+		m_font_draw_ctx.drawRect(front_color, pos.atBelow(2 * m_font_manager.ascent() * config::CH_SCALE / 3), Extent{textwidth, 1});
 	}
 
 	m_font_draw_ctx.resetClip();

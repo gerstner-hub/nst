@@ -12,6 +12,7 @@
 
 // cosmos
 #include "cosmos/formatting.hxx"
+#include "cosmos/string.hxx"
 
 namespace nst {
 
@@ -204,7 +205,7 @@ void StringEscape::dump(const std::string_view prefix) const {
 		if (c == '\0') {
 			std::cerr << '\n';
 			return;
-		} else if (std::isprint(static_cast<unsigned char>(c))) {
+		} else if (cosmos::printable(c)) {
 			std::cerr << (char)c;
 		} else if (c == '\n') {
 			std::cerr << "(\\n)";

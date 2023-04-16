@@ -4,6 +4,7 @@
 
 // cosmos
 #include "cosmos/formatting.hxx"
+#include "cosmos/string.hxx"
 
 // nst
 #include "CSIEscape.hxx"
@@ -99,7 +100,7 @@ void CSIEscape::dump(const std::string_view prefix) const {
 	};
 
 	for (auto c: m_str) {
-		if (std::isprint(static_cast<unsigned char>(c))) {
+		if (cosmos::printable(c)) {
 			std::cerr << c;
 		} else {
 			std::cerr << "(" << get_repr(c) << ")";

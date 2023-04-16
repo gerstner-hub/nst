@@ -1,11 +1,9 @@
 // C
 #include <wchar.h>
 
-// C++
-#include <cctype>
-
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/string.hxx"
 
 // nst
 #include "codecs.hxx"
@@ -203,7 +201,7 @@ std::string decode(const std::string_view src) {
 
 	// returns the next base64 character from the input sequence
 	auto nextchar = [&](auto &it) -> unsigned char {
-		while (it != src.end() && !std::isprint(static_cast<unsigned char>(*it)))
+		while (it != src.end() && !cosmos::printable(*it))
 			it++;
 
 		return it == src.end() ? '=' : *it++; // emulate padding if string ends

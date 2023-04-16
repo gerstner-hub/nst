@@ -1,5 +1,6 @@
 // cosmos
 #include "cosmos/formatting.hxx"
+#include "cosmos/string.hxx"
 
 // nst
 #include "EscapeHandler.hxx"
@@ -297,7 +298,7 @@ std::optional<EscapeHandler::Escape> EscapeHandler::handleInitialEscape(const ch
 		break;
 	default:
 		std::cerr << "erresc: unknown sequence ESC " << cosmos::HexNum(ch, 2)
-			<< " '" << (std::isprint(static_cast<unsigned char>(ch)) ? ch : '.') << "'\n";
+			<< " '" << (cosmos::printable(ch) ? ch : '.') << "'\n";
 		break;
 	}
 

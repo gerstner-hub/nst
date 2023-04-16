@@ -176,6 +176,8 @@ constexpr char B64_PADDING = 0x7F;
 
 // This table maps 8-bit ASCII characters to the corresponding base64 index.
 // Unassigned values are set to zero.
+// TODO: in C++-20 with designated initializers the explicit zero
+// initialization can be dropped.
 constexpr uint8_t BASE64_DIGITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 0, 0, 0,
@@ -188,8 +190,10 @@ constexpr uint8_t BASE64_DIGITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
+
+static_assert(sizeof(BASE64_DIGITS) == 256);
 
 } // end anon ns
 

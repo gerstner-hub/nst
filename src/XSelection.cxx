@@ -25,13 +25,13 @@ void XSelection::init() {
 	}
 }
 
-void XSelection::setSelection(const std::string_view str, Time t) {
+void XSelection::setSelection(const std::string_view str, const Time t) {
 	if (str.empty())
 		return;
 
 	m_primary = str;
 
-	const auto &primary = xpp::atoms::primary_selection;
+	const auto primary = xpp::atoms::primary_selection;
 	auto &our_window = m_wsys.window();
 
 	our_window.makeSelectionOwner(primary, t);
@@ -46,7 +46,7 @@ void XSelection::copyPrimaryToClipboard() {
 	if (m_primary.empty())
 		return;
 
-	const auto &clipboard = xpp::atoms::clipboard;
+	const auto clipboard = xpp::atoms::clipboard;
 	m_wsys.window().makeSelectionOwner(clipboard);
 }
 
@@ -61,10 +61,8 @@ const std::string& XSelection::getSelection(const xpp::AtomID which) const {
 }
 
 Selection::Snap XSelection::handleClick() {
-	/*
-	 * If the user left-clicks below predefined timeouts specific snapping
-	 * behaviour is exposed.
-	 */
+	// If the user left-clicks below predefined timeouts specific snapping
+	// behaviour is exposed.
 	auto ret = Selection::Snap::NONE;
 
 	if (m_penultimate_click.elapsed() <= config::TRIPLE_CLICK_TIMEOUT) {

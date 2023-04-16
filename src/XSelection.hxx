@@ -16,28 +16,28 @@ namespace nst {
 class WindowSystem;
 class Nst;
 
-/// This type manages the WindowSystem specific parts of selection/clipboard buffer handling
+/// This type manages the WindowSystem specific parts of selection/clipboard buffer handling.
 class XSelection {
 public: // functions
 
 	explicit XSelection(Nst &nst);
 
-	/// (re)initialize active selections, format and click timestamps
+	/// (re)initialize active selections, format and click timestamps.
 	void init();
 
-	/// sets new content for the primary selection buffer and make nst the owner the selection
-	void setSelection(const std::string_view str, Time t = CurrentTime);
+	/// Sets new content for the primary selection buffer and make nst the owner the selection.
+	void setSelection(const std::string_view str, const Time t = CurrentTime);
 
-	/// returns the current content of selection type \c which
+	/// Returns the current content of selection type \c which.
 	const std::string& getSelection(const xpp::AtomID which) const;
 
-	/// copy the current primary selection buffer to the clipboard buffer and make nst the owner the clipboard
+	/// Copy the current primary selection buffer to the clipboard buffer and make nst the owner the clipboard.
 	void copyPrimaryToClipboard();
 
-	/// get the AtomID describing the format of the selection text
+	/// Get the AtomID describing the format of the selection text.
 	auto targetFormat() const { return m_target_fmt; }
 
-	/// detect special click sequences and return resulting selection behaviour
+	/// Detect special click sequences and return resulting selection behaviour.
 	/**
 	 * This function measures the time elapsed between click events to
 	 * detect special click sequences that enable specific selection

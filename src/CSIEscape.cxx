@@ -389,12 +389,20 @@ void CSIEscape::process() {
 			dump("failed to set cursor attrs");
 		}
 		return;
-	case 'n': // DSR – Device Status Report (cursor position)
-		if (arg0 == 6) {
-			auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
-			m_nst.tty().write(buf, TTY::MayEcho{false});
+	case 'n': // DSR – VT100 Device Status Report
+		switch(arg0) {
+			case 5: { // status report "OK" "0n"
+				constexpr std::string_view OK{"\033[0n"};
+				m_nst.tty().write(OK, TTY::MayEcho{false});
+				return;
+			}
+			case 6: { // report cursor position (CPR) "<row>;<column>R"
+				auto buf = cosmos::sprintf("\033[%i;%iR", curpos.y + 1, curpos.x + 1);
+				m_nst.tty().write(buf, TTY::MayEcho{false});
+				return;
+			}
 		}
-		return;
+		break;
 	case 'r': // DECSTBM -- Set Scrolling Region
 		if (m_is_private_csi) {
 			break;

@@ -297,7 +297,7 @@ std::optional<EscapeHandler::Escape> EscapeHandler::handleInitialEscape(const ch
 		break;
 	default:
 		std::cerr << "erresc: unknown sequence ESC " << cosmos::HexNum(ch, 2)
-			<< " '" << (std::isprint(ch) ? ch : '.') << "'\n";
+			<< " '" << (std::isprint(static_cast<unsigned char>(ch)) ? ch : '.') << "'\n";
 		break;
 	}
 

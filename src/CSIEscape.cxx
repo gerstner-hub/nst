@@ -99,7 +99,7 @@ void CSIEscape::dump(const std::string_view prefix) const {
 	};
 
 	for (auto c: m_str) {
-		if (std::isprint(c)) {
+		if (std::isprint(static_cast<unsigned char>(c))) {
 			std::cerr << c;
 		} else {
 			std::cerr << "(" << get_repr(c) << ")";

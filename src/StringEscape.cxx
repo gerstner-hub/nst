@@ -102,7 +102,7 @@ bool StringEscape::processOSC() {
 		else if (!wsys.colorManager().setColorName(idx, arg.data()))
 			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
 		else
-			m_nst.term().redraw();
+			m_nst.term().setAllDirty();
 
 		return true;
 	};
@@ -161,7 +161,7 @@ bool StringEscape::processOSC() {
 				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
 			} else {
 				// TODO if defaultbg color is changed, borders are dirty
-				m_nst.term().redraw();
+				m_nst.term().setAllDirty();
 			}
 			break;
 		}

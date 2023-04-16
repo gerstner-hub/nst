@@ -115,6 +115,11 @@ public: // functions
 	/// Marks the given span of lines as dirty for redrawing.
 	void setDirty(LineSpan span);
 
+	/// Set all screen lines as dirty for redrawing.
+	void setAllDirty() {
+		setDirty(LineSpan{0, m_size.rows - 1});
+	}
+
 	/// Clears all currently defined tabstop positions.
 	void clearAllTabs() {
 		m_tabs.clear();
@@ -395,11 +400,6 @@ protected: // functions
 
 	/// Swaps from main to alternative screen and vice versa.
 	void swapScreen();
-
-	/// Set all screen lines as dirty for redrawing.
-	void setAllDirty() {
-		setDirty(LineSpan{0, m_size.rows - 1});
-	}
 
 	/// Place the given Rune at the given terminal position.
 	void setChar(const Rune rune, const CharPos pos);

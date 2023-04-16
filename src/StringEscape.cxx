@@ -45,6 +45,12 @@ void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 		res = cosmos::sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", code, r, r, g, g, b, b);
 	}
 
+	if (res.empty()) {
+		// sprintf error occured
+		std::cerr << "error: sprintf failed while printing OSC (code " << code << ") response\n";
+		return;
+	}
+
 	m_nst.tty().write(res, TTY::MayEcho{true});
 }
 

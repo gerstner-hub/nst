@@ -66,6 +66,11 @@ public: // functions
 		setDefaultTitle();
 		m_color_manager.resetColors();
 	}
+
+	void resetColors() {
+		m_color_manager.resetColors();
+	}
+
 	void setPointerMotion(bool on_off) {
 		changeEventMask(xpp::EventMask::POINTER_MOTION, on_off);
 	}

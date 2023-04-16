@@ -163,8 +163,10 @@ bool StringEscape::processOSC() {
 			if (name == "?")
 				oscColorResponse(colindex, SET_COLOR_INDEX);
 			else if (!wsys.colorManager().setColorName(colindex, name.data())) {
-				if (par == RESET_COLOR_INDEX && numargs <= 1)
+				if (par == RESET_COLOR_INDEX && numargs <= 1) {
+					wsys.resetColors();
 					break; // color reset without parameter
+				}
 				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
 			} else {
 				// TODO if defaultbg color is changed, borders are dirty

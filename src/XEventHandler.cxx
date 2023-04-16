@@ -165,6 +165,10 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 
 	const auto ksym = m_wsys.m_input.lookupString(ev, m_key_buf);
 
+	if (ksym == xpp::KeySymID::NO_SYMBOL && m_key_buf.empty())
+		// lookup failed
+		return;
+
 	// 1. shortcuts
 	for (auto &shortcut: m_kbd_shortcuts) {
 		if (ksym == shortcut.keysym && state_matches(shortcut.mod, ev.state())) {

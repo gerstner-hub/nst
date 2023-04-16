@@ -141,7 +141,7 @@ void Input::unsetFocus() {
 
 xpp::KeySymID Input::lookupString(const xpp::KeyEvent &ev, std::string &s) {
 	int len;
-	KeySym sym;
+	KeySym sym = NoSymbol;
 
 	// These calls don't seem to modify the event, they just miss a const
 	// modifier, so const_cast it.
@@ -152,6 +152,10 @@ xpp::KeySymID Input::lookupString(const xpp::KeyEvent &ev, std::string &s) {
 	if (haveContext()) {
 		Status status;
 		len = XmbLookupString(m_ctx, raw, &s[0], s.size() + 1, &sym, &status);
+		if (status == XBufferOverflow) {
+			s.clear();
+			len = 0;
+		}
 	} else {
 		len = XLookupString(raw, &s[0], s.size() + 1, &sym, nullptr);
 	}

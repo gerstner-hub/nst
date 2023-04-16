@@ -22,7 +22,7 @@ class Nst;
 class WindowSystem;
 struct TermWindow;
 
-/// Implementation of XEvent callback handlers
+/// Implementation of XEvent callback handlers.
 /**
  * This class reacts to X11 events related to the input system, the windowing
  * system etc. As a result of this a close interaction with the WindowSystem type
@@ -42,18 +42,18 @@ public: // functions
 
 protected: // functions
 
-	/// processes the currently set X11 event
+	/// Processes the currently set X11 event.
 	void process();
 
 	void expose();
-	void visibilityChange(const xpp::VisibilityEvent&);
+	void visibilityChange(const xpp::VisibilityEvent &);
 	void unmap();
 	void keyPress(const xpp::KeyEvent &);
 	void clientMessage(const xpp::ClientMessageEvent &);
 	void resize(const xpp::ConfigureEvent &);
-	void focus(const xpp::FocusChangeEvent&);
+	void focus(const xpp::FocusChangeEvent &);
 	void buttonRelease(const xpp::ButtonEvent &);
-	void buttonPress(const xpp::ButtonEvent&);
+	void buttonPress(const xpp::ButtonEvent &);
 	void pointerMovedEvent(const xpp::PointerMovedEvent &);
 	void propertyNotify(const xpp::PropertyEvent &);
 	void selectionNotify(const xpp::SelectionEvent &);
@@ -98,9 +98,6 @@ protected: // functions
 	 * 	nullopt_t if nothing is mapped.
 	 **/
 	std::optional<std::string_view> customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask state) const;
-
-	/// Determines whether the given key symbol should be processed for custom key mappings.
-	bool isMapped(const xpp::KeySymID keysym) const;
 
 protected: // data
 

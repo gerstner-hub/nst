@@ -156,10 +156,15 @@ EscapeHandler::WasProcessed EscapeHandler::process(const RuneInfo &rinfo) {
 	// because they can be embedded inside a control sequence, and they
 	// must not cause conflicts with sequences.
 	if (rinfo.isControlChar()) {
+		auto &term = m_nst.term();
+
+		// in UTF-8 mode ignore handling C1 control characters
+		if (term.mode()[Term::Mode::UTF8] && rinfo.isControlC1())
+			return WasProcessed{true};
 		handleControlCode(rinfo);
 		// control codes are not shown ever
 		if (m_state.none())
-			m_nst.term().resetLastChar();
+			term.resetLastChar();
 
 		return WasProcessed{true};
 	} else if (m_state[Escape::START]) {

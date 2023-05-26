@@ -70,7 +70,7 @@ void Nst::mainLoop() {
 
 	cosmos::Poller poller;
 	poller.create();
-	for (auto fd: {ttyfd, display.connectionNumber(), childfd}) {
+	for (auto fd: {ttyfd, display.connectionNumber(), static_cast<cosmos::FileDescriptor&>(childfd)}) {
 		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
 	}
 

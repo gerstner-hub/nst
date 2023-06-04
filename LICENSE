@@ -1,5 +1,11 @@
 MIT/X Consortium License
 
+C++ port for NST
+
+© 2022-2023 Matthias Gerstner <matthias.gerstner at nefkom dot net>
+
+Original ST source code
+
 © 2014-2022 Hiltjo Posthuma <hiltjo at codemadness dot org>
 © 2018 Devin J. Pohly <djpohly at gmail dot com>
 © 2014-2017 Quentin Rameau <quinq at fifth dot space>

@@ -18,7 +18,7 @@ class Nst;
 /**
  * STR escape sequences follow this model:
  *
- * ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
+ *     ESC type [[ [<priv>] <arg> [;]] <mode>] ESC '\'
  *
  * This mostly implements OSC commands known from XTerm. The final ESC '\' is
  * the ST "string terminator", consisting of two bytes.

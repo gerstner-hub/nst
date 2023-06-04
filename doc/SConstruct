@@ -1,0 +1,10 @@
+Import('env')
+
+doc_env = env.Clone()
+
+doxy_cmd = doc_env.Command(
+    "doxygen/html/index.html",
+    "doxygen.conf",
+    action="doxygen -q $SOURCE")
+env.AlwaysBuild(doxy_cmd)
+env.Alias("doxygen", doxy_cmd)

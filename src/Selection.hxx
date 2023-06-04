@@ -116,7 +116,7 @@ protected: // functions
 	}
 	/// Attempt to extend the selection in the given direction corresponding to the current snap setting.
 	/**
-	 * \param[in-out] pos The position from which to start extending. Will
+	 * \param[in,out] pos The position from which to start extending. Will
 	 * be updated with the new start/end of the selection, if applicable.
 	 **/
 	void extendSnap(    CharPos &pos, const Direction direction) const;

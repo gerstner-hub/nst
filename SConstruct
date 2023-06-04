@@ -22,5 +22,6 @@ xpp_env['buildroot'] = ""
 SConscript('libX++/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libX++/", exports={"env": xpp_env})
 
 SConscript(env['buildroot'] + 'src/SConstruct')
-#SConscript(env['buildroot'] + 'test/SConstruct')
+SConscript(env['buildroot'] + 'doc/SConstruct')
+
 Default(env['bins']['nst'])

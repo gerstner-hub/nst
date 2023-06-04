@@ -20,7 +20,7 @@ class Nst;
 /**
  * CSI (Control Sequence Introducer) structs follow this model:
  *
- * ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]]
+ *     ESC '[' [[ [<priv>] <arg> [;]] <mode> [<mode>]]
  *
  * This class parses such sequences and triggers actions that result from
  * them.

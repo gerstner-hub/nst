@@ -1,11 +1,11 @@
 Import('env')
 
-env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
-env.ConfigureForLib("libcosmos")
-env.ConfigureForLib("libX++")
-env.Append(CCFLAGS=['-DVERSION=\\"0.9\\"'])
-
 sources = env.GatherSources(suffixes=[".cxx"])
+
+env.ConfigureForLib("libX++", sources)
+env.ConfigureForLib("libcosmos", sources)
+env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
+env.Append(CCFLAGS=['-DVERSION=\\"0.9\\"'])
 
 nst = env.Program("nst", sources)
 

@@ -13,6 +13,7 @@ except Exception:
         sys.path.append(str(cosmos_scripts))
         from buildsystem import initSCons
     env = initSCons("nst", rtti=False)
+    env['install_dev_files'] = False
 
 cosmos_env = env.Clone()
 cosmos_env['buildroot'] = ""
@@ -25,3 +26,8 @@ SConscript(env['buildroot'] + 'src/SConstruct')
 SConscript(env['buildroot'] + 'doc/SConstruct')
 
 Default(env['bins']['nst'])
+
+instroot = Path(env['instroot'])
+
+nst_inst_node = env.Install(instroot / "bin", env['bins']['nst'])
+env.Alias("install", nst_inst_node)

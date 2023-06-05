@@ -1,0 +1,106 @@
+NST(1)
+======
+
+== Name
+nst - not (so) simple terminal
+
+== Synopsis
+nst  [-l <path-to-tty>] [-w <window-id>] [-o <iofile>] [-f <fontconfig font name>] [-g <X11 gemeoetry>] [-t <title>] [-n <name>] [-c <class>] [-e] [-i] [-a] [--] [--version] [-h] [command [arguments...]]
+
+== Description
+nst is a (not so) simple terminal emulator.
+
+== Options
+
+*-a, --no-alt-screen*::
+  disable the alternative screen buffer in the terminal.
+
+*-c, --window-class*::
+  defines the window class (defaults to $TERM).
+
+*-f, --font*::
+  defines the font to use when nst is run. This is a fontconfig string like
+  "LiberationMono:pixelsize=18:antialias=true:autohint=true".
+
+*-g, --gemoetry*::
+  defines the X11 geometry string. The form is [=][<cols>{xX}<rows>][{+-}<xoffset>{+-}<yoffset>].
+  See XParseGeometry(3) for further details.
+
+*-i, --fixed-geometry*::
+  fixate the window position with the -g option.
+
+*-n, --window-name*::
+  defines the window instance name (WM_CLASS property, default $TERM).
+
+*-o, --iofile*::
+  writes all the raw I/O to the given file for recording. "-" means stdout.
+
+*-t, --window-title*::
+  defines the window title (default "nst").
+
+*-w, --embed-window*::
+  embeds nst within the window identifier by window-id.
+
+*-l --tty*::
+  use a tty line instead of pseudo terminal. Remaining parameters will be
+  passed as flags to stty(1). path-to-tty should be a (pseudo-)serial device (e.g.
+  /dev/ttyS0 on Linux for serial port 0). By default nst initializes the
+  serial line to 8 bits, no parity, 1 stop bit and a 38400 baud rate. The speed
+  is set by appending it as  last argument  (e.g.  "nst  -l  /dev/ttyS0 115200").
+  Arguments before the last one are stty(1) flags. If you want to set odd parity
+  on 115200 baud use for example "nst -l /dev/ttyS0 parenb parodd 115200".  Set
+  the number of bits by using  for example "nst -l /dev/ttyS0 cs7 115200". See
+  stty(1) for more arguments and cases.
+
+*--version*::
+  prints version information and exits.
+
+*-e*::
+  execute remaining parameters instead of the shell. This switch is not
+  actually needed, it is only for backwards compatibility. The remaining
+  parameters will be used even without this switch, except if -l is given.
+
+== Shortcuts
+
+Break::
+  Send a break in the serial line. Break key is obtained in PC keyboards pressing at the same time control and pause.
+
+Ctrl-Print Screen::
+  Toggle if nst should print to the iofile.
+
+Shift-Print Screen::
+  Print the full screen to the iofile.
+
+Print Screen::
+  Print the selection to the iofile.
+
+Ctrl-Shift-Page Up::
+  Increase font size.
+
+Ctrl-Shift-Page Down::
+  Decrease font size.
+
+Ctrl-Shift-Home::
+  Reset to default font size.
+
+Ctrl-Shift-y::
+  Paste from primary selection (middle mouse button).
+
+Ctrl-Shift-c::
+  Copy the selected text to the clipboard selection.
+
+Ctrl-Shift-v::
+  Paste from the clipboard selection.
+
+== Customization
+
+nst can be customized by creation a custom nst_config.hxx and (re)compiling
+the source code. This keeps it fast, secure and simple.
+
+== Authors
+
+See the LICENSE file for the authors.
+
+== License
+
+See the LICENSE file for the terms of redistribution.

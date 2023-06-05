@@ -1,0 +1,158 @@
+'\" t
+.\"     Title: nst
+.\"    Author: [see the "Authors" section]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 06/06/2023
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "NST" "1" "06/06/2023" "\ \&" "\ \&"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+nst \- not (so) simple terminal
+.SH "SYNOPSIS"
+.sp
+nst [\-l <path\-to\-tty>] [\-w <window\-id>] [\-o <iofile>] [\-f <fontconfig font name>] [\-g <X11 gemeoetry>] [\-t <title>] [\-n <name>] [\-c <class>] [\-e] [\-i] [\-a] [\-\-] [\-\-version] [\-h] [command [arguments\&...]]
+.SH "DESCRIPTION"
+.sp
+nst is a (not so) simple terminal emulator\&.
+.SH "OPTIONS"
+.PP
+\fB\-a, \-\-no\-alt\-screen\fR
+.RS 4
+disable the alternative screen buffer in the terminal\&.
+.RE
+.PP
+\fB\-c, \-\-window\-class\fR
+.RS 4
+defines the window class (defaults to $TERM)\&.
+.RE
+.PP
+\fB\-f, \-\-font\fR
+.RS 4
+defines the font to use when nst is run\&. This is a fontconfig string like "LiberationMono:pixelsize=18:antialias=true:autohint=true"\&.
+.RE
+.PP
+\fB\-g, \-\-gemoetry\fR
+.RS 4
+See XParseGeometry(3) for further details\&.
+.RE
+.PP
+\fB\-i, \-\-fixed\-geometry\fR
+.RS 4
+fixate the window position with the \-g option\&.
+.RE
+.PP
+\fB\-n, \-\-window\-name\fR
+.RS 4
+defines the window instance name (WM_CLASS property, default $TERM)\&.
+.RE
+.PP
+\fB\-o, \-\-iofile\fR
+.RS 4
+writes all the raw I/O to the given file for recording\&. "\-" means stdout\&.
+.RE
+.PP
+\fB\-t, \-\-window\-title\fR
+.RS 4
+defines the window title (default "nst")\&.
+.RE
+.PP
+\fB\-w, \-\-embed\-window\fR
+.RS 4
+embeds nst within the window identifier by window\-id\&.
+.RE
+.PP
+\fB\-l \-\-tty\fR
+.RS 4
+use a tty line instead of pseudo terminal\&. Remaining parameters will be passed as flags to stty(1)\&. path\-to\-tty should be a (pseudo\-)serial device (e\&.g\&. /dev/ttyS0 on Linux for serial port 0)\&. By default nst initializes the serial line to 8 bits, no parity, 1 stop bit and a 38400 baud rate\&. The speed is set by appending it as last argument (e\&.g\&. "nst \-l /dev/ttyS0 115200")\&. Arguments before the last one are stty(1) flags\&. If you want to set odd parity on 115200 baud use for example "nst \-l /dev/ttyS0 parenb parodd 115200"\&. Set the number of bits by using for example "nst \-l /dev/ttyS0 cs7 115200"\&. See stty(1) for more arguments and cases\&.
+.RE
+.PP
+\fB\-\-version\fR
+.RS 4
+prints version information and exits\&.
+.RE
+.PP
+\fB\-e\fR
+.RS 4
+execute remaining parameters instead of the shell\&. This switch is not actually needed, it is only for backwards compatibility\&. The remaining parameters will be used even without this switch, except if \-l is given\&.
+.RE
+.SH "SHORTCUTS"
+.PP
+Break
+.RS 4
+Send a break in the serial line\&. Break key is obtained in PC keyboards pressing at the same time control and pause\&.
+.RE
+.PP
+Ctrl\-Print Screen
+.RS 4
+Toggle if nst should print to the iofile\&.
+.RE
+.PP
+Shift\-Print Screen
+.RS 4
+Print the full screen to the iofile\&.
+.RE
+.PP
+Print Screen
+.RS 4
+Print the selection to the iofile\&.
+.RE
+.PP
+Ctrl\-Shift\-Page Up
+.RS 4
+Increase font size\&.
+.RE
+.PP
+Ctrl\-Shift\-Page Down
+.RS 4
+Decrease font size\&.
+.RE
+.PP
+Ctrl\-Shift\-Home
+.RS 4
+Reset to default font size\&.
+.RE
+.PP
+Ctrl\-Shift\-y
+.RS 4
+Paste from primary selection (middle mouse button)\&.
+.RE
+.PP
+Ctrl\-Shift\-c
+.RS 4
+Copy the selected text to the clipboard selection\&.
+.RE
+.PP
+Ctrl\-Shift\-v
+.RS 4
+Paste from the clipboard selection\&.
+.RE
+.SH "CUSTOMIZATION"
+.sp
+nst can be customized by creation a custom nst_config\&.hxx and (re)compiling the source code\&. This keeps it fast, secure and simple\&.
+.SH "AUTHORS"
+.sp
+See the LICENSE file for the authors\&.
+.SH "LICENSE"
+.sp
+See the LICENSE file for the terms of redistribution\&.

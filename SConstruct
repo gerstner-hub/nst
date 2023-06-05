@@ -13,6 +13,8 @@ except Exception:
         sys.path.append(str(cosmos_scripts))
         from buildsystem import initSCons
     env = initSCons("nst", rtti=False)
+    # prefer static linking given the ABI issues in libcosmos and X++
+    env['libtype'] = "static"
     env['install_dev_files'] = False
 
 cosmos_env = env.Clone()

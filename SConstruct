@@ -33,3 +33,5 @@ instroot = Path(env['instroot'])
 
 nst_inst_node = env.Install(instroot / "bin", env['bins']['nst'])
 env.Alias("install", nst_inst_node)
+man = env.Install(instroot / "share" / "man" / "man1", "#doc/nst.1")
+env.Alias("install", man)

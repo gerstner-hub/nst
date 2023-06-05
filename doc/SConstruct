@@ -8,3 +8,12 @@ doxy_cmd = doc_env.Command(
     action="doxygen -q $SOURCE")
 env.AlwaysBuild(doxy_cmd)
 env.Alias("doxygen", doxy_cmd)
+
+# this is generated in the source tree!
+man_cmd = doc_env.Command(
+    "#doc/nst.1",
+    "nst.1.adoc",
+    action=f"a2x -f manpage -D ./doc $SOURCE"
+)
+
+env.Alias("man", man_cmd)

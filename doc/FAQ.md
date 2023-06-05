@@ -24,13 +24,12 @@ you can manually run `tic -sx st.info`.
 	* `st -e tmux` using C-b [
 	* `st -e screen` using C-a ESC
 * Using the excellent tool of [scroll](https://git.suckless.org/scroll/).
-* Using the scrollback [patch](https://st.suckless.org/patches/scrollback/).
 
 
 ## I would like to have utmp and/or scroll functionality by default
 
-You can add the absolute path of both programs in your config.h file. You only
-have to modify the value of utmp and scroll variables.
+You can add the absolute path of both programs in your `nst_config.hxx` file.
+You only have to modify the value of UTMP and SCROLL variables.
 
 
 ## Why doesn't the Del key work in some programs?
@@ -96,15 +95,6 @@ use this capability. If you want it, you have to use the 'st-meta' value
 in TERM.
 
 
-## I cannot compile st in OpenBSD
-
-OpenBSD lacks librt, despite it being mandatory in POSIX
-<http://pubs.opengroup.org/onlinepubs/9699919799/utilities/c99.html#tag_20_11_13>.
-If you want to compile st for OpenBSD you have to remove -lrt from config.mk, and
-st will compile without any loss of functionality, because all the functions are
-included in libc on this platform.
-
-
 ## The Backspace Case
 
 St is emulating the Linux way of handling backspace being delete and delete being
@@ -167,13 +157,6 @@ terminal users wants its backspace to be how he feels it:
 	[2] http://www.tldp.org/HOWTO/Keyboard-and-Console-HOWTO-5.html
 
 
-## But I really want the old grumpy behaviour of my terminal
-
-Apply [1].
-
-[1] https://st.suckless.org/patches/delkey
-
-
 ## Why do images not work in st using the w3m image hack?
 
 w3mimg uses a hack that draws an image on top of the terminal emulator Drawable
@@ -185,41 +168,6 @@ short flicker effect.
 
 Below is a patch example to change st double-buffering to a single Drawable
 buffer.
-
-diff --git a/x.c b/x.c
---- a/x.c
-+++ b/x.c
-@@ -732,10 +732,6 @@ xresize(int col, int row)
- 	win.tw = col * win.cw;
- 	win.th = row * win.ch;
- 
--	XFreePixmap(xw.dpy, xw.buf);
--	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
--			DefaultDepth(xw.dpy, xw.scr));
--	XftDrawChange(xw.draw, xw.buf);
- 	xclear(0, 0, win.w, win.h);
- 
- 	/* resize to new width */
-@@ -1148,8 +1144,7 @@ xinit(int cols, int rows)
- 	gcvalues.graphics_exposures = False;
- 	dc.gc = XCreateGC(xw.dpy, parent, GCGraphicsExposures,
- 			&gcvalues);
--	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
--			DefaultDepth(xw.dpy, xw.scr));
-+	xw.buf = xw.win;
- 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
- 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
- 
-@@ -1632,8 +1627,6 @@ xdrawline(Line line, int x1, int y1, int x2)
- void
- xfinishdraw(void)
- {
--	XCopyArea(xw.dpy, xw.buf, xw.win, dc.gc, 0, 0, win.w,
--			win.h, 0, 0);
- 	XSetForeground(xw.dpy, dc.gc,
- 			dc.col[IS_SET(MODE_REVERSE)?
- 				defaultfg : defaultbg].pixel);
-
 
 ## BadLength X error in Xft when trying to render emoji
 

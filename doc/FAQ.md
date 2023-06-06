@@ -1,28 +1,37 @@
-## Why does st not handle utmp entries?
+## Why does nst not handle utmp entries?
 
 Use the excellent tool of [utmp](https://git.suckless.org/utmp/) for this task.
 
 
-## Some _random program_ complains that st is unknown/not recognised/unsupported/whatever!
+## Some _random program_ complains that nst is unknown/not recognised/unsupported/whatever!
 
-It means that st doesn’t have any terminfo entry on your system. Chances are
-you did not `make install`. If you just want to test it without installing it,
-you can manually run `tic -sx st.info`.
+It means that nst doesn’t have any terminfo entry on your system. The terminfo
+files are installed via `scons install` into the local installation tree. You
+can use them temporarily via an environment variable:
 
+    scons install
+    cd install/share/terminfo
+    export TERMINFO_DIRS="$TERMINFO_DIRS:$PWD"
+
+For installing them system wide you need to install them into your system's
+terminfo directory, typicall "/usr/share/terminfo".
+
+You can also install them for your current user account by building the
+`terminfo_user` target.
 
 ## Nothing works, and nothing is said about an unknown terminal!
 
 * Some programs just assume they’re running in xterm i.e. they don’t rely on
   terminfo. What you see is the current state of the “xterm compliance”.
-* Some programs don’t complain about the lacking st description and default to
+* Some programs don’t complain about the lacking nst description and default to
   another terminal. In that case see the question about terminfo.
 
 
 ## How do I scroll back up?
 
 * Using a terminal multiplexer.
-	* `st -e tmux` using C-b [
-	* `st -e screen` using C-a ESC
+	* `nst -e tmux` using C-b [
+	* `nst -e screen` using C-a ESC
 * Using the excellent tool of [scroll](https://git.suckless.org/scroll/).
 
 
@@ -44,7 +53,7 @@ Taken from the terminfo manpage:
 	codes as smkx and rmkx. Otherwise the keypad is assumed to
 	always transmit.
 
-In the st case smkx=E[?1hE= and rmkx=E[?1lE>, so it is mandatory that
+In the nst case smkx=E[?1hE= and rmkx=E[?1lE>, so it is mandatory that
 applications which want to test against keypad keys send these
 sequences.
 
@@ -157,21 +166,21 @@ terminal users wants its backspace to be how he feels it:
 	[2] http://www.tldp.org/HOWTO/Keyboard-and-Console-HOWTO-5.html
 
 
-## Why do images not work in st using the w3m image hack?
+## Why do images not work in nst using the w3m image hack?
 
 w3mimg uses a hack that draws an image on top of the terminal emulator Drawable
 window. The hack relies on the terminal to use a single buffer to draw its
 contents directly.
 
-st uses double-buffered drawing so the image is quickly replaced and may show a
+nst uses double-buffered drawing so the image is quickly replaced and may show a
 short flicker effect.
 
-Below is a patch example to change st double-buffering to a single Drawable
+Below is a patch example to change nst double-buffering to a single Drawable
 buffer.
 
 ## BadLength X error in Xft when trying to render emoji
 
-Xft makes st crash when rendering color emojis with the following error:
+Xft makes nst crash when rendering color emojis with the following error:
 
 "X Error of failed request:  BadLength (poly request too large or internal Xlib length error)"
   Major opcode of failed request:  139 (RENDER)
@@ -179,7 +188,7 @@ Xft makes st crash when rendering color emojis with the following error:
   Serial number of failed request: 1595
   Current serial number in output stream:  1818"
 
-This is a known bug in Xft (not st) which happens on some platforms and
+This is a known bug in Xft (not nst) which happens on some platforms and
 combination of particular fonts and fontconfig settings.
 
 See also:
@@ -194,7 +203,7 @@ fonts:
 
 	FcPatternAddBool(fcpattern, FC_COLOR, FcFalse);
 
-Please don't bother reporting this bug to st, but notify the upstream Xft
+Please don't bother reporting this bug to nst, but notify the upstream Xft
 developers about fixing this bug.
 
 As of 2022-09-05 this now seems to be finally fixed in libXft 2.3.5:

@@ -18,7 +18,7 @@ Cmdline::Cmdline() :
 	// support multiple short chars for the same switch
 	window_title{   "t", "window-title",   "defines the window title (default 'nst')", false, "nst", "string", *this},
 	window_geometry{"g", "geometry",       "defines the window geometry. e.g. 100x40+100+100.", false, "", "X11 gemeoetry", *this},
-	font{           "f", "font",           "defines the font to use when st is run.", false, nst::config::FONT.data(), "fontconfig font name", *this},
+	font{           "f", "font",           "defines the font to use when nst is run.", false, nst::config::FONT.data(), "fontconfig font name", *this},
 	iofile{         "o", "iofile",         "writes all the I/O to the given file for recording. '-' means stdout.", false, "", "path", *this},
 	embed_window{   "w", "embed-window",   "embeds nst within the window identified by given windowid", false, 0, "window-id", *this},
 	tty_line{       "l", "tty",            "use a tty line instead of pseudo terminal. Remaining parameters will be passed as flags to stty", false, "", "path-to-tty", *this},

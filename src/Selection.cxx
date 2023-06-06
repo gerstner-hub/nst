@@ -307,9 +307,9 @@ std::string Selection::selection() const {
 
 		// Copy and pasting of line endings is inconsistent in the
 		// inconsistent terminal and GUI world. The best solution
-		// seems like to produce '\n' when something is copied from st
+		// seems like to produce '\n' when something is copied from nst
 		// and convert '\n' to '\r', when something to be pasted is
-		// received by st.
+		// received by nst.
 		// FIXME: Fix the computer world.
 		if ((!is_last_line || lastx >= linelen) && (!last->isWrapped() || isRectType()))
 			ret.push_back('\n');

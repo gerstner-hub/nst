@@ -42,7 +42,7 @@ constexpr std::array<std::string_view, 8> STTY_ARGS{{
 }};
 
 /*
- * What program is executeed by st depends on these precedence rules:
+ * What program is executeed by nst depends on these precedence rules:
  * 1: program passed with -e
  * 2: scroll and/or utmp
  * 3: SHELL environment variable
@@ -67,8 +67,8 @@ constexpr bool ALLOW_WINDOW_OPS = false;
 /// Spaces per tab.
 /**
  * When you are changing this value, don't forget to adapt the »it« value in
- * the st.info and appropriately install the st.info in the environment where
- * you use this st version.
+ * the nst.info and appropriately install the nst.info in the environment where
+ * you use this nst version.
  *
  *	it#$TABSPACES,
  *
@@ -221,7 +221,7 @@ using AppCursor = Key::AppCursor;
 inline constexpr xpp::InputMask IGNORE_MOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
 
 /*
- * Special keys (change & recompile st.info accordingly)
+ * Special keys (change & recompile nst.info accordingly)
  *
  * Mask value:
  * * Use Mod::ANY to match the key no matter modifiers state
@@ -229,7 +229,7 @@ inline constexpr xpp::InputMask IGNORE_MOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
  * appkeypad value: matches the current terminal's application keypad state
  * appcursor: matches the current terminal's application cursor state
  *
- * Be careful with the order of the definitions because st searches in
+ * Be careful with the order of the definitions because nst searches in
  * this table sequentially, so any Mod::ANY must be in the last
  * position for a key.
  */

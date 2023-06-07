@@ -123,5 +123,5 @@ Credits
 =======
 
 Based on the original [st](https://st.suckless.org/) source code which in
-turns is based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt
+turn is based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt
 source code.

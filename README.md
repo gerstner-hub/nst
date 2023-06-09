@@ -62,6 +62,9 @@ the [libcosmos](https://github.com/gerstner-hub/libcosmos/) and
 libraries are integrated via Git submodules into this repository and
 statically linked, so you shouldn't need to worry a lot about them.
 
+For command line parsing the [TCLAP](https://tclap.sourceforge.net)
+header-only library is used, which is also pulled in as a Git submodule.
+
 Installation
 ============
 

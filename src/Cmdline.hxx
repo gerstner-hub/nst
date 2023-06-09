@@ -5,7 +5,7 @@
 #include <string>
 
 // TCLAP
-#include <tclap/CmdLine.h>
+#include "tclap/CmdLine.h"
 
 namespace nst {
 

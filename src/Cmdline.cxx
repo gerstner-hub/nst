@@ -11,7 +11,7 @@ Cmdline::Cmdline() :
 		TCLAP::CmdLine{"not (so) simple terminal emulator", ' ', VERSION},
 	use_alt_screen{ "a", "no-alt-screen",  "disable the alternative screen buffer", *this, true},
 	fixed_geometry{ "i", "fixed-geometry", "fixate the position specified via -g", *this, false},
-	execute{        "e", "",               "execute remaining parameters as command. Only for backward compatibility.", *this, false},
+	execute{        "e", "execute",        "execute remaining parameters as command. Only for backward compatibility.", *this, false},
 	window_class{   "c", "window-class",   "defines the window class (default $TERM)", false, config::TERM_NAME.data(), "string", *this},
 	window_name{    "n", "window-name",    "defines the window instance name (default $TERM)", false, config::TERM_NAME.data(), "string", *this},
 	// NOTE: original st also allowed -T title but TCLAP doesn't seem to

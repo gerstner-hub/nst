@@ -358,6 +358,9 @@ void Term::deleteColsAfterCursor(int count) {
 	const int left = m_size.cols - src;
 	auto &line = m_screen.line(cursor);
 
+	if (left <= 0)
+		return;
+
 	// NOTE: in C++20 there will be std::shift_left for this
 
 	// slide remaining line content count characters to the left
@@ -383,6 +386,9 @@ void Term::insertBlanksAfterCursor(int count) {
 	const int src = cursor.x;
 	const int left = m_size.cols - dst;
 	auto &line = m_screen.line(cursor);
+
+	if (left <= 0)
+		return;
 
 	// slide remaining line content count characters to the right
 	std::memmove(&line[dst], &line[src], left * sizeof(Line::value_type));

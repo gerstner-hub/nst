@@ -196,6 +196,7 @@ void StringEscape::parseArgs() {
 		if (end != m_str.end()) {
 			// make sure the views we add to m_args are properly terminated
 			*end = '\0';
+			end++;
 		}
 
 		it = end;

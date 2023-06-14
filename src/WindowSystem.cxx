@@ -400,6 +400,10 @@ void WindowSystem::drawGlyphs(Line::const_iterator it, const Line::const_iterato
 			num_specs = 0;
 			// a new series started, remember its properties
 			start_pos = cur_pos;
+		}
+
+		// for each new series make sure we have the proper reference
+		if (num_specs == 0) {
 			base = glyph;
 		}
 

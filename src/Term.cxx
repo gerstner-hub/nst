@@ -124,19 +124,19 @@ void Term::resize(const TermSize new_size) {
 	}
 
 	// adjust dimensions of internal data structures
-	m_tabs.resize(new_size.cols);
 
 	for (auto screen: {&m_screen, &m_alt_screen}) {
 		screen->setDimension(new_size);
 	}
+
+	// update terminal size (needed by setupTabs() below)
+	m_size = new_size;
 
 	// recalculate tab markers if we have more columns now
 	if (new_size.cols > old_size.cols) {
 		setupTabs();
 	}
 
-	// update terminal size
-	m_size = new_size;
 	// reset scrolling region
 	resetScrollArea();
 	// make use of the clamping in moveCursorTo() to get a valid cursor position again
@@ -144,6 +144,7 @@ void Term::resize(const TermSize new_size) {
 
 	// Clear both screens (it marks all lines drity)
 	auto saved_cursor = m_cursor;
+
 	for (size_t i = 0; i < 2; i++) {
 		// clear new cols if number of columns increased
 		if (old_size.cols < new_size.cols && old_size.rows > 0) {
@@ -156,6 +157,7 @@ void Term::resize(const TermSize new_size) {
 		swapScreen();
 		cursorControl(CursorState::Control::LOAD);
 	}
+
 	m_cursor = saved_cursor;
 }
 

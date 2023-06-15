@@ -387,7 +387,7 @@ protected: // functions
 	 **/
 	void putChar(const Rune rune);
 
-	/// Sets the default tab positions in \c m_tabs.
+	/// (Re-)Initialize \c m_tabs and setup the default tab positions.
 	void setupTabs();
 
 	/// Resets the active scrolling area to use the whole screen.

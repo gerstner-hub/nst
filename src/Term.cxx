@@ -16,15 +16,12 @@
 #include "Term.hxx"
 #include "TTY.hxx"
 
-namespace {
+namespace nst {
 
 // we're relying on Glyph being POD so that we can memmove individual Glyphs
 // in this unit
-static_assert(std::is_pod<Glyph>::value, "Glyph type needs to be POD because of memmove");
+static_assert(std::is_trivially_copyable<nst::Glyph>::value, "Glyph type needs to be POD because of memmove");
 
-} // end anon ns
-
-namespace nst {
 
 CursorState::CursorState() {
 	m_attrs.fg = config::DEFAULT_FG;

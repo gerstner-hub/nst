@@ -106,7 +106,7 @@ protected: // data
 	bool m_is_private_csi = false; /// Whether a private CSI control was parsed
 	std::vector<int> m_args; /// Up to 16 integer parameters for the current CSI
 	std::string m_mode_suffix; /// The intermediate and final characters of the sequence
-	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE;
+	static constexpr size_t MAX_STR_SIZE = 128 * utf8::UTF_SIZE; /// maximum length of a complete CSI sequence in characters
 	static constexpr size_t MAX_ARG_SIZE = 16; /// maximum number of parameters for a CSI sequence
 	Nst &m_nst;
 };

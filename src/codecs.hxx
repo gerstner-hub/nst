@@ -12,7 +12,7 @@
 #include "cosmos/algs.hxx"
 
 // nst
-#include "Glyph.hxx"
+#include "types.hxx"
 
 /**
  * @file

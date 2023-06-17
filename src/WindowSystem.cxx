@@ -16,6 +16,7 @@
 #include "X++/WindowManagerHints.hxx"
 #include "X++/XColor.hxx"
 #include "X++/XCursor.hxx"
+#include "X++/XDisplay.hxx"
 
 // nst
 #include "nst.hxx"

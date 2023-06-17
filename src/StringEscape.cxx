@@ -14,6 +14,9 @@
 #include "cosmos/formatting.hxx"
 #include "cosmos/string.hxx"
 
+// nst
+#include "codecs.hxx"
+
 namespace nst {
 
 namespace {
@@ -27,6 +30,18 @@ constexpr size_t MAX_STR_ARGS = 16;
 StringEscape::StringEscape(Nst &nst) :
 		m_nst{nst}
 {}
+
+bool StringEscape::isTerminator(const RuneInfo &ri) const {
+	switch(ri.asChar()) {
+		case '\a':
+		case '\030':
+		case '\032':
+		case '\033':
+			return true;
+		default:
+			return ri.isControlC1();
+	}
+}
 
 void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 	uint8_t r, g, b;

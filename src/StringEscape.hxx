@@ -6,13 +6,10 @@
 #include <string_view>
 #include <vector>
 
-// nst
-#include "codecs.hxx"
-#include "Glyph.hxx"
-
 namespace nst {
 
 class Nst;
+class RuneInfo;
 
 /// Handles STR (non CSI) escape sequences.
 /**
@@ -55,17 +52,7 @@ public: // functions
 	void process();
 
 	/// Returns whether the given rune is a valid StringEscape terminator.
-	bool isTerminator(const RuneInfo &ri) const {
-		switch(ri.asChar()) {
-			case '\a':
-			case '\030':
-			case '\032':
-			case '\033':
-				return true;
-			default:
-				return ri.isControlC1();
-		}
-	}
+	bool isTerminator(const RuneInfo &ri) const;
 
 protected: // functions
 

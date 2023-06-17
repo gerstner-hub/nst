@@ -1,15 +1,13 @@
 #ifndef NST_TERM_WINDOW_HXX
 #define NST_TERM_WINDOW_HXX
 
-// C
-#include <math.h>
-
 // nst
-#include "font.hxx"
 #include "nst_config.hxx"
 #include "types.hxx"
 
 namespace nst {
+
+class Font;
 
 /// Purely graphic info about the Terminal.
 struct TermWindow {
@@ -17,10 +15,7 @@ struct TermWindow {
 		m_mode{WinModeMask{WinMode::NUMLOCK}}
 	{}
 
-	void setCharSize(const Font &font) {
-		m_chr_extent.width = ceilf(font.width() * config::CW_SCALE);
-		m_chr_extent.height = ceilf(font.height() * config::CH_SCALE);
-	}
+	void setCharSize(const Font &font);
 
 	/// Sets an absolute window size in pixels (as ported by X11).
 	void setWinExtent(const Extent ext) {

@@ -23,6 +23,8 @@
 
 namespace nst {
 
+class FontColor;
+
 /// Wrapper around the fontconfig slant constants.
 enum class Slant : int {
 	ITALIC = FC_SLANT_ITALIC,

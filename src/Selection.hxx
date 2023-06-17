@@ -37,7 +37,7 @@ protected: // types
 		READY /// selection data is available
 	};
 
-	/// for the snap algorithm this determines the direction in which to check
+	/// for the snap algorithm this determines the direction in which to check.
 	enum class Direction {
 		FORWARD,
 		BACKWARD
@@ -53,7 +53,7 @@ public: // functions
 	/// Starts a new selection operation at the given start position using the given snap behaviour.
 	void start(const CharPos pos, const Snap snap);
 
-	/// returns whether the given position is part of the current selection
+	/// returns whether the given position is part of the current selection.
 	bool isSelected(const CharPos pos) const;
 
 	/// Extends the current selection to the given position.

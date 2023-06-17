@@ -5,19 +5,18 @@
 #include <string_view>
 
 // X++
+#include "X++/fwd.hxx"
 #include "X++/GraphicsContext.hxx"
 #include "X++/Pixmap.hxx"
 #include "X++/types.hxx"
 #include "X++/utils.hxx"
 #include "X++/SetWindowAttributes.hxx"
-#include "X++/XDisplay.hxx"
 #include "X++/XWindow.hxx"
 
 // nst
 #include "color.hxx"
 #include "font.hxx"
 #include "Input.hxx"
-#include "nst_config.hxx"
 #include "TermWindow.hxx"
 #include "XSelection.hxx"
 

@@ -24,7 +24,7 @@ namespace nst {
  * This header contains simpler utility types used throughout the project.
  **/
 
-/// Baseclass for position or coordinate like types.
+/// Base class for position or coordinate like types.
 /**
  * The template argument is solely for creating strongly typed variants of
  * this type that cannot interact with each other, because they are
@@ -287,6 +287,10 @@ public: // functions
 		return xpp::Extent{static_cast<unsigned int>(width), static_cast<unsigned int>(height)};
 	}
 };
+
+/// Primitive integer type to store character codes to be displayed on the terminal.
+using Rune = uint32_t;
+
 
 using InputCallback = std::function<void ()>;
 

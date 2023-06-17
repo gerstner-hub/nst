@@ -13,7 +13,6 @@
 #include "nst_config.hxx"
 #include "nst.hxx"
 #include "Selection.hxx"
-#include "StringEscape.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
 

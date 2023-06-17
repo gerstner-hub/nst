@@ -10,7 +10,6 @@
 #include "CSIEscape.hxx"
 #include "nst_config.hxx"
 #include "nst.hxx"
-#include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
 

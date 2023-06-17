@@ -9,7 +9,7 @@
 
 namespace nst {
 
-/// a series of Glyphs forming a line on the terminal
+/// a series of Glyphs forming a line on the terminal.
 class Line :
 		public std::vector<Glyph> {
 public: // functions

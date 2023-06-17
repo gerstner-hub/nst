@@ -7,7 +7,6 @@
 
 // nst
 #include "codecs.hxx"
-#include "Glyph.hxx"
 
 namespace nst {
 

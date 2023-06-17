@@ -9,9 +9,6 @@
 
 namespace nst {
 
-/// Primitive integer type to store character codes to be displayed on the terminal.
-using Rune = uint32_t;
-
 /// Code, color and attribute information for a single character position on the terminal.
 struct Glyph {
 public: // types

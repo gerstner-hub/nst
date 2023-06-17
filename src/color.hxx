@@ -9,6 +9,7 @@
 #include <X11/Xft/Xft.h>
 
 // nst
+#include "fwd.hxx"
 #include "Glyph.hxx"
 #include "nst_config.hxx"
 
@@ -19,8 +20,6 @@
  **/
 
 namespace nst {
-
-struct TermWindow;
 
 /// Returns the color name for a color number taking into account extended color configuration.
 /**

@@ -6,10 +6,10 @@
 #include <string_view>
 #include <vector>
 
-namespace nst {
+// nst
+#include "fwd.hxx"
 
-class Nst;
-class RuneInfo;
+namespace nst {
 
 /// Handles STR (non CSI) escape sequences.
 /**

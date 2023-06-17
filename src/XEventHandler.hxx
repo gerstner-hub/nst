@@ -13,14 +13,12 @@
 #include "X++/fwd.hxx"
 
 // nst
+#include "fwd.hxx"
 #include "types.hxx"
 #include "PressedButtons.hxx"
 
 namespace nst {
 
-class Nst;
-class WindowSystem;
-struct TermWindow;
 
 /// Implementation of XEvent callback handlers.
 /**

@@ -11,10 +11,9 @@
 
 // nst
 #include "codecs.hxx"
+#include "fwd.hxx"
 
 namespace nst {
-
-class Nst;
 
 /// Handles CSI and some other types of escape sequences.
 /**

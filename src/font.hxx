@@ -13,6 +13,7 @@
 #include "X++/fwd.hxx"
 
 // nst
+#include "fwd.hxx"
 #include "Glyph.hxx"
 
 /**
@@ -22,8 +23,6 @@
  **/
 
 namespace nst {
-
-class FontColor;
 
 /// Wrapper around the fontconfig slant constants.
 enum class Slant : int {

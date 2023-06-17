@@ -9,12 +9,10 @@
 #include "cosmos/time/StopWatch.hxx"
 
 // nst
+#include "fwd.hxx"
 #include "Selection.hxx"
 
 namespace nst {
-
-class WindowSystem;
-class Nst;
 
 /// This type manages the WindowSystem specific parts of selection/clipboard buffer handling.
 class XSelection {

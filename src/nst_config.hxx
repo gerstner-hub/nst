@@ -13,12 +13,11 @@
 #include "X++/XCursor.hxx"
 
 // nst
+#include "fwd.hxx"
 #include "Selection.hxx"
 #include "types.hxx"
 
 namespace nst {
-
-class Nst; // fwd. decl
 
 namespace config {
 

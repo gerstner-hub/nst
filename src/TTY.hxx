@@ -11,9 +11,10 @@
 #include "cosmos/proc/SubProc.hxx"
 #include "cosmos/types.hxx"
 
-namespace nst {
+// nst
+#include "fwd.hxx"
 
-class Nst;
+namespace nst {
 
 /// (Pseudo) Terminal I/O.
 /**

@@ -2,12 +2,11 @@
 #define NST_TERM_WINDOW_HXX
 
 // nst
+#include "fwd.hxx"
 #include "nst_config.hxx"
 #include "types.hxx"
 
 namespace nst {
-
-class Font;
 
 /// Purely graphic info about the Terminal.
 struct TermWindow {

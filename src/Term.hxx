@@ -13,15 +13,12 @@
 // nst
 #include "CursorState.hxx"
 #include "EscapeHandler.hxx"
+#include "fwd.hxx"
 #include "Glyph.hxx"
 #include "Screen.hxx"
 #include "types.hxx"
 
 namespace nst {
-
-class Selection;
-class TTY;
-class WindowSystem;
 
 /// Internal representation of the screen.
 /**

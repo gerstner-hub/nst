@@ -5,13 +5,10 @@
 #include <string>
 
 // nst
+#include "fwd.hxx"
 #include "types.hxx"
 
 namespace nst {
-
-struct Glyph;
-class Nst;
-class Term;
 
 /// This type handles the current copy/paste selection on a purely logical level (without X11 aspects).
 class Selection {

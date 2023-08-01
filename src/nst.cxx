@@ -37,8 +37,6 @@ void Nst::waitForWindowMapping() {
 			m_wsys.setWinSize(Extent{configure.extent()});
 		}
 	} while (!ev.isMapNotify());
-
-	resizeConsole();
 }
 
 void Nst::run(int argc, const char **argv) {
@@ -64,22 +62,29 @@ void Nst::setEnv() {
 
 
 void Nst::mainLoop() {
-	auto ttyfd = m_tty.create();
-	auto childfd = m_tty.childFD();
-	auto &display = xpp::display;
-
 	cosmos::Poller poller;
-	poller.create();
-	for (auto fd: {ttyfd, display.connectionNumber(), static_cast<cosmos::FileDescriptor&>(childfd)}) {
-		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
-	}
 
 	bool drawing = false;
 	cosmos::MonotonicStopWatch draw_watch;
 	cosmos::MonotonicStopWatch blink_watch{cosmos::MonotonicStopWatch::InitialMark{true}};
 	std::chrono::milliseconds timeout{-1};
 
+	poller.create();
 	waitForWindowMapping();
+
+	// don't create the TTY before we know the proper initial TTY size
+	// from X11, otherwise child processes that evaluate the TTY size
+	// might race against waitForWindowMapping() causing irritating
+	// behaviour (e.g. `less` behaves strange if the TTY has a 0/0 size).
+	auto ttyfd = m_tty.create(m_wsys.termWin().TTYExtent());
+	auto childfd = m_tty.childFD();
+	auto &display = xpp::display;
+
+	resizeConsole();
+
+	for (auto fd: {ttyfd, display.connectionNumber(), static_cast<cosmos::FileDescriptor&>(childfd)}) {
+		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
+	}
 
 	while (true) {
 		if (display.hasPendingEvents())

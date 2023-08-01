@@ -33,7 +33,7 @@ TTY::~TTY() {
 	}
 }
 
-cosmos::FileDescriptor TTY::create() {
+cosmos::FileDescriptor TTY::create(const Extent extent) {
 	const auto &cmdline = m_nst.cmdline();
 
 	if (m_cmd_file.isOpen()) {
@@ -46,7 +46,7 @@ cosmos::FileDescriptor TTY::create() {
 		// operate on a real TTY line, running stty on it
 		openTTY(line);
 	} else {
-		createPTY();
+		createPTY(extent);
 	}
 
 	m_terminal.setFD(m_cmd_file);
@@ -65,9 +65,9 @@ void TTY::openTTY(const std::string &line) {
 	configureTTY();
 }
 
-void TTY::createPTY() {
+void TTY::createPTY(const Extent extent) {
 	// create a pseudo TTY
-	auto [master, slave] = cosmos::openPTY();
+	auto [master, slave] = cosmos::openPTY(toTermDimension(extent));
 
 	m_cmd_file.open(master, cosmos::AutoCloseFD{true});
 
@@ -260,7 +260,7 @@ void TTY::writeRaw(const std::string_view sv) {
 	}
 }
 
-void TTY::resize(const Extent size) {
+cosmos::TermDimension TTY::toTermDimension(const Extent size) const { 
 	const auto &term = m_nst.term();
 	cosmos::TermDimension dim(term.numCols(), term.numRows());
 	// according to the man page these fields are unused on Linux, but it
@@ -268,8 +268,12 @@ void TTY::resize(const Extent size) {
 	dim.ws_xpixel = size.width;
 	dim.ws_ypixel = size.height;
 
+	return dim;
+}
+
+void TTY::resize(const Extent size) {
 	try {
-		m_terminal.setSize(dim);
+		m_terminal.setSize(toTermDimension(size));
 	} catch (const std::exception &ex) {
 		std::cerr << "Couldn't set window size: " << ex.what() << "\n";
 	}

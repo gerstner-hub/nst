@@ -43,7 +43,7 @@ public: // functions
 	 * ownership still belongs to TTY and I/O on it should only be
 	 * performed by this class.
 	 **/
-	cosmos::FileDescriptor create();
+	cosmos::FileDescriptor create(const Extent size);
 
 	/// Reads data from the TTY and forwards it to the active Term instance.
 	/**
@@ -92,7 +92,7 @@ protected: // functions
 	/// Runs stty to configure a real TTY device if specified on the cmdline.
 	void configureTTY();
 	/// Creates a PTY to operate on.
-	void createPTY();
+	void createPTY(const Extent size);
 	/// Sets up m_cmd_poller to listen on m_cmd_file.
 	void setupPoller();
 	/// Opens a I/O file where all TTY I/O is printed to, raw.
@@ -102,6 +102,7 @@ protected: // functions
 	/// For the PTY case execute the default shell or the program passed on the command line.
 	void executeShell(cosmos::FileDescriptor slave);
 	void doPrintToIoFile(const std::string_view s);
+	cosmos::TermDimension toTermDimension(const Extent size) const;
 
 protected: // data
 

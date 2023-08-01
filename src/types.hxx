@@ -131,6 +131,9 @@ public: // functions
 /// A rectangular range of characters between a begin and an end CharPos.
 /**
  * The begin and end coordinates are *inclusive*.
+ * 
+ * \todo TODO: this inclusiveness is problematic and unintuitive, see the
+ *             `- 1` subtractions below.
  **/
 struct Range {
 public: // data
@@ -157,12 +160,12 @@ public: // functions
 
 	Range(const CharPos b, const Width w) :
 			Range{b, b} {
-		end.x += raw_width(w);
+		end.x += raw_width(w) - 1;
 	}
 
 	Range(const CharPos b, const Height h) :
 			Range{b, b} {
-		end.y += raw_height(h);
+		end.y += raw_height(h) - 1;
 	}
 
 	void invalidate() { begin.x = -1; }

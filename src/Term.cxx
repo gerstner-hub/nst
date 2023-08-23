@@ -654,6 +654,7 @@ void Term::putChar(const Rune rune) {
 		// properly, no?
 		if (auto to_move = lineSpaceLeft() - req_width; to_move > 0) {
 			std::memmove(gp + req_width, gp, to_move * sizeof(Line::value_type));
+			gp->mode.reset();
 		}
 	}
 

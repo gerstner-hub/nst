@@ -188,6 +188,10 @@ bool EscapeHandler::checkCSISequence(const RuneInfo &rinfo) {
 	if (m_state[Escape::CSI]) {
 		const bool finished = m_csi_escape.addCSI(rinfo.rune());
 		if (finished) {
+			// reset the state right away to prevent a potential
+			// infinite recursion (e.g. via the CSI repeat char
+			// logic).
+			m_state.reset();
 			m_csi_escape.parse();
 			m_csi_escape.process();
 		}

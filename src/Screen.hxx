@@ -5,6 +5,7 @@
 #include <vector>
 
 // nst
+#include "CursorState.hxx"
 #include "Glyph.hxx"
 
 namespace nst {
@@ -82,6 +83,19 @@ public: // functions
 
 	Line& operator[](size_type pos)             { return base()[pos]; }
 	const Line& operator[](size_type pos) const { return base()[pos]; }
+
+	void setCachedCursor(const CursorState &state) {
+		m_cached_cursor = state;
+	}
+
+	auto& getCachedCursor() const {
+		return m_cached_cursor;
+	}
+
+protected: // data
+
+	CursorState m_cached_cursor; /// save/load cursor state for this screen
+
 };
 
 } // end ns

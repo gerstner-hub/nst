@@ -283,15 +283,14 @@ void Term::swapScreen() {
 }
 
 void Term::cursorControl(const CursorState::Control ctrl) {
-	auto &cursor = m_mode[Mode::ALTSCREEN] ? m_cached_alt_cursor : m_cached_main_cursor;
 
 	switch(ctrl) {
 		case CursorState::Control::SAVE:
-			cursor = m_cursor;
+			m_screen.setCachedCursor(m_cursor);
 			break;
 		case CursorState::Control::LOAD:
-			m_cursor = cursor;
-			moveCursorTo(cursor.pos);
+			m_cursor = m_screen.getCachedCursor();
+			moveCursorTo(m_cursor.pos);
 			break;
 	}
 }

@@ -456,8 +456,6 @@ protected: // data
 	size_t m_active_charset = 0;       /// current charset used from m_charsets
 
 	CursorState m_cursor;             /// current cursor position and attributes
-	CursorState m_cached_main_cursor; /// save/load cursor for main screen
-	CursorState m_cached_alt_cursor;  /// ... and for alt screen
 
 	bool m_allow_altscreen = false;  /// whether altscreen support is enabled
 	EscapeHandler m_esc_handler; /// processes any kinds of terminal escape sequences

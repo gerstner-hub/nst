@@ -38,32 +38,26 @@ protected: // data
  * This is a two dimensional vector with some helper operations for the
  * Screen terminal context.
  **/
-class Screen :
-		public std::vector<Line> {
-protected: // functions
-
-	auto& base() { return static_cast<std::vector<Line>&>(*this); }
-	auto& base() const { return static_cast<const std::vector<Line>&>(*this); }
-
+class Screen {
 public: // functions
 
-	Line& line(const CharPos pos)             { return base()[pos.y]; }
-	const Line& line(const CharPos pos) const { return base()[pos.y]; }
+	Line& line(const CharPos pos)             { return m_lines[pos.y]; }
+	const Line& line(const CharPos pos) const { return m_lines[pos.y]; }
 
 	void setDimension(const TermSize size) {
-		resize(size.rows);
+		m_lines.resize(size.rows);
 
 		// resize each row to new width
-		for (auto &row: *this) {
+		for (auto &row: m_lines) {
 			row.resize(size.cols);
 		}
 	}
 
-	size_type numCols() const {
-		return empty() ? 0 : front().size();
+	size_t numCols() const {
+		return m_lines.empty() ? 0 : m_lines.front().size();
 	}
-	size_type numLines() const {
-		return size();
+	size_t numLines() const {
+		return m_lines.size();
 	}
 
 	bool validLine(const CharPos p) const {
@@ -78,11 +72,11 @@ public: // functions
 		return validLine(p) && validColumn(p);
 	}
 
-	Glyph& operator[](const CharPos p)             { return base()[p.y][p.x]; }
-	const Glyph& operator[](const CharPos p) const { return base()[p.y][p.x]; }
+	Glyph& operator[](const CharPos p)             { return m_lines[p.y][p.x]; }
+	const Glyph& operator[](const CharPos p) const { return m_lines[p.y][p.x]; }
 
-	Line& operator[](size_type pos)             { return base()[pos]; }
-	const Line& operator[](size_type pos) const { return base()[pos]; }
+	Line& operator[](Line::size_type pos)             { return m_lines[pos]; }
+	const Line& operator[](Line::size_type pos) const { return m_lines[pos]; }
 
 	void setCachedCursor(const CursorState &state) {
 		m_cached_cursor = state;
@@ -92,9 +86,15 @@ public: // functions
 		return m_cached_cursor;
 	}
 
+	auto begin() { return m_lines.begin(); }
+	auto end() { return m_lines.end(); }
+	auto begin() const { return m_lines.begin(); }
+	auto end() const { return m_lines.end(); }
+
 protected: // data
 
-	CursorState m_cached_cursor; /// save/load cursor state for this screen
+	std::vector<Line> m_lines;
+	CursorState m_cached_cursor; /// save/load cursor state for this screen.
 
 };
 

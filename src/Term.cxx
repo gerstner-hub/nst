@@ -89,7 +89,7 @@ void Term::reset() {
 }
 
 void Term::setDirty(LineSpan span) {
-	if (m_screen.empty())
+	if (m_screen.numLines() == 0)
 		// not yet initialized
 		return;
 

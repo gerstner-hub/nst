@@ -112,8 +112,9 @@ void Term::resize(const TermSize new_size) {
 	// work here, but we can optimize to std::move because we're freeing
 	// the earlier lines.
 	//
-	// only do this if the new rows are smaller than the current cursor row
-	if(const auto shift = m_cursor.pos.y - new_size.rows; shift > 0) {
+	// only do this if the current cursor row will be outside the limits
+	// of the new terminal size.
+	if (const auto shift = m_cursor.pos.y - new_size.rows + 1; shift > 0) {
 		for (auto screen: {&m_screen, &m_alt_screen}) {
 			std::move(screen->begin() + shift, screen->begin() + shift + new_size.rows, screen->begin());
 		}

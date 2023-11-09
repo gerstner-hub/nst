@@ -181,6 +181,8 @@ static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
 static constexpr unsigned int COLS = 80;
 /// Default number of rows.
 static constexpr unsigned int ROWS = 24;
+/// Number of lines kept in the scrollback buffer.
+static constexpr size_t HISTORY_LEN = 4000;
 
 /// Default shape of the mouse cursor.
 constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::XTERM};

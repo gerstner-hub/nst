@@ -50,7 +50,9 @@ Term::Term(Nst &nst) :
 		m_tty{nst.tty()},
 		m_wsys{nst.wsys()},
 		m_allow_altscreen{config::ALLOW_ALTSCREEN},
-		m_esc_handler{nst}
+		m_esc_handler{nst},
+		m_screen{config::HISTORY_LEN},
+		m_alt_screen{0}
 {}
 
 void Term::init(const Nst &nst) {
@@ -83,6 +85,7 @@ void Term::reset() {
 
 	// reset main and alt screen
 	for (size_t i = 0; i < 2; i++) {
+		m_screen.resetScrollBuffer();
 		moveCursorTo(topLeft());
 		cursorControl(CursorState::Control::SAVE);
 		clearScreen();
@@ -110,23 +113,22 @@ void Term::resize(const TermSize new_size) {
 		return;
 	}
 
-	// slide screen to keep cursor where we expect it - scrollUp would
-	// work here, but we can optimize to std::move because we're freeing
-	// the earlier lines.
+	// shift the screen view down to keep cursor where we expect it
 	//
 	// only do this if the current cursor row will be outside the limits
 	// of the new terminal size.
+	//
+	// moveCursorTo() below will update the cursor position accordingly to
+	// make things fit again.
 	if (const auto shift = m_cursor.pos.y - new_size.rows + 1; shift > 0) {
 		for (auto screen: {&m_screen, &m_alt_screen}) {
-			std::move(screen->begin() + shift, screen->begin() + shift + new_size.rows, screen->begin());
+			screen->shiftViewDown(shift);
 		}
 	}
 
 	// adjust dimensions of internal data structures
-
-	for (auto screen: {&m_screen, &m_alt_screen}) {
-		screen->setDimension(new_size);
-	}
+	m_screen.setDimension(new_size, m_cursor.attrs());
+	m_alt_screen.setDimension(new_size, m_alt_screen.getCachedCursor().attrs());
 
 	// update terminal size (needed by setupTabs() below)
 	m_size = new_size;
@@ -142,7 +144,7 @@ void Term::resize(const TermSize new_size) {
 	moveCursorTo(m_cursor.pos);
 
 	// Clear both screens (it marks all lines drity)
-	auto saved_cursor = m_cursor;
+	const auto saved_cursor = m_cursor;
 
 	for (size_t i = 0; i < 2; i++) {
 		// clear new cols if number of columns increased
@@ -166,7 +168,14 @@ void Term::clearRegion(Range range) {
 	range.clamp(bottomRight());
 
 	for (auto pos = range.begin; pos.y <= range.end.y; pos.y++) {
-		m_screen.line(pos).setDirty(true);
+		auto &line = m_screen[pos.y];
+		line.setDirty(true);
+		if (line.empty()) {
+			// if this is a new line that has been scrolled into
+			// view then we need to set it to proper size first
+			line.resize(m_size.cols);
+		}
+
 		for (pos.x = range.begin.x; pos.x <= range.end.x; pos.x++) {
 			if (m_selection.isSelected(pos))
 				m_selection.clear();
@@ -356,7 +365,7 @@ void Term::deleteColsAfterCursor(int count) {
 	const int dst = cursor.x;
 	const int src = cursor.x + count;
 	const int left = m_size.cols - src;
-	auto &line = m_screen.line(cursor);
+	auto &line = m_screen[cursor.y];
 
 	if (left <= 0)
 		return;
@@ -385,7 +394,7 @@ void Term::insertBlanksAfterCursor(int count) {
 	const int dst = cursor.x + count;
 	const int src = cursor.x;
 	const int left = m_size.cols - dst;
-	auto &line = m_screen.line(cursor);
+	auto &line = m_screen[cursor.y];
 
 	if (left <= 0)
 		return;
@@ -430,15 +439,22 @@ void Term::scrollDown(int num_lines, std::optional<int> opt_origin) {
 
 	num_lines = std::clamp(num_lines, 0, area.bottom - origin + 1);
 
-	setDirty(LineSpan{origin, area.bottom - num_lines});
-	// clear the to-be-overwritten lines, which will end up at the top
-	// after scrolling finished below.
-	clearLines(LineSpan{area.bottom - num_lines + 1, area.bottom});
+	/* see scrollUp() */
 
-	for (int i = area.bottom; i >= origin + num_lines; i--) {
+	for (auto i = area.bottom + 1; i < m_size.rows; i++) {
 		std::swap(m_screen[i], m_screen[i-num_lines]);
 	}
 
+	for (auto i = 0; i < origin; i++) {
+		std::swap(m_screen[i], m_screen[i-num_lines]);
+	}
+
+	m_screen.shiftViewUp(num_lines);
+
+	// clear the to-be-overwritten lines, which will end up at the top
+	// after scrolling finished below.
+	clearLines(LineSpan{origin, origin + num_lines - 1});
+	setDirty(LineSpan{origin, area.bottom});
 	m_selection.scroll(origin, num_lines);
 }
 
@@ -448,21 +464,56 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 
 	num_lines = std::clamp(num_lines, 0, area.bottom - origin + 1);
 
-	setDirty(LineSpan{origin + num_lines, area.bottom});
-	clearLines(LineSpan{origin, origin + num_lines -1});
+	/*
+	 * shift non-scrolling top and bottom areas downward by `num_lines`.
+	 * By doing so the upper `num_lines` from the scrolling area will
+	 * become scroll history lines. The new bottom lines that are
+	 * appearing will be the oldest lines found in the scroll history
+	 * ring buffer, which will be cleared at the end.
+	 *
+	 * Finally the ring buffer view will be shifted by `num_lines`
+	 * downwards to keep everything in place.
+	 */
 
-	for (int i = origin; i <= area.bottom - num_lines; i++) {
+	for (auto i = origin - 1; i >= 0; i--) {
 		std::swap(m_screen[i], m_screen[i+num_lines]);
 	}
 
+	for (auto i = m_size.rows - 1; i > area.bottom; i--) {
+		std::swap(m_screen[i], m_screen[i+num_lines]);
+	}
+
+	m_screen.shiftViewDown(num_lines);
+
+	clearLines(LineSpan{area.bottom - num_lines + 1, area.bottom});
+	setDirty(LineSpan{origin, area.bottom});
 	m_selection.scroll(origin, -num_lines);
+}
+
+void Term::scrollHistoryUp(int num_lines) {
+	if (m_mode[Mode::ALTSCREEN])
+		// scrollback buffer is only supported on the main screen
+		return;
+
+	num_lines = m_screen.scrollHistoryUp(num_lines);
+	m_selection.scroll(0, num_lines);
+	setAllDirty();
+}
+
+void Term::scrollHistoryDown(int num_lines) {
+	if (m_mode[Mode::ALTSCREEN])
+		return;
+
+	num_lines = m_screen.scrollHistoryDown(num_lines);
+	m_selection.scroll(0, -num_lines);
+	setAllDirty();
 }
 
 void Term::dumpLine(const CharPos pos) const {
 	std::string enc_rune;
 
 	auto left = lineLen(pos);
-	const auto line = m_screen.line(pos);
+	const auto line = m_screen[pos.y];
 
 	for (auto it = line.begin(); left != 0; it++, left--) {
 		utf8::encode(it->rune, enc_rune);
@@ -536,8 +587,10 @@ void Term::draw() {
 		new_pos.moveLeft();
 
 	drawScreen();
-	m_wsys.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
-	m_wsys.drawCursor(new_pos, m_screen[new_pos]);
+	if (!m_screen.isScrolled()) {
+		m_wsys.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
+		m_wsys.drawCursor(new_pos, m_screen[new_pos]);
+	}
 
 	const bool cursor_pos_changed = orig_last_pos != new_pos;
 	m_last_cursor_pos = new_pos;
@@ -703,6 +756,12 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	Rune rune;
 	size_t charsize = 0;
 	const bool use_utf8 = m_mode[Mode::UTF8];
+
+	if (m_screen.isScrolled()) {
+		// jump back to the current input screen upon entering new data
+		m_screen.stopScrolling();
+		setAllDirty();
+	}
 
 	for (size_t pos = 0; pos < data.size(); pos += charsize) {
 		if (use_utf8) {

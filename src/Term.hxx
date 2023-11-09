@@ -251,6 +251,10 @@ public: // functions
 	 **/
 	void scrollUp(int num_lines = 1, std::optional<int> origin = {});
 
+	void scrollHistoryUp(int num_lines = 1);
+
+	void scrollHistoryDown(int num_lines = 1);
+
 	/// Returns the number of characters found in the given line nr.
 	int lineLen(const int y) const;
 	/// Returns the number of characters found in the given line nr.

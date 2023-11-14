@@ -180,7 +180,7 @@ void ColorManager::configureFor(const Glyph base) {
 		// pointed either to fixed colors in the array or to a
 		// temporary color object on the stack. For performance this
 		// would certainly still be better to make this distinction,
-		// but is causes ugly code ...
+		// but it causes ugly code ...
 		// TODO: either find a nice way to implement copy-on-write, or
 		// simplify this code by only calling `.invert()` right away.
 		if (m_front_color == defaultFront()) {

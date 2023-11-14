@@ -239,7 +239,7 @@ public: // functions
 		}
 	}
 
-	/// returns whether the given position's y coordinate in within this LineSpan range
+	/// returns whether the given position's y coordinate is within this LineSpan range
 	bool inRange(const CharPos pos) const {
 		return top <= pos.y && pos.y <= bottom;
 	}

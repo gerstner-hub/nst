@@ -469,8 +469,8 @@ protected: // data
 
 	bool m_allow_altscreen = false;  /// whether altscreen support is enabled
 	EscapeHandler m_esc_handler; /// processes any kinds of terminal escape sequences
-	Screen m_screen;     /// all the glyphs that make up the terminal screen
-	Screen m_alt_screen; /// all the glyphs that make up the alternative terminal screen
+	Screen m_screen;     /// all the glyphs that make up the current terminal screen
+	Screen m_saved_screen; /// all the glyphs that make up the saved terminal screen
 	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
 };
 

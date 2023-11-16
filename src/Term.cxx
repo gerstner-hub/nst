@@ -52,7 +52,7 @@ Term::Term(Nst &nst) :
 		m_allow_altscreen{config::ALLOW_ALTSCREEN},
 		m_esc_handler{nst},
 		m_screen{config::HISTORY_LEN},
-		m_alt_screen{0}
+		m_saved_screen{0}
 {}
 
 void Term::init(const Nst &nst) {
@@ -121,14 +121,14 @@ void Term::resize(const TermSize new_size) {
 	// moveCursorTo() below will update the cursor position accordingly to
 	// make things fit again.
 	if (const auto shift = m_cursor.pos.y - new_size.rows + 1; shift > 0) {
-		for (auto screen: {&m_screen, &m_alt_screen}) {
+		for (auto screen: {&m_screen, &m_saved_screen}) {
 			screen->shiftViewDown(shift);
 		}
 	}
 
 	// adjust dimensions of internal data structures
 	m_screen.setDimension(new_size, m_cursor.attrs());
-	m_alt_screen.setDimension(new_size, m_alt_screen.getCachedCursor().attrs());
+	m_saved_screen.setDimension(new_size, m_saved_screen.getCachedCursor().attrs());
 
 	// update terminal size (needed by setupTabs() below)
 	m_size = new_size;
@@ -286,7 +286,7 @@ void Term::setAltScreen(const bool enable, const bool with_cursor) {
 }
 
 void Term::swapScreen() {
-	std::swap(m_screen, m_alt_screen);
+	std::swap(m_screen, m_saved_screen);
 	m_mode.flip(Mode::ALTSCREEN);
 	setAllDirty();
 }

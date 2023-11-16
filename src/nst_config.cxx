@@ -69,8 +69,12 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 		{ TERMMOD,              KeyID::Y,           selPaste            },
 		{ Mask{Mod::SHIFT},     KeyID::INSERT,      selPaste            },
 		{ TERMMOD,              KeyID::NUM_LOCK,    std::bind(&WindowSystem::toggleNumlock, &wsys) },
-		{ Mask{Mod::SHIFT},     KeyID::PRIOR,       std::bind(&nst::Term::scrollHistoryUp, &term, +5) },
-		{ Mask{Mod::SHIFT},     KeyID::NEXT,        std::bind(&nst::Term::scrollHistoryDown, &term, +5) },
+		{ Mask{Mod::SHIFT},     KeyID::PRIOR,       std::bind(&nst::Term::scrollHistoryUpByLines, &term, +10) },
+		{ Mask{Mod::SHIFT},     KeyID::NEXT,        std::bind(&nst::Term::scrollHistoryDownByLines, &term, +10) },
+		{ Mask{Mod::SHIFT, Mod::MOD1},
+					KeyID::PRIOR,       std::bind(&nst::Term::scrollHistoryUpByPage, &term, +0.5) },
+		{ Mask{Mod::SHIFT, Mod::MOD1},
+					KeyID::NEXT,        std::bind(&nst::Term::scrollHistoryDownByPage, &term, +0.5) },
 	};
 }
 

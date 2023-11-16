@@ -251,9 +251,13 @@ public: // functions
 	 **/
 	void scrollUp(int num_lines = 1, std::optional<int> origin = {});
 
-	void scrollHistoryUp(int num_lines = 1);
+	void scrollHistoryUpByPage(const float num_pages);
 
-	void scrollHistoryDown(int num_lines = 1);
+	void scrollHistoryDownByPage(const float num_pages);
+
+	void scrollHistoryUpByLines(const int num_lines);
+
+	void scrollHistoryDownByLines(const int num_lines);
 
 	/// Returns the number of characters found in the given line nr.
 	int lineLen(const int y) const;

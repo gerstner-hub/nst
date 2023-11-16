@@ -490,7 +490,15 @@ void Term::scrollUp(int num_lines, std::optional<int> opt_origin) {
 	m_selection.scroll(origin, -num_lines);
 }
 
-void Term::scrollHistoryUp(int num_lines) {
+void Term::scrollHistoryUpByPage(const float num_pages) {
+	return scrollHistoryUpByLines(static_cast<int>(num_pages * m_size.rows));
+}
+
+void Term::scrollHistoryDownByPage(const float num_pages) {
+	return scrollHistoryDownByLines(static_cast<int>(num_pages * m_size.rows));
+}
+
+void Term::scrollHistoryUpByLines(int num_lines) {
 	if (m_mode[Mode::ALTSCREEN])
 		// scrollback buffer is only supported on the main screen
 		return;
@@ -500,7 +508,7 @@ void Term::scrollHistoryUp(int num_lines) {
 	setAllDirty();
 }
 
-void Term::scrollHistoryDown(int num_lines) {
+void Term::scrollHistoryDownByLines(int num_lines) {
 	if (m_mode[Mode::ALTSCREEN])
 		return;
 

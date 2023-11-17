@@ -187,6 +187,8 @@ public: // functions
 
 	auto mode() const { return m_mode; }
 
+	bool onAltScreen() const { return m_mode[Mode::ALTSCREEN]; }
+
 	void setCarriageReturn(const bool enable) { m_mode.set(Mode::CRLF, enable); }
 
 	void setEcho(const bool enable) { m_mode.set(Mode::TECHO, enable); }

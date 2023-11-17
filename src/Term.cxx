@@ -274,13 +274,11 @@ void Term::setAltScreen(const bool enable, const bool with_cursor) {
 	if (with_cursor)
 		cursorControl(cursor_ctrl);
 
-	const auto is_alt = m_mode[Mode::ALTSCREEN];
-
-	if (is_alt) {
+	if (onAltScreen()) {
 		clearRegion({topLeft(), bottomRight()});
 	}
 
-	if (enable ^ is_alt) // if the mode actually changed
+	if (enable ^ onAltScreen()) // if the mode actually changed
 		swapScreen();
 
 	if (with_cursor)
@@ -499,7 +497,7 @@ void Term::scrollHistoryDownByPage(const float num_pages) {
 }
 
 void Term::scrollHistoryUpByLines(int num_lines) {
-	if (m_mode[Mode::ALTSCREEN])
+	if (onAltScreen())
 		// scrollback buffer is only supported on the main screen
 		return;
 
@@ -509,7 +507,7 @@ void Term::scrollHistoryUpByLines(int num_lines) {
 }
 
 void Term::scrollHistoryDownByLines(int num_lines) {
-	if (m_mode[Mode::ALTSCREEN])
+	if (onAltScreen())
 		return;
 
 	num_lines = m_screen.scrollHistoryDown(num_lines);

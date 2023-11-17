@@ -62,6 +62,9 @@ public: // functions
 
 	explicit Term(Nst &nst);
 
+	// non-copyable
+	Term(const Term&) = delete;
+
 	void init(const Nst &nst);
 
 	/// Change the terminal dimensions.

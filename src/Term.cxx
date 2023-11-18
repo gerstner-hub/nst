@@ -26,6 +26,7 @@ static_assert(std::is_trivially_copyable<nst::Glyph>::value, "Glyph type needs t
 CursorState::CursorState() {
 	m_attrs.fg = config::DEFAULT_FG;
 	m_attrs.bg = config::DEFAULT_BG;
+	m_attrs.rune = ' ';
 }
 
 void CursorState::resetAttrs() {
@@ -41,6 +42,7 @@ void CursorState::resetAttrs() {
 	});
 	m_attrs.fg = config::DEFAULT_FG;
 	m_attrs.bg = config::DEFAULT_BG;
+	m_attrs.rune = ' ';
 }
 
 Term::Term(Nst &nst) :

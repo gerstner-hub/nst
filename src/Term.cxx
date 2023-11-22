@@ -149,8 +149,11 @@ void Term::resize(const TermSize new_size) {
 	for (size_t i = 0; i < 2; i++) {
 		// clear new cols if number of columns increased
 		if (old_size.cols < new_size.cols && old_size.rows > 0) {
-			clearRegion({CharPos{old_size.cols, 0}, CharPos{new_size.cols - 1, old_size.rows - 1}});
+			// we don't need to clear the Glyphs, they are
+			// initialized in Screen::setDimension()
+			setDirty(LineSpan{0, old_size.rows - 1});
 		}
+
 		// clear new rows if number of rows increased
 		if (old_size.rows < new_size.rows && old_size.cols > 0) {
 			clearRegion({CharPos{0, old_size.rows}, bottomRight()});
@@ -170,6 +173,8 @@ void Term::clearRegion(Range range) {
 	for (auto pos = range.begin; pos.y <= range.end.y; pos.y++) {
 		auto &line = m_screen[pos.y];
 		line.setDirty(true);
+		line.shrinkToPhysical();
+
 		if (line.empty()) {
 			// if this is a new line that has been scrolled into
 			// view then we need to set it to proper size first

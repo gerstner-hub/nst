@@ -8,33 +8,9 @@
 // nst
 #include "CursorState.hxx"
 #include "Glyph.hxx"
+#include "Line.hxx"
 
 namespace nst {
-
-/// a series of Glyphs forming a line on the terminal.
-class Line :
-		public std::vector<Glyph> {
-public: // functions
-
-	/// Returns whether the line has a WRAP attribute set for the last element
-	bool isWrapped() const {
-		return back().mode[Attr::WRAP];
-	}
-
-	bool isDirty() const {
-		return m_dirty;
-	}
-
-	void setDirty(const bool dirty) const {
-		m_dirty = dirty;
-	}
-
-protected: // data
-
-	mutable bool m_dirty = false;
-};
-
-using LineVector = std::vector<Line>;
 
 /// A terminal screen consisting of lines of Glyphs.
 /**
@@ -285,7 +261,7 @@ protected: // functions
 	 * scroll history. The return type is unsigned and suitable for use
 	 * with m_lines.
 	 **/
-	Line::size_type translateLinePos(ssize_t pos) const {
+	LineVector::size_type translateLinePos(ssize_t pos) const {
 		pos += m_cur_pos;
 		pos -= m_scroll_offset;
 
@@ -297,7 +273,7 @@ protected: // functions
 			pos -= m_lines.size();
 		}
 
-		return static_cast<Line::size_type>(pos);
+		return static_cast<LineVector::size_type>(pos);
 	}
 
 protected: // data

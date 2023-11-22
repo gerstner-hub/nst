@@ -8,16 +8,14 @@ namespace nst {
 
 void Screen::setDimension(const TermSize size, const Glyph defattrs) {
 
-	if (m_history_len && size_t(size.rows) > m_history_len) {
-		cosmos_throw( cosmos::RuntimeError{"Requested terminal size larger than scroll ring buffer"} );
-	}
-
 	// stop any active scrolling since the operations are destined for the
 	// current screen
 	stopScrolling();
 
-	const auto old_rows = m_rows;
-	m_rows = size.rows;
+	// if we don't have a scroll buffer then we are likely on the alt
+	// screen and then we also don't do stunts with restoring colums lost
+	// due to resize.
+	const auto init_line = Line{/*keep_data_on_shrink=*/hasScrollBuffer()};
 
 	/* if we use a ring buffer with scroll back history then never
 	 * change the ring buffer's size, it will always stick at
@@ -30,16 +28,28 @@ void Screen::setDimension(const TermSize size, const Glyph defattrs) {
 		 * custom iterator type works correctly, because we need a
 		 * valid end() position that is not part of the current screen
 		 */
-		const auto bufsize = m_history_len + m_rows + 1;
-		m_lines.resize(bufsize);
+		const auto bufsize = m_history_len + size.rows + 1;
+		m_lines.resize(bufsize, init_line);
 	} else if (m_history_len == 0) {
 		if (m_cur_pos != 0) {
 			std::copy(this->begin(), this->end(), m_lines.begin());
 			m_cur_pos = 0;
 		}
 
-		m_lines.resize(m_rows + 1);
+		m_lines.resize(size.rows + 1, init_line);
+	} else if (size_t(size.rows) > m_lines.size()) {
+		if (m_cur_pos == 0) {
+			m_lines.resize(size.rows + m_history_len, init_line);
+		} else {
+			// we don't want to reorganize the ring buffer, the
+			// scroll back buffer should be large enough to allow
+			// larger window sizes
+			cosmos_throw(cosmos::RuntimeError{"Requested terminal size larger than scroll ring buffer"});
+		}
 	}
+
+	const auto old_rows = m_rows;
+	m_rows = size.rows;
 
 	// clear rows at the bottom that are no longer visible
 	if (m_rows < old_rows && hasScrollBuffer()) {

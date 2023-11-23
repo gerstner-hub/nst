@@ -33,7 +33,7 @@ constexpr double FONT_DEFAULT_SIZE_PX = 12;
 /**
  * More advanced example: L" `'\"()[]{}"
  **/
-constexpr const std::wstring_view WORD_DELIMITERS{L" "};
+constexpr const std::wstring_view WORD_DELIMITERS{L" \"<>()[]'{}:/"};
 
 /// How stty will be invoked when operating on real TTY lines.
 constexpr std::array<std::string_view, 8> STTY_ARGS{{

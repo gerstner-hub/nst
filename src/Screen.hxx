@@ -213,9 +213,19 @@ public: // functions
 		return m_scroll_offset != 0;
 	}
 
-	/// Reset the screen view to display the current screen contents.
+	/// Reset the screen view to display the current screen contents again.
 	void stopScrolling() {
 		m_scroll_offset = 0;
+	}
+
+	/// Save the current scroll offset for later restoring via restoreScrollState().
+	void saveScrollState() {
+		m_saved_scroll_offset = m_scroll_offset;
+	}
+
+	/// Restore the last state saved via saveScrollState().
+	void restoreScrollState() {
+		m_scroll_offset = m_saved_scroll_offset;
 	}
 
 	/// Shift the current screen view in the ring buffer up for the given number of lines.
@@ -282,6 +292,7 @@ protected: // data
 	size_t m_rows = 0; /// number of rows the visible screen has.
 	size_t m_cur_pos = 0; /// where the current screen content starts in the ring buffer.
 	size_t m_scroll_offset = 0; /// how many lines we are currently scrolled back.
+	size_t m_saved_scroll_offset = 0;
 	size_t m_history_len = 0; /// how big the ring buffer for history should be (0 == no history)
 	CursorState m_cached_cursor; /// save/load cursor state for this screen.
 };

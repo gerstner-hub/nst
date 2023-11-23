@@ -126,6 +126,8 @@ void Term::resize(const TermSize new_size) {
 		}
 	}
 
+	m_screen.saveScrollState();
+
 	// adjust dimensions of internal data structures
 	m_screen.setDimension(new_size, m_cursor.attrs());
 	m_saved_screen.setDimension(new_size, m_saved_screen.getCachedCursor().attrs());
@@ -163,6 +165,20 @@ void Term::resize(const TermSize new_size) {
 	}
 
 	m_cursor = saved_cursor;
+
+	// keep the current scrolling position even when changing the window
+	// size. note that this only works if terminal output is disabled
+	// (ctrl + s), otherwise e.g. the shell will attempt to reconstruct
+	// its prompt, triggering a stopScrolling() in write().
+	// to further improve this we would need to differentiate between user
+	// input and application output in write(), while still allowing
+	// application output to be added to the current screen without
+	// changing the scrolling position.
+	m_screen.restoreScrollState();
+	if (m_screen.isScrolled()) {
+		setAllDirty();
+	}
+
 }
 
 void Term::clearRegion(Range range) {

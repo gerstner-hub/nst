@@ -596,8 +596,8 @@ void Term::drawScreen() const {
 	}
 }
 
-void Term::draw() {
-	if (!m_wsys.canDraw())
+void Term::drawCursor() const {
+	if (m_screen.isScrolled())
 		return;
 
 	const auto orig_last_pos = m_last_cursor_pos;
@@ -613,18 +613,23 @@ void Term::draw() {
 	if (m_screen[new_pos].isDummy())
 		new_pos.moveLeft();
 
-	drawScreen();
-	if (!m_screen.isScrolled()) {
-		m_wsys.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
-		m_wsys.drawCursor(new_pos, m_screen[new_pos]);
-	}
+	m_wsys.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
+	m_wsys.drawCursor(new_pos, m_screen[new_pos]);
 
-	const bool cursor_pos_changed = orig_last_pos != new_pos;
 	m_last_cursor_pos = new_pos;
-	m_wsys.finishDraw();
 
-	if (cursor_pos_changed)
+	if (const bool cursor_pos_changed = orig_last_pos != new_pos; cursor_pos_changed) {
 		m_wsys.setInputSpot(new_pos);
+	}
+}
+
+void Term::draw() {
+	if (!m_wsys.canDraw())
+		return;
+
+	drawScreen();
+	drawCursor();
+	m_wsys.finishDraw();
 }
 
 Rune Term::translateChar(Rune rune) const {

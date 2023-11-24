@@ -331,7 +331,7 @@ public: // functions
 		draw();
 	}
 
-	/// Draws all dirty lines.
+	/// Draws all dirty lines and the cursor.
 	void draw();
 
 	/// Repeats the last input character the given number of times (if printable).
@@ -408,6 +408,9 @@ protected: // functions
 	/// Draws the complete screen area.
 	void drawScreen() const;
 
+	/// Draws the cursor at its current position.
+	void drawCursor() const;
+
 	/// Swaps from main to alternative screen and vice versa.
 	void swapScreen();
 
@@ -461,7 +464,7 @@ protected: // data
 	TermSize m_size;    /// current terminal dimensions
 	ModeBitMask m_mode; /// terminal mode flags
 
-	CharPos m_last_cursor_pos; /// cursor position last drawn on screen
+	mutable CharPos m_last_cursor_pos; /// cursor position last drawn on screen
 	LineSpan m_scroll_area;    /// region of lines that will be affected by scroll operations
 	Rune m_last_char = 0;      /// last printed char outside of control sequence, 0 if control or otherwise unassigned
 

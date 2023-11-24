@@ -435,16 +435,16 @@ protected: // functions
 	}
 
 	/// Returns the given row limited to the current screen dimensions.
-	auto limitRow(const int row) { return std::clamp(row, 0, m_size.rows - 1); }
+	auto limitRow(const int row) const { return std::clamp(row, 0, m_size.rows - 1); }
 	/// Returns the given column limited to the current screen dimensions.
-	auto limitCol(const int col) { return std::clamp(col, 0, m_size.cols - 1); }
-	auto clampRow(int &row) { row = limitRow(row); return row; }
-	auto clampCol(int &col) { col = limitCol(col); return col; }
-	void clampToScreen(CharPos &c) {
+	auto limitCol(const int col) const { return std::clamp(col, 0, m_size.cols - 1); }
+	auto clampRow(int &row) const { row = limitRow(row); return row; }
+	auto clampCol(int &col) const { col = limitCol(col); return col; }
+	void clampToScreen(CharPos &c) const {
 		clampRow(c.y);
 		clampCol(c.x);
 	}
-	void clamp(LineSpan &span) {
+	void clamp(LineSpan &span) const {
 		clampRow(span.top);
 		clampRow(span.bottom);
 	}

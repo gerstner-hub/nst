@@ -597,26 +597,44 @@ void Term::drawScreen() const {
 }
 
 void Term::drawCursor() const {
-	if (m_screen.isScrolled())
+	/*
+	 * we want to be able to draw the cursor even if we are currently
+	 * scrolled back - if the cursor is still visible on the screen, that
+	 * is.
+	 *
+	 * to achieve this we shift the cursor positions using the Screen
+	 * helpers accordingly.
+	 */
+	const auto orig_last_pos = m_screen.shiftedPos(m_last_cursor_pos);
+	auto shifted_last_pos = orig_last_pos;
+
+	CharPos new_pos;
+	if (auto shifted_new_pos = m_screen.shiftedPos(m_cursor.pos); shifted_new_pos) {
+		new_pos = *shifted_new_pos;
+	} else {
+		// cursor isn't visible
 		return;
-
-	const auto orig_last_pos = m_last_cursor_pos;
-	auto new_pos = m_cursor.pos;
-
-	// make sure the last cursor pos is still sane
-	clampToScreen(m_last_cursor_pos);
+	}
 
 	// in case we point to a wide character dummy position, move one
 	// character to the left to point to the actual character
-	if (m_screen[m_last_cursor_pos].isDummy())
-		m_last_cursor_pos.moveLeft();
+	if (shifted_last_pos) {
+		clampToScreen(*shifted_last_pos);
+		if (m_screen[*shifted_last_pos].isDummy())
+			shifted_last_pos->moveLeft();
+	}
+
 	if (m_screen[new_pos].isDummy())
 		new_pos.moveLeft();
 
-	m_wsys.clearCursor(m_last_cursor_pos, m_screen[m_last_cursor_pos]);
+	if (shifted_last_pos) {
+		m_wsys.clearCursor(*shifted_last_pos, m_screen[*shifted_last_pos]);
+	}
 	m_wsys.drawCursor(new_pos, m_screen[new_pos]);
 
-	m_last_cursor_pos = new_pos;
+	if (auto new_unshifted_pos = m_screen.unshiftedPos(new_pos); new_unshifted_pos) {
+		m_last_cursor_pos = *new_unshifted_pos;
+	}
 
 	if (const bool cursor_pos_changed = orig_last_pos != new_pos; cursor_pos_changed) {
 		m_wsys.setInputSpot(new_pos);

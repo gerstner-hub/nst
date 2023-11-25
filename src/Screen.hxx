@@ -3,6 +3,7 @@
 
 // C++
 #include <iterator>
+#include <optional>
 #include <vector>
 
 // nst
@@ -128,6 +129,40 @@ public: // functions
 
 	bool validPos(const CharPos p) const {
 		return validLine(p) && validColumn(p);
+	}
+
+	/// Returns the screen coordinates for \c p considering scroll state.
+	/**
+	 * Returns the corrected coordinates for \c p considering the current
+	 * scrolling state. The resulting position may not be visible on the
+	 * current scroll position. In this case std::nullopt will be
+	 * returned.
+	 **/
+	std::optional<CharPos> shiftedPos(const CharPos p) const {
+		if (!isScrolled())
+			return p;
+
+		// we only need to consider the row position, since we don't
+		// scroll sideways.
+		auto ret = p;
+		ret.y += m_scroll_offset;
+		if (ret.y < 0 || size_t(ret.y) >= m_rows)
+			return std::nullopt;
+
+		return ret;
+	}
+
+	/// Undo the shift operation done in shiftedPos().
+	std::optional<CharPos> unshiftedPos(const CharPos p) const {
+		if (!isScrolled())
+			return p;
+
+		auto ret = p;
+		ret.y -= m_scroll_offset;
+		if (ret.y < 0 || size_t(ret.y) >= m_rows)
+			return std::nullopt;
+
+		return ret;
 	}
 
 	Glyph& operator[](const CharPos p)             { return m_lines[translateLinePos(p.y)][p.x]; }

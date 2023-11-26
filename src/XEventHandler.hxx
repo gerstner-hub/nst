@@ -46,12 +46,12 @@ protected: // functions
 	void expose();
 	void visibilityChange(const xpp::VisibilityEvent &);
 	void unmap();
-	void keyPress(const xpp::KeyEvent &);
+	StopScrolling keyPress(const xpp::KeyEvent &);
 	void clientMessage(const xpp::ClientMessageEvent &);
 	void resize(const xpp::ConfigureEvent &);
 	void focus(const xpp::FocusChangeEvent &);
-	void buttonRelease(const xpp::ButtonEvent &);
-	void buttonPress(const xpp::ButtonEvent &);
+	StopScrolling buttonRelease(const xpp::ButtonEvent &);
+	StopScrolling buttonPress(const xpp::ButtonEvent &);
 	void pointerMovedEvent(const xpp::PointerMovedEvent &);
 	void propertyNotify(const xpp::PropertyEvent &);
 	void selectionNotify(const xpp::SelectionEvent &);
@@ -85,9 +85,9 @@ protected: // functions
 
 	/// Check mouse shortcuts and execute a possibly configured action for the given event.
 	/**
-	 * \return Whether a mouse action was found and executed.
+	 * \return The StopScrolling behaviour if a mouse action was found and executed, otherwise std::nullopt.
 	 **/
-	bool handleMouseAction(const xpp::ButtonEvent &ev);
+	std::optional<StopScrolling> handleMouseAction(const xpp::ButtonEvent &ev);
 
 	/// Returns an output sequence mapped to the given input event.
 	/**

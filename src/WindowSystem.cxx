@@ -81,6 +81,7 @@ void WindowSystem::zoomFont(double val) {
 
 void WindowSystem::resetFont() {
 	m_font_manager.resetZoom();
+	m_nst.term().redraw();
 }
 
 void WindowSystem::allocPixmap() {

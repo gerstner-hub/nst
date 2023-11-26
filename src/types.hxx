@@ -10,6 +10,7 @@
 
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/types.hxx"
 #include "cosmos/BitMask.hxx"
 
 // X++
@@ -296,11 +297,13 @@ using Rune = uint32_t;
 
 
 using InputCallback = std::function<void ()>;
+using StopScrolling = cosmos::NamedBool<struct stop_scroll_t, true>;
 
 struct KbdShortcut {
 	xpp::InputMask mod;
 	xpp::KeySymID keysym;
 	InputCallback func;
+	StopScrolling stop_scrolling = StopScrolling(false);
 };
 
 struct MouseShortcut {
@@ -308,6 +311,7 @@ struct MouseShortcut {
 	xpp::Button button;
 	InputCallback func;
 	bool release;
+	StopScrolling stop_scrolling = StopScrolling(false);
 };
 
 /// various X11 and drawing related window settings

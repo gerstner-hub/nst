@@ -95,9 +95,11 @@ bool XEventHandler::checkEvents() {
 void XEventHandler::process() {
 	using Event = xpp::EventType;
 
+	StopScrolling ss{false};
+
 	switch (m_event.type()) {
 		default: return;
-		case Event::KEY_PRESS:         return keyPress         (xpp::KeyEvent{m_event});
+		case Event::KEY_PRESS:           ss = keyPress         (xpp::KeyEvent{m_event}); break;
 		case Event::CLIENT_MESSAGE:    return clientMessage    (xpp::ClientMessageEvent{m_event});
 		case Event::CONFIGURE_NOTIFY:  return resize           (xpp::ConfigureEvent{m_event});
 		case Event::VISIBILITY_NOTIFY: return visibilityChange (xpp::VisibilityEvent{m_event});
@@ -106,12 +108,16 @@ void XEventHandler::process() {
 		case Event::FOCUS_IN:          /* FALLTHROUGH */
 		case Event::FOCUS_OUT:         return focus            (xpp::FocusChangeEvent{m_event});
 		case Event::MOTION_NOTIFY:     return pointerMovedEvent(xpp::PointerMovedEvent{m_event});
-		case Event::BUTTON_PRESS:      return buttonPress      (xpp::ButtonEvent{m_event});
-		case Event::BUTTON_RELEASE:    return buttonRelease    (xpp::ButtonEvent{m_event});
+		case Event::BUTTON_PRESS:        ss = buttonPress      (xpp::ButtonEvent{m_event}); break;
+		case Event::BUTTON_RELEASE:      ss = buttonRelease    (xpp::ButtonEvent{m_event}); break;
 		case Event::SELECTION_NOTIFY:  return selectionNotify  (xpp::SelectionEvent{m_event});
 		case Event::PROPERTY_NOTIFY:   return propertyNotify   (xpp::PropertyEvent{m_event});
 		case Event::SELECTION_CLEAR:   return selectionClear();
 		case Event::SELECTION_REQUEST: return selectionRequest (xpp::SelectionRequestEvent{m_event});
+	}
+
+	if (ss) {
+		m_nst.term().stopScrolling();
 	}
 }
 
@@ -157,34 +163,36 @@ XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask
 	return {};
 }
 
-void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
+StopScrolling XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 	const auto tmode = m_twin.mode();
+	const auto defret = StopScrolling{false};
 
 	if (tmode[WinMode::KBDLOCK])
-		return;
+		return defret;
 
 	const auto ksym = m_wsys.m_input.lookupString(ev, m_key_buf);
 
 	if (ksym == xpp::KeySymID::NO_SYMBOL && m_key_buf.empty())
 		// lookup failed
-		return;
+		return defret;
 
 	// 1. shortcuts
 	for (auto &shortcut: m_kbd_shortcuts) {
 		if (ksym == shortcut.keysym && state_matches(shortcut.mod, ev.state())) {
 			shortcut.func();
-			return;
+			return shortcut.stop_scrolling;
 		}
 	}
 
 	// 2. custom keys from configuration
 	if (auto seq = customKeyMapping(ksym, ev.state()); seq) {
 		m_nst.tty().write(*seq, TTY::MayEcho{true});
-		return;
+		// this pastes use triggered escape sequences so stop scrolling
+		return StopScrolling{true};
 	}
 
 	if (m_key_buf.empty())
-		return;
+		return defret;
 
 	// 3. composed string from input method
 	if (m_key_buf.size() == 1 && ev.state()[xpp::InputModifier::MOD1]) {
@@ -205,6 +213,7 @@ void XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 	}
 
 	m_nst.tty().write(m_key_buf, TTY::MayEcho{true});
+	return StopScrolling{true};
 }
 
 void XEventHandler::clientMessage(const xpp::ClientMessageEvent &msg) {
@@ -384,7 +393,7 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 	}
 }
 
-void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
+StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	const auto button = ev.buttonNr();
 	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
 
@@ -392,16 +401,18 @@ void XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 
 	if (m_twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);
-	} else if (handleMouseAction(ev)) {
-		return;
+	} else if (auto ss = handleMouseAction(ev); ss) {
+		return *ss;
 	} else if (button == xpp::Button::BUTTON1) {
 		const auto snap = m_wsys.selection().handleClick();
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 		m_nst.selection().start(pos, snap);
 	}
+
+	return StopScrolling{false};
 }
 
-void XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
+StopScrolling XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 	const auto button = ev.buttonNr();
 	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
 
@@ -409,11 +420,13 @@ void XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 
 	if (m_twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);
-	} else if (handleMouseAction(ev)) {
-		return;
+	} else if (auto ss = handleMouseAction(ev); ss) {
+		return *ss;
 	} else if (button == xpp::Button::BUTTON1) {
 		handleMouseSelection(ev);
 	}
+
+	return StopScrolling{false};
 }
 
 void XEventHandler::pointerMovedEvent(const xpp::PointerMovedEvent &ev) {
@@ -426,7 +439,7 @@ void XEventHandler::pointerMovedEvent(const xpp::PointerMovedEvent &ev) {
 	}
 }
 
-bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
+std::optional<StopScrolling> XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 	// ignore Button<N>mask for Button<N> - it's set on release
 	const auto state = ev.state() - button_mask(ev.buttonNr());
 	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
@@ -439,11 +452,11 @@ bool XEventHandler::handleMouseAction(const xpp::ButtonEvent &ev) {
 		// exact or forced match
 		if (state_matches(shortcut.mod, state) || state_matches(shortcut.mod, force_mouse)) {
 			shortcut.func();
-			return true;
+			return shortcut.stop_scrolling;
 		}
 	}
 
-	return false;
+	return std::nullopt;
 }
 
 std::optional<std::tuple<xpp::Button, int>>

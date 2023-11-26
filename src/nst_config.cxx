@@ -59,7 +59,7 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 
 	return {
 		//             mask              button           function                                         release
-		MouseShortcut{ Mask{Mod::ANY},   Button::BUTTON2, std::bind(&WindowSystem::pasteSelection, &wsys), true },
+		MouseShortcut{ Mask{Mod::ANY},   Button::BUTTON2, std::bind(&WindowSystem::pasteSelection, &wsys), true,   StopScrolling{true}},
 		// these generate sequences used by less/vi for scrolling
 		MouseShortcut{ Mask{Mod::SHIFT}, Button::BUTTON4, std::bind(scrollHistoryUp, true),                false },
 		MouseShortcut{ Mask{Mod::SHIFT}, Button::BUTTON5, std::bind(scrollHistoryDown, true),              false },
@@ -96,9 +96,9 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 		{ Mask{Mod::SHIFT,
 		      Mod::MOD1},       KeyID::HOME,        std::bind(&WindowSystem::resetFont, &wsys) },
 		{ TERMMOD,              KeyID::C,           std::bind(&WindowSystem::copyToClipboard, &wsys) },
-		{ TERMMOD,              KeyID::V,           std::bind(&WindowSystem::pasteClipboard, &wsys) },
-		{ TERMMOD,              KeyID::Y,           selPaste            },
-		{ Mask{Mod::SHIFT},     KeyID::INSERT,      selPaste            },
+		{ TERMMOD,              KeyID::V,           std::bind(&WindowSystem::pasteClipboard, &wsys), StopScrolling{true} },
+		{ TERMMOD,              KeyID::Y,           selPaste, StopScrolling{true}            },
+		{ Mask{Mod::SHIFT},     KeyID::INSERT,      selPaste, StopScrolling{true}            },
 		{ TERMMOD,              KeyID::NUM_LOCK,    std::bind(&WindowSystem::toggleNumlock, &wsys) },
 		{ Mask{Mod::SHIFT},     KeyID::PRIOR,       std::bind(&nst::Term::scrollHistoryUpByLines, &term, +10) },
 		{ Mask{Mod::SHIFT},     KeyID::NEXT,        std::bind(&nst::Term::scrollHistoryDownByLines, &term, +10) },

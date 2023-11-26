@@ -2,6 +2,7 @@
 #define NST_SCREEN_HXX
 
 // C++
+#include <climits>
 #include <iterator>
 #include <optional>
 #include <vector>
@@ -263,12 +264,36 @@ public: // functions
 
 	/// Save the current scroll offset for later restoring via restoreScrollState().
 	void saveScrollState() {
-		m_saved_scroll_offset = m_scroll_offset;
+		if (isScrolled()) {
+			m_saved_scroll_index = translateLinePos(0);
+		} else {
+			m_saved_scroll_index = SIZE_MAX;
+		}
 	}
 
 	/// Restore the last state saved via saveScrollState().
-	void restoreScrollState() {
-		m_scroll_offset = m_saved_scroll_offset;
+	/**
+	 * \return Whether restoring the scroll state was possible. If not
+	 * then the original scroll position has been lost due to the history
+	 * becoming too long.
+	 **/
+	bool restoreScrollState() {
+		stopScrolling();
+
+		if (m_saved_scroll_index == SIZE_MAX)
+			return true;
+		else if (isOnScreen(m_saved_scroll_index))
+			// the original scroll position is no longer available
+			return false;
+
+		if (m_saved_scroll_index < m_cur_pos) {
+			m_scroll_offset = m_cur_pos - m_saved_scroll_index;
+		} else {
+			m_scroll_offset = m_cur_pos;
+			m_scroll_offset += m_lines.size() - m_saved_scroll_index;
+		}
+
+		return true;
 	}
 
 	/// Shift the current screen view in the ring buffer up for the given number of lines.
@@ -338,13 +363,25 @@ protected: // functions
 		return m_lines.size() - m_rows - m_scroll_offset;
 	}
 
+	/// Returns whether the given index in m_lines is visible on the current screen.
+	bool isOnScreen(size_t line_index) const {
+		const auto screen_end = translateLinePos(m_rows-1);
+		const auto screen_wraps = screen_end < m_cur_pos;
+
+		if (screen_wraps) {
+			return line_index >= m_cur_pos || line_index <= screen_end;
+		} else {
+			return line_index >= m_cur_pos && line_index < m_cur_pos + m_rows;
+		}
+	}
+
 protected: // data
 
 	LineVector m_lines; /// the actual ring buffer
 	size_t m_rows = 0; /// number of rows the visible screen has.
 	size_t m_cur_pos = 0; /// where the current screen content starts in the ring buffer.
 	size_t m_scroll_offset = 0; /// how many lines we are currently scrolled back.
-	size_t m_saved_scroll_offset = 0;
+	size_t m_saved_scroll_index = SIZE_MAX; /// the index in m_lines that was previously scrolled to (top position)
 	size_t m_history_len = 0; /// how big the ring buffer for history should be (0 == no history)
 	CursorState m_cached_cursor; /// save/load cursor state for this screen.
 };

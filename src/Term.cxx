@@ -174,7 +174,10 @@ void Term::resize(const TermSize new_size) {
 	// input and application output in write(), while still allowing
 	// application output to be added to the current screen without
 	// changing the scrolling position.
-	m_screen.restoreScrollState();
+	if (!m_screen.restoreScrollState()) {
+		scrollHistoryUpMax();
+	}
+
 	if (m_screen.isScrolled()) {
 		setAllDirty();
 	}
@@ -817,11 +820,16 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	size_t charsize = 0;
 	const bool use_utf8 = m_mode[Mode::UTF8];
 
-	if (m_screen.isScrolled()) {
-		// jump back to the current input screen upon entering new data
-		m_screen.stopScrolling();
-		setAllDirty();
-	}
+	// jump back to the current input screen upon entering new data
+	//
+	// if it is non-interactive input then we will return to the
+	// scrolling position once any changes to the current screen
+	// are complete.
+	//
+	// this allows to stay scrolled back while new output data is
+	// appended.
+	m_screen.saveScrollState();
+	m_screen.stopScrolling();
 
 	for (size_t pos = 0; pos < data.size(); pos += charsize) {
 		if (use_utf8) {
@@ -847,6 +855,10 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 		}
 
 		putChar(rune);
+	}
+
+	if (config::KEEP_SCROLL_POSITION && !m_screen.restoreScrollState()) {
+		scrollHistoryUpMax();
 	}
 
 	return data.size();

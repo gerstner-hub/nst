@@ -264,6 +264,8 @@ public: // functions
 
 	void scrollHistoryDownByLines(const int num_lines);
 
+	void scrollHistoryUpMax();
+
 	/// Returns the number of characters found in the given line nr.
 	int lineLen(const int y) const;
 	/// Returns the number of characters found in the given line nr.
@@ -387,6 +389,12 @@ public: // functions
 	void reportFocus(const bool in_focus) { m_esc_handler.reportFocus(in_focus); }
 	/// Report a paste event on TTY level via escape sequences.
 	void reportPaste(const bool started) { m_esc_handler.reportPaste(started); }
+	void stopScrolling() {
+		if (m_screen.isScrolled()) {
+			m_screen.stopScrolling();
+			setAllDirty();
+		}
+	}
 
 protected: // functions
 

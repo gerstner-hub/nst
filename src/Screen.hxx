@@ -203,6 +203,14 @@ public: // functions
 	 **/
 	void setDimension(const TermSize size, const Glyph defattrs);
 
+	/// Scrolls the screen content up to display the oldest history position.
+	/**
+	 * \return The number of lines actually scrolled
+	 **/
+	size_t scrollHistoryMax() {
+		return scrollHistoryUp(historyLinesLeft());
+	}
+
 	/// Scrolls the screen content up to display older history.
 	/**
 	 * \return The number of lines actually scrolled.
@@ -211,7 +219,7 @@ public: // functions
 		if (!hasScrollBuffer())
 			return 0;
 
-		if (const auto left = m_lines.size() - m_rows - m_scroll_offset; lines > left) {
+		if (const auto left = historyLinesLeft(); lines > left) {
 			lines = left;
 		}
 
@@ -319,6 +327,15 @@ protected: // functions
 		}
 
 		return static_cast<LineVector::size_type>(pos);
+	}
+
+	/// Returns the (theoretical) number of history lines left to scroll to.
+	/**
+	 * Since there can be unallocated lines it doesn't mean there is
+	 * actually that much history content available.
+	 **/
+	size_t historyLinesLeft() const {
+		return m_lines.size() - m_rows - m_scroll_offset;
 	}
 
 protected: // data

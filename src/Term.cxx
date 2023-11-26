@@ -536,6 +536,16 @@ void Term::scrollHistoryDownByLines(int num_lines) {
 	setAllDirty();
 }
 
+void Term::scrollHistoryUpMax() {
+	if (onAltScreen())
+		return;
+
+	if (auto num_lines = m_screen.scrollHistoryMax(); num_lines != 0) {
+		m_selection.scroll(0, num_lines);
+		setAllDirty();
+	}
+}
+
 void Term::dumpLine(const CharPos pos) const {
 	std::string enc_rune;
 

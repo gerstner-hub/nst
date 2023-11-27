@@ -331,6 +331,14 @@ public: // functions
 		}
 	}
 
+
+	/// Returns the current buffer content as UTF-8 encoded text.
+	/**
+	 * This returns the complete buffer content including scroll back
+	 * history.
+	 **/
+	std::string asText() const;
+
 protected: // functions
 
 	/// Translates a line index on the screen into the proper index in the ring buffer in m_lines

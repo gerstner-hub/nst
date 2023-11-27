@@ -14,7 +14,6 @@
 #include "cosmos/proc/ChildCloner.hxx"
 #include "cosmos/proc/process.hxx"
 #include "cosmos/proc/SignalFD.hxx"
-#include "cosmos/proc/Signal.hxx"
 #include "cosmos/proc/SubProc.hxx"
 
 // nst
@@ -285,9 +284,6 @@ void TTY::hangup() {
 }
 
 void TTY::executeShell(cosmos::FileDescriptor slave) {
-
-	// we want to receive SIGCHLD synchronously via a signal FD, so block it
-	cosmos::signal::block(cosmos::SigSet{cosmos::signal::CHILD});
 
 	cosmos::PasswdInfo pw_info{cosmos::proc::get_real_user_id()};
 	if (!pw_info.valid()) {

@@ -3,6 +3,7 @@
 
 // nst
 #include "Screen.hxx"
+#include "codecs.hxx"
 
 namespace nst {
 
@@ -82,6 +83,47 @@ void Screen::setDimension(const TermSize size, const Glyph defattrs) {
 		// applied to new columns
 		row.resize(size.cols, defattrs);
 	}
+}
+
+std::string Screen::asText() const {
+	std::string ret;
+
+	auto addLine = [&ret](const Line &line) {
+		if (line.empty())
+			return;
+
+		const auto used_cols = line.usedLength();
+
+		for (auto it = line.raw().begin(); it < line.raw().begin() + used_cols; it++) {
+			utf8::encode(it->rune, ret);
+		}
+		utf8::encode(Rune{'\n'}, ret);
+	};
+
+	if (m_cur_pos + m_rows <= m_lines.size()) {
+		for (size_t line = m_cur_pos + m_rows; line < m_lines.size(); line++) {
+			addLine(m_lines[line]);
+		}
+
+		for (size_t line = 0; line < m_cur_pos + m_rows; line++) {
+			addLine(m_lines[line]);
+		}
+	} else {
+		/* current screen wraps around the ring buffer */
+		const auto end_screen_index = m_cur_pos + m_rows - m_lines.size();
+
+		for (size_t line = end_screen_index; line < m_cur_pos; line++) {
+			addLine(m_lines[line]);
+		}
+
+		// now use the smart iterator to add the remaining lines from
+		// the screen that wrap around the buffer
+		for (const auto &line: *this) {
+			addLine(line);
+		}
+	}
+
+	return ret;
 }
 
 } // end ns

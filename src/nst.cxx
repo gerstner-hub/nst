@@ -1,7 +1,13 @@
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/error/ApiError.hxx"
+#include "cosmos/io/Pipe.hxx"
 #include "cosmos/io/Poller.hxx"
+#include "cosmos/io/StreamIO.hxx"
 #include "cosmos/proc/process.hxx"
+#include "cosmos/proc/ChildCloner.hxx"
+#include "cosmos/proc/Signal.hxx"
+#include "cosmos/proc/SigSet.hxx"
 #include "cosmos/locale.hxx"
 #include "cosmos/time/time.hxx"
 
@@ -46,6 +52,7 @@ void Nst::run(int argc, const char **argv) {
 	::XSetLocaleModifiers("");
 
 	m_cmdline.parse(argc, argv);
+	setupSignals();
 	m_wsys.init();
 	m_term.init(*this);
 	setEnv();
@@ -60,6 +67,12 @@ void Nst::setEnv() {
 			cosmos::proc::OverwriteEnv{true});
 }
 
+void Nst::setupSignals() {
+	// we want to receive SIGCHLD synchronously via a pid FD, so block it
+	cosmos::signal::block(cosmos::SigSet{cosmos::signal::CHILD});
+	// we might use pipes, don't send async signals if they break
+	cosmos::signal::block(cosmos::SigSet{cosmos::signal::PIPE});
+}
 
 void Nst::mainLoop() {
 	cosmos::Poller poller;
@@ -161,6 +174,36 @@ void Nst::resizeConsole() {
 	m_term.resize(tdim);
 	m_wsys.resize(tdim);
 	m_tty.resize(twin.TTYExtent());
+}
+
+void Nst::pipeBufferTo(const cosmos::StringViewVector cmdline) {
+	cosmos::Pipe pipe;
+	cosmos::ChildCloner cloner;
+	cloner.setArgsFromView(cmdline);
+	cloner.setStdIn(pipe.readEnd());
+
+	auto child = cloner.run();
+	pipe.closeReadEnd();
+
+	const auto text = m_term.screen().asText();
+	cosmos::File io{pipe.writeEnd(), cosmos::AutoCloseFD{false}};
+
+	try {
+		io.writeAll(text);
+	} catch(const cosmos::ApiError &e) {
+		if (e.errnum() != cosmos::Errno::BROKEN_PIPE) {
+			std::cerr << "failed to write terminal buffer to " << cmdline << ": " << e.what() << std::endl;
+		}
+	}
+
+	if (auto res = child.wait(); !res.exitedSuccessfully()) {
+		std::cerr << "pipe sub process exited unsuccessfully: ";
+		if (res.exited()) {
+			std::cerr << "code = " << res.exitStatus() << "\n";
+		} else {
+			std::cerr << "signal = " << res.termSignal() << "\n";
+		}
+	}
 }
 
 } // end ns nst

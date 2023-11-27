@@ -41,9 +41,24 @@ public: // functions
 	/// resize all necessary structures after the window or font size changed
 	void resizeConsole();
 
+	/// Pipe the current terminal contents (including scrollback) to the given program.
+	/**
+	 * The data will be provided to the program's stdin. The call will run
+	 * synchronously i.e. the terminal won't continue running until the
+	 * child process has read all data and exits.
+	 *
+	 * This is intended for graphical programs like gvim which daemonize
+	 * and continue running the background.
+	 *
+	 * \param[in] cmdline The path to the program to run as well any
+	 * additional command line parameters.
+	 **/
+	void pipeBufferTo(const cosmos::StringViewVector cmdline);
+
 protected: // functions
 
 	void mainLoop();
+	void setupSignals();
 	void waitForWindowMapping();
 	/// sets up predefined environment variables for the terminal process
 	void setEnv();

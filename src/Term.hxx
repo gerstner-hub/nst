@@ -267,7 +267,9 @@ public: // functions
 	void scrollHistoryUpMax();
 
 	/// Returns the number of characters found in the given line nr.
-	int lineLen(const int y) const;
+	int lineLen(const int y) const {
+		return m_screen[y].usedLength();
+	}
 	/// Returns the number of characters found in the given line nr.
 	int lineLen(const CharPos pos) const { return lineLen(pos.y); }
 

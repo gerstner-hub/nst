@@ -1,5 +1,4 @@
 // C++
-#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -326,19 +325,6 @@ void Term::cursorControl(const CursorState::Control ctrl) {
 			moveCursorTo(m_cursor.pos);
 			break;
 	}
-}
-
-int Term::lineLen(const int y) const {
-	const auto &line = m_screen[y];
-
-	if (line.isWrapped())
-		return m_size.cols;
-
-	auto last_col = std::find_if(
-			line.rbegin(), line.rend(),
-			[](const Glyph &g) { return g.hasValue(); });
-
-	return line.rend() - last_col;
 }
 
 void Term::moveToNextTab(size_t count) {

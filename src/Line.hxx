@@ -2,6 +2,7 @@
 #define NST_LINE_HXX
 
 // C++
+#include <algorithm>
 #include <vector>
 #include <cassert>
 
@@ -117,6 +118,20 @@ public: // functions
 		return m_glyphs[pos];
 	}
 
+	const auto& raw() const { return m_glyphs; }
+
+	/// Returns the number of characters in this line not counting trailing spaces.
+	int usedLength() const {
+		if (isWrapped()) {
+			return m_cols;
+		}
+
+		const auto last_col = std::find_if(
+				rbegin(), rend(),
+				[](const Glyph &g) { return g.hasValue(); });
+
+		return rend() - last_col;
+	}
 
 	/// Discard any saved hidden columns.
 	void shrinkToPhysical() {

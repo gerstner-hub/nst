@@ -160,9 +160,6 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 
 		pos = next;
 		prevgp = &gp;
-		// TODO: this assignment should be unnecessary, since at this
-		// point `is_delim` will never be distinct from `prev_is_delim`
-		prev_is_delim = is_delim;
 	}
 }
 

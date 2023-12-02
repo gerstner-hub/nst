@@ -19,11 +19,6 @@ Selection::Selection(Nst &nst) :
 	m_orig.invalidate();
 }
 
-bool Selection::isDelimiter(const Glyph &g) const {
-	auto &DELIMITERS = config::WORD_DELIMITERS;
-	return g.rune && DELIMITERS.find_first_of(g.rune) != DELIMITERS.npos;
-}
-
 void Selection::clear() {
 	if (!m_orig.isValid())
 		return;
@@ -34,7 +29,7 @@ void Selection::clear() {
 }
 
 bool Selection::hasScreenChanged() const {
-	return m_alt_screen != m_term.mode().test(Term::Mode::ALTSCREEN);
+	return m_alt_screen != m_term.onAltScreen();
 }
 
 bool Selection::isSelected(const CharPos pos) const {
@@ -55,7 +50,7 @@ void Selection::start(const CharPos pos, const Snap snap) {
 	clear();
 	m_state = State::EMPTY;
 	m_type = Type::REGULAR;
-	m_alt_screen = m_term.mode().test(Term::Mode::ALTSCREEN);
+	m_alt_screen = m_term.onAltScreen();
 	m_snap = snap;
 	m_orig = Range{pos, pos};
 
@@ -77,7 +72,7 @@ void Selection::normalizeRange() {
 	const auto begin = m_orig.begin;
 	const auto end = m_orig.end;
 
-	if (isRegularType() && m_orig.height() > Range::Height(1)) {
+	if (isRegularType() && m_orig.height() > Range::Height{1}) {
 		// regular selection over more than one line:
 		// use the correct start column and end column
 		m_range.begin.x = begin.y < end.y ? begin.x : end.x;
@@ -99,10 +94,11 @@ void Selection::extendLineBreaks() {
 
 	// expand selection over line breaks for regular selection
 	//
-	// what we're doing here is moving the start column to the (logical)
-	// end of the start line and moving the end column to the  (physical)
-	// end of the end line. I'm not completely sure why that is needed
-	// though.
+	// this makes sure that the start X coordinate is not larger than the
+	// logic end of the start line. furthermore the end X coordinate will
+	// be extended to the physical end of the line, if the logical end has
+	// been exceeded by the selection.
+	// It's not fully clear to my what the aim of that logic is.
 	const auto start_line_len = m_term.lineLen(m_range.begin);
 	const auto end_line_len   = m_term.lineLen(m_range.end);
 
@@ -124,14 +120,14 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
 
 	const Glyph *prevgp = &screen[pos];
-	bool prev_is_delim = isDelimiter(*prevgp);
+	bool prev_is_delim = prevgp->isDelimiter();
 	CharPos next;
-	while(true) {
+	while (true) {
 		next = pos.nextCol(move_offset);
 		// Snap around if the word wraps around at the end or beginning of a line.
 		if (!screen.validColumn(next)) {
 			next = next.nextLine(move_offset);
-			// move to end of previous line of beginning of next line
+			// move to end of previous line or beginning of next line
 			next.x = next.x < 0 ? screen.numCols() - 1 : 0;
 
 			if (!screen.validLine(next))
@@ -140,7 +136,7 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 
 			// inspect the final column if it wraps around
 			const auto end_of_line = direction == Direction::FORWARD ? pos : next;
-			if (!screen[end_of_line].mode[Attr::WRAP])
+			if (!screen[end_of_line].isWrapped())
 				// no need to wrap the selection around
 				break;
 		}
@@ -150,7 +146,7 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 			break;
 
 		const Glyph &gp = screen[next];
-		const bool is_delim = isDelimiter(gp);
+		const bool is_delim = gp.isDelimiter();
 		// if this is just a dummy position then we need to move on to the next
 		if (!gp.isDummy()) {
 			// we support selecting not only words but also sequences of the same delimiter.
@@ -228,12 +224,15 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 
 	using cosmos::in_range;
 
-
-	// not fully clear what this condition is for:
-	// - either the selection range is completely within the scroll area
-	// - or the selection range fully covers the scroll area and possibly more
-	// but if only the top or end of our selection is outside the scroll
-	// area we clear the selection
+	/*
+	 * if the current selection is crossing the scroll area boundaries,
+	 * clear it.
+	 * an exception is when the selection crosses both the top and bottom
+	 * boundary, the condition below will catch that and clear() as well.
+	 *
+	 * in summary: clear the selection if part of it is scrolled outside
+	 * of the scroll area (taking into account `origin_y`.
+	 */
 	if (
 			in_range(m_range.begin.y, origin_y, scroll_area.bottom) !=
 			in_range(  m_range.end.y, origin_y, scroll_area.bottom)) {
@@ -255,8 +254,6 @@ std::string Selection::selection() const {
 		return "";
 
 	const auto &screen = m_term.screen();
-	const Glyph *gp, *last;
-	int lastx = m_range.end.x;
 	std::string ret;
 
 	{
@@ -264,6 +261,9 @@ std::string Selection::selection() const {
 		const size_t bufsize = (screen.numCols()+1) * Range::raw_height(m_range.height()) * utf8::UTF_SIZE;
 		ret.reserve(bufsize);
 	}
+
+	const Glyph *gp, *last;
+	int lastx = m_range.end.x;
 
 	// append every set & selected glyph to the selection
 	for (int y = m_range.begin.y; y <= m_range.end.y; y++) {
@@ -316,12 +316,9 @@ std::string Selection::selection() const {
 }
 
 void Selection::dump() const {
-	auto sel = selection();
-
-	if (sel.empty())
-		return;
-
-	m_nst.tty().printToIoFile(sel);
+	if (auto sel = selection(); !sel.empty()) {
+		m_nst.tty().printToIoFile(sel);
+	}
 }
 
 } // end ns

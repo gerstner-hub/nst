@@ -123,9 +123,6 @@ protected: // functions
 	/// Extends the selection over line breaks for the regular selection type.
 	void extendLineBreaks();
 
-	/// Returns whether the given Glyph is a word delimiting character
-	bool isDelimiter(const Glyph &g) const;
-
 	/// Returns whether the alt/screen was switched since start().
 	bool hasScreenChanged() const;
 

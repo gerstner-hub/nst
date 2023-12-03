@@ -36,14 +36,9 @@ bool Selection::isSelected(const CharPos pos) const {
 	if (inEmptyState() || !m_orig.isValid() || hasScreenChanged())
 		return false;
 	else if (isRectType())
-		return m_range.inRange(pos);
+		return m_range.inRect(pos);
 	else // regular type
-		// make sure it is a line between the start/end line and if pos
-		// is exactly on the start or end line, make sure that the X
-		// coordinate is in range
-		return cosmos::in_range(pos.y, m_range.begin.y, m_range.end.y) &&
-			(pos.y != m_range.begin.y || pos.x >= m_range.begin.x) &&
-			(pos.y != m_range.end.y || pos.x <= m_range.end.x);
+		return m_range.inRange(pos);
 }
 
 void Selection::start(const CharPos pos, const Snap snap) {

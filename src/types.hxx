@@ -129,12 +129,21 @@ public: // functions
 	}
 };
 
-/// A rectangular range of characters between a begin and an end CharPos.
+/// A range of characters between a begin and an end CharPos.
 /**
+ * Generally this is thought of as a continuous range of characters between the
+ * begin and end coordinates. This means all lines in-between are counted as
+ * being part of the range. The inRect() method can also be used to check
+ * whether a position is within the rectangular area defined by the begin and
+ * end, though.
+ *
  * The begin and end coordinates are *inclusive*.
  * 
  * \todo TODO: this inclusiveness is problematic and unintuitive, see the
  *             `- 1` subtractions below.
+ * \todo TODO: the distinction between a linear contiguous range and a
+ *             rectangular box is still lacking e.g. width() and height()
+ *             don't make fully sense for the former.
  **/
 struct Range {
 public: // data
@@ -191,10 +200,28 @@ public: // functions
 	}
 
 	/// Returns whether the given coordinate is within the current range setting.
+	/**
+	 * This includes the full lines in-between the begin and end position
+	 * of the range.
+	 **/
 	bool inRange(const CharPos pos) const {
+		if (pos.y < begin.y || pos.y > end.y)
+			return false;
+
+		if (pos.y == begin.y && pos.x < begin.x)
+			return false;
+
+		if (pos.y == end.y && pos.x > end.x)
+			return false;
+
+		return true;
+	}
+
+	/// Checks whether \c pos is within the rectangular area defined by this range.
+	bool inRect(const CharPos pos) const {
 		return
-			cosmos::in_range(pos.y, begin.y, end.y) &&
-			cosmos::in_range(pos.x, begin.x, end.x);
+			pos.x >= begin.x && pos.x <= end.x &&
+			pos.y >= begin.y && pos.y <= end.y;
 	}
 
 	void scroll(const int nlines) {

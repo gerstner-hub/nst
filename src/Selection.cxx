@@ -24,6 +24,7 @@ void Selection::clear() {
 		return;
 
 	m_state = State::IDLE;
+	m_snap = Snap::NONE;
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_range});
 }
@@ -110,13 +111,42 @@ void Selection::extendSnap(CharPos &pos, const Direction direction) const {
 	}
 }
 
+bool Selection::canExtendWord() const {
+	return m_type == Type::REGULAR && m_snap == Snap::WORD && m_orig.isValid();
+}
+
+void Selection::tryContinueWordSnap(const CharPos pos) {
+	if (!canExtendWord())
+		return;
+
+	const auto old_range = m_range;
+	m_force_word_extend = true;
+
+	if (m_range.inRange(pos)) {
+		extendSnap();
+	} else if(m_range > pos) {
+		extendWordSnap(m_range.begin, Direction::BACKWARD);
+	} else {
+		extendWordSnap(m_range.end, Direction::FORWARD);
+	}
+
+	m_force_word_extend = false;
+	if (old_range != m_range) {
+		m_term.setDirty(LineSpan{m_range});
+	}
+}
+
 void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 	const auto &screen = m_term.screen();
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
+	// force at least on additional word, even if we are already at word
+	// borders.
+	bool force = m_force_word_extend;
 
 	const Glyph *prevgp = &screen[pos];
 	bool prev_is_delim = prevgp->isDelimiter();
 	CharPos next;
+
 	while (true) {
 		next = pos.nextCol(move_offset);
 		// Snap around if the word wraps around at the end or beginning of a line.
@@ -145,8 +175,14 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 		// if this is just a dummy position then we need to move on to the next
 		if (!gp.isDummy()) {
 			// we support selecting not only words but also sequences of the same delimiter.
-			if (is_delim != prev_is_delim || (is_delim && !gp.isSameRune(*prevgp)))
-				break;
+			if (is_delim != prev_is_delim || (is_delim && !gp.isSameRune(*prevgp))) {
+				if (!force)
+					break;
+				else
+					prev_is_delim = gp.isDelimiter();
+			}
+
+			force = false;
 		}
 
 		pos = next;

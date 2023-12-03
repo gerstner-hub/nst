@@ -406,7 +406,16 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (button == xpp::Button::BUTTON1) {
 		const auto snap = m_wsys.selection().handleClick();
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-		m_nst.selection().start(pos, snap);
+		auto &selection = m_nst.selection();
+		const auto skip_start = ev.state().allOf(config::SEL_EXTEND_WORD_MOD) && selection.canExtendWord();
+
+		if (!skip_start) {
+			// start a new selection, but only if the extend word
+			// mod is not pressed also for an existing word
+			// selection. the latter will be handled
+			// on buttonRelease() instead.
+			selection.start(pos, snap);
+		}
 	}
 
 	return StopScrolling{false};
@@ -581,7 +590,13 @@ void XEventHandler::handleMouseSelection(const EVENT &ev) {
 	auto &sel = m_nst.selection();
 	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-	sel.extend(pos, seltype, /*done=*/is_release);
+	const auto extend_word = ev.state().allOf(config::SEL_EXTEND_WORD_MOD) && sel.canExtendWord();
+
+	if (extend_word && is_release) {
+		sel.tryContinueWordSnap(pos);
+	} else {
+		sel.extend(pos, seltype, /*done=*/is_release);
+	}
 
 	if (is_release) {
 		// button was released, only now set the actual X selection

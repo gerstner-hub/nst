@@ -511,6 +511,18 @@ constexpr std::array<std::pair<Selection::Type, xpp::InputMask>, 2> SEL_MASKS = 
 	         {Selection::Type::RECTANGULAR, xpp::InputMask{xpp::InputModifier::MOD1}}
 };
 
+/// Modifier used to extend existing word selection.
+/**
+ * When there is an existing word snap selection and you do a single left
+ * click combined with this modifier mask, then the selection will be further
+ * extended using WORD_DELIMITERS. If you click on the selection itself then
+ * extension is performed in both directions until another delimiter is found.
+ * If you left click left/above the current selection then the selection will
+ * be extended to the left. If you left click right/below the current
+ * selection then the selection will be extended to the right.
+ **/
+constexpr xpp::InputMask SEL_EXTEND_WORD_MOD{xpp::InputModifier::MOD1};
+
 // see implementation file
 std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);
 

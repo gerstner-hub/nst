@@ -44,6 +44,10 @@ public: // functions
 
 	explicit Selection(Nst &nst);
 
+	// non-copyable
+	Selection(const Selection &other) = delete;
+	Selection& operator=(const Selection&) = delete;
+
 	/// Removes the current selection and resets Selection state.
 	void clear();
 
@@ -84,6 +88,17 @@ public: // functions
 
 	/// Dump current selection into the I/O file.
 	void dump() const;
+
+	/// Attempt to continue the word snap algorithm on an existing selection.
+	/**
+	 * \param[in] pos The position of the click event that caused this.
+	 * This position influences the direction(s) in which the word snap
+	 * will be performed, if possible.
+	 **/
+	void tryContinueWordSnap(const CharPos pos);
+
+	/// Returns whether it is possible to extend a current word selection.
+	bool canExtendWord() const;
 
 protected: // functions
 
@@ -131,9 +146,10 @@ protected: // data
 	Nst &m_nst;
 	Term &m_term;
 	bool m_alt_screen = false; /// alt screen setting seen when start() was invoked.
-	Snap m_snap = Snap::WORD;
+	Snap m_snap = Snap::NONE;
 	Type m_type = Type::REGULAR;
 	State m_state = State::IDLE;
+	bool m_force_word_extend = false;
 
 	Range m_range; /// selection range with normalized coordinates
 	Range m_orig; /// selection range with original cooridinates

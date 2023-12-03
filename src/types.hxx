@@ -224,6 +224,31 @@ public: // functions
 			pos.y >= begin.y && pos.y <= end.y;
 	}
 
+	/// Checks whether the given position is logically smaller than the current Range.
+	/**
+	 * This expects that the current Range is sanitize()'d i.e. the begin
+	 * coordinate is actually smaller than the end coordinate.
+	 *
+	 * The comparison checks whether the end coordinate of the current
+	 * range is appearing on an earlier line than \c pos or on an ealier
+	 * column (if on the same line).
+	 **/
+	bool operator<(const CharPos pos) const {
+		return end.y < pos.y || (end.y == pos.y && end.x < pos.x);
+	}
+
+	bool operator>(const CharPos pos) const {
+		return !(*this < pos) && !inRange(pos);
+	}
+
+	bool operator==(const Range &other) const {
+		return begin == other.begin && end == other.end;
+	}
+
+	bool operator!=(const Range &other) const {
+		return !(*this == other);
+	}
+
 	void scroll(const int nlines) {
 		begin.y += nlines;
 		end.y += nlines;

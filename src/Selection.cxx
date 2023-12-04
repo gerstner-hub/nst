@@ -27,6 +27,7 @@ void Selection::clear() {
 	m_snap = Snap::NONE;
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_range});
+	m_first_cont_extend = true;
 }
 
 bool Selection::hasScreenChanged() const {
@@ -103,9 +104,40 @@ void Selection::extendLineBreaks() {
 		m_range.end.x = m_term.numCols() - 1;
 }
 
+void Selection::extendSnap() {
+	if (m_snap == Snap::WORD_SEP) {
+		if (tryExtendWordSep()) {
+			return;
+		} else {
+			// otherwise fall back to regular word extension
+			m_snap = Snap::WORD;
+		}
+	}
+
+	extendSnap(m_range.begin, Direction::BACKWARD);
+	extendSnap(m_range.end,   Direction::FORWARD);
+}
+
+bool Selection::tryExtendWordSep() {
+	// only do something if the clicked-on position is itself a separator.
+	const auto &screen = m_term.screen();
+	const auto &clicked = screen[m_range.begin];
+	if (clicked.isDelimiter()) {
+		auto next = screen.nextInLine(m_range.begin);
+		if (next) {
+			m_range.begin = m_range.end = *next;
+			extendWordSnap(m_range.end, Direction::FORWARD, clicked.rune);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void Selection::extendSnap(CharPos &pos, const Direction direction) const {
 	switch (m_snap) {
 		case Snap::NONE: return;
+		case Snap::WORD_SEP: return; // this is specially handled in extendSnap()
 		case Snap::WORD: return extendWordSnap(pos, direction);
 		case Snap::LINE: return extendLineSnap(pos, direction);
 	}
@@ -115,9 +147,18 @@ bool Selection::canExtendWord() const {
 	return m_type == Type::REGULAR && m_snap == Snap::WORD && m_orig.isValid();
 }
 
+bool Selection::canExtendWordSep() const {
+	return m_type == Type::REGULAR && m_snap == Snap::WORD_SEP && m_orig.isValid();
+}
+
 void Selection::tryContinueWordSnap(const CharPos pos) {
 	if (!canExtendWord())
 		return;
+	else if (m_first_cont_extend) {
+		// avoid further extending on the first double-click already
+		m_first_cont_extend = false;
+		return;
+	}
 
 	const auto old_range = m_range;
 	m_force_word_extend = true;
@@ -136,15 +177,52 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 	}
 }
 
-void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
+void Selection::tryContinueWordSepSnap() {
+	if (!canExtendWordSep())
+		return;
+	else if (m_first_cont_extend) {
+		// avoid further extending on the first double-click already
+		m_first_cont_extend = false;
+		return;
+	}
+
+	const auto old_range = m_range;
+	const auto &screen = m_term.screen();
+	const auto sep_pos = screen.nextInLine(m_range.end);
+
+	if (!sep_pos)
+		return;
+
+	const auto next = screen.nextInLine(*sep_pos);
+
+	if (!next)
+		return;
+
+	m_range.end = *next;
+	// the start separator from begin.prevCol() so we make sure we really
+	// use the correct one
+	extendWordSnap(m_range.end, Direction::FORWARD, screen[m_range.begin.prevCol()].rune);
+
+	if (old_range != m_range) {
+		m_term.setDirty(LineSpan{m_range});
+	}
+}
+
+void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::optional<Rune> delimiter) const {
 	const auto &screen = m_term.screen();
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
 	// force at least on additional word, even if we are already at word
 	// borders.
 	bool force = m_force_word_extend;
+	auto isDelim = [delimiter](const Glyph &g) -> bool {
+		if (delimiter)
+			return g.rune == *delimiter;
+		else
+			return g.isDelimiter();
+	};
 
 	const Glyph *prevgp = &screen[pos];
-	bool prev_is_delim = prevgp->isDelimiter();
+	bool prev_is_delim = isDelim(*prevgp);
 	CharPos next;
 
 	while (true) {
@@ -171,7 +249,7 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 			break;
 
 		const Glyph &gp = screen[next];
-		const bool is_delim = gp.isDelimiter();
+		const bool is_delim = isDelim(gp);
 		// if this is just a dummy position then we need to move on to the next
 		if (!gp.isDummy()) {
 			// we support selecting not only words but also sequences of the same delimiter.
@@ -179,7 +257,7 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction) const {
 				if (!force)
 					break;
 				else
-					prev_is_delim = gp.isDelimiter();
+					prev_is_delim = isDelim(gp);
 			}
 
 			force = false;

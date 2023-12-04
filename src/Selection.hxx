@@ -2,6 +2,7 @@
 #define NST_SELECTION_HXX
 
 // C++
+#include <optional>
 #include <string>
 
 // nst
@@ -23,6 +24,7 @@ public: // types
 	enum class Snap {
 		NONE, /// don't automatically select additional text
 		WORD, /// try to select a complete word at the given location (based on config::WORDDELIMITERS)
+		WORD_SEP, /// if the clicked-on character is itself a delimiter, look for the next same delimiter.
 		LINE  /// try to select a complete line at the given location
 	};
 
@@ -97,8 +99,13 @@ public: // functions
 	 **/
 	void tryContinueWordSnap(const CharPos pos);
 
+	void tryContinueWordSepSnap();
+
 	/// Returns whether it is possible to extend a current word selection.
 	bool canExtendWord() const;
+
+	/// Returns whether it is possible to extend a current word-sep selection.
+	bool canExtendWordSep() const;
 
 protected: // functions
 
@@ -122,17 +129,23 @@ protected: // functions
 	 **/
 	void normalizeRange();
 
-	void extendSnap() {
-		extendSnap(m_range.begin, Direction::BACKWARD);
-		extendSnap(m_range.end,   Direction::FORWARD);
-	}
+	void extendSnap();
+
+	bool tryExtendWordSep();
+
 	/// Attempt to extend the selection in the given direction corresponding to the current snap setting.
 	/**
 	 * \param[in,out] pos The position from which to start extending. Will
 	 * be updated with the new start/end of the selection, if applicable.
 	 **/
 	void extendSnap(    CharPos &pos, const Direction direction) const;
-	void extendWordSnap(CharPos &pos, const Direction direction) const;
+	/// Attempt to extend the selection to word boundaries.
+	/**
+	 * \param[in] delimiter If set then the word will be expanded using
+	 * this delimiting character *only*. Otherwise the configured set of
+	 * word delimiters is used.
+	 **/
+	void extendWordSnap(CharPos &pos, const Direction direction, std::optional<Rune> delimiter = std::nullopt) const;
 	void extendLineSnap(CharPos &pos, const Direction direction) const;
 
 	/// Extends the selection over line breaks for the regular selection type.
@@ -150,6 +163,7 @@ protected: // data
 	Type m_type = Type::REGULAR;
 	State m_state = State::IDLE;
 	bool m_force_word_extend = false;
+	bool m_first_cont_extend = true;
 
 	Range m_range; /// selection range with normalized coordinates
 	Range m_orig; /// selection range with original cooridinates

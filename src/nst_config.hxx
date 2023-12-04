@@ -511,17 +511,25 @@ constexpr std::array<std::pair<Selection::Type, xpp::InputMask>, 2> SEL_MASKS = 
 	         {Selection::Type::RECTANGULAR, xpp::InputMask{xpp::InputModifier::MOD1}}
 };
 
-/// Modifier used to extend existing word selection.
+/// Modifier used for alternative selection behaviour.
 /**
- * When there is an existing word snap selection and you do a single left
- * click combined with this modifier mask, then the selection will be further
- * extended using WORD_DELIMITERS. If you click on the selection itself then
- * extension is performed in both directions until another delimiter is found.
- * If you left click left/above the current selection then the selection will
- * be extended to the left. If you left click right/below the current
- * selection then the selection will be extended to the right.
+ * This modifier is currently used for two things:
+ *
+ * - a new selection is started and a double-click on a word delimiter with
+ *   the modifier pressed occurs. Instead of regular word extension, the
+ *   selection will be expanded forward until the very same word separator is
+ *   encountered. Further single clicks while holding the modified will extend
+ *   the selection by one field until the next very same word separator is
+ *   found.
+ * - a word-extended selection exists and a single-click with the modifier
+ *   pressed occurs. The word selection will be further extended using
+ *   WORD_DELIMITERS. If you click on the selection itself then extension is
+ *   performed in both directions until another delimiter is found. If you
+ *   click left/above the current selection then the selection will be
+ *   extended to the left. If you click right/below the current selection
+ *   then the selection will be extended to the right.
  **/
-constexpr xpp::InputMask SEL_EXTEND_WORD_MOD{xpp::InputModifier::MOD1};
+constexpr xpp::InputMask SEL_ALT_MOD{xpp::InputModifier::MOD1};
 
 // see implementation file
 std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);

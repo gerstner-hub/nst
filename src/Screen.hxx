@@ -132,6 +132,24 @@ public: // functions
 		return validLine(p) && validColumn(p);
 	}
 
+	/// Find the next logical character position.
+	/**
+	 * Starting at the given position look for the next valid character
+	 * position on the line. This follows line wraps. It does not
+	 * following trailing spaces on a line. If no valid next character is
+	 * found then std::nullopt is returned.
+	 **/
+	std::optional<CharPos> nextInLine(const CharPos p) const {
+		auto &line = (*this)[p.y];
+		if (p.x < line.usedLength() - 1) {
+			return p.nextCol();
+		} else if (line.isWrapped() && p.y + 1 < int(m_rows)) {
+			return p.nextLine().startOfLine();
+		} else {
+			return std::nullopt;
+		}
+	}
+
 	/// Returns the screen coordinates for \c p considering scroll state.
 	/**
 	 * Returns the corrected coordinates for \c p considering the current

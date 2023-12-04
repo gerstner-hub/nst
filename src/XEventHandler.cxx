@@ -404,16 +404,20 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
 	} else if (button == xpp::Button::BUTTON1) {
-		const auto snap = m_wsys.selection().handleClick();
+		auto snap = m_wsys.selection().handleClick();
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 		auto &selection = m_nst.selection();
-		const auto skip_start = ev.state().allOf(config::SEL_EXTEND_WORD_MOD) && selection.canExtendWord();
+		const auto sel_alt_mod = ev.state().allOf(config::SEL_ALT_MOD);
+		// if the SEL_ALT_MOD is pressed and a word selection exists
+		// then don't start a new selection. The selection will be
+		// extended in buttonRelease() instead.
+		const auto skip_start = sel_alt_mod &&
+			(selection.canExtendWord() || selection.canExtendWordSep());
 
 		if (!skip_start) {
-			// start a new selection, but only if the extend word
-			// mod is not pressed also for an existing word
-			// selection. the latter will be handled
-			// on buttonRelease() instead.
+			if (snap == Selection::Snap::WORD && sel_alt_mod)
+				snap = Selection::Snap::WORD_SEP;
+
 			selection.start(pos, snap);
 		}
 	}
@@ -590,10 +594,14 @@ void XEventHandler::handleMouseSelection(const EVENT &ev) {
 	auto &sel = m_nst.selection();
 	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-	const auto extend_word = ev.state().allOf(config::SEL_EXTEND_WORD_MOD) && sel.canExtendWord();
+	const auto sel_alt_mod = ev.state().allOf(config::SEL_ALT_MOD);
+	const auto extend_word = sel_alt_mod && sel.canExtendWord();
+	const auto extend_word_sep = sel_alt_mod && sel.canExtendWordSep();
 
 	if (extend_word && is_release) {
 		sel.tryContinueWordSnap(pos);
+	} else if (extend_word_sep && is_release) {
+		sel.tryContinueWordSepSnap();
 	} else {
 		sel.extend(pos, seltype, /*done=*/is_release);
 	}

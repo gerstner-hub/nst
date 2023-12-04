@@ -1,8 +1,10 @@
 // C++
 #include <algorithm>
+#include <cctype>
 
 // cosmos
 #include "cosmos/algs.hxx"
+#include "cosmos/string.hxx"
 
 // nst
 #include "codecs.hxx"
@@ -116,6 +118,8 @@ void Selection::extendSnap() {
 
 	extendSnap(m_range.begin, Direction::BACKWARD);
 	extendSnap(m_range.end,   Direction::FORWARD);
+
+	tryURISnap();
 }
 
 bool Selection::tryExtendWordSep() {
@@ -323,6 +327,60 @@ void Selection::extend(const CharPos pos, const Type type, const bool done) {
 	}
 
 	m_state = done ? State::IDLE : State::READY;
+}
+
+void Selection::tryURISnap() {
+	if (m_snap != Snap::WORD || m_type != Type::REGULAR)
+		return;
+
+	const auto screen = m_term.screen();
+	constexpr Rune URI_SEP[] = {':', '/', '/'};
+
+	auto pos = m_range.end;
+
+	for (const auto sepchar: URI_SEP) {
+		auto next = screen.nextInLine(pos);
+		if (!next)
+			return;
+		pos = *next;
+		if (screen[pos].rune != sepchar)
+			return;
+	}
+
+	const auto protocol = cosmos::to_lower(selection());
+
+	auto isURI = [](const std::string_view sv) -> bool {
+		for (const auto scheme: config::SEL_URI_SCHEMES) {
+			if (sv == scheme)
+				return true;
+		}
+
+		return false;
+	};
+
+	if (!isURI(protocol))
+		return;
+
+	// best effort approach to extract valid URI characters without
+	// relying on a fully blown library routine. let's see how well this
+	// works in practice.
+	const std::basic_string<Rune> URI_CHARS{
+		'-', '.', '_', '~', ':', '/', '?', '#', '[', ']', '@', '!',
+		'$', '&', '\'', '(', ')', '*', '+', ';', '%', '='
+	};
+
+	std::optional<CharPos> next;
+
+	while ((next = screen.nextInLine(pos)) != std::nullopt) {
+		const auto rune = screen[*next].rune;
+
+		if (!std::isalnum(rune) && URI_CHARS.find_first_of(rune) == URI_CHARS.npos)
+			break;
+
+		pos = *next;
+	}
+
+	m_range.end = pos;
 }
 
 void Selection::scroll(const int origin_y, const int num_lines) {

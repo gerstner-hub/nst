@@ -531,6 +531,13 @@ constexpr std::array<std::pair<Selection::Type, xpp::InputMask>, 2> SEL_MASKS = 
  **/
 constexpr xpp::InputMask SEL_ALT_MOD{xpp::InputModifier::MOD1};
 
+/// A list of URL schemes that will be identified as URLs and expanded in the context of word snap expansion.
+/**
+ * When double-clicking on such a URI scheme, then the complete URL will be
+ * expanded, if possible.
+ **/
+constexpr std::string_view SEL_URI_SCHEMES[] = {"http", "https", "ftp", "git", "socks"};
+
 // see implementation file
 std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);
 

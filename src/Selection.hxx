@@ -151,6 +151,9 @@ protected: // functions
 	/// Extends the selection over line breaks for the regular selection type.
 	void extendLineBreaks();
 
+	/// Checks the current selection in Snap::WORD context, whether a full URI can be selected.
+	void tryURISnap();
+
 	/// Returns whether the alt/screen was switched since start().
 	bool hasScreenChanged() const;
 

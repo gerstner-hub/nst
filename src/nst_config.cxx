@@ -60,6 +60,9 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst) {
 	return {
 		//             mask              button           function                                         release
 		MouseShortcut{ Mask{Mod::ANY},   Button::BUTTON2, std::bind(&WindowSystem::pasteSelection, &wsys), true,   StopScrolling{true}},
+		// change font size similar to how it works in web browsers
+		MouseShortcut{ Mask{Mod::CONTROL}, Button::BUTTON4, std::bind(&WindowSystem::zoomFont, &wsys, +1), false },
+		MouseShortcut{ Mask{Mod::CONTROL}, Button::BUTTON5, std::bind(&WindowSystem::zoomFont, &wsys, -1), false },
 		// these generate sequences used by less/vi for scrolling
 		MouseShortcut{ Mask{Mod::SHIFT}, Button::BUTTON4, std::bind(scrollHistoryUp, true),                false },
 		MouseShortcut{ Mask{Mod::SHIFT}, Button::BUTTON5, std::bind(scrollHistoryDown, true),              false },

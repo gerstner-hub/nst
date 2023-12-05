@@ -98,7 +98,7 @@ void StringEscape::process() {
 		case Type::SET_TITLE: // old title set compatibility
 			setTitle(m_args.empty() ? "" : m_args[0].data());
 			return;
-		case Type::DCS:  // 
+		case Type::DCS:  //
 		case Type::APC:  // Application Program Command
 		case Type::PM:   // Privacy Message
 		case Type::NONE: // should never happen

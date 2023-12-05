@@ -225,9 +225,9 @@ class FontDrawContext {
 	FontDrawContext(const FontDrawContext &) = delete;
 	FontDrawContext& operator=(const FontDrawContext&) = delete;
 public: // functions
-	
+
 	FontDrawContext() = default;
-	
+
 	~FontDrawContext() {
 		destroy();
 	}

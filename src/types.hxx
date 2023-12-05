@@ -347,7 +347,6 @@ public: // functions
 /// Primitive integer type to store character codes to be displayed on the terminal.
 using Rune = uint32_t;
 
-
 using InputCallback = std::function<void ()>;
 using StopScrolling = cosmos::NamedBool<struct stop_scroll_t, true>;
 
@@ -412,7 +411,7 @@ public: // types
 	};
 
 public: // functions
-	
+
 	bool matchesAppKeypad(const WinModeMask mode) const {
 		const auto appkey_enabled = mode[WinMode::APPKEYPAD];
 

@@ -259,7 +259,7 @@ void TTY::writeRaw(const std::string_view sv) {
 	}
 }
 
-cosmos::TermDimension TTY::toTermDimension(const Extent size) const { 
+cosmos::TermDimension TTY::toTermDimension(const Extent size) const {
 	const auto &term = m_nst.term();
 	cosmos::TermDimension dim(term.numCols(), term.numRows());
 	// according to the man page these fields are unused on Linux, but it

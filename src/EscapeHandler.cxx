@@ -254,7 +254,7 @@ std::optional<EscapeHandler::Escape> EscapeHandler::handleInitialEscape(const ch
 	case '_':   // APC -- Application Program Command
 	case '^':   // PM  -- Privacy Message
 	case ']':   // OSC -- Operating System Command
-	case 'k': { // old title set compatibility 
+	case 'k': { // old title set compatibility
 		// hand over to StringEscape
 		const auto esc_type = StringEscape::Type{ch};
 		initStringEscape(esc_type);

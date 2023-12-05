@@ -651,9 +651,9 @@ void Term::draw() {
 
 Rune Term::translateChar(Rune rune) const {
 	// GRAPHIC0 translation table for VT100 "special graphics mode"
-	// 
+	//
 	// The table is proudly stolen from rxvt.
-	// 
+	//
 
 	constexpr auto VT100_GR_START = 0x41;
 	constexpr auto VT100_GR_END   = 0x7e;

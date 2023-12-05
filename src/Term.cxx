@@ -385,7 +385,7 @@ void Term::deleteColsAfterCursor(int count) {
 	// clear count characters at end of line
 	clearRegion(Range{
 		CharPos{m_size.cols - count, cursor.y},
-		Range::Width{count}
+		Width{count}
 	});
 }
 
@@ -411,7 +411,7 @@ void Term::insertBlanksAfterCursor(int count) {
 	std::memmove(&line[dst], &line[src], left * sizeof(Line::value_type));
 	clearRegion(Range{
 		CharPos{src, cursor.y},
-		Range::Width{count}
+		Width{count}
 	});
 }
 
@@ -588,7 +588,7 @@ void Term::drawScreen() const {
 		// `range` has inclusive end coordinates!
 		m_wsys.drawGlyphs(
 				line.begin() + range.begin.x,
-				line.begin() + Range::raw_width(range.width()),
+				line.begin() + raw_width(Rect{range}.width()),
 				CharPos{range.begin.x, y});
 
 		line.setDirty(false);

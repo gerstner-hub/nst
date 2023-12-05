@@ -129,21 +129,23 @@ public: // functions
 	}
 };
 
+/// strong type to represent widths
+enum class Width  : int {};
+/// strong type to represent heights
+enum class Height : int {};
+
+static inline auto raw_width  = cosmos::to_integral<Width>;
+static inline auto raw_height = cosmos::to_integral<Height>;
+
 /// A range of characters between a begin and an end CharPos.
 /**
- * Generally this is thought of as a continuous range of characters between the
- * begin and end coordinates. This means all lines in-between are counted as
- * being part of the range. The inRect() method can also be used to check
- * whether a position is within the rectangular area defined by the begin and
- * end, though.
+ * A range between a begin and an end coordinate. The exact meaning depends
+ * upon the actual use case. It can be used together with Rect or LinearRange.
  *
  * The begin and end coordinates are *inclusive*.
- * 
+ *
  * \todo TODO: this inclusiveness is problematic and unintuitive, see the
  *             `- 1` subtractions below.
- * \todo TODO: the distinction between a linear contiguous range and a
- *             rectangular box is still lacking e.g. width() and height()
- *             don't make fully sense for the former.
  **/
 struct Range {
 public: // data
@@ -151,14 +153,6 @@ public: // data
 	CharPos end;
 
 public: // types
-
-	/// strong type to represent widths
-	enum class Width  : int {};
-	/// strong type to represent heights
-	enum class Height : int {};
-
-	static inline auto raw_width  = cosmos::to_integral<Width>;
-	static inline auto raw_height = cosmos::to_integral<Height>;
 
 public: // functions
 
@@ -181,9 +175,6 @@ public: // functions
 	void invalidate() { begin.x = -1; }
 	bool isValid() const { return begin.x != -1; }
 
-	Width width() const { return static_cast<Width>(end.x - begin.x + 1); }
-	Height height() const { return static_cast<Height>(end.y - begin.y + 1); }
-
 	void clamp(const CharPos max) {
 		begin.clampX(max.x);
 		begin.clampY(max.y);
@@ -199,48 +190,6 @@ public: // functions
 			std::swap(begin.y, end.y);
 	}
 
-	/// Returns whether the given coordinate is within the current range setting.
-	/**
-	 * This includes the full lines in-between the begin and end position
-	 * of the range.
-	 **/
-	bool inRange(const CharPos pos) const {
-		if (pos.y < begin.y || pos.y > end.y)
-			return false;
-
-		if (pos.y == begin.y && pos.x < begin.x)
-			return false;
-
-		if (pos.y == end.y && pos.x > end.x)
-			return false;
-
-		return true;
-	}
-
-	/// Checks whether \c pos is within the rectangular area defined by this range.
-	bool inRect(const CharPos pos) const {
-		return
-			pos.x >= begin.x && pos.x <= end.x &&
-			pos.y >= begin.y && pos.y <= end.y;
-	}
-
-	/// Checks whether the given position is logically smaller than the current Range.
-	/**
-	 * This expects that the current Range is sanitize()'d i.e. the begin
-	 * coordinate is actually smaller than the end coordinate.
-	 *
-	 * The comparison checks whether the end coordinate of the current
-	 * range is appearing on an earlier line than \c pos or on an ealier
-	 * column (if on the same line).
-	 **/
-	bool operator<(const CharPos pos) const {
-		return end.y < pos.y || (end.y == pos.y && end.x < pos.x);
-	}
-
-	bool operator>(const CharPos pos) const {
-		return !(*this < pos) && !inRange(pos);
-	}
-
 	bool operator==(const Range &other) const {
 		return begin == other.begin && end == other.end;
 	}
@@ -253,6 +202,88 @@ public: // functions
 		begin.y += nlines;
 		end.y += nlines;
 	}
+};
+
+/// A rectangular area defined by a begin and end coordinate.
+struct Rect {
+public: // functions
+
+	explicit Rect(const Range &r) : m_range{r} {}
+
+	Width width() const   { return  Width{m_range.end.x - m_range.begin.x + 1}; }
+	Height height() const { return Height{m_range.end.y - m_range.begin.y + 1}; }
+
+	/// Checks whether \c pos is within the rectangular area.
+	bool inRect(const CharPos pos) const {
+		return
+			pos.x >= m_range.begin.x && pos.x <= m_range.end.x &&
+			pos.y >= m_range.begin.y && pos.y <= m_range.end.y;
+	}
+
+protected: // data
+
+	Range m_range;
+};
+
+/// A linear range defined by a begin and end coordinate.
+/**
+ * This defines a contiguous range of characters. all lines in-between the
+ * begin and end coordinate are part of the range:
+ *
+ * ```
+ * |    B--------|
+ * |-------------|
+ * |--------E    |
+ * ```
+ **/
+struct LinearRange {
+public: // functions
+
+	explicit LinearRange(const Range &r) : m_range{r} {}
+
+	/// Returns whether the given coordinate is within the current range setting.
+	/**
+	 * This includes the full lines in-between the begin and end position
+	 * of the range.
+	 **/
+	bool inRange(const CharPos pos) const {
+		if (pos.y < m_range.begin.y || pos.y > m_range.end.y)
+			return false;
+
+		if (pos.y == m_range.begin.y && pos.x < m_range.begin.x)
+			return false;
+
+		if (pos.y == m_range.end.y && pos.x > m_range.end.x)
+			return false;
+
+		return true;
+	}
+
+	/// Height (number of lines) for the current linear range.
+	Height height() const { return Height{m_range.end.y - m_range.begin.y + 1}; }
+
+	/// Checks whether the given position is logically smaller than the current Range.
+	/**
+	 * This expects that the current Range is sanitize()'d i.e. the begin
+	 * coordinate is actually smaller than the end coordinate.
+	 *
+	 * The comparison checks whether the end coordinate of the current
+	 * range is appearing on an earlier line than \c pos or on an ealier
+	 * column (if on the same line).
+	 **/
+	bool operator<(const CharPos pos) const {
+		return m_range.end.y < pos.y ||
+			(m_range.end.y == pos.y && m_range.end.x < pos.x);
+	}
+
+	bool operator>(const CharPos pos) const {
+		return !(*this < pos) && !inRange(pos);
+	}
+
+
+protected: // data
+
+	Range m_range;
 };
 
 /// Represents the terminal size in character elements.

@@ -40,9 +40,9 @@ bool Selection::isSelected(const CharPos pos) const {
 	if (inEmptyState() || !m_orig.isValid() || hasScreenChanged())
 		return false;
 	else if (isRectType())
-		return m_range.inRect(pos);
+		return Rect{m_range}.inRect(pos);
 	else // regular type
-		return m_range.inRange(pos);
+		return LinearRange{m_range}.inRange(pos);
 }
 
 void Selection::start(const CharPos pos, const Snap snap) {
@@ -71,7 +71,7 @@ void Selection::normalizeRange() {
 	const auto begin = m_orig.begin;
 	const auto end = m_orig.end;
 
-	if (isRegularType() && m_orig.height() > Range::Height{1}) {
+	if (isRegularType() && LinearRange{m_orig}.height() > Height{1}) {
 		// regular selection over more than one line:
 		// use the correct start column and end column
 		m_range.begin.x = begin.y < end.y ? begin.x : end.x;
@@ -167,9 +167,9 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 	const auto old_range = m_range;
 	m_force_word_extend = true;
 
-	if (m_range.inRange(pos)) {
+	if (const auto &range = LinearRange{m_range}; range.inRange(pos)) {
 		extendSnap();
-	} else if(m_range > pos) {
+	} else if(range > pos) {
 		extendWordSnap(m_range.begin, Direction::BACKWARD);
 	} else {
 		extendWordSnap(m_range.end, Direction::FORWARD);
@@ -425,7 +425,7 @@ std::string Selection::selection() const {
 
 	{
 		// worst case calculation for unicode text plus newlines
-		const size_t bufsize = (screen.numCols()+1) * Range::raw_height(m_range.height()) * utf8::UTF_SIZE;
+		const size_t bufsize = (screen.numCols()+1) * raw_height(LinearRange{m_range}.height()) * utf8::UTF_SIZE;
 		ret.reserve(bufsize);
 	}
 

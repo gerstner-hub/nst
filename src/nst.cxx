@@ -17,6 +17,7 @@
 
 // nst
 #include "nst.hxx"
+#include "IpcHandler.hxx"
 
 namespace nst {
 
@@ -65,6 +66,14 @@ void Nst::setEnv() {
 			"WINDOWID",
 			std::to_string(cosmos::to_integral(win)).c_str(),
 			cosmos::proc::OverwriteEnv{true});
+
+	if constexpr (config::ENABLE_IPC) {
+		cosmos::proc::set_env_var(
+				"NST_IPC_ADDR",
+				IpcHandler::address(),
+				/* if we run nested nst sessions we need to overwrite this */
+				cosmos::proc::OverwriteEnv{true});
+	}
 }
 
 void Nst::setupSignals() {
@@ -95,8 +104,18 @@ void Nst::mainLoop() {
 
 	resizeConsole();
 
-	for (auto fd: {ttyfd, display.connectionNumber(), static_cast<cosmos::FileDescriptor&>(childfd)}) {
+	for (auto fd: {
+			ttyfd,
+			display.connectionNumber(),
+			static_cast<cosmos::FileDescriptor&>(childfd)}) {
 		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
+	}
+
+	std::unique_ptr<IpcHandler> ipc_handler;
+
+	if constexpr (config::ENABLE_IPC) {
+		ipc_handler.reset(new IpcHandler{*this, poller});
+		ipc_handler->init();
 	}
 
 	while (true) {
@@ -109,15 +128,22 @@ void Nst::mainLoop() {
 				std::nullopt);
 
 		bool draw_event = false;
+		bool timedout = events.empty();
 
 		for (const auto &event: events) {
-			if (event.fd() == childfd) {
+			const auto fd = event.fd();
+
+			if (fd == childfd) {
 				m_tty.handleSigChildEvent();
-			} else if (event.fd() == ttyfd) {
+			} else if (fd == ttyfd) {
 				if (m_tty.read() == 0)
 					// EOF condition
 					return;
 				draw_event = true;
+			} else if (fd == display.connectionNumber()) {
+				// handled below
+			} else if (ipc_handler) {
+				ipc_handler->checkEvent(event);
 			}
 		}
 
@@ -144,6 +170,8 @@ void Nst::mainLoop() {
 			if (timeout.count() > 0)
 				// we have time, try to find idle
 				continue;
+		} else if (!timedout) {
+			continue;
 		}
 
 		// idle detected or maxlatency exhausted -> draw

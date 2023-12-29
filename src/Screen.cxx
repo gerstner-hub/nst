@@ -94,6 +94,11 @@ std::string Screen::asText() const {
 
 		const auto used_cols = line.usedLength();
 
+		if (used_cols == 0)
+			/* this can happen for empty lines on the current
+			 * screen, don't add a newline for them */
+			return;
+
 		for (auto it = line.raw().begin(); it < line.raw().begin() + used_cols; it++) {
 			utf8::encode(it->rune, ret);
 		}

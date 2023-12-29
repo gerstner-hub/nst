@@ -203,6 +203,14 @@ static constexpr size_t HISTORY_LEN = 4000;
  **/
 static constexpr bool KEEP_SCROLL_POSITION = true;
 
+/// Whether nst should offer a UNIX domain socket IPC for the nst-msg tool.
+/**
+ * If enabled then a UNIX domain listen socket is created for each nst
+ * instance. The `nst-msg` utility can be used to talk to the terminal for
+ * obtaining terminal history contents e.g. for grepping on it.
+ **/
+static constexpr bool ENABLE_IPC = true;
+
 /// Default shape of the mouse cursor.
 constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::XTERM};
 /// Default foreground color of the mouse cursor.

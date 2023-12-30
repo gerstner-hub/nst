@@ -33,7 +33,7 @@ constexpr double FONT_DEFAULT_SIZE_PX = 12;
 /**
  * More advanced example: L" `'\"()[]{}"
  **/
-constexpr const std::wstring_view WORD_DELIMITERS{L" \"<>()[]'{}:/"};
+inline constexpr const std::wstring_view WORD_DELIMITERS{L" \"<>()[]'{}:/"};
 
 /// How stty will be invoked when operating on real TTY lines.
 constexpr std::array<std::string_view, 8> STTY_ARGS{{
@@ -143,7 +143,7 @@ constexpr int CURSOR_THICKNESS = 2;
 constexpr xpp::BellVolume BELL_VOLUME{0};
 
 /// Extended color palette beyond index 255.
-constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
+inline constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 	/* more colors can be added after 255 to use with DefaultXX */
 	"#cccccc",
 	"#555555",
@@ -152,7 +152,7 @@ constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
 }};
 
 /// Basic terminal colors (16 first used in escape sequence)
-constexpr std::array<std::string_view, 16> COLORNAMES{{
+inline constexpr std::array<std::string_view, 16> COLORNAMES{{
 	/* 8 normal colors */
 	"black",
 	"red3",
@@ -175,14 +175,14 @@ constexpr std::array<std::string_view, 16> COLORNAMES{{
 }};
 
 /// Default shape of cursor
-static constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
+constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
 
 /// Default number of columns.
-static constexpr unsigned int COLS = 80;
+constexpr unsigned int COLS = 80;
 /// Default number of rows.
-static constexpr unsigned int ROWS = 24;
+constexpr unsigned int ROWS = 24;
 /// Number of lines kept in the scrollback buffer.
-static constexpr size_t HISTORY_LEN = 4000;
+constexpr size_t HISTORY_LEN = 4000;
 /// Whether nst should keep a selected scrollback position even when new TTY data comes in.
 /**
  * When the terminal history is displayed then the question arises what to do
@@ -201,7 +201,7 @@ static constexpr size_t HISTORY_LEN = 4000;
  * still stop the terminal process via Ctrl + S to prevent any new output to
  * appear.
  **/
-static constexpr bool KEEP_SCROLL_POSITION = true;
+constexpr bool KEEP_SCROLL_POSITION = true;
 
 /// Whether nst should offer a UNIX domain socket IPC for the nst-msg tool.
 /**
@@ -209,7 +209,7 @@ static constexpr bool KEEP_SCROLL_POSITION = true;
  * instance. The `nst-msg` utility can be used to talk to the terminal for
  * obtaining terminal history contents e.g. for grepping on it.
  **/
-static constexpr bool ENABLE_IPC = true;
+constexpr bool ENABLE_IPC = true;
 
 /// Default shape of the mouse cursor.
 constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::XTERM};
@@ -269,7 +269,7 @@ inline constexpr xpp::InputMask IGNORE_MOD{Mod::MOD2, Mod::XKB_GROUP_INDEX};
  * whether the given keys will be processed at all. Individual key
  * mappings still need to be entered below into KEYS.
  **/
-const std::set<xpp::KeySymID> MAPPED_KEYS{};
+inline const std::set<xpp::KeySymID> MAPPED_KEYS{};
 
 /// List of special function key definitions.
 /**
@@ -280,7 +280,7 @@ const std::set<xpp::KeySymID> MAPPED_KEYS{};
  * key, so we don't have to iterate over the complete list of keys linearly,
  * but only over a small list of key combinations that share the same KeyID.
  **/
-const std::multiset<Key> KEYS{{
+inline const std::multiset<Key> KEYS{{
 	// keysym               mask                              string          appkey             appcursor
 	{ KeyID::KP_HOME,       Mask{Mod::SHIFT},                 "\033[2J",      AppKey::IGNORE,    AppCursor::DISABLED},
 	{ KeyID::KP_HOME,       Mask{Mod::SHIFT},                 "\033[1;2H",    AppKey::IGNORE,    AppCursor::ENABLED},
@@ -501,7 +501,7 @@ const std::multiset<Key> KEYS{{
 /**
  * This is used to estimate the advance width of single wide characters.
  **/
-constexpr std::string_view ASCII_PRINTABLE{
+inline constexpr std::string_view ASCII_PRINTABLE{
 	" !\"#$%&'()*+,-./0123456789:;<=>?"
 	"@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 	"`abcdefghijklmnopqrstuvwxyz{|}~"
@@ -544,7 +544,7 @@ constexpr xpp::InputMask SEL_ALT_MOD{xpp::InputModifier::MOD1};
  * When double-clicking on such a URI scheme, then the complete URL will be
  * expanded, if possible.
  **/
-constexpr std::string_view SEL_URI_SCHEMES[] = {"http", "https", "ftp", "git", "socks"};
+inline constexpr std::string_view SEL_URI_SCHEMES[] = {"http", "https", "ftp", "git", "socks"};
 
 // see implementation file
 std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);

@@ -35,7 +35,7 @@ protected: // data
 };
 
 Cmdline::Cmdline() :
-		TCLAP::CmdLine{"nst terminal emulator IPC utility", ' ', VERSION},
+		TCLAP::CmdLine{"nst terminal emulator IPC utility", ' ', NST_VERSION},
 		save_snapshot{"S", "snapshot", "save a snapshot of the current history"},
 		get_snapshot{"s", "get-snapshot", "print the history data from the last snapshot to stdout"},
 		get_history{"d", "get-history", "print (dump) the current history data to stdout"},

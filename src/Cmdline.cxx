@@ -8,7 +8,7 @@
 namespace nst {
 
 Cmdline::Cmdline() :
-		TCLAP::CmdLine{"not (so) simple terminal emulator", ' ', VERSION},
+		TCLAP::CmdLine{"not (so) simple terminal emulator", ' ', NST_VERSION},
 	use_alt_screen{ "a", "no-alt-screen",  "disable the alternative screen buffer", *this, true},
 	fixed_geometry{ "i", "fixed-geometry", "fixate the position specified via -g", *this, false},
 	execute{        "e", "execute",        "execute remaining parameters as command. Only for backward compatibility.", *this, false},

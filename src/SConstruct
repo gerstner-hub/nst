@@ -2,7 +2,7 @@ Import('env')
 
 
 env.Append(CPPPATH=['#/tclap/include'])
-env.Append(CCFLAGS=['-DVERSION=\\"0.9\\"'])
+env.Append(CCFLAGS=['-DNST_VERSION=\\"1.0\\"'])
 
 nst_env = env.Clone()
 sources = nst_env.GatherSources(suffixes=[".cxx"], recursive=False)

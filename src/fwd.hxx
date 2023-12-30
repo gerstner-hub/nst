@@ -7,7 +7,6 @@
 
 namespace nst {
 
-class Font;
 class FontColor;
 class Nst;
 class RuneInfo;
@@ -15,6 +14,7 @@ class Selection;
 class TTY;
 class Term;
 class WindowSystem;
+struct Font;
 struct Glyph;
 struct TermWindow;
 

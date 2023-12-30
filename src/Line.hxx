@@ -70,7 +70,7 @@ public: // functions
 
 	/// Returns whether the line has a WRAP attribute set for the last element
 	bool isWrapped() const {
-		return back().mode[Attr::WRAP];
+		return !empty() && back().mode[Attr::WRAP];
 	}
 
 	bool isDirty() const {

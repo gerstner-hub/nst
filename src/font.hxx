@@ -1,5 +1,4 @@
-#ifndef NST_FONT_HXX
-#define NST_FONT_HXX
+#pragma once
 
 // C++
 #include <optional>
@@ -256,5 +255,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

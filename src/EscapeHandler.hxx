@@ -1,5 +1,4 @@
-#ifndef NST_ESCAPEHANDLER_HXX
-#define NST_ESCAPEHANDLER_HXX
+#pragma once
 
 // C++
 #include <optional>
@@ -142,5 +141,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

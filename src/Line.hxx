@@ -1,5 +1,4 @@
-#ifndef NST_LINE_HXX
-#define NST_LINE_HXX
+#pragma once
 
 // C++
 #include <algorithm>
@@ -149,5 +148,3 @@ protected: // data
 using LineVector = std::vector<Line>;
 
 } // end ns
-
-#endif // inc. guard

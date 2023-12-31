@@ -1,5 +1,4 @@
-#ifndef NST_CONFIG_H
-#define NST_CONFIG_H
+#pragma once
 
 // C++
 #include <array>
@@ -553,5 +552,3 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);
 std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst);
 
 }} // end ns nst::config
-
-#endif // inc. guard

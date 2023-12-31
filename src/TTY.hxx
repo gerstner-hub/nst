@@ -1,5 +1,4 @@
-#ifndef NST_TTY_HXX
-#define NST_TTY_HXX
+#pragma once
 
 // C++
 #include <string_view>
@@ -117,5 +116,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

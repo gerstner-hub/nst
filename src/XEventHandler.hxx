@@ -1,5 +1,4 @@
-#ifndef NST_XEVENT_HANDLER_HXX
-#define NST_XEVENT_HANDLER_HXX
+#pragma once
 
 // C++
 #include <optional>
@@ -111,5 +110,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

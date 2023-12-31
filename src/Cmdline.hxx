@@ -1,5 +1,4 @@
-#ifndef NST_CMDLINE_HXX
-#define NST_CMDLINE_HXX
+#pragma once
 
 // stdlib
 #include <string>
@@ -49,5 +48,3 @@ public: // data
 };
 
 } // end ns
-
-#endif // inc. guard

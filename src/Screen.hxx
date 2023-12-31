@@ -1,5 +1,4 @@
-#ifndef NST_SCREEN_HXX
-#define NST_SCREEN_HXX
+#pragma once
 
 // C++
 #include <climits>
@@ -413,5 +412,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

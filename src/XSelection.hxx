@@ -1,5 +1,4 @@
-#ifndef NST_XSELECTION_HXX
-#define NST_XSELECTION_HXX
+#pragma once
 
 // C++
 #include <string>
@@ -58,5 +57,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

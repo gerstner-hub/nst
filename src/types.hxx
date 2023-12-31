@@ -1,5 +1,4 @@
-#ifndef NST_TYPES_HXX
-#define NST_TYPES_HXX
+#pragma once
 
 // C++
 #include <algorithm>
@@ -549,5 +548,3 @@ inline ColorIndex to_true_color(const ColorIndex idx) {
 }
 
 } // end ns
-
-#endif // inc. guard

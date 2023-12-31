@@ -1,5 +1,4 @@
-#ifndef NST_GLYPH_HXX
-#define NST_GLYPH_HXX
+#pragma once
 
 // cosmos
 #include "cosmos/BitMask.hxx"
@@ -109,5 +108,3 @@ public: // functions
 using Attr = Glyph::Attr;
 
 } // end ns
-
-#endif // inc. guard

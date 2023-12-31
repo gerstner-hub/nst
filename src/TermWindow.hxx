@@ -1,5 +1,4 @@
-#ifndef NST_TERM_WINDOW_HXX
-#define NST_TERM_WINDOW_HXX
+#pragma once
 
 // nst
 #include "fwd.hxx"
@@ -114,5 +113,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif

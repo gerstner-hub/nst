@@ -1,5 +1,4 @@
-#ifndef NST_HXX
-#define NST_HXX
+#pragma once
 
 // cosmos
 #include "cosmos/cosmos.hxx"
@@ -76,5 +75,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

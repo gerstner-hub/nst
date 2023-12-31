@@ -1,5 +1,4 @@
-#ifndef NST_WINDOW_SYSTEM_HXX
-#define NST_WINDOW_SYSTEM_HXX
+#pragma once
 
 // C++
 #include <string_view>
@@ -196,5 +195,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif

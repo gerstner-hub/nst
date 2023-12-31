@@ -1,5 +1,4 @@
-#ifndef NST_CURSOR_STATE_HXX
-#define NST_CURSOR_STATE_HXX
+#pragma once
 
 // cosmos
 #include "cosmos/BitMask.hxx"
@@ -73,5 +72,3 @@ public: // functions
 };
 
 } // end ns
-
-#endif // inc. guard

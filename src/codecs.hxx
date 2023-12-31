@@ -1,5 +1,4 @@
-#ifndef NST_CODECS_HXX
-#define NST_CODECS_HXX
+#pragma once
 
 // libc
 #include <stddef.h>
@@ -92,5 +91,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

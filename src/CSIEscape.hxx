@@ -1,5 +1,4 @@
-#ifndef NST_CSIESCAPE_HXX
-#define NST_CSIESCAPE_HXX
+#pragma once
 
 // C++
 #include <string>
@@ -111,5 +110,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

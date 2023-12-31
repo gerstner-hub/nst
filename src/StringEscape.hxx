@@ -1,5 +1,4 @@
-#ifndef NST_STRINGESCAPE_HXX
-#define NST_STRINGESCAPE_HXX
+#pragma once
 
 // C++
 #include <string>
@@ -76,5 +75,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

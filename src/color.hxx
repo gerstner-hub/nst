@@ -1,5 +1,4 @@
-#ifndef NST_COLOR_HXX
-#define NST_COLOR_HXX
+#pragma once
 
 // C++
 #include <array>
@@ -181,5 +180,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif

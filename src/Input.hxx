@@ -1,5 +1,4 @@
-#ifndef NST_INPUT_HXX
-#define NST_INPUT_HXX
+#pragma once
 
 // C++
 #include <memory>
@@ -69,5 +68,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

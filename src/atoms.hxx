@@ -1,5 +1,4 @@
-#ifndef NST_ATOMS_HXX
-#define NST_ATOMS_HXX
+#pragma once
 
 // X++
 #include "X++/CachedAtom.hxx"
@@ -12,5 +11,3 @@ inline constexpr xpp::CachedAtom netwmiconname{"_NET_WM_ICON_NAME"};
 inline constexpr xpp::CachedAtom targets{"TARGETS"};
 
 } // end ns
-
-#endif // inc. guard

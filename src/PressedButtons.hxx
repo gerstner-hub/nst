@@ -1,5 +1,4 @@
-#ifndef NST_PRESSED_BUTTONS_HXX
-#define NST_PRESSED_BUTTONS_HXX
+#pragma once
 
 // C++
 #include <bitset>
@@ -56,5 +55,3 @@ protected:
 };
 
 } // end ns
-
-#endif // inc. guard

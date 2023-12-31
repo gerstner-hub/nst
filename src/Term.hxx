@@ -1,5 +1,4 @@
-#ifndef NST_TERM_HXX
-#define NST_TERM_HXX
+#pragma once
 
 // C++
 #include <array>
@@ -491,5 +490,3 @@ protected: // data
 };
 
 } // end ns
-
-#endif // inc. guard

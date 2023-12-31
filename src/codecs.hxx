@@ -8,7 +8,7 @@
 #include <string_view>
 
 // cosmos
-#include "cosmos/algs.hxx"
+#include "cosmos/utils.hxx"
 
 // nst
 #include "types.hxx"

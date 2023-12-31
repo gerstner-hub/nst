@@ -7,7 +7,6 @@
 
 // cosmos
 #include "cosmos/BitMask.hxx"
-#include "cosmos/types.hxx"
 
 // nst
 #include "CursorState.hxx"

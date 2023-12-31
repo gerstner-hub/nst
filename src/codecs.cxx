@@ -2,7 +2,6 @@
 #include <wchar.h>
 
 // cosmos
-#include "cosmos/algs.hxx"
 #include "cosmos/string.hxx"
 
 // nst

@@ -1,9 +1,8 @@
 // cosmos
-#include "cosmos/algs.hxx"
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/formatting.hxx"
 #include "cosmos/proc/process.hxx"
-#include "cosmos/types.hxx"
+#include "cosmos/utils.hxx"
 
 // X++
 #include "X++/atoms.hxx"

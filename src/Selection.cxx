@@ -3,7 +3,7 @@
 #include <cctype>
 
 // cosmos
-#include "cosmos/algs.hxx"
+#include "cosmos/utils.hxx"
 #include "cosmos/string.hxx"
 
 // nst

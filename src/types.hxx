@@ -8,8 +8,7 @@
 #include <string_view>
 
 // cosmos
-#include "cosmos/algs.hxx"
-#include "cosmos/types.hxx"
+#include "cosmos/utils.hxx"
 #include "cosmos/BitMask.hxx"
 
 // X++

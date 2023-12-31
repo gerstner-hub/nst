@@ -8,7 +8,6 @@
 #include "cosmos/io/Poller.hxx"
 #include "cosmos/io/Terminal.hxx"
 #include "cosmos/proc/SubProc.hxx"
-#include "cosmos/types.hxx"
 
 // nst
 #include "fwd.hxx"

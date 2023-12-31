@@ -2,8 +2,8 @@
 #include <iostream>
 
 // cosmos
-#include "cosmos/algs.hxx"
 #include "cosmos/formatting.hxx"
+#include "cosmos/utils.hxx"
 
 // X++
 #include "X++/atoms.hxx"

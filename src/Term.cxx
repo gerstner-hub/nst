@@ -5,7 +5,7 @@
 #include <type_traits>
 
 // cosmos
-#include "cosmos/algs.hxx"
+#include "cosmos/utils.hxx"
 
 // nst
 #include "codecs.hxx"

@@ -1,5 +1,4 @@
 // cosmos
-#include "cosmos/algs.hxx"
 #include "cosmos/error/ApiError.hxx"
 #include "cosmos/io/Pipe.hxx"
 #include "cosmos/io/Poller.hxx"
@@ -10,6 +9,7 @@
 #include "cosmos/proc/SigSet.hxx"
 #include "cosmos/locale.hxx"
 #include "cosmos/time/time.hxx"
+#include "cosmos/utils.hxx"
 
 // X++
 #include "X++/XDisplay.hxx"

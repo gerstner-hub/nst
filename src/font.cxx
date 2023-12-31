@@ -2,10 +2,9 @@
 #include <iostream>
 
 // cosmos
-#include "cosmos/algs.hxx"
 #include "cosmos/error/ApiError.hxx"
 #include "cosmos/error/RuntimeError.hxx"
-#include "cosmos/types.hxx"
+#include "cosmos/utils.hxx"
 
 // X++
 #include "X++/helpers.hxx"

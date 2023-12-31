@@ -4,7 +4,6 @@
 #include <iostream>
 
 // cosmos
-#include "cosmos/algs.hxx"
 #include "cosmos/error/ApiError.hxx"
 #include "cosmos/error/InternalError.hxx"
 #include "cosmos/error/RuntimeError.hxx"
@@ -15,6 +14,7 @@
 #include "cosmos/proc/process.hxx"
 #include "cosmos/proc/SignalFD.hxx"
 #include "cosmos/proc/SubProc.hxx"
+#include "cosmos/utils.hxx"
 
 // nst
 #include "Cmdline.hxx"

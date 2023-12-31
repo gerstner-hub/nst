@@ -2,6 +2,7 @@
 
 // cosmos
 #include "cosmos/cosmos.hxx"
+#include "cosmos/string.hxx"
 
 // X++
 #include "X++/Xpp.hxx"

@@ -108,7 +108,7 @@ void Nst::mainLoop() {
 			ttyfd,
 			display.connectionNumber(),
 			static_cast<cosmos::FileDescriptor&>(childfd)}) {
-		poller.addFD(fd, cosmos::Poller::MonitorMask{cosmos::Poller::MonitorSetting::INPUT});
+		poller.addFD(fd, {cosmos::Poller::MonitorFlag::INPUT});
 	}
 
 	std::unique_ptr<IpcHandler> ipc_handler;

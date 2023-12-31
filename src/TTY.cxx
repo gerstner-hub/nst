@@ -87,10 +87,10 @@ void TTY::setupPoller() {
 	m_cmd_poller.create();
 	m_cmd_poller.addFD(
 		m_cmd_file.fd(),
-		cosmos::Poller::MonitorMask({
-			cosmos::Poller::MonitorSetting::INPUT,
-			cosmos::Poller::MonitorSetting::OUTPUT
-		})
+		{
+			cosmos::Poller::MonitorFlag::INPUT,
+			cosmos::Poller::MonitorFlag::OUTPUT
+		}
 	);
 }
 
@@ -104,7 +104,7 @@ void TTY::setupIOFile(const std::string &path) {
 			m_io_file.open(
 				path,
 				cosmos::OpenMode::WRITE_ONLY,
-				cosmos::OpenFlags({cosmos::OpenSettings::CREATE, cosmos::OpenSettings::TRUNCATE}),
+				{cosmos::OpenFlag::CREATE, cosmos::OpenFlag::TRUNCATE},
 				cosmos::FileMode(cosmos::ModeT{0640})
 			);
 		} catch (const std::exception &ex) {

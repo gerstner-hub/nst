@@ -11,8 +11,6 @@
 
 namespace nst {
 
-constexpr cosmos::Poller::MonitorMask INPUT_MASK{cosmos::Poller::MonitorSetting::INPUT};
-constexpr cosmos::Poller::MonitorMask OUTPUT_MASK{cosmos::Poller::MonitorSetting::OUTPUT};
 
 namespace {
 	auto& log_error() {
@@ -31,7 +29,7 @@ std::string IpcHandler::address() {
 void IpcHandler::init() {
 	m_listener.bind(cosmos::UnixAddress{address(), cosmos::UnixAddress::AbstractAddress{true}});
 	m_listener.listen(5);
-	m_poller.addFD(m_listener.fd(), INPUT_MASK);
+	m_poller.addFD(m_listener.fd(), {cosmos::Poller::MonitorFlag::INPUT});
 }
 
 void IpcHandler::checkEvent(const cosmos::Poller::PollEvent &event) {
@@ -71,7 +69,7 @@ void IpcHandler::acceptConnection() {
 	}
 
 	m_poller.delFD(m_listener.fd());
-	m_poller.addFD(m_connection->fd(), INPUT_MASK);
+	m_poller.addFD(m_connection->fd(), {cosmos::Poller::MonitorFlag::INPUT});
 	m_state = State::RECEIVING;
 }
 
@@ -102,7 +100,7 @@ void IpcHandler::receiveCommand() {
 
 	if (m_state == State::SENDING) {
 		// transitioned to sending, we need to monitor output now
-		m_poller.modFD(connection.fd(), OUTPUT_MASK);
+		m_poller.modFD(connection.fd(), {cosmos::Poller::MonitorFlag::OUTPUT});
 	}
 }
 
@@ -172,7 +170,7 @@ void IpcHandler::closeSession() {
 	if (!m_connection)
 		return;
 
-	m_poller.addFD(m_listener.fd(), INPUT_MASK);
+	m_poller.addFD(m_listener.fd(), {cosmos::Poller::MonitorFlag::INPUT});
 	m_poller.delFD(m_connection->fd());
 	m_connection->close();
 	m_connection.reset();

@@ -1,7 +1,7 @@
 #pragma once
 
 // cosmos
-#include "cosmos/cosmos.hxx"
+#include "cosmos/main.hxx"
 #include "cosmos/string.hxx"
 
 // X++
@@ -23,14 +23,11 @@ namespace nst {
  * implements the main loop and is invoked from the main function of the
  * program.
  **/
-class Nst {
+class Nst :
+		public cosmos::MainPlainArgs {
 public: // functions
 
 	Nst();
-
-	/// this is the main entry point of the Nst application that is also
-	/// passed the command line parameters for the program
-	void run(int argc, const char **argv);
 
 	TTY& tty() { return m_tty; }
 	Term& term() { return m_term; }
@@ -57,6 +54,11 @@ public: // functions
 
 protected: // functions
 
+	/// this is the main entry point of the Nst application that is also
+	/// passed the command line parameters for the program
+	cosmos::ExitStatus main(int argc, const char **argv) override;
+
+
 	void mainLoop();
 	void setupSignals();
 	void waitForWindowMapping();
@@ -65,7 +67,6 @@ protected: // functions
 
 protected: // data
 
-	cosmos::Init m_init;
 	xpp::Init m_xpp;
 	Cmdline m_cmdline;
 	WindowSystem m_wsys;

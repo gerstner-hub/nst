@@ -46,7 +46,7 @@ void Nst::waitForWindowMapping() {
 	} while (!ev.isMapNotify());
 }
 
-void Nst::run(int argc, const char **argv) {
+cosmos::ExitStatus Nst::main(int argc, const char **argv) {
 	cosmos::locale::set_from_environment(cosmos::locale::Category::CTYPE);
 	// initializes the X locale handling, mostly supports setting the
 	// input method e.g. via XMODIFIERS environment variable
@@ -58,6 +58,7 @@ void Nst::run(int argc, const char **argv) {
 	m_term.init(*this);
 	setEnv();
 	mainLoop();
+	return cosmos::ExitStatus::SUCCESS;
 }
 
 void Nst::setEnv() {
@@ -237,13 +238,5 @@ void Nst::pipeBufferTo(const cosmos::StringViewVector cmdline) {
 } // end ns nst
 
 int main(int argc, const char **argv) {
-	try {
-		nst::Nst nst;
-		nst.run(argc, argv);
-	} catch (const std::exception &ex) {
-		std::cerr << ex.what() << std::endl;
-		return EXIT_FAILURE;
-	}
-
-	return 0;
+	return cosmos::main<nst::Nst>(argc, argv);
 }

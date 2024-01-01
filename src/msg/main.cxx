@@ -6,6 +6,7 @@
 
 // cosmos
 #include "cosmos/cosmos.hxx"
+#include "cosmos/main.hxx"
 #include "cosmos/error/ApiError.hxx"
 #include "cosmos/net/UnixClientSocket.hxx"
 #include "cosmos/proc/process.hxx"
@@ -52,16 +53,15 @@ Cmdline::Cmdline() :
  * This utility allows to connect to the currently running nst terminal and
  * to access its IPC features.
  **/
-class IpcClient {
-public: // functions
-
-	void run(int argc, const char **argv);
-
+class IpcClient :
+		public cosmos::MainPlainArgs {
 protected: // types
 
 	using Message = IpcHandler::Message;
 
 protected: // functions
+
+	cosmos::ExitStatus main(const int argc, const char **argv) override;
 
 	cosmos::UnixConnection connect();
 
@@ -70,7 +70,6 @@ protected: // functions
 
 protected: // data
 
-	cosmos::Init m_init;
 	cosmos::UnixSeqPacketClientSocket m_sock;
 	Cmdline m_cmdline;
 
@@ -78,7 +77,7 @@ protected: // data
 	static constexpr cosmos::ExitStatus INT_ERR{5};
 };
 
-void IpcClient::run(int argc, const char **argv) {
+cosmos::ExitStatus IpcClient::main(const int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
 
 	const auto request = [this]() -> Message {
@@ -98,6 +97,7 @@ void IpcClient::run(int argc, const char **argv) {
 	auto connection = connect();
 	connection.send(&request, sizeof(request));
 	receiveData(request, connection);
+	return cosmos::ExitStatus::SUCCESS;
 }
 
 cosmos::UnixConnection IpcClient::connect() {
@@ -169,14 +169,5 @@ void IpcClient::receiveData(const Message request, cosmos::UnixConnection &conne
 } // end ns
 
 int main(int argc, const char **argv) {
-	try {
-		nst::IpcClient ipc_client;
-		ipc_client.run(argc, argv);
-		return EXIT_SUCCESS;
-	} catch (const cosmos::ExitStatus status) {
-		return cosmos::to_integral(status);
-	} catch (const std::exception &ex) {
-		std::cerr << ex.what() << std::endl;
-		return EXIT_FAILURE;
-	}
+	return cosmos::main<nst::IpcClient>(argc, argv);
 }

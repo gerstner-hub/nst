@@ -214,7 +214,7 @@ void Nst::pipeBufferTo(const cosmos::StringViewVector cmdline) {
 	auto child = cloner.run();
 	pipe.closeReadEnd();
 
-	const auto text = m_term.screen().asText();
+	const auto text = m_term.screen().asText(m_term.cursor());
 	cosmos::File io{pipe.writeEnd(), cosmos::AutoCloseFD{false}};
 
 	try {

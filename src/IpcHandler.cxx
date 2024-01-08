@@ -106,7 +106,7 @@ void IpcHandler::receiveCommand() {
 
 std::string IpcHandler::history() const {
 	const auto &term = m_nst.term();
-	auto ret = term.screen().asText();
+	auto ret = term.screen().asText(term.cursor());
 
 	if (!term.onAltScreen()) {
 		// drop the last line which contains the currently entered

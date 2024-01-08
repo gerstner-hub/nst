@@ -13,10 +13,8 @@ void Screen::setDimension(const TermSize size, const Glyph defattrs) {
 	// current screen
 	stopScrolling();
 
-	// if we don't have a scroll buffer then we are likely on the alt
-	// screen and then we also don't do stunts with restoring colums lost
-	// due to resize.
-	const auto init_line = Line{/*keep_data_on_shrink=*/hasScrollBuffer()};
+	// on the alt screen don't do stunts with restoring columns lost due to resize.
+	const auto init_line = Line{/*keep_data_on_shrink=*/!m_is_alt_screen};
 
 	/* if we use a ring buffer with scroll back history then never
 	 * change the ring buffer's size, it will always stick at
@@ -85,19 +83,38 @@ void Screen::setDimension(const TermSize size, const Glyph defattrs) {
 	}
 }
 
-std::string Screen::asText() const {
+std::string Screen::asText(const CursorState &cursor) const {
 	std::string ret;
+
+	/*
+	 * we want to skip empty lines shown on the current screen below the
+	 * current cursor position. These are basically unallocated yet, but
+	 * have been prepared for use by the Term logic.
+	 *
+	 * Determining this situation isn't all that easy:
+	 *
+	 * - don't do it on the alt screen
+	 * - we need to receive the current screen line position
+	 * - only if this position is beyond the current cursor position,
+	 *   trigger the logic.
+	 */
+	auto reachedEndOfScreen = [&cursor,this](const std::optional<size_t> screen_pos) {
+		if (m_is_alt_screen)
+			return false;
+		else if (!screen_pos)
+			return false;
+		// skip the current line which is helpful for `nst-msg -d | grep text`, to avoid matching the query itself
+		else if (static_cast<int>(*screen_pos) < cursor.position().y)
+			return false;
+		else
+			return true;
+	};
 
 	auto addLine = [&ret](const Line &line) {
 		if (line.empty())
 			return;
 
 		const auto used_cols = line.usedLength();
-
-		if (used_cols == 0)
-			/* this can happen for empty lines on the current
-			 * screen, don't add a newline for them */
-			return;
 
 		for (auto it = line.raw().begin(); it < line.raw().begin() + used_cols; it++) {
 			utf8::encode(it->rune, ret);
@@ -111,6 +128,8 @@ std::string Screen::asText() const {
 		}
 
 		for (size_t line = 0; line < m_cur_pos + m_rows; line++) {
+			if (reachedEndOfScreen(screenPos(line)))
+				break;
 			addLine(m_lines[line]);
 		}
 	} else {
@@ -121,14 +140,37 @@ std::string Screen::asText() const {
 			addLine(m_lines[line]);
 		}
 
+		size_t screen_index = 0;
+
 		// now use the smart iterator to add the remaining lines from
 		// the screen that wrap around the buffer
 		for (const auto &line: *this) {
+			if (reachedEndOfScreen(screen_index))
+				break;
 			addLine(line);
+			screen_index++;
 		}
 	}
 
 	return ret;
+}
+
+std::optional<size_t> Screen::screenPos(LineVector::size_type line_index) const {
+	const auto screen_end = bufferPos(m_rows-1);
+	const auto screen_wraps = screen_end < m_cur_pos;
+
+	if (screen_wraps) {
+		if (line_index >= m_cur_pos)
+			return line_index - m_cur_pos;
+		else if (line_index <= screen_end)
+			return m_lines.size() - m_cur_pos + line_index;
+	} else {
+		if (line_index >= m_cur_pos && line_index < m_cur_pos + m_rows) {
+			return line_index - m_cur_pos;
+		}
+	}
+
+	return std::nullopt;
 }
 
 } // end ns

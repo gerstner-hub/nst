@@ -109,8 +109,9 @@ public: // functions
 	 * If \c history_len is zero then no scrollback buffer will be
 	 * provided.
 	 **/
-	explicit Screen(const size_t history_len) :
-			m_history_len{history_len} {}
+	explicit Screen(const size_t history_len, const bool is_alt_screen = false) :
+			m_history_len{history_len},
+			m_is_alt_screen{is_alt_screen} {}
 
 	size_t numCols() const {
 		return m_lines.empty() ? 0 : m_lines.front().size();
@@ -183,16 +184,16 @@ public: // functions
 		return ret;
 	}
 
-	Glyph& operator[](const CharPos p)             { return m_lines[translateLinePos(p.y)][p.x]; }
-	const Glyph& operator[](const CharPos p) const { return m_lines[translateLinePos(p.y)][p.x]; }
+	Glyph& operator[](const CharPos p)             { return m_lines[bufferPos(p.y)][p.x]; }
+	const Glyph& operator[](const CharPos p) const { return m_lines[bufferPos(p.y)][p.x]; }
 
-	Line& operator[](ssize_t pos)             { return m_lines[translateLinePos(pos)]; }
-	const Line& operator[](ssize_t pos) const { return m_lines[translateLinePos(pos)]; }
+	Line& operator[](ssize_t pos)             { return m_lines[bufferPos(pos)]; }
+	const Line& operator[](ssize_t pos) const { return m_lines[bufferPos(pos)]; }
 
-	auto begin() { return iterator{m_lines, m_lines.begin() + translateLinePos(0)}; }
-	auto end() { return iterator{m_lines, m_lines.begin() + translateLinePos(m_rows)}; }
-	auto begin() const { return const_iterator{m_lines, m_lines.begin() + translateLinePos(0)}; }
-	auto end() const { return const_iterator{m_lines, m_lines.begin() + translateLinePos(m_rows)}; }
+	auto begin() { return iterator{m_lines, m_lines.begin() + bufferPos(0)}; }
+	auto end() { return iterator{m_lines, m_lines.begin() + bufferPos(m_rows)}; }
+	auto begin() const { return const_iterator{m_lines, m_lines.begin() + bufferPos(0)}; }
+	auto end() const { return const_iterator{m_lines, m_lines.begin() + bufferPos(m_rows)}; }
 
 	void setCachedCursor(const CursorState &state) {
 		m_cached_cursor = state;
@@ -282,7 +283,7 @@ public: // functions
 	/// Save the current scroll offset for later restoring via restoreScrollState().
 	void saveScrollState() {
 		if (isScrolled()) {
-			m_saved_scroll_index = translateLinePos(0);
+			m_saved_scroll_index = bufferPos(0);
 		} else {
 			m_saved_scroll_index = SIZE_MAX;
 		}
@@ -354,7 +355,7 @@ public: // functions
 	 * This returns the complete buffer content including scroll back
 	 * history.
 	 **/
-	std::string asText() const;
+	std::string asText(const CursorState &cursor) const;
 
 protected: // functions
 
@@ -364,7 +365,7 @@ protected: // functions
 	 * scroll history. The return type is unsigned and suitable for use
 	 * with m_lines.
 	 **/
-	LineVector::size_type translateLinePos(ssize_t pos) const {
+	LineVector::size_type bufferPos(ssize_t pos) const {
 		pos += m_cur_pos;
 		pos -= m_scroll_offset;
 
@@ -379,6 +380,14 @@ protected: // functions
 		return static_cast<LineVector::size_type>(pos);
 	}
 
+	/// Translates a ring buffer index into a line index on the screen, if possible.
+	/**
+	 * This performs the reverse operation of bufferPos(). If the given
+	 * index is not located on the current screen then std::nullopt is
+	 * returned.
+	 **/
+	std::optional<size_t> screenPos(LineVector::size_type line_index) const;
+
 	/// Returns the (theoretical) number of history lines left to scroll to.
 	/**
 	 * Since there can be unallocated lines it doesn't mean there is
@@ -389,15 +398,8 @@ protected: // functions
 	}
 
 	/// Returns whether the given index in m_lines is visible on the current screen.
-	bool isOnScreen(size_t line_index) const {
-		const auto screen_end = translateLinePos(m_rows-1);
-		const auto screen_wraps = screen_end < m_cur_pos;
-
-		if (screen_wraps) {
-			return line_index >= m_cur_pos || line_index <= screen_end;
-		} else {
-			return line_index >= m_cur_pos && line_index < m_cur_pos + m_rows;
-		}
+	bool isOnScreen(LineVector::size_type line_index) const {
+		return screenPos(line_index).has_value();
 	}
 
 protected: // data
@@ -408,6 +410,7 @@ protected: // data
 	size_t m_scroll_offset = 0; /// how many lines we are currently scrolled back.
 	size_t m_saved_scroll_index = SIZE_MAX; /// the index in m_lines that was previously scrolled to (top position)
 	size_t m_history_len = 0; /// how big the ring buffer for history should be (0 == no history)
+	bool m_is_alt_screen = false; /// Whether this represents the alternative screen.
 	CursorState m_cached_cursor; /// save/load cursor state for this screen.
 };
 

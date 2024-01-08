@@ -51,7 +51,7 @@ Term::Term(Nst &nst) :
 		m_allow_altscreen{config::ALLOW_ALTSCREEN},
 		m_esc_handler{nst},
 		m_screen{config::HISTORY_LEN},
-		m_saved_screen{0}
+		m_saved_screen{0, /*is_alt_screen=*/true}
 {}
 
 void Term::init(const Nst &nst) {

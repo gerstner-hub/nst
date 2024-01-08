@@ -14,8 +14,11 @@ XSelection::XSelection(Nst &nst) :
 {}
 
 void XSelection::init() {
-	m_last_click.mark();
-	m_penultimate_click.mark();
+	for (auto button: {xpp::Button::BUTTON1, xpp::Button::BUTTON3}) {
+		auto &state = m_click_state[button];
+		state.last_click.mark();
+		state.penultimate_click.mark();
+	}
 	m_primary.clear();
 	m_clipboard.clear();
 	try {
@@ -60,19 +63,24 @@ const std::string& XSelection::getSelection(const xpp::AtomID which) const {
 	throw std::runtime_error("invalid selection requested");
 }
 
-Selection::Snap XSelection::handleClick() {
+Selection::Snap XSelection::handleClick(const xpp::Button button) {
 	// If the user left-clicks below predefined timeouts specific snapping
 	// behaviour is exposed.
 	auto ret = Selection::Snap::NONE;
 
-	if (m_penultimate_click.elapsed() <= config::TRIPLE_CLICK_TIMEOUT) {
+	auto it = m_click_state.find(button);
+	if (it == m_click_state.end())
+		return ret;
+
+	auto &state = it->second;
+
+	if (state.penultimate_click.elapsed() <= config::TRIPLE_CLICK_TIMEOUT) {
 		ret = Selection::Snap::LINE;
-	} else if (m_last_click.elapsed() <= config::DOUBLE_CLICK_TIMEOUT) {
+	} else if (state.last_click.elapsed() <= config::DOUBLE_CLICK_TIMEOUT) {
 		ret = Selection::Snap::WORD;
 	}
 
-	m_penultimate_click = m_last_click;
-	m_last_click.mark();
+	state.newClick();
 
 	return ret;
 }

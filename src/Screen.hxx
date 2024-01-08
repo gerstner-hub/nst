@@ -150,6 +150,21 @@ public: // functions
 		}
 	}
 
+	std::optional<CharPos> prevInLine(const CharPos p) const {
+		if (p.x > 0) {
+			return p.prevCol();
+		} else if (p.y > 0) {
+			auto &prev_line = (*this)[p.y - 1];
+			if (prev_line.isWrapped()) {
+				auto ret = p.prevLine();
+				ret.x = prev_line.size() - 1;
+				return ret;
+			}
+		}
+
+		return std::nullopt;
+	}
+
 	/// Returns the screen coordinates for \c p considering scroll state.
 	/**
 	 * Returns the corrected coordinates for \c p considering the current

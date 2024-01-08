@@ -45,7 +45,7 @@ bool Selection::isSelected(const CharPos pos) const {
 		return LinearRange{m_range}.inRange(pos);
 }
 
-void Selection::start(const CharPos pos, const Snap snap) {
+void Selection::start(const CharPos pos, const Snap snap, const Direction dir) {
 	clear();
 	m_state = State::EMPTY;
 	m_type = Type::REGULAR;
@@ -53,7 +53,7 @@ void Selection::start(const CharPos pos, const Snap snap) {
 	m_snap = snap;
 	m_orig = Range{pos, pos};
 
-	update();
+	update(dir);
 
 	if (m_snap != Snap::NONE)
 		m_state = State::READY;
@@ -61,9 +61,9 @@ void Selection::start(const CharPos pos, const Snap snap) {
 	m_term.setDirty(LineSpan{m_range});
 }
 
-void Selection::update() {
+void Selection::update(const Direction dir) {
 	normalizeRange();
-	extendSnap();
+	extendSnap(dir);
 	extendLineBreaks();
 }
 
@@ -106,13 +106,18 @@ void Selection::extendLineBreaks() {
 		m_range.end.x = m_term.numCols() - 1;
 }
 
-void Selection::extendSnap() {
+void Selection::extendSnap(const std::optional<Direction> dir) {
 	if (m_snap == Snap::WORD_SEP) {
-		if (tryExtendWordSep()) {
+		if (tryExtendWordSep(dir ? *dir : Direction::FORWARD)) {
 			return;
-		} else {
+		} else if (!dir) {
 			// otherwise fall back to regular word extension
 			m_snap = Snap::WORD;
+		} else {
+			// this is a special backwards search for WORD_SEP but
+			// nothing was found, so give up.
+			clear();
+			return;
 		}
 	}
 
@@ -122,16 +127,25 @@ void Selection::extendSnap() {
 	tryURISnap();
 }
 
-bool Selection::tryExtendWordSep() {
+bool Selection::tryExtendWordSep(const Direction dir) {
 	// only do something if the clicked-on position is itself a separator.
 	const auto &screen = m_term.screen();
 	const auto &clicked = screen[m_range.begin];
 	if (clicked.isDelimiter()) {
-		auto next = screen.nextInLine(m_range.begin);
-		if (next) {
-			m_range.begin = m_range.end = *next;
-			extendWordSnap(m_range.end, Direction::FORWARD, clicked.rune);
-			return true;
+		if (dir == Direction::FORWARD) {
+			auto next = screen.nextInLine(m_range.begin);
+			if (next) {
+				m_range.begin = m_range.end = *next;
+				extendWordSnap(m_range.end, dir, clicked.rune);
+				return true;
+			}
+		} else {
+			auto prev = screen.prevInLine(m_range.begin);
+			if (prev) {
+				m_range.begin = m_range.end = *prev;
+				extendWordSnap(m_range.begin, dir, clicked.rune);
+				return true;
+			}
 		}
 	}
 

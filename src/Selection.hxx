@@ -27,18 +27,18 @@ public: // types
 		LINE  /// try to select a complete line at the given location
 	};
 
+	/// for the snap algorithm this determines the direction in which to check.
+	enum class Direction {
+		FORWARD,
+		BACKWARD
+	};
+
 protected: // types
 
 	enum class State {
 		IDLE, /// no selection process active
 		EMPTY, /// selection was started but nothing is selected yet
 		READY /// selection data is available
-	};
-
-	/// for the snap algorithm this determines the direction in which to check.
-	enum class Direction {
-		FORWARD,
-		BACKWARD
 	};
 
 public: // functions
@@ -53,7 +53,7 @@ public: // functions
 	void clear();
 
 	/// Starts a new selection operation at the given start position using the given snap behaviour.
-	void start(const CharPos pos, const Snap snap);
+	void start(const CharPos pos, const Snap snap, const Direction dir);
 
 	/// returns whether the given position is part of the current selection.
 	bool isSelected(const CharPos pos) const;
@@ -106,6 +106,10 @@ public: // functions
 	/// Returns whether it is possible to extend a current word-sep selection.
 	bool canExtendWordSep() const;
 
+	bool isIdle() const {
+		return m_state == State::IDLE;
+	}
+
 protected: // functions
 
 	bool isRegularType() const { return m_type == Type::REGULAR; }
@@ -116,7 +120,7 @@ protected: // functions
 	bool inReadyState()  const { return m_state == State::READY; }
 
 	/// Updates the current selection after a change of m_orig.
-	void update();
+	void update(const Direction dir = Direction::FORWARD);
 
 	/// normalize the current selection range coordinates
 	/**
@@ -128,9 +132,9 @@ protected: // functions
 	 **/
 	void normalizeRange();
 
-	void extendSnap();
+	void extendSnap(const std::optional<Direction> dir = {});
 
-	bool tryExtendWordSep();
+	bool tryExtendWordSep(const Direction dir);
 
 	/// Attempt to extend the selection in the given direction corresponding to the current snap setting.
 	/**

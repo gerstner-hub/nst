@@ -1,6 +1,7 @@
 #pragma once
 
 // C++
+#include <map>
 #include <string>
 #include <string_view>
 
@@ -43,15 +44,26 @@ public: // functions
 	 * \return the kind of selection behaviour that was identified, or
 	 * Snap::NONE if no special selection behaviour should be used.
 	 **/
-	Selection::Snap handleClick();
+	Selection::Snap handleClick(const xpp::Button button);
+
+protected: // types
+
+	struct ClickState {
+		cosmos::MonotonicStopWatch last_click;
+		cosmos::MonotonicStopWatch penultimate_click;
+
+		void newClick() {
+			penultimate_click = last_click;
+			last_click.mark();
+		}
+	};
 
 protected: // data
 
 	Nst &m_nst;
 	WindowSystem &m_wsys;
 	xpp::AtomID m_target_fmt; /// the X11 format used for the selection text
-	cosmos::MonotonicStopWatch m_last_click;
-	cosmos::MonotonicStopWatch m_penultimate_click;
+	std::map<xpp::Button, ClickState> m_click_state;
 	std::string m_clipboard; /// current clipboard contents
 	std::string m_primary; /// current primary selection contents
 };

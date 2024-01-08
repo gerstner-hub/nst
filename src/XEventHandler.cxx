@@ -396,6 +396,7 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	const auto button = ev.buttonNr();
 	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
+	const auto sel_alt_mod = ev.state().allOf(config::SEL_ALT_MOD);
 
 	m_buttons.setPressed(button);
 
@@ -404,10 +405,9 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
 	} else if (button == xpp::Button::BUTTON1) {
-		auto snap = m_wsys.selection().handleClick();
+		auto snap = m_wsys.selection().handleClick(button);
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 		auto &selection = m_nst.selection();
-		const auto sel_alt_mod = ev.state().allOf(config::SEL_ALT_MOD);
 		// if the SEL_ALT_MOD is pressed and a word selection exists
 		// then don't start a new selection. The selection will be
 		// extended in buttonRelease() instead.
@@ -418,7 +418,18 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 			if (snap == Selection::Snap::WORD && sel_alt_mod)
 				snap = Selection::Snap::WORD_SEP;
 
-			selection.start(pos, snap);
+			selection.start(pos, snap, Selection::Direction::FORWARD);
+		}
+	} else if (button == xpp::Button::BUTTON3) {
+		// support word-separator backwards expansion only with right
+		// click.
+		auto snap = m_wsys.selection().handleClick(button);
+		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
+		auto &selection = m_nst.selection();
+
+		if (selection.isIdle() && snap == Selection::Snap::WORD && sel_alt_mod) {
+			snap = Selection::Snap::WORD_SEP;
+			selection.start(pos, snap, Selection::Direction::BACKWARD);
 		}
 	}
 

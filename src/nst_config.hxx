@@ -78,13 +78,15 @@ constexpr bool ALLOW_WINDOW_OPS = false;
  */
 constexpr int TABSPACES = 8;
 
-/// Default foreground color (colorname index).
+/* these are indices into COLORNAMES or EXTENDED_COLORS */
+
+/// Default foreground color.
 constexpr ColorIndex DEFAULT_FG{258};
-/// Default background color (colorname index).
+/// Default background color.
 constexpr ColorIndex DEFAULT_BG{259};
-/// Default cursor color (colorname index).
+/// Default cursor color.
 constexpr ColorIndex DEFAULT_CURSOR_COLOR{256};
-/// Default reverse color (colorname index).
+/// Default reverse color.
 constexpr ColorIndex DEFAULT_CURSOR_REV_COLOR{257};
 
 /// Allow alternative screen usage
@@ -157,7 +159,9 @@ inline constexpr std::array<std::string_view, 16> COLORNAMES{{
 	"red3",
 	"green3",
 	"yellow3",
-	"blue2",
+	/* instead of the original "blue2" use this - it's no that blue any
+	 * more but is at least readable when appearing on black background */
+	"#4444ff",
 	"magenta3",
 	"cyan3",
 	"gray90",
@@ -167,7 +171,7 @@ inline constexpr std::array<std::string_view, 16> COLORNAMES{{
 	"red",
 	"green",
 	"yellow",
-	"#5c5cff",
+	"#6c6cff",
 	"magenta",
 	"cyan",
 	"white",
@@ -181,7 +185,7 @@ constexpr unsigned int COLS = 80;
 /// Default number of rows.
 constexpr unsigned int ROWS = 24;
 /// Number of lines kept in the scrollback buffer.
-constexpr size_t HISTORY_LEN = 4000;
+constexpr size_t HISTORY_LEN = 10000;
 /// Whether nst should keep a selected scrollback position even when new TTY data comes in.
 /**
  * When the terminal history is displayed then the question arises what to do

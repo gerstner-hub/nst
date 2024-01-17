@@ -113,7 +113,7 @@ cosmos::UnixConnection IpcClient::connect() {
 	}
 
 	try {
-		return m_sock.connect(cosmos::UnixAddress{*ipc_addr, cosmos::UnixAddress::AbstractAddress{true}});
+		return m_sock.connect(cosmos::UnixAddress{*ipc_addr, cosmos::UnixAddress::Abstract{true}});
 	} catch (const cosmos::ApiError &error) {
 		if (!m_cmdline.test_connection.isSet()) {
 			std::cerr << "Failed to connect to nst (address: @" << *ipc_addr << "): " << error.what() << "\n";

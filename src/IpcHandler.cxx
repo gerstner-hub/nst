@@ -27,7 +27,7 @@ std::string IpcHandler::address() {
 }
 
 void IpcHandler::init() {
-	m_listener.bind(cosmos::UnixAddress{address(), cosmos::UnixAddress::AbstractAddress{true}});
+	m_listener.bind(cosmos::UnixAddress{address(), cosmos::UnixAddress::Abstract{true}});
 	m_listener.listen(5);
 	m_poller.addFD(m_listener.fd(), {cosmos::Poller::MonitorFlag::INPUT});
 }

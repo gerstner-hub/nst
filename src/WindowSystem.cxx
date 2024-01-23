@@ -211,7 +211,7 @@ xpp::Gravity WindowSystem::gravity() const {
 	}
 }
 
-void WindowSystem::setGeometry(const std::string_view str, TermSize &tsize) {
+void WindowSystem::setGeometry(const cosmos::SysString str, TermSize &tsize) {
 	m_geometry_mask = xpp::parse_geometry(str, m_win_geometry);
 
 	tsize.rows = m_win_geometry.height;

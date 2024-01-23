@@ -3,6 +3,9 @@
 // C++
 #include <string_view>
 
+// cosmos
+#include "cosmos/SysString.hxx"
+
 // X++
 #include "X++/fwd.hxx"
 #include "X++/GraphicsContext.hxx"
@@ -128,7 +131,7 @@ protected: // functions
 	void setupWinAttrs();
 	void setSizeHints();
 	/// Parses the given X window geometry string and adjusts internal data structures accordingly.
-	void setGeometry(const std::string_view str, TermSize &tsize);
+	void setGeometry(const cosmos::SysString str, TermSize &tsize);
 	xpp::Gravity gravity() const;
 	/// Clear a rectangular font area using absolute coordinates, using the current background color.
 	void clearRect(const DrawPos pos1, const DrawPos pos2);

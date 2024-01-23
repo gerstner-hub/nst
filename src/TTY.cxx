@@ -290,7 +290,7 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 		cosmos_throw (cosmos::InternalError("who are you?"));
 	}
 
-	std::string_view shell;
+	cosmos::SysString shell;
 	if (auto sh = std::getenv("SHELL"); sh != nullptr)
 		shell = sh;
 	else
@@ -299,7 +299,7 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 
 	// if still empty then use compile time default
 	if (shell.empty()) {
-		shell = nst::config::SHELL;
+		shell = nst::config::SHELL.data();
 	}
 
 	cosmos::ChildCloner cloner;
@@ -340,11 +340,11 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 
 		const proc::OverwriteEnv overwrite{true};
 
-		proc::set_env_var("LOGNAME", pw_info.name(),    overwrite);
-		proc::set_env_var("USER",    pw_info.name(),    overwrite);
-		proc::set_env_var("SHELL",   shell,             overwrite);
-		proc::set_env_var("HOME",    pw_info.homeDir(), overwrite);
-		proc::set_env_var("TERM",    config::TERM_NAME, overwrite);
+		proc::set_env_var("LOGNAME", pw_info.name(),           overwrite);
+		proc::set_env_var("USER",    pw_info.name(),           overwrite);
+		proc::set_env_var("SHELL",   shell,                    overwrite);
+		proc::set_env_var("HOME",    pw_info.homeDir(),        overwrite);
+		proc::set_env_var("TERM",    config::TERM_NAME.data(), overwrite);
 	});
 
 	if (auto &args = m_nst.cmdline().rest.getValue(); !args.empty()) {

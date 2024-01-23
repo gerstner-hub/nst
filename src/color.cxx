@@ -15,7 +15,7 @@ inline auto cmap() {
 	return xpp::raw_cmap(xpp::colormap);
 }
 
-void FontColor::load(const ColorIndex idx, std::string_view name) {
+void FontColor::load(const ColorIndex idx, cosmos::SysString name) {
 	if (name.empty()) {
 		// 256 color range
 		if (cosmos::in_range(idx, ColorIndex::START_256, ColorIndex::END_256)) {
@@ -30,7 +30,7 @@ void FontColor::load(const ColorIndex idx, std::string_view name) {
 
 	auto res = ::XftColorAllocName(
 			xpp::display, xpp::visual, cmap(),
-			name.empty() ? nullptr : name.data(), this);
+			name.raw(), this);
 
 	if (res == True) {
 		m_loaded = true;
@@ -41,7 +41,7 @@ void FontColor::load(const ColorIndex idx, std::string_view name) {
 
 	cosmos_throw (cosmos::RuntimeError(
 			cosmos::sprintf("could not allocate color %d ('%s')", cosmos::to_integral(idx),
-				colorname.empty() ? "unknown" : colorname.data())));
+				colorname.empty() ? "unknown" : colorname.raw())));
 }
 
 void FontColor::load256(const ColorIndex idx) {
@@ -141,7 +141,7 @@ bool ColorManager::toRGB(const ColorIndex idx, uint8_t &red, uint8_t &green, uin
 	}
 }
 
-bool ColorManager::setColorName(const ColorIndex idx, const std::string_view name) {
+bool ColorManager::setColorName(const ColorIndex idx, const cosmos::SysString name) {
 	try {
 		auto &old_color = fontColor(idx);
 		FontColor new_color;
@@ -235,14 +235,16 @@ const FontColor& ColorManager::cursorColor(const bool is_selected, Glyph &glyph)
 	}
 }
 
-const std::string_view get_color_name(const ColorIndex idx) {
+cosmos::SysString get_color_name(const ColorIndex idx) {
 	if (auto raw = cosmos::to_integral(idx); raw < config::COLORNAMES.size()) {
-		return config::COLORNAMES[raw];
+		// returning the raw pointer here is okay since we know that
+		// they're always null terminated.
+		return config::COLORNAMES[raw].data();
 	} else if (idx >= ColorIndex::START_EXTENDED) {
 		const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
 		// check for extended colors
 		if (ext < config::EXTENDED_COLORS.size())
-			return config::EXTENDED_COLORS[ext];
+			return config::EXTENDED_COLORS[ext].data();
 	}
 
 	// unassigned

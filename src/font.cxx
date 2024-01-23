@@ -35,13 +35,13 @@ struct FcCharSetGuard :
 
 namespace nst {
 
-bool FontPattern::parse(const std::string_view spec) {
+bool FontPattern::parse(const cosmos::SysString spec) {
 	destroy();
 
-	if (spec[0] == '-')
-		m_pattern = ::XftXlfdParse(spec.data(), False, False);
+	if (!spec.empty() && spec.raw()[0] == '-')
+		m_pattern = ::XftXlfdParse(spec.raw(), False, False);
 	else
-		m_pattern = FcNameParse((const FcChar8*)spec.data());
+		m_pattern = FcNameParse((const FcChar8*)spec.raw());
 
 	return valid();
 }
@@ -60,12 +60,12 @@ std::optional<double> FontPattern::pixelSize() const {
 	return getDouble(FC_PIXEL_SIZE);
 }
 
-std::optional<double> FontPattern::getDouble(const std::string_view which) const {
+std::optional<double> FontPattern::getDouble(const cosmos::SysString which) const {
 	if(!m_pattern)
 		return {};
 
 	double ret;
-	auto res = FcPatternGetDouble(m_pattern, which.data(), 0, &ret);
+	auto res = FcPatternGetDouble(m_pattern, which.raw(), 0, &ret);
 	if (res == FcResultMatch)
 		return ret;
 	else
@@ -106,9 +106,9 @@ std::optional<Weight> FontPattern::getWeight() const {
 	return Weight{*ret};
 }
 
-std::optional<int> FontPattern::getInt(const std::string_view which) const {
+std::optional<int> FontPattern::getInt(const cosmos::SysString which) const {
 	int attr;
-	auto res = ::XftPatternGetInteger(m_pattern, which.data(), 0, &attr);
+	auto res = ::XftPatternGetInteger(m_pattern, which.raw(), 0, &attr);
 
 	if (res != XftResultMatch) {
 		return {};

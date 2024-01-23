@@ -2,7 +2,9 @@
 
 // C++
 #include <array>
-#include <string_view>
+
+// Cosmos
+#include "cosmos/SysString.hxx"
 
 // X11
 #include <X11/Xft/Xft.h>
@@ -25,7 +27,7 @@ namespace nst {
  * \return
  * 	The according color name or an empty string if none is configured for the given index.
  **/
-const std::string_view get_color_name(ColorIndex idx);
+cosmos::SysString get_color_name(ColorIndex idx);
 
 /// Wrapper around the XftColor type which is a composite of XRenderColor and additional "pixel" info.
 /**
@@ -75,7 +77,7 @@ public: // functions
 			color.blue == other.color.blue;
 	}
 
-	void load(const ColorIndex idx, std::string_view name = std::string_view(""));
+	void load(const ColorIndex idx, cosmos::SysString name = {});
 
 	void load(const XRenderColor &rc);
 
@@ -152,7 +154,7 @@ public: // functions
 	bool toRGB(const ColorIndex idx, uint8_t &red, uint8_t &green, uint8_t &blue) const;
 
 	/// Assign the given name to the given color index.
-	bool setColorName(const ColorIndex idx, const std::string_view name);
+	bool setColorName(const ColorIndex idx, const cosmos::SysString name);
 
 	void resetColors() {
 		init();

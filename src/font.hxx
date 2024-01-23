@@ -5,6 +5,9 @@
 #include <string_view>
 #include <vector>
 
+// Cosmos
+#include "cosmos/SysString.hxx"
+
 // X11
 #include <X11/Xft/Xft.h>
 
@@ -52,7 +55,7 @@ class FontPattern {
 public: // functions
 	FontPattern() = default;
 
-	explicit FontPattern(const std::string_view spec) {
+	explicit FontPattern(const cosmos::SysString spec) {
 		parse(spec);
 	}
 
@@ -72,7 +75,7 @@ public: // functions
 	}
 
 	/// Attempts to load the given font description, returns true on success.
-	bool parse(const std::string_view spec);
+	bool parse(const cosmos::SysString spec);
 
 	bool valid() const { return m_pattern != nullptr; }
 
@@ -95,9 +98,9 @@ protected: // functions
 	void destroy();
 
 	/// Generic double property retrieval from FcPattern
-	std::optional<double> getDouble(const std::string_view which) const;
+	std::optional<double> getDouble(const cosmos::SysString which) const;
 	/// Generic int property retrieval from FcPattern
-	std::optional<int> getInt(const std::string_view which) const;
+	std::optional<int> getInt(const cosmos::SysString which) const;
 
 protected: // data
 

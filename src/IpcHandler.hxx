@@ -34,7 +34,7 @@ public: // functions
 
 	/// Create an IpcHandler.
 	/**
-	 * \param[in-out] poller The Poller object used in the nst main loop.
+	 * \param[in,out] poller The Poller object used in the nst main loop.
 	 * IpcHandler needs to adjust which sockets are monitored for which
 	 * I/O events.
 	 **/

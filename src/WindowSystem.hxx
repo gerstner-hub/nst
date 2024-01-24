@@ -138,7 +138,7 @@ protected: // functions
 	void clearWindow();
 	void unloadFonts();
 
-	/// Loads specs into \c m_font_specs to display the \c count glyphs found and \c glyphs.
+	/// Loads specs into `m_font_specs` to display the `count` glyphs found and `glyphs`.
 	/**
 	 * \param[in] char_pos Start position on the terminal where to start drawing the glyphs.
 	 **/
@@ -147,12 +147,12 @@ protected: // functions
 	/// Draw Glyphs for which GlyphFontSpecs have been prepared previously via makeGlyphFontSpecs()
 	/**
 	 * \param[in] count The number of Glyphs to draw.
-	 * \param[in] base The template Glyph properties that all \c count
+	 * \param[in] base The template Glyph properties that all `count`
 	 * following glyphs will share.
 	 **/
 	void drawGlyphFontSpecs(Glyph base, const size_t count, const CharPos char_pos);
 
-	/// Draw the given single Glyph at position \c loc.
+	/// Draw the given single Glyph at position `loc`.
 	void drawGlyph(const Glyph g, const CharPos loc);
 
 	// Intelligent cleaning up of the borders.

@@ -211,7 +211,7 @@ public: // functions
 	Width width() const   { return  Width{m_range.end.x - m_range.begin.x + 1}; }
 	Height height() const { return Height{m_range.end.y - m_range.begin.y + 1}; }
 
-	/// Checks whether \c pos is within the rectangular area.
+	/// Checks whether `pos` is within the rectangular area.
 	bool inRect(const CharPos pos) const {
 		return
 			pos.x >= m_range.begin.x && pos.x <= m_range.end.x &&
@@ -266,7 +266,7 @@ public: // functions
 	 * coordinate is actually smaller than the end coordinate.
 	 *
 	 * The comparison checks whether the end coordinate of the current
-	 * range is appearing on an earlier line than \c pos or on an ealier
+	 * range is appearing on an earlier line than `pos` or on an ealier
 	 * column (if on the same line).
 	 **/
 	bool operator<(const CharPos pos) const {

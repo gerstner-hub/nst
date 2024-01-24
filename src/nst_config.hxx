@@ -190,7 +190,7 @@ constexpr size_t HISTORY_LEN = 10000;
 /**
  * When the terminal history is displayed then the question arises what to do
  * when new TTY data comes in from the shell or another running process. If
- * this is set to \c true then nst will keep the scrolled-to position until
+ * this is set to `true` then nst will keep the scrolled-to position until
  * either
  *
  * - an interactive keyboard / mouse event occurs (except for scrollback
@@ -198,7 +198,7 @@ constexpr size_t HISTORY_LEN = 10000;
  * - the history buffer is full and overwritten by new data, in which case nst
  *   will scroll to the oldest available history data.
  *
- * If set to \c false then nst will jump back to the current screen in these
+ * If set to `false` then nst will jump back to the current screen in these
  * cases. Like this also includes window resize events, if the active program
  * (e.g. the shell) reacts to the event and changes terminal content. You can
  * still stop the terminal process via Ctrl + S to prevent any new output to

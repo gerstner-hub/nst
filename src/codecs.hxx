@@ -26,17 +26,17 @@ namespace utf8 {
 
 	constexpr size_t UTF_SIZE = 4;
 
-	/// Decodes a single UTF8 character from encoded and stores the result in \c u
+	/// Decodes a single UTF8 character from encoded and stores the result in `u`
 	/**
-	 * \return The number of bytes processed from \c encoded
+	 * \return The number of bytes processed from `encoded`
 	 **/
 	size_t decode(const std::string_view encoded, Rune &u);
-	/// Encodes the given rune into utf8 and returns the result in \c out
+	/// Encodes the given rune into utf8 and returns the result in `out`
 	/**
-	 * \return the number of bytes placed in \c out
+	 * \return the number of bytes placed in `out`
 	 **/
 	size_t encode(Rune rune, char out[UTF_SIZE]);
-	/// Encodes the given rune into utf8 and appends the result in \c s
+	/// Encodes the given rune into utf8 and appends the result in `s`
 	void encode(Rune rune, std::string &s);
 
 } // end utf8

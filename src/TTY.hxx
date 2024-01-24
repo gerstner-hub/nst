@@ -85,7 +85,7 @@ public: // functions
 
 protected: // functions
 
-	/// Opens the real TTY specified by \c line.
+	/// Opens the real TTY specified by `line`.
 	void openTTY(const std::string &line);
 	/// Runs stty to configure a real TTY device if specified on the cmdline.
 	void configureTTY();

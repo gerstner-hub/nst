@@ -44,7 +44,7 @@ constexpr Rune UTF_SURROGATE_END   = 0xDFFF;
 constexpr Rune UTF_INVALID = 0xFFFD;
 
 // encodes a single UTF-8 byte for an encoding byte sequence
-// \c u should contain six bits of data for which == TRAILING_BYTE or the
+// `u` should contain six bits of data for which == TRAILING_BYTE or the
 // available number of bits depending on the leader byte for which > 0.
 char encodebyte(const Rune rune, const size_t which) {
 	return UTF_BYTE[which] | (rune & ~UTF_MASK[which]);
@@ -68,9 +68,9 @@ Rune decodebyte(const char c, size_t &byte_nr) {
 /// Validates the given rune (code point).
 /**
  * Checks whether the given rune is in a valid range of code points for the
- * number of input encoding bytes \c numbytes
+ * number of input encoding bytes `numbytes`
  *
- * If validation fails then \c r will be set to UTF_INVALID.
+ * If validation fails then `r` will be set to UTF_INVALID.
  **/
 void validate(Rune &r, size_t numbytes) {
 	if (!cosmos::in_range(r, UTF_MIN[numbytes], UTF_MAX[numbytes]) ||
@@ -81,7 +81,7 @@ void validate(Rune &r, size_t numbytes) {
 
 /// Calculates the number of bytes needed to encode the given code point in utf8
 /**
- * \return the number of bytes needed to encode \c r, or zero if it cannot be represented
+ * \return the number of bytes needed to encode `r`, or zero if it cannot be represented
  **/
 size_t calc_bytes(const Rune r) {
 	size_t numbytes;

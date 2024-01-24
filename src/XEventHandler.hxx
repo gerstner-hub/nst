@@ -32,8 +32,7 @@ public: // functions
 
 	/// Checks for and processes X11 events
 	/**
-	 * This returns \c true if any type of event occured, otherwise \c
-	 * false.
+	 * This returns `true` if any type of event occured, otherwise `false`.
 	 **/
 	bool checkEvents();
 
@@ -58,7 +57,7 @@ protected: // functions
 	/// Another X client requests the selection held by us.
 	void selectionRequest(const xpp::SelectionRequestEvent &);
 
-	/// Handles a selection input event provided in the property \c selprop.
+	/// Handles a selection input event provided in the property `selprop`.
 	void handleSelectionEvent(const xpp::AtomID selprop);
 
 	/// Handles mouse selection events for both PointerMovedEvent and ButtonEvent.
@@ -79,7 +78,7 @@ protected: // functions
 	 * and the base escape code to be used for the reporting.
 	 **/
 	std::optional<std::tuple<xpp::Button, int>> checkMouseReport(const xpp::ButtonEvent &ev);
-	/// \c see checkMouseReport(const xpp::ButtonEvent&)
+	/// \see checkMouseReport(const xpp::ButtonEvent&)
 	std::optional<std::tuple<xpp::Button, int>> checkMouseReport(const xpp::PointerMovedEvent &ev);
 
 	/// Check mouse shortcuts and execute a possibly configured action for the given event.

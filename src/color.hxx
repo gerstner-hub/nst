@@ -167,7 +167,7 @@ public: // functions
 
 	const FontColor& frontColor() { return m_front_color; }
 	const FontColor& backColor() { return m_back_color; }
-	/// Applies cursor color settings to \c glyph and returns the FontColor to be used.
+	/// Applies cursor color settings to `glyph` and returns the FontColor to be used.
 	const FontColor& cursorColor(const bool is_selected, Glyph &glyph) const;
 
 protected: // data

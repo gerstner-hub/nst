@@ -125,7 +125,7 @@ protected: // functions
 
 	/// Called when a StringEscape terminating code or sequence has been encountered.
 	/**
-	 * \return \c true if the terminator has been processed, otherwise the
+	 * \return `true` if the terminator has been processed, otherwise the
 	 * input can be used for other purposes, if possible.
 	 **/
 	bool handleCommandTerminator();

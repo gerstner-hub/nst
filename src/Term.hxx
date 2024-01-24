@@ -245,7 +245,7 @@ public: // functions
 	/// Scrolls terminal lines downwards, creating empty lines at the top.
 	/**
 	 * The optional origin line can be used to scroll only part of the
-	 * scrolling area and keep the lines above \c origin untouched.
+	 * scrolling area and keep the lines above `origin` untouched.
 	 **/
 	void scrollDown(int num_lines = 1, std::optional<int> origin = {});
 	/// Scrolls terminal lines upwards, creating empty lines at the bottom.
@@ -276,7 +276,7 @@ public: // functions
 	 * this shifts remaining characters at the end of the line to the left
 	 **/
 	void deleteColsAfterCursor(int count);
-	/// Delete \c count lines below the current cursor position by scrolling.
+	/// Delete `count` lines below the current cursor position by scrolling.
 	/**
 	 * This only has an effect if the current cursor position is within
 	 * the current scrollArea().
@@ -284,7 +284,7 @@ public: // functions
 	void deleteLinesBelowCursor(int count);
 	/// Insert blanks after the cursor, shifting remaining characters to the right.
 	void insertBlanksAfterCursor(int count);
-	/// Insert \c count blank lines below the current cursor position by scrolling.
+	/// Insert `count` blank lines below the current cursor position by scrolling.
 	/**
 	 * This only has an effect if the current cursor position is within
 	 * the current scrollArea().
@@ -405,7 +405,7 @@ protected: // functions
 	 **/
 	void putChar(const Rune rune);
 
-	/// (Re-)Initialize \c m_tabs and setup the default tab positions.
+	/// (Re-)Initialize `m_tabs` and setup the default tab positions.
 	void setupTabs();
 
 	/// Resets the active scrolling area to use the whole screen.
@@ -430,7 +430,7 @@ protected: // functions
 	bool isCursorAtBottom() const;
 	bool isCursorAtTop() const;
 
-	/// returns a position based on \c p but at the end of the line
+	/// returns a position based on `p` but at the end of the line
 	CharPos atEndOfLine(const CharPos p) const {
 		return CharPos{m_size.cols - 1, p.y};
 	}

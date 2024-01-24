@@ -106,7 +106,7 @@ public: // functions
 
 	/// Create a new screen representation using the given number of history lines.
 	/**
-	 * If \c history_len is zero then no scrollback buffer will be
+	 * If `history_len` is zero then no scrollback buffer will be
 	 * provided.
 	 **/
 	explicit Screen(const size_t history_len, const bool is_alt_screen = false) :
@@ -165,9 +165,9 @@ public: // functions
 		return std::nullopt;
 	}
 
-	/// Returns the screen coordinates for \c p considering scroll state.
+	/// Returns the screen coordinates for `p` considering scroll state.
 	/**
-	 * Returns the corrected coordinates for \c p considering the current
+	 * Returns the corrected coordinates for `p` considering the current
 	 * scrolling state. The resulting position may not be visible on the
 	 * current scroll position. In this case std::nullopt will be
 	 * returned.
@@ -232,7 +232,7 @@ public: // functions
 	 * longer fit the current screen will be deleted.
 	 *
 	 * If the number of columns is increased then new cells will be
-	 * initialized using the provided \c defattrs. If the number of colums
+	 * initialized using the provided `defattrs`. If the number of colums
 	 * is decreased then lost cells will be deleted.
 	 **/
 	void setDimension(const TermSize size, const Glyph defattrs);

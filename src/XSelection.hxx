@@ -26,7 +26,7 @@ public: // functions
 	/// Sets new content for the primary selection buffer and make nst the owner the selection.
 	void setSelection(const std::string_view str, const Time t = CurrentTime);
 
-	/// Returns the current content of selection type \c which.
+	/// Returns the current content of selection type `which`.
 	const std::string& getSelection(const xpp::AtomID which) const;
 
 	/// Copy the current primary selection buffer to the clipboard buffer and make nst the owner the clipboard.

@@ -61,7 +61,7 @@ public: // functions
 	/// Extends the current selection to the given position.
 	/**
 	 * The current selection range is changed towards the new end position
-	 * \c pos. The passed in selection \c type specifies how the new
+	 * `pos`. The passed in selection `type` specifies how the new
 	 * selection will be calculated.
 	 *
 	 * \param[in] done Whether the select operation is finished with this
@@ -71,7 +71,7 @@ public: // functions
 
 	/// Adjust the current selection to a scroll operation, if possible.
 	/**
-	 * This scrolls \c num_lines beginning at origin_y. If possible the
+	 * This scrolls `num_lines` beginning at origin_y. If possible the
 	 * current selection will be adjusted accordingly, otherwise the
 	 * selection will be cleared.
 	 *

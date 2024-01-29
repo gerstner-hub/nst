@@ -116,6 +116,10 @@ public: // functions
 		m_twin.flipFlag(WinMode::BLINK);
 	}
 
+	bool isBlinkingCursorStyle() const {
+		return m_blinking_cursor_style;
+	}
+
 	const xpp::XWindow& window() const { return m_window; }
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_selection; }
@@ -184,6 +188,7 @@ protected: // data
 	FontDrawContext m_font_draw_ctx;
 	ColorManager m_color_manager;
 	XSelection m_selection;
+	bool m_blinking_cursor_style = false;
 
 	xpp::XDisplay &m_display;
 	xpp::GeometrySettingsMask m_geometry_mask;

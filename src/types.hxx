@@ -479,10 +479,6 @@ public: // data
 };
 
 /// Different cursor styles that can be configured.
-/**
- * \note The blinking styles are not yet implemented properly, they don't
- * actually blink.
- **/
 enum class CursorStyle {
 	BLINKING_BLOCK = 0,
 	BLINKING_BLOCK_DEFAULT,
@@ -494,6 +490,18 @@ enum class CursorStyle {
 	SNOWMAN, // "☃"
 	END
 };
+
+inline bool is_blinking_cursor(const CursorStyle style) {
+	switch (style) {
+		default:
+			return false;
+		case CursorStyle::BLINKING_BLOCK:
+		case CursorStyle::BLINKING_BLOCK_DEFAULT:
+		case CursorStyle::BLINKING_UNDERLINE:
+		case CursorStyle::BLINKING_BAR:
+			return true;
+	}
+}
 
 /// Represents a terminal color index _or_ a 24 bit RGB true color value
 /**

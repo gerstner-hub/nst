@@ -200,7 +200,7 @@ void ColorManager::configureFor(const Glyph base) {
 		std::swap(m_front_color, m_back_color);
 	}
 
-	if (base.mode[Attr::BLINK] && m_twin.checkFlag(WinMode::BLINK)) {
+	if (base.mode[Attr::BLINK] && m_twin.inBlinkMode()) {
 		m_front_color = m_back_color;
 	} else if (base.mode[Attr::INVISIBLE]) {
 		m_front_color = m_back_color;

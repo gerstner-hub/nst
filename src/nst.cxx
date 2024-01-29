@@ -163,6 +163,7 @@ void Nst::mainLoop() {
 			if (!drawing) {
 				draw_watch.mark();
 				drawing = true;
+				m_wsys.setBlinking(false);
 			}
 
 			const auto diff = draw_watch.elapsed();
@@ -178,7 +179,7 @@ void Nst::mainLoop() {
 		// idle detected or maxlatency exhausted -> draw
 		timeout = std::chrono::milliseconds(-1);
 
-		if (config::BLINK_TIMEOUT.count() > 0 && m_term.existsBlinkingGlyph()) {
+		if (config::BLINK_TIMEOUT.count() > 0 && (m_wsys.isBlinkingCursorStyle() || m_term.existsBlinkingGlyph())) {
 			timeout = config::BLINK_TIMEOUT - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
 				if (-timeout.count() > config::BLINK_TIMEOUT.count()) // start visible

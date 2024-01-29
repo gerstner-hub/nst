@@ -102,6 +102,7 @@ struct TermWindow {
 	bool reportMouseMany()    const { return checkFlag(WinMode::MOUSEMANY); }
 	bool reportMouseSGR()     const { return checkFlag(WinMode::MOUSE_SGR); }
 	bool doX10Compatibility() const { return checkFlag(WinMode::MOUSEX10); }
+	bool inBlinkMode()        const { return checkFlag(WinMode::BLINK); }
 
 protected: // data
 

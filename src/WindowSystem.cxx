@@ -498,9 +498,13 @@ void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 	const auto chr = m_twin.chrExtent();
 	constexpr auto CURSOR_THICKNESS = config::CURSOR_THICKNESS;
 
-	if (m_twin.hideCursor())
+	if (m_twin.hideCursor()) {
 		return;
-	else if (m_twin.isFocused()) {
+	} else if (m_twin.isFocused()) {
+		if (m_blinking_cursor_style && m_twin.inBlinkMode()) {
+			return;
+		}
+
 		switch (m_twin.getCursorStyle()) {
 			case CursorStyle::SNOWMAN: // st extension
 				// NOTE: this means when moving the cursor
@@ -589,6 +593,7 @@ void WindowSystem::setMode(const WinMode flag, const bool set) {
 
 void WindowSystem::setCursorStyle(const CursorStyle cursor) {
 	m_twin.setCursorStyle(cursor);
+	m_blinking_cursor_style = is_blinking_cursor(cursor);
 }
 
 void WindowSystem::setUrgency(const bool have_urgency) {

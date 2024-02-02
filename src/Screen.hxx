@@ -298,11 +298,13 @@ public: // functions
 	}
 
 	/// Save the current scroll offset for later restoring via restoreScrollState().
-	void saveScrollState() {
+	bool saveScrollState() {
 		if (isScrolled()) {
 			m_saved_scroll_index = bufferPos(0);
+			return true;
 		} else {
 			m_saved_scroll_index = SIZE_MAX;
+			return false;
 		}
 	}
 

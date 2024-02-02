@@ -175,6 +175,7 @@ void Term::resize(const TermSize new_size) {
 	// changing the scrolling position.
 	if (!m_screen.restoreScrollState()) {
 		scrollHistoryUpMax();
+		m_selection.clear();
 	}
 
 	if (m_screen.isScrolled()) {
@@ -814,7 +815,15 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	//
 	// this allows to stay scrolled back while new output data is
 	// appended.
-	m_screen.saveScrollState();
+	//
+	// we also have to consider the current selection here. It will be
+	// shifted if e.g. a newline is processed. If we return to the
+	// previous scroll position then we also have to restore the selection
+	// coordinates.
+	const auto saved_scroll = m_screen.saveScrollState();
+	if (config::KEEP_SCROLL_POSITION && saved_scroll) {
+		m_selection.saveRange();
+	}
 	m_screen.stopScrolling();
 
 	for (size_t pos = 0; pos < data.size(); pos += charsize) {
@@ -843,8 +852,12 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 		putChar(rune);
 	}
 
-	if (config::KEEP_SCROLL_POSITION && !m_screen.restoreScrollState()) {
-		scrollHistoryUpMax();
+	if (config::KEEP_SCROLL_POSITION) {
+		if (!m_screen.restoreScrollState()) {
+			scrollHistoryUpMax();
+		} else if (saved_scroll) {
+			m_selection.restoreRange();
+		}
 	}
 
 	return data.size();

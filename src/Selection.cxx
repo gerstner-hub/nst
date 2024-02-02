@@ -412,7 +412,7 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 	 * boundary, the condition below will catch that and clear() as well.
 	 *
 	 * in summary: clear the selection if part of it is scrolled outside
-	 * of the scroll area (taking into account `origin_y`.
+	 * of the scroll area (taking into account `origin_y`).
 	 */
 	if (
 			in_range(m_range.begin.y, origin_y, scroll_area.bottom) !=

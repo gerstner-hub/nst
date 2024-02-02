@@ -110,6 +110,16 @@ public: // functions
 		return m_state == State::IDLE;
 	}
 
+	void saveRange() {
+		m_saved_orig = m_orig;
+		m_saved_range = m_range;
+	}
+
+	void restoreRange() {
+		m_orig = m_saved_orig;
+		m_range = m_saved_range;
+	}
+
 protected: // functions
 
 	bool isRegularType() const { return m_type == Type::REGULAR; }
@@ -173,6 +183,9 @@ protected: // data
 
 	Range m_range; /// selection range with normalized coordinates
 	Range m_orig; /// selection range with original cooridinates
+
+	Range m_saved_range; /// selection range with normalized coordinates
+	Range m_saved_orig; /// selection range with original cooridinates
 };
 
 } // end ns

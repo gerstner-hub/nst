@@ -850,4 +850,12 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	return data.size();
 }
 
+void Term::stopScrolling() {
+	if (m_screen.isScrolled()) {
+		const auto shift = m_screen.stopScrolling();
+		m_selection.scroll(0, -shift);
+		setAllDirty();
+	}
+}
+
 } // end ns

@@ -291,8 +291,10 @@ public: // functions
 	}
 
 	/// Reset the screen view to display the current screen contents again.
-	void stopScrolling() {
+	size_t stopScrolling() {
+		const auto ret = m_scroll_offset;
 		m_scroll_offset = 0;
+		return ret;
 	}
 
 	/// Save the current scroll offset for later restoring via restoreScrollState().

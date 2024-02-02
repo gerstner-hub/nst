@@ -389,12 +389,7 @@ public: // functions
 	void reportFocus(const bool in_focus) { m_esc_handler.reportFocus(in_focus); }
 	/// Report a paste event on TTY level via escape sequences.
 	void reportPaste(const bool started) { m_esc_handler.reportPaste(started); }
-	void stopScrolling() {
-		if (m_screen.isScrolled()) {
-			m_screen.stopScrolling();
-			setAllDirty();
-		}
-	}
+	void stopScrolling();
 
 protected: // functions
 

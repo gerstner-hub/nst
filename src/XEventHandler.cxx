@@ -448,6 +448,9 @@ StopScrolling XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 		return *ss;
 	} else if (button == xpp::Button::BUTTON1) {
 		handleMouseSelection(ev);
+	} else if (button == xpp::Button::BUTTON3) {
+		// make sure we apply a backward search selection as well.
+		applySelection(ev.time());
 	}
 
 	return StopScrolling{false};
@@ -619,9 +622,13 @@ void XEventHandler::handleMouseSelection(const EVENT &ev) {
 
 	if (is_release) {
 		// button was released, only now set the actual X selection
-		auto seldata = sel.selection();
-		m_wsys.selection().setSelection(seldata, ev.time());
+		applySelection(ev.time());
 	}
+}
+
+void XEventHandler::applySelection(Time time) {
+	auto seldata = m_nst.selection().selection();
+	m_wsys.selection().setSelection(seldata, time);
 }
 
 } // end ns

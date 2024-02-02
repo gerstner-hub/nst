@@ -95,6 +95,9 @@ protected: // functions
 	 **/
 	std::optional<std::string_view> customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask state) const;
 
+	/// Store the currently selected text in the X11 selection buffer.
+	void applySelection(Time time);
+
 protected: // data
 
 	Nst &m_nst;

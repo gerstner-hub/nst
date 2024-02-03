@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Exec=nst
+TryExec=nst
+Icon=utilities-terminal
+Terminal=false
+Categories=System;TerminalEmulator;
+
+Name=nst
+GenericName=Terminal
+Comment=nst is a (not so) simple terminal implementation for X
+StartupWMClass=nst-256color

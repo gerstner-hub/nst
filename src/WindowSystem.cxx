@@ -72,15 +72,19 @@ void WindowSystem::toggleNumlock() {
 
 void WindowSystem::zoomFont(double val) {
 	m_font_manager.zoom(val);
-	m_twin.setCharSize(m_font_manager.normalFont());
-	m_nst.resizeConsole();
-	m_nst.term().redraw();
-	setSizeHints();
+	handleFontUpdate();
 }
 
 void WindowSystem::resetFont() {
 	m_font_manager.resetZoom();
+	handleFontUpdate();
+}
+
+void WindowSystem::handleFontUpdate() {
+	m_twin.setCharSize(m_font_manager.normalFont());
+	m_nst.resizeConsole();
 	m_nst.term().redraw();
+	setSizeHints();
 }
 
 void WindowSystem::allocPixmap() {

@@ -183,6 +183,8 @@ protected: // functions
 	xpp::XWindow parent() const;
 	void createGraphicsContext(const xpp::XWindow &parent);
 
+	void handleFontUpdate();
+
 protected: // data
 
 	nst::Nst &m_nst;

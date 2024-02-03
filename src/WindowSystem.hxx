@@ -1,6 +1,7 @@
 #pragma once
 
 // C++
+#include <deque>
 #include <string_view>
 
 // cosmos
@@ -84,6 +85,11 @@ public: // functions
 	void setDefaultIconTitle();
 	void setTitle(const std::string_view title);
 	void setDefaultTitle();
+
+	/// Push the current window title on the title stack for later restore via popTitle().
+	void pushTitle();
+	/// Restore the last window title stored via pushTitle().
+	void popTitle();
 
 	void clearCursor(const CharPos pos, Glyph glyph);
 	void drawCursor(const CharPos pos, Glyph glyph);
@@ -200,6 +206,9 @@ protected: // data
 	GlyphFontSpecVector m_font_specs;
 	/// To keep track of the remaining font specs to draw in drawGlyphFontSpecs()
 	GlyphFontSpecVector::iterator m_next_font_spec;
+
+	static constexpr size_t MAX_TITLE_STACK_SIZE = 10;
+	std::deque<std::string> m_title_stack;
 };
 
 } // end ns

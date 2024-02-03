@@ -571,6 +571,29 @@ void WindowSystem::setTitle(const std::string_view title) {
 	m_window.setProperty(xpp::atoms::ewmh_window_name, data);
 }
 
+void WindowSystem::pushTitle() {
+	if (MAX_TITLE_STACK_SIZE == 0)
+		return;
+
+	while (m_title_stack.size() >= MAX_TITLE_STACK_SIZE) {
+		m_title_stack.pop_back();
+	}
+
+	// retrieve the current window title from X11, since an external
+	// program can change the title outside of the terminal context.
+	xpp::Property<xpp::utf8_string> data;
+	m_window.getProperty(xpp::atoms::ewmh_window_name, data);
+	m_title_stack.push_front(data.raw());
+}
+
+void WindowSystem::popTitle() {
+	if (m_title_stack.empty())
+		return;
+
+	setTitle(m_title_stack.front());
+	m_title_stack.pop_front();
+}
+
 void WindowSystem::finishDraw() {
 	const auto extent = m_twin.winExtent();
 	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor());

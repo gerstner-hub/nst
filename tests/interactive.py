@@ -71,6 +71,9 @@ class TestScreen:
     def _sendCSI(self, seq):
         sys.stdout.write("\033[" + seq)
 
+    def _sendStringEscape(self, seq):
+        sys.stdout.write("\033]" + seq + "\a")
+
     def setupScrollArea(self):
         top = self.top
         bottom = self.rows - self.bottom 
@@ -128,6 +131,36 @@ class TestScreen:
 
         sys.stdout.write(" " * left)
 
+    def processLongCommand(self, command):
+
+        if '=' in command:
+            key, val = command.split('=', 1)
+        else:
+            key = command
+            val = ""
+
+        COMMANDS = {
+            "set-title": self.setTitle,
+            "push-title": self.pushTitle,
+            "pop-title": self.popTitle
+        }
+
+        cb = COMMANDS.get(key, None)
+
+        if not cb:
+            return
+
+        cb(val)
+
+    def setTitle(self, title):
+        self._sendStringEscape(f"2;{title}")
+
+    def pushTitle(self, _):
+        self._sendCSI("22;2t")
+
+    def popTitle(self, _):
+        self._sendCSI("23;2t")
+
     def run(self):
         signal.signal(signal.SIGWINCH, self._windowSizeChanged)
         self.updateWindowSize()
@@ -149,22 +182,35 @@ class TestScreen:
             "arrow-up": self.moveCursorUp,
             "arrow-down": self.moveCursorDown,
             "arrow-left": self.moveCursorLeft,
-            "arrow-right": self.moveCursorRight
+            "arrow-right": self.moveCursorRight,
         }
 
         # optional amount modifier supported by some commands e.g. 10d to
         # scroll 10 lines down
         self.amount = ""
+        long_command = ""
+        parse_long_command = False
 
         while True:
             sys.stdout.flush()
             ch = self._readByte()
             if ch is None:
                 break
+            elif parse_long_command:
+                if ch == '\n':
+                    self.processLongCommand(long_command)
+                    long_command = ""
+                    parse_long_command = False
+                    continue
+                else:
+                    long_command += ch
+                    continue
 
             cb = COMMANDS.get(ch, None)
             if cb:
                 self.runCB(cb)
+            elif ch == ':':
+                parse_long_command = True
             elif ch.isnumeric():
                 self.amount += ch
             elif ord(ch) == 0o33: # ANSI escape character

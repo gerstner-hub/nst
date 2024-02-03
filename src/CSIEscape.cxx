@@ -235,6 +235,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 void CSIEscape::process() {
 
 	// spec reference: https://vt100.net/docs/vt510-rm/chapter4.html
+	// Xterm extensions: https://invisible-island.net/xterm/ctlseqs/ctlseqs.pdf
 
 	if (m_mode_suffix.empty())
 		return;
@@ -434,7 +435,35 @@ void CSIEscape::process() {
 			break;
 		}
 		break;
+	case 't': { // title stack operations
+		/*
+		 * 0 = icon and window title
+		 * 1 = icon title only
+		 * 2 = window title only
+		 *
+		 * we currently only support the window title.
+		 */
+		const auto which = ensureArg(1, 0);
+
+		if (!cosmos::in_range(which, 0, 2))
+			break;
+		else if (which == 1)
+			// do nothing for icon title
+			return;
+
+		auto &wsys = m_nst.wsys();
+
+		switch(arg0) {
+			default: break;
+			case 22: // push current title on stack
+				wsys.pushTitle();
+				return;
+			case 23: // pop last title from stack
+				wsys.popTitle();
+				return;
+		}
 	}
+	} // end outer switch
 
 	dump("erresc: unknown csi");
 }

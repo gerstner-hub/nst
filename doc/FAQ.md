@@ -29,6 +29,18 @@ You can also install them for your current user account by building the
 
 ## How do I scroll back up?
 
+Since nst version 1.0, the terminal has builtin support for a scrollback
+buffer. See `HISTORY_LEN` in `nst_config.hxx`. The scrollback support is still
+limited in that it doesn't perform what is called "reflow" of terminal lines
+when the window size changes. This means that if you make the window smaller
+that longer lines are cut off. nst implements logic that aims to avoid losing
+information this way by restoring cut-off line content when you increase the
+window size again.
+
+In older nst versions no builtin scrollback support was available. In older
+versions or for more complete scrollback support you can use external
+programs:
+
 * Using a terminal multiplexer.
 	* `nst -e tmux` using C-b [
 	* `nst -e screen` using C-a ESC

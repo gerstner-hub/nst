@@ -21,31 +21,3 @@ man_cmd = doc_env.Command(
 )
 
 env.Alias("man", man_cmd)
-
-# terminfo install tree
-
-terminfo_dir = env['buildroot'] + '/doc/terminfo'
-
-tic_cmd = doc_env.Command(
-    "terminfo/s/st",
-    "nst.tinfo",
-    action=[
-        Mkdir(terminfo_dir),
-        f"tic -o{terminfo_dir} -sx doc/nst.tinfo"
-    ]
-)
-
-env.Alias("install", tic_cmd)
-
-# terminfo user based install
-
-Default(tic_cmd)
-
-tic_user_cmd = doc_env.Command(
-    None,
-    "nst.tinfo",
-    action="tic -sx doc/nst.tinfo"
-)
-
-env.Alias("terminfo_user", tic_user_cmd)
-env.AlwaysBuild(tic_user_cmd)

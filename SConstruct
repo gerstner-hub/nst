@@ -26,6 +26,7 @@ SConscript('libX++/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "lib
 
 SConscript(env['buildroot'] + 'src/SConstruct')
 SConscript(env['buildroot'] + 'doc/SConstruct')
+SConscript(env['buildroot'] + 'data/SConstruct')
 
 Default(env['bins']['nst'])
 
@@ -37,5 +38,5 @@ env.Alias("install", nst_inst_node)
 env.Alias("install", nst_msg_inst_node)
 man = env.Install(instroot / "share" / "man" / "man1", "#doc/nst.1")
 env.Alias("install", man)
-terminfo = env.Install(instroot / "share", env['buildroot'] + "/doc/terminfo")
+terminfo = env.Install(instroot / "share", env['buildroot'] + "/data/terminfo")
 env.Alias("install", terminfo)

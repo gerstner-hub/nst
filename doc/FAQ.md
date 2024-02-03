@@ -1,11 +1,15 @@
-## Why does nst not handle utmp entries?
+Frequently asked Questions
+==========================
+
+Why does nst not handle utmp entries?
+-------------------------------------
 
 Use the excellent tool of [utmp](https://git.suckless.org/utmp/) for this task.
 
+Some _random program_ complains that nst is unknown/not recognised/unsupported/whatever!
+----------------------------------------------------------------------------------------
 
-## Some _random program_ complains that nst is unknown/not recognised/unsupported/whatever!
-
-It means that nst doesn’t have any terminfo entry on your system. The terminfo
+It means that nst doesn't have any terminfo entry on your system. The terminfo
 files are installed via `scons install` into the local installation tree. You
 can use them temporarily via an environment variable:
 
@@ -14,20 +18,21 @@ can use them temporarily via an environment variable:
     export TERMINFO_DIRS="$TERMINFO_DIRS:$PWD"
 
 For installing them system wide you need to install them into your system's
-terminfo directory, typicall "/usr/share/terminfo".
+terminfo directory, typically "/usr/share/terminfo".
 
 You can also install them for your current user account by building the
 `terminfo_user` target.
 
-## Nothing works, and nothing is said about an unknown terminal!
+Nothing works, and nothing is said about an unknown terminal!
+-------------------------------------------------------------
 
 * Some programs just assume they’re running in xterm i.e. they don’t rely on
   terminfo. What you see is the current state of the “xterm compliance”.
 * Some programs don’t complain about the lacking nst description and default to
   another terminal. In that case see the question about terminfo.
 
-
-## How do I scroll back up?
+How do I scroll back up?
+------------------------
 
 Since nst version 1.0, the terminal has builtin support for a scrollback
 buffer. See `HISTORY_LEN` in `nst_config.hxx`. The scrollback support is still
@@ -46,14 +51,14 @@ programs:
 	* `nst -e screen` using C-a ESC
 * Using the excellent tool of [scroll](https://git.suckless.org/scroll/).
 
-
-## I would like to have utmp and/or scroll functionality by default
+I would like to have utmp and/or scroll functionality by default
+----------------------------------------------------------------
 
 You can add the absolute path of both programs in your `nst_config.hxx` file.
 You only have to modify the value of UTMP and SCROLL variables.
 
-
-## Why doesn't the Del key work in some programs?
+Why doesn't the Del key work in some programs?
+----------------------------------------------
 
 Taken from the terminfo manpage:
 
@@ -108,15 +113,15 @@ If you are using zsh, then read the zsh FAQ
 
 Putting these lines into your .zshrc will fix the problems.
 
-
-## How can I use meta in 8bit mode?
+How can I use meta in 8bit mode?
+--------------------------------
 
 St supports meta in 8bit mode, but the default terminfo entry doesn't
 use this capability. If you want it, you have to use the 'st-meta' value
 in TERM.
 
-
-## The Backspace Case
+The Backspace Case
+------------------
 
 St is emulating the Linux way of handling backspace being delete and delete being
 backspace.
@@ -178,7 +183,8 @@ terminal users wants its backspace to be how he feels it:
 	[2] http://www.tldp.org/HOWTO/Keyboard-and-Console-HOWTO-5.html
 
 
-## Why do images not work in nst using the w3m image hack?
+Why do images not work in nst using the w3m image hack?
+-------------------------------------------------------
 
 w3mimg uses a hack that draws an image on top of the terminal emulator Drawable
 window. The hack relies on the terminal to use a single buffer to draw its
@@ -190,7 +196,8 @@ short flicker effect.
 Below is a patch example to change nst double-buffering to a single Drawable
 buffer.
 
-## BadLength X error in Xft when trying to render emoji
+BadLength X error in Xft when trying to render emoji
+----------------------------------------------------
 
 Xft makes nst crash when rendering color emojis with the following error:
 

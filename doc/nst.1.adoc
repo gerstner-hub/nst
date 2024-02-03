@@ -22,7 +22,7 @@ nst is a (not so) simple terminal emulator.
   defines the font to use when nst is run. This is a fontconfig string like
   "LiberationMono:pixelsize=18:antialias=true:autohint=true".
 
-*-g, --gemoetry*::
+*-g, --geometry*::
   defines the X11 geometry string. The form is [=][<cols>{xX}<rows>][{+-}<xoffset>{+-}<yoffset>].
   See XParseGeometry(3) for further details.
 
@@ -74,13 +74,13 @@ Shift-Print Screen::
 Print Screen::
   Print the selection to the iofile.
 
-Ctrl-Shift-Page Up::
+Ctrl-Scroll Wheel Up::
   Increase font size.
 
-Ctrl-Shift-Page Down::
+Ctrl-Scroll Wheel Down::
   Decrease font size.
 
-Ctrl-Shift-Home::
+Ctrl-Mod1-Home::
   Reset to default font size.
 
 Ctrl-Shift-y::

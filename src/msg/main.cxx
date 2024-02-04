@@ -1,13 +1,16 @@
 // C++
 #include <iostream>
+#include <fstream>
+#include <set>
 
 // TCLAP
 #include "tclap/CmdLine.h"
 
 // cosmos
 #include "cosmos/cosmos.hxx"
-#include "cosmos/main.hxx"
 #include "cosmos/error/ApiError.hxx"
+#include "cosmos/error/FileError.hxx"
+#include "cosmos/main.hxx"
 #include "cosmos/net/UnixClientSocket.hxx"
 #include "cosmos/proc/process.hxx"
 
@@ -28,6 +31,7 @@ public: // data
 	TCLAP::SwitchArg save_snapshot;
 	TCLAP::SwitchArg get_snapshot;
 	TCLAP::SwitchArg get_history;
+	TCLAP::SwitchArg get_global_history;
 	TCLAP::SwitchArg test_connection;
 
 protected: // data
@@ -40,18 +44,20 @@ Cmdline::Cmdline() :
 		save_snapshot{"S", "snapshot", "save a snapshot of the current history"},
 		get_snapshot{"s", "get-snapshot", "print the history data from the last snapshot to stdout"},
 		get_history{"d", "get-history", "print (dump) the current history data to stdout"},
+		get_global_history{"D", "get-global-history", "print (dump) the current history of all available NST terminals to stdout"},
 		test_connection{"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"} {
 	m_xor_group.add(save_snapshot);
 	m_xor_group.add(get_snapshot);
 	m_xor_group.add(get_history);
+	m_xor_group.add(get_global_history);
 	m_xor_group.add(test_connection);
 	this->add(m_xor_group);
 }
 
 /// IPC client utility for nst.
 /**
- * This utility allows to connect to the currently running nst terminal and
- * to access its IPC features.
+ * This utility allows to connect to nst terminal instances and to access
+ * their IPC features.
  **/
 class IpcClient :
 		public cosmos::MainPlainArgs {
@@ -63,14 +69,27 @@ protected: // functions
 
 	cosmos::ExitStatus main(const int argc, const char **argv) override;
 
-	cosmos::UnixConnection connect();
+	/// Perform a request against the NST instances found in the environment.
+	void doActiveInstanceRequest();
+
+	/// Perform a request against the given specific NST instance.
+	void doInstanceRequest(const std::string_view addr);
+
+	void doInstanceRequest(cosmos::UnixConnection &connection);
+
+	cosmos::UnixConnection connectActiveInstance();
 
 	/// Receives data after a request has been dispatched.
 	void receiveData(const Message request, cosmos::UnixConnection &connection);
 
+	/// Returns the UNIX address of the active NST instance as found in the environment.
+	std::string_view activeInstanceAddr() const;
+
+	/// Looks up available NST instances and returns their UNIX addresses.
+	std::set<std::string> gatherGlobalInstances() const;
+
 protected: // data
 
-	cosmos::UnixSeqPacketClientSocket m_sock;
 	Cmdline m_cmdline;
 
 	static constexpr cosmos::ExitStatus CONN_ERR{2};
@@ -80,6 +99,18 @@ protected: // data
 cosmos::ExitStatus IpcClient::main(const int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
 
+	if (m_cmdline.get_global_history.isSet()) {
+		for (const auto &addr: gatherGlobalInstances()) {
+			doInstanceRequest(addr);
+		}
+	} else {
+		doActiveInstanceRequest();
+	}
+
+	return cosmos::ExitStatus::SUCCESS;
+}
+
+void IpcClient::doActiveInstanceRequest() {
 	const auto request = [this]() -> Message {
 		if (m_cmdline.save_snapshot.isSet())
 			return Message::SNAPSHOT_HISTORY;
@@ -94,17 +125,17 @@ cosmos::ExitStatus IpcClient::main(const int argc, const char **argv) {
 		}
 	}();
 
-	auto connection = connect();
+	auto connection = connectActiveInstance();
 	connection.send(&request, sizeof(request));
 	receiveData(request, connection);
-	return cosmos::ExitStatus::SUCCESS;
 }
 
-cosmos::UnixConnection IpcClient::connect() {
+std::string_view IpcClient::activeInstanceAddr() const {
 	constexpr auto envvar = "NST_IPC_ADDR";
-	const auto ipc_addr = cosmos::proc::get_env_var(envvar);
 
-	if (!ipc_addr) {
+	auto addr = cosmos::proc::get_env_var(envvar);
+
+	if (!addr) {
 		if (!m_cmdline.test_connection.isSet()) {
 			std::cerr << "Environment variable '" << envvar << "' is not set. Cannot connect to nst.\n";
 		}
@@ -112,14 +143,99 @@ cosmos::UnixConnection IpcClient::connect() {
 		throw CONN_ERR;
 	}
 
+	return addr->view();
+}
+
+cosmos::UnixConnection IpcClient::connectActiveInstance() {
+	const auto ipc_addr = activeInstanceAddr();
+
 	try {
-		return m_sock.connect(cosmos::UnixAddress{*ipc_addr, cosmos::UnixAddress::Abstract{true}});
+		cosmos::UnixSeqPacketClientSocket sock;
+		return sock.connect(cosmos::UnixAddress{ipc_addr, cosmos::UnixAddress::Abstract{true}});
 	} catch (const cosmos::ApiError &error) {
 		if (!m_cmdline.test_connection.isSet()) {
-			std::cerr << "Failed to connect to nst (address: @" << *ipc_addr << "): " << error.what() << "\n";
+			std::cerr << "Failed to connect to nst (address: @" << ipc_addr << "): " << error.what() << "\n";
 		}
 
 		throw CONN_ERR;
+	}
+}
+
+std::set<std::string> IpcClient::gatherGlobalInstances() const {
+	// look up all active UNIX domain sockets matching our name pattern
+	constexpr auto path = "/proc/net/unix";
+	std::ifstream proc_unix;
+	proc_unix.open(path);
+
+	if (!proc_unix) {
+		cosmos_throw (cosmos::FileError(path, "open"));
+	}
+
+	std::string line;
+	std::set<std::string> ret;
+
+	while (std::getline(proc_unix, line)) {
+		const auto pos = line.find("@nst-ipc");
+		if (pos == line.npos)
+			continue;
+
+		// the name is the last field of the output, so simply use
+		// the rest of the line, but without the leading @
+		ret.insert(line.substr(pos + 1));
+	}
+
+	return ret;
+}
+
+void IpcClient::doInstanceRequest(const std::string_view addr) {
+	std::optional<cosmos::UnixConnection> conn;
+
+	try {
+		cosmos::UnixSeqPacketClientSocket sock;
+		conn = sock.connect(cosmos::UnixAddress{addr, cosmos::UnixAddress::Abstract{true}});
+	} catch (const cosmos::ApiError &error) {
+
+		// ignore errors that are to be expected:
+		// - the socket belongs to another user and we lack access
+		// - the socket disappeared meanwhile
+		switch (error.errnum()) {
+			case cosmos::Errno::PERMISSION:
+			case cosmos::Errno::ACCESS:
+			case cosmos::Errno::CONN_REFUSED:
+				return;
+			default:
+				std::cerr << "failed to connect to " << addr << ": " << error.what() << "\n";
+				return;
+		}
+	}
+
+	try {
+		doInstanceRequest(*conn);
+	} catch (const cosmos::ApiError &error) {
+		std::cerr << "error talking to " << addr << ": " << error.what() << "\n";
+	}
+}
+
+void IpcClient::doInstanceRequest(cosmos::UnixConnection &connection) {
+	const auto request = [this]() -> Message {
+		if (m_cmdline.get_global_history.isSet())
+			return Message::GET_HISTORY;
+		else {
+			throw INT_ERR;
+		}
+	}();
+
+	connection.send(&request, sizeof(request));
+
+	try {
+		receiveData(request, connection);
+	} catch (const cosmos::ApiError &error) {
+		if (error.errnum() == cosmos::Errno::CONN_RESET)
+			// this means the socket belongs to a different user
+			// and the other nst rejected access.
+			return;
+
+		throw;
 	}
 }
 

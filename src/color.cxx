@@ -207,7 +207,7 @@ void ColorManager::configureFor(const Glyph base) {
 	}
 }
 
-const FontColor& ColorManager::cursorColor(const bool is_selected, Glyph &glyph) const {
+const FontColor& ColorManager::applyCursorColor(const bool is_selected, Glyph &glyph) const {
 
 	// Select the right color for the right mode.
 	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});

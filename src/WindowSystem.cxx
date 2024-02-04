@@ -498,7 +498,7 @@ void WindowSystem::clearCursor(const CharPos pos, Glyph glyph) {
 
 void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 
-	auto &color = m_color_manager.cursorColor(m_nst.selection().isSelected(pos), glyph);
+	auto &color = m_color_manager.applyCursorColor(m_nst.selection().isSelected(pos), glyph);
 	const auto chr = m_twin.chrExtent();
 	constexpr auto CURSOR_THICKNESS = config::CURSOR_THICKNESS;
 

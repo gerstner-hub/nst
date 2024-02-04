@@ -519,6 +519,7 @@ void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 			case CursorStyle::BLINKING_BLOCK:
 			case CursorStyle::BLINKING_BLOCK_DEFAULT:
 			case CursorStyle::STEADY_BLOCK:
+			case CursorStyle::REVERSE_BLOCK:
 				drawGlyph(glyph, pos);
 				break;
 			case CursorStyle::BLINKING_UNDERLINE:

@@ -483,6 +483,7 @@ enum class CursorStyle {
 	BLINKING_BLOCK = 0,
 	BLINKING_BLOCK_DEFAULT,
 	STEADY_BLOCK, // "█"
+	REVERSE_BLOCK, // uses the reverse colors of the Glyph the cursor is on
 	BLINKING_UNDERLINE, // "_"
 	STEADY_UNDERLINE,
 	BLINKING_BAR, // "|"

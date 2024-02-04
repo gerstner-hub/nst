@@ -196,7 +196,7 @@ void ColorManager::configureFor(const Glyph base) {
 		}
 	}
 
-	if (base.mode[Attr::REVERSE]) {
+	if (base.useReverseColor()) {
 		std::swap(m_front_color, m_back_color);
 	}
 
@@ -208,12 +208,11 @@ void ColorManager::configureFor(const Glyph base) {
 }
 
 const FontColor& ColorManager::applyCursorColor(const bool is_selected, Glyph &glyph) const {
-
 	// Select the right color for the right mode.
 	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 
 	if (m_twin.inReverseMode()) {
-		glyph.mode.set(Attr::REVERSE);
+		glyph.setReverseColor();
 		glyph.bg = config::DEFAULT_FG;
 		if (is_selected) {
 			glyph.fg = config::DEFAULT_CURSOR_REV_COLOR;
@@ -227,8 +226,13 @@ const FontColor& ColorManager::applyCursorColor(const bool is_selected, Glyph &g
 			glyph.fg = config::DEFAULT_FG;
 			glyph.bg = config::DEFAULT_CURSOR_REV_COLOR;
 		} else {
-			glyph.fg = config::DEFAULT_BG;
-			glyph.bg = config::DEFAULT_CURSOR_COLOR;
+			if (m_twin.getCursorStyle() == CursorStyle::REVERSE_BLOCK) {
+				glyph.setReverseColor();
+				return fontColor(config::DEFAULT_CURSOR_COLOR);
+			} else {
+				glyph.fg = config::DEFAULT_BG;
+				glyph.bg = config::DEFAULT_CURSOR_COLOR;
+			}
 		}
 
 		return fontColor(glyph.bg);

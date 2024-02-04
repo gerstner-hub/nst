@@ -86,17 +86,19 @@ public: // functions
 	}
 
 	/// returns whether the Glyph is "empty", currently meaning "space"
-	bool isEmpty()      const { return rune == ' '; }
-	bool hasValue()     const { return !isEmpty(); }
-	bool isDummy()      const { return mode[Attr::WDUMMY]; }
-	bool isWide()       const { return mode[Attr::WIDE]; }
-	bool isWrapped()    const { return mode[Attr::WRAP]; }
-	bool isUnderlined() const { return mode[Attr::UNDERLINE]; }
-	bool isStruck()     const { return mode[Attr::STRUCK]; }
-	bool isBlinking()   const { return mode[Attr::BLINK]; }
+	bool isEmpty()         const { return rune == ' '; }
+	bool hasValue()        const { return !isEmpty(); }
+	bool isDummy()         const { return mode[Attr::WDUMMY]; }
+	bool isWide()          const { return mode[Attr::WIDE]; }
+	bool isWrapped()       const { return mode[Attr::WRAP]; }
+	bool isUnderlined()    const { return mode[Attr::UNDERLINE]; }
+	bool isStruck()        const { return mode[Attr::STRUCK]; }
+	bool isBlinking()      const { return mode[Attr::BLINK]; }
+	bool useReverseColor() const { return mode[Attr::REVERSE]; }
 
-	void setWrapped()   { mode.set(Attr::WRAP); }
-	void setWide()      { mode.set(Attr::WIDE); }
+	void setWrapped()      { mode.set(Attr::WRAP); }
+	void setWide()         { mode.set(Attr::WIDE); }
+	void setReverseColor() { mode.set(Attr::REVERSE); }
 
 	void resetWide()    { mode.reset(Attr::WIDE); }
 	void resetDummy()   { mode.reset(Attr::WDUMMY); }

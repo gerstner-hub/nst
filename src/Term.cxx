@@ -123,6 +123,8 @@ void Term::resize(const TermSize new_size) {
 		for (auto screen: {&m_screen, &m_saved_screen}) {
 			screen->shiftViewDown(shift);
 		}
+
+		m_selection.scroll(0, -shift);
 	}
 
 	m_screen.saveScrollState();

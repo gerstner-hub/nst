@@ -6,6 +6,7 @@
 
 // X++
 #include "X++/atoms.hxx"
+#include "X++/event/ClientMessageEvent.hxx"
 #include "X++/Event.hxx"
 #include "X++/helpers.hxx"
 #include "X++/keyboard.hxx"
@@ -574,6 +575,19 @@ void WindowSystem::setTitle(const std::string_view title) {
 	xpp::Property<xpp::utf8_string> data{xpp::utf8_string(title)};
 	m_window.setProperty(xpp::atoms::icccm_window_name, data);
 	m_window.setProperty(xpp::atoms::ewmh_window_name, data);
+}
+
+void WindowSystem::toggleFullScreen() {
+	xpp::Event raw_ev{xpp::EventType::CLIENT_MESSAGE};
+	xpp::NetWmStateEvent event{raw_ev};
+
+	event.setDisplay(xpp::display);
+	event.setWinID(m_window.id());
+	event.setOperation(xpp::NetWmStateAction::TOGGLE);
+	event.setProperties(xpp::atoms::ewmh_wm_state_fullscreen);
+
+	auto root = xpp::RootWin{m_display, xpp::screen};
+	root.sendEvent(raw_ev);
 }
 
 void WindowSystem::pushTitle() {

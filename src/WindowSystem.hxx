@@ -86,6 +86,8 @@ public: // functions
 	void setTitle(const std::string_view title);
 	void setDefaultTitle();
 
+	void toggleFullScreen();
+
 	/// Push the current window title on the title stack for later restore via popTitle().
 	void pushTitle();
 	/// Restore the last window title stored via pushTitle().

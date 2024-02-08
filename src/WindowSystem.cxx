@@ -4,19 +4,19 @@
 #include "cosmos/proc/process.hxx"
 #include "cosmos/utils.hxx"
 
-// X++
-#include "X++/atoms.hxx"
-#include "X++/event/ClientMessageEvent.hxx"
-#include "X++/Event.hxx"
-#include "X++/helpers.hxx"
-#include "X++/keyboard.hxx"
-#include "X++/Property.hxx"
-#include "X++/RootWin.hxx"
-#include "X++/SizeHints.hxx"
-#include "X++/WindowManagerHints.hxx"
-#include "X++/XColor.hxx"
-#include "X++/XCursor.hxx"
-#include "X++/XDisplay.hxx"
+// xpp
+#include "xpp/atoms.hxx"
+#include "xpp/event/ClientMessageEvent.hxx"
+#include "xpp/Event.hxx"
+#include "xpp/helpers.hxx"
+#include "xpp/keyboard.hxx"
+#include "xpp/Property.hxx"
+#include "xpp/RootWin.hxx"
+#include "xpp/SizeHints.hxx"
+#include "xpp/WindowManagerHints.hxx"
+#include "xpp/XColor.hxx"
+#include "xpp/XCursor.hxx"
+#include "xpp/XDisplay.hxx"
 
 // nst
 #include "nst.hxx"

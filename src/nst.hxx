@@ -4,8 +4,8 @@
 #include "cosmos/main.hxx"
 #include "cosmos/string.hxx"
 
-// X++
-#include "X++/Xpp.hxx"
+// xpp
+#include "xpp/Xpp.hxx"
 
 // nst
 #include "Cmdline.hxx"

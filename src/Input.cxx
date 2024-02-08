@@ -1,10 +1,10 @@
 // C++
 #include <iostream>
 
-// X++
-#include "X++/event/KeyEvent.hxx"
-#include "X++/helpers.hxx"
-#include "X++/XDisplay.hxx"
+// xpp
+#include "xpp/event/KeyEvent.hxx"
+#include "xpp/helpers.hxx"
+#include "xpp/XDisplay.hxx"
 
 // nst
 #include "Input.hxx"

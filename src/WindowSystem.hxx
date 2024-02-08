@@ -7,14 +7,14 @@
 // cosmos
 #include "cosmos/SysString.hxx"
 
-// X++
-#include "X++/fwd.hxx"
-#include "X++/GraphicsContext.hxx"
-#include "X++/Pixmap.hxx"
-#include "X++/types.hxx"
-#include "X++/utils.hxx"
-#include "X++/SetWindowAttributes.hxx"
-#include "X++/XWindow.hxx"
+// xpp
+#include "xpp/fwd.hxx"
+#include "xpp/GraphicsContext.hxx"
+#include "xpp/Pixmap.hxx"
+#include "xpp/types.hxx"
+#include "xpp/utils.hxx"
+#include "xpp/SetWindowAttributes.hxx"
+#include "xpp/XWindow.hxx"
 
 // nst
 #include "color.hxx"

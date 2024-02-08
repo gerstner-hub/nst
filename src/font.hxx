@@ -11,8 +11,8 @@
 // X11
 #include <X11/Xft/Xft.h>
 
-// X++
-#include "X++/fwd.hxx"
+// xpp
+#include "xpp/fwd.hxx"
 
 // nst
 #include "fwd.hxx"

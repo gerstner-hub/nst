@@ -5,11 +5,11 @@
 #include <tuple>
 #include <vector>
 
-// X++
-#include "X++/Event.hxx"
-#include "X++/helpers.hxx"
-#include "X++/types.hxx"
-#include "X++/fwd.hxx"
+// xpp
+#include "xpp/Event.hxx"
+#include "xpp/helpers.hxx"
+#include "xpp/types.hxx"
+#include "xpp/fwd.hxx"
 
 // nst
 #include "fwd.hxx"

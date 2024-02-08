@@ -6,10 +6,10 @@
 #include <set>
 #include <string_view>
 
-// X++
-#include "X++/keyboard.hxx"
-#include "X++/types.hxx"
-#include "X++/XCursor.hxx"
+// xpp
+#include "xpp/keyboard.hxx"
+#include "xpp/types.hxx"
+#include "xpp/XCursor.hxx"
 
 // nst
 #include "fwd.hxx"

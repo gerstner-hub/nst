@@ -11,9 +11,9 @@
 #include "cosmos/utils.hxx"
 #include "cosmos/BitMask.hxx"
 
-// X++
-#include "X++/types.hxx"
-#include "X++/keyboard.hxx"
+// xpp
+#include "xpp/types.hxx"
+#include "xpp/keyboard.hxx"
 
 namespace nst {
 

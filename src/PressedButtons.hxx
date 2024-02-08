@@ -3,8 +3,8 @@
 // C++
 #include <bitset>
 
-// X++
-#include "X++/types.hxx"
+// xpp
+#include "xpp/types.hxx"
 
 namespace nst {
 

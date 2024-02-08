@@ -13,7 +13,7 @@ except Exception:
         sys.path.append(str(cosmos_scripts))
         from buildsystem import initSCons
     env = initSCons("nst", rtti=False)
-    # prefer static linking given the ABI issues in libcosmos and X++
+    # prefer static linking given the ABI issues in libcosmos and libxpp
     env['libtype'] = "static"
     env['install_dev_files'] = False
 
@@ -22,7 +22,7 @@ cosmos_env['buildroot'] = ""
 SConscript('libcosmos/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libcosmos/", exports={"env": cosmos_env})
 xpp_env = env.Clone()
 xpp_env['buildroot'] = ""
-SConscript('libX++/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libX++/", exports={"env": xpp_env})
+SConscript('libxpp/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libxpp/", exports={"env": xpp_env})
 
 SConscript(env['buildroot'] + 'src/SConstruct')
 SConscript(env['buildroot'] + 'doc/SConstruct')

@@ -2,8 +2,8 @@
 #include "cosmos/formatting.hxx"
 #include "cosmos/error/RuntimeError.hxx"
 
-// X++
-#include "X++/XDisplay.hxx"
+// xpp
+#include "xpp/XDisplay.hxx"
 
 // nst
 #include "color.hxx"

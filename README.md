@@ -25,7 +25,7 @@ out that the original *st* code was tightly packed in a certain sense and
 difficult to cut into more digestible pieces. That's what I did in a process
 of continuous porting and refactoring of the codebase. As a result of some
 sort of mission creep I also ended up putting together the libcosmos and
-libX++ libraries in the process (see dependencies below).
+libxpp libraries in the process (see dependencies below).
 
 The final result is, I would say, a pretty clean C++ codebase that is about a
 third larger in line count (mostly due to coding style and comments I
@@ -152,7 +152,7 @@ Dependencies
 
 *nst* depends on the X libraries like the original st. Further it depends on
 the [libcosmos](https://github.com/gerstner-hub/libcosmos/) and
-[libX++](https://github.com/gerstner-hub/libXpp/) C++ helper libraries. These
+[libxpp](https://github.com/gerstner-hub/libxpp/) C++ helper libraries. These
 libraries are integrated via Git submodules into this repository and
 statically linked, so you shouldn't need to worry a lot about them.
 
@@ -170,7 +170,7 @@ for some hints about how to use it. In the default case simply run
 
 and you will find all installation artifacts in the `install` directory tree.
 
-Because the `libcosmos` and `libX++` dependencies don't have a stable ABI
+Because the `libcosmos` and `libxpp` dependencies don't have a stable ABI
 concept yet the linking is done statically for them. So you don't have to
 worry about setting up the shared library path etc.
 

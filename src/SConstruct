@@ -7,7 +7,7 @@ env.Append(CCFLAGS=['-DNST_VERSION=\\"1.0\\"'])
 nst_env = env.Clone()
 sources = nst_env.GatherSources(suffixes=[".cxx"], recursive=False)
 
-nst_env.ConfigureForLib("libX++", sources)
+nst_env.ConfigureForLib("libxpp", sources)
 nst_env.ConfigureForLib("libcosmos", sources)
 nst_env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
 

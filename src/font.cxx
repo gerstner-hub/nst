@@ -6,10 +6,10 @@
 #include "cosmos/error/RuntimeError.hxx"
 #include "cosmos/utils.hxx"
 
-// X++
-#include "X++/helpers.hxx"
-#include "X++/Pixmap.hxx"
-#include "X++/XDisplay.hxx"
+// xpp
+#include "xpp/helpers.hxx"
+#include "xpp/Pixmap.hxx"
+#include "xpp/XDisplay.hxx"
 
 // nst
 #include "color.hxx"

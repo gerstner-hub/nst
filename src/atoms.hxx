@@ -1,7 +1,7 @@
 #pragma once
 
-// X++
-#include "X++/CachedAtom.hxx"
+// xpp
+#include "xpp/CachedAtom.hxx"
 
 namespace nst::atoms {
 

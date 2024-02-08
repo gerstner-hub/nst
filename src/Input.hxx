@@ -6,9 +6,9 @@
 // X11
 #include <X11/Xlib.h>
 
-// X++
-#include "X++/fwd.hxx"
-#include "X++/XWindow.hxx"
+// xpp
+#include "xpp/fwd.hxx"
+#include "xpp/XWindow.hxx"
 
 // nst
 #include "types.hxx"

@@ -11,9 +11,9 @@
 #include "cosmos/time/time.hxx"
 #include "cosmos/utils.hxx"
 
-// X++
-#include "X++/XDisplay.hxx"
-#include "X++/event/ConfigureEvent.hxx"
+// xpp
+#include "xpp/XDisplay.hxx"
+#include "xpp/event/ConfigureEvent.hxx"
 
 // nst
 #include "nst.hxx"

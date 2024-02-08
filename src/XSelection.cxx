@@ -1,6 +1,6 @@
-// X++
-#include "X++/atoms.hxx"
-#include "X++/XDisplay.hxx"
+// xpp
+#include "xpp/atoms.hxx"
+#include "xpp/XDisplay.hxx"
 
 // nst
 #include "nst.hxx"

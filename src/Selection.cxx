@@ -493,6 +493,12 @@ std::string Selection::selection() const {
 			ret.push_back('\n');
 	}
 
+	if (!config::SEL_LINE_SNAP_KEEP_NEWLINE && m_snap == Snap::LINE) {
+		// removing trailing newlines if in line snap mode
+		while (!ret.empty() && ret.back() == '\n')
+			ret.pop_back();
+	}
+
 	return ret;
 }
 

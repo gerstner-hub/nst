@@ -111,6 +111,17 @@ constexpr std::chrono::milliseconds TRIPLE_CLICK_TIMEOUT{600};
  **/
 constexpr bool SEL_CLEAR = false;
 
+/// Keep trailing newlines in Selection::Snap::LINE selections.
+/**
+ * When selecting a line via LINE snap mode keep trailing newlines. Upon
+ * pasting this causes a complete line plus newline to be pasted. This can be
+ * undesirable when pasting e.g. in a shell prompt.
+ *
+ * If disabled then trailing newline characters will be skipped during
+ * pasting.
+ **/
+constexpr bool SEL_LINE_SNAP_KEEP_NEWLINE = false;
+
 /// Minimum draw latency.
 /*
  * Time from new content/keypress/etc until drawing.

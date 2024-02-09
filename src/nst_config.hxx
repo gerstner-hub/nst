@@ -231,6 +231,8 @@ constexpr xpp::CursorFont MOUSE_SHAPE{xpp::CursorFont::XTERM};
 constexpr ColorIndex MOUSE_FG{7};
 /// Default background color of the mouse cursor.
 constexpr ColorIndex MOUSE_BG{0};
+/// If set then the mouse cursor in will be hidden from the terminal window when typing.
+constexpr bool HIDE_MOUSE_CURSOR = true;
 
 /// Fallback color to use if no matching font is found.
 /**

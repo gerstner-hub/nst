@@ -167,6 +167,8 @@ StopScrolling XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 	const auto tmode = m_twin.mode();
 	const auto defret = StopScrolling{false};
 
+	m_wsys.hidePointer();
+
 	if (tmode[WinMode::KBDLOCK])
 		return defret;
 
@@ -458,6 +460,8 @@ StopScrolling XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 
 void XEventHandler::pointerMovedEvent(const xpp::PointerMovedEvent &ev) {
 	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
+
+	m_wsys.showPointer();
 
 	if (m_twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);

@@ -15,7 +15,6 @@
 #include "xpp/SizeHints.hxx"
 #include "xpp/WindowManagerHints.hxx"
 #include "xpp/XColor.hxx"
-#include "xpp/XCursor.hxx"
 #include "xpp/XDisplay.hxx"
 
 // nst
@@ -281,7 +280,7 @@ void WindowSystem::init() {
 
 	m_input.tryOpen();
 
-	setupCursor();
+	setupPointer();
 
 	m_display.mapWindow(m_window);
 	m_display.sync();
@@ -468,7 +467,7 @@ void WindowSystem::cleanupWindowBorders(const int textwidth, const CharPos char_
 	}
 }
 
-void WindowSystem::setupCursor() {
+void WindowSystem::setupPointer() {
 
 	auto parseColor = [this](const ColorIndex idx, const unsigned short fallback) {
 		xpp::XColor ret;
@@ -486,9 +485,30 @@ void WindowSystem::setupCursor() {
 	const auto fg = parseColor(config::MOUSE_FG, 0xFFFF);
 	const auto bg = parseColor(config::MOUSE_BG, 0x0000);
 
-	xpp::XCursor cursor{config::MOUSE_SHAPE};
-	cursor.recolorCursor(fg, bg);
-	m_window.defineCursor(cursor);
+	m_font_pointer = xpp::XCursor{config::MOUSE_SHAPE};
+	m_font_pointer.recolorCursor(fg, bg);
+	m_window.defineCursor(m_font_pointer);
+
+	xpp::Pixmap blank_pm{xpp::to_drawable(m_window.id()), "", {1, 1}};
+	m_blank_pointer = xpp::XCursor{blank_pm, &blank_pm, fg, bg, xpp::Coord{0, 0}};
+}
+
+void WindowSystem::hidePointer() {
+	if (config::HIDE_MOUSE_CURSOR && m_is_pointer_visible) {
+		m_is_pointer_visible = false;
+		m_window.defineCursor(m_blank_pointer);
+		setPointerMotion(true);
+	}
+}
+
+void WindowSystem::showPointer() {
+	if (!m_is_pointer_visible) {
+		m_is_pointer_visible = true;
+		m_window.defineCursor(m_font_pointer);
+		if (!m_twin.reportMouseMany()) {
+			setPointerMotion(false);
+		}
+	}
 }
 
 void WindowSystem::clearCursor(const CharPos pos, Glyph glyph) {

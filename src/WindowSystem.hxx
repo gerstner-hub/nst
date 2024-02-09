@@ -11,9 +11,10 @@
 #include "xpp/fwd.hxx"
 #include "xpp/GraphicsContext.hxx"
 #include "xpp/Pixmap.hxx"
+#include "xpp/SetWindowAttributes.hxx"
 #include "xpp/types.hxx"
 #include "xpp/utils.hxx"
-#include "xpp/SetWindowAttributes.hxx"
+#include "xpp/XCursor.hxx"
 #include "xpp/XWindow.hxx"
 
 // nst
@@ -74,6 +75,8 @@ public: // functions
 	}
 
 	void setPointerMotion(bool on_off) {
+		if (!on_off && !m_is_pointer_visible)
+			return;
 		changeEventMask(xpp::EventMask::POINTER_MOTION, on_off);
 	}
 	/// To be called when a set of drawing operation is finished and new data should be displayed.
@@ -128,6 +131,9 @@ public: // functions
 		return m_blinking_cursor_style;
 	}
 
+	void hidePointer();
+	void showPointer();
+
 	const xpp::XWindow& window() const { return m_window; }
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_selection; }
@@ -138,7 +144,7 @@ protected: // functions
 
 	/// Change whether the given event types will be reported by X11.
 	void changeEventMask(const xpp::EventMask event, bool on_off);
-	void setupCursor();
+	void setupPointer();
 	void setupWindow(const xpp::XWindow &parent);
 	void setupWinAttrs();
 	void setSizeHints();
@@ -206,6 +212,9 @@ protected: // data
 	xpp::SetWindowAttributes m_win_attrs;
 	xpp::Pixmap m_pixmap;
 	xpp::GraphicsContext m_graphics_context;
+	xpp::XCursor m_font_pointer;
+	xpp::XCursor m_blank_pointer;
+	bool m_is_pointer_visible = true;
 
 	GlyphFontSpecVector m_font_specs;
 	/// To keep track of the remaining font specs to draw in drawGlyphFontSpecs()

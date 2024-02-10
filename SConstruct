@@ -12,9 +12,8 @@ except Exception:
         cosmos_scripts = Path(Dir('.').abspath) / "libcosmos" / "scripts"
         sys.path.append(str(cosmos_scripts))
         from buildsystem import initSCons
-    env = initSCons("nst", rtti=False)
     # prefer static linking given the ABI issues in libcosmos and libxpp
-    env['libtype'] = "static"
+    env = initSCons("nst", rtti=False, deflibtype="static")
     env['install_dev_files'] = False
 
 cosmos_env = env.Clone()

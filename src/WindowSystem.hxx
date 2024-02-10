@@ -134,6 +134,8 @@ public: // functions
 	void hidePointer();
 	void showPointer();
 
+	void invertColors();
+
 	const xpp::XWindow& window() const { return m_window; }
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_selection; }

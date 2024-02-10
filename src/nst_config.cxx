@@ -110,7 +110,8 @@ std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst) {
 		{ TERMMOD,              KeyID::HOME,        std::bind(&nst::Term::scrollHistoryUpMax, &term) },
 		{ TERMMOD,              KeyID::END,         std::bind(&nst::Term::stopScrolling, &term) },
 		{ TERMMOD,              KeyID::B,           std::bind(&nst::Nst::pipeBufferTo, &nst, cosmos::StringViewVector{"gvim", "--not-a-term", "-"}) },
-		{ Mask{},               KeyID::F11,         std::bind(&WindowSystem::toggleFullScreen, &wsys) }
+		{ Mask{},               KeyID::F11,         std::bind(&WindowSystem::toggleFullScreen, &wsys) },
+		{ TERMMOD,              KeyID::KP_DIVIDE,   std::bind(&WindowSystem::invertColors, &wsys) }
 	};
 }
 

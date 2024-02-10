@@ -511,6 +511,11 @@ void WindowSystem::showPointer() {
 	}
 }
 
+void WindowSystem::invertColors() {
+	m_twin.flipFlag(WinMode::REVERSE);
+	m_nst.term().redraw();
+}
+
 void WindowSystem::clearCursor(const CharPos pos, Glyph glyph) {
 	if (m_nst.selection().isSelected(pos))
 		glyph.mode.flip(Attr::REVERSE);

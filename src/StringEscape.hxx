@@ -65,6 +65,17 @@ protected: // functions
 	void setTitle(const char *s);
 	/// Reports back to the TTY the current color mapping for color index.
 	void oscColorResponse(const ColorIndex idx, const int code);
+	/// rejoin args from m_args starting at the given index
+	/**
+	 * Some OSC command like title and icon title operations don't behave
+	 * well defined with regards to the semicolon used for separating
+	 * arguments. If the title contains a semicolon itself then this
+	 * causes everything after the semicolon to be treated as an
+	 * extraneous, unused argument.
+	 *
+	 * To avoid this reconstruct the complete title using this function.
+	 **/
+	std::string joinArgs(const size_t start_idx) const;
 
 protected: // data
 

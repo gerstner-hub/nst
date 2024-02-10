@@ -85,6 +85,26 @@ void StringEscape::setIconTitle(const char *s) {
 		wsys.setDefaultIconTitle();
 }
 
+std::string StringEscape::joinArgs(const size_t start_idx) const {
+	std::string ret;
+
+	if (start_idx >= m_args.size())
+		return ret;
+
+	for (auto it = m_args.begin() + start_idx; it < m_args.end(); it++) {
+		auto &arg = *it;
+		if (!arg[0])
+			return ret;
+
+		if (!ret.empty())
+			// add the original separator again
+			ret += ";";
+		ret += arg;
+	}
+
+	return ret;
+}
+
 void StringEscape::process() {
 	parseArgs();
 
@@ -96,7 +116,7 @@ void StringEscape::process() {
 			}
 			return;
 		case Type::SET_TITLE: // old title set compatibility
-			setTitle(m_args.empty() ? "" : m_args[0].data());
+			setTitle(m_args.empty() ? "" : joinArgs(0).c_str());
 			return;
 		case Type::DCS:  //
 		case Type::APC:  // Application Program Command
@@ -136,18 +156,18 @@ bool StringEscape::processOSC() {
 	switch (par) {
 		case 0: // change icon name _and_ window title
 			if (numargs > 1) {
-				const auto title = m_args[1].data();
-				setTitle(title);
-				setIconTitle(title);
+				const auto title = joinArgs(1);
+				setTitle(title.c_str());
+				setIconTitle(title.c_str());
 			}
 			break;
 		case 1: // change icon name
 			if (numargs > 1)
-				setIconTitle(m_args[1].data());
+				setIconTitle(joinArgs(1).c_str());
 			break;
 		case 2: // change window title
 			if (numargs > 1)
-				setTitle(m_args[1].data());
+				setTitle(joinArgs(1).c_str());
 			break;
 		case 52: // manipulate selection data
 			if (numargs > 2 && config::ALLOW_WINDOW_OPS) {

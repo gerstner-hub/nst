@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <set>
+#include <sstream>
 
 // TCLAP
 #include "tclap/CmdLine.h"
@@ -33,6 +34,7 @@ public: // data
 	TCLAP::SwitchArg get_history;
 	TCLAP::SwitchArg get_global_history;
 	TCLAP::SwitchArg test_connection;
+	TCLAP::SwitchArg get_cwds;
 
 protected: // data
 
@@ -45,12 +47,14 @@ Cmdline::Cmdline() :
 		get_snapshot{"s", "get-snapshot", "print the history data from the last snapshot to stdout"},
 		get_history{"d", "get-history", "print (dump) the current history data to stdout"},
 		get_global_history{"D", "get-global-history", "print (dump) the current history of all available NST terminals to stdout"},
-		test_connection{"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"} {
+		test_connection{"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"},
+		get_cwds{"", "cwds", "retrieve the current working directories of all available NST terminals one per line to stdout"} {
 	m_xor_group.add(save_snapshot);
 	m_xor_group.add(get_snapshot);
 	m_xor_group.add(get_history);
 	m_xor_group.add(get_global_history);
 	m_xor_group.add(test_connection);
+	m_xor_group.add(get_cwds);
 	this->add(m_xor_group);
 }
 
@@ -80,7 +84,7 @@ protected: // functions
 	cosmos::UnixConnection connectActiveInstance();
 
 	/// Receives data after a request has been dispatched.
-	void receiveData(const Message request, cosmos::UnixConnection &connection);
+	void receiveData(const Message request, cosmos::UnixConnection &connection, std::ostream &out = std::cout);
 
 	/// Returns the UNIX address of the active NST instance as found in the environment.
 	std::string_view activeInstanceAddr() const;
@@ -91,6 +95,7 @@ protected: // functions
 protected: // data
 
 	Cmdline m_cmdline;
+	std::set<std::string> m_cwds;
 
 	static constexpr cosmos::ExitStatus CONN_ERR{2};
 	static constexpr cosmos::ExitStatus INT_ERR{5};
@@ -99,9 +104,15 @@ protected: // data
 cosmos::ExitStatus IpcClient::main(const int argc, const char **argv) {
 	m_cmdline.parse(argc, argv);
 
-	if (m_cmdline.get_global_history.isSet()) {
+	if (m_cmdline.get_global_history.isSet() || m_cmdline.get_cwds.isSet()) {
 		for (const auto &addr: gatherGlobalInstances()) {
 			doInstanceRequest(addr);
+		}
+
+		if (m_cmdline.get_cwds.isSet()) {
+			for (const auto &cwd: m_cwds) {
+				std::cout << cwd << "\n";
+			}
 		}
 	} else {
 		doActiveInstanceRequest();
@@ -220,6 +231,8 @@ void IpcClient::doInstanceRequest(cosmos::UnixConnection &connection) {
 	const auto request = [this]() -> Message {
 		if (m_cmdline.get_global_history.isSet())
 			return Message::GET_HISTORY;
+		else if (m_cmdline.get_cwds.isSet())
+			return Message::GET_CWD;
 		else {
 			throw INT_ERR;
 		}
@@ -228,7 +241,16 @@ void IpcClient::doInstanceRequest(cosmos::UnixConnection &connection) {
 	connection.send(&request, sizeof(request));
 
 	try {
-		receiveData(request, connection);
+		if (request == Message::GET_CWD) {
+			std::stringstream ss;
+			receiveData(request, connection, ss);
+			auto cwd = ss.str();
+			if (!cwd.empty()) {
+				m_cwds.insert(ss.str());
+			}
+		} else {
+			receiveData(request, connection, std::cout);
+		}
 	} catch (const cosmos::ApiError &error) {
 		if (error.errnum() == cosmos::Errno::CONN_RESET)
 			// this means the socket belongs to a different user
@@ -239,7 +261,7 @@ void IpcClient::doInstanceRequest(cosmos::UnixConnection &connection) {
 	}
 }
 
-void IpcClient::receiveData(const Message request, cosmos::UnixConnection &connection) {
+void IpcClient::receiveData(const Message request, cosmos::UnixConnection &connection, std::ostream &out) {
 	std::string buffer;
 	while (true) {
 		buffer.resize(IpcHandler::MAX_CHUNK_SIZE);
@@ -277,7 +299,7 @@ void IpcClient::receiveData(const Message request, cosmos::UnixConnection &conne
 			return;
 		} else {
 			// simply forward data to stdout
-			std::cout << buffer;
+			out << buffer;
 		}
 	}
 }

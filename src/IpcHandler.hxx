@@ -64,6 +64,8 @@ public: // types
 		GET_SNAPSHOT,
 		/// Test message that triggers an identical reply.
 		PING,
+		/// Send the current working directory of the terminal's child process.
+		GET_CWD,
 	};
 
 public: // data
@@ -102,6 +104,8 @@ protected: // functions
 
 	/// Accept a new connection, checking the peer's permissions.
 	void acceptConnection();
+
+	std::string childCWD() const;
 
 protected: // data
 

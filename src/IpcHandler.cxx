@@ -3,6 +3,8 @@
 
 // cosmos
 #include "cosmos/error/ApiError.hxx"
+#include "cosmos/formatting.hxx"
+#include "cosmos/fs/filesystem.hxx"
 #include "cosmos/proc/process.hxx"
 
 // nst
@@ -139,6 +141,9 @@ void IpcHandler::processCommand(const Message message) {
 		case Message::GET_SNAPSHOT:
 			m_send_data = m_snapshot;
 			break;
+		case Message::GET_CWD:
+			m_send_data = childCWD();
+			break;
 		case Message::PING:
 			constexpr auto msg = Message::PING;
 			m_send_data.resize(sizeof(msg));
@@ -176,6 +181,17 @@ void IpcHandler::closeSession() {
 	m_connection.reset();
 	m_send_data.clear();
 	m_send_pos = 0;
+}
+
+std::string IpcHandler::childCWD() const {
+	const auto pid = m_nst.tty().childPID();
+	// NOTE: this does currently not take into account possible
+	// inter-mediate processes like a `scroll` helper program. In this
+	// case we'd need the grandchilds CWD (the shell).
+	std::string str = cosmos::sprintf(
+			"/proc/%s/cwd",
+			std::to_string(cosmos::to_integral(pid)).c_str());
+	return cosmos::fs::read_symlink(str);
 }
 
 } // end ns

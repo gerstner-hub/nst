@@ -73,6 +73,9 @@ public: // functions
 	/// Returns a FileDescriptor object for the pidfd representing the child process running in the terminal.
 	auto childFD() { return m_child_proc.pidFD(); }
 
+	/// Returns the current child process's PID.
+	auto childPID() { return m_child_proc.pid(); }
+
 	/// To be called when a SIGCHLD was received in the main loop.
 	/**
 	 * This will throw an exception if the child process did not exit

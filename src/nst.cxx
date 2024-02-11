@@ -1,5 +1,6 @@
 // cosmos
 #include "cosmos/error/ApiError.hxx"
+#include "cosmos/fs/filesystem.hxx"
 #include "cosmos/io/Pipe.hxx"
 #include "cosmos/io/Poller.hxx"
 #include "cosmos/io/StreamIO.hxx"
@@ -53,6 +54,15 @@ cosmos::ExitStatus Nst::main(int argc, const char **argv) {
 	::XSetLocaleModifiers("");
 
 	m_cmdline.parse(argc, argv);
+	if (m_cmdline.cwd.isSet()) {
+		try {
+			cosmos::fs::change_dir(m_cmdline.cwd.getValue());
+		} catch (const cosmos::CosmosError &ex) {
+			std::cerr << "Warning: could not enter CWD "
+				<< m_cmdline.cwd.getValue()
+				<< ": " << ex.what() << std::endl;
+		}
+	}
 	setupSignals();
 	m_wsys.init();
 	m_term.init(*this);

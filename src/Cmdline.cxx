@@ -20,6 +20,7 @@ Cmdline::Cmdline() :
 	window_geometry{"g", "geometry",       "defines the window geometry. e.g. 100x40+100+100.", false, "", "X11 gemeoetry", *this},
 	font{           "f", "font",           "defines the font to use when nst is run.", false, nst::config::FONT.data(), "fontconfig font name", *this},
 	iofile{         "o", "iofile",         "writes all the I/O to the given file for recording. '-' means stdout.", false, "", "path", *this},
+	cwd{            "d", "dir",            "set the initial working directory of NST", false, "", "path", *this},
 	embed_window{   "w", "embed-window",   "embeds nst within the window identified by given windowid", false, 0, "window-id", *this},
 	tty_line{       "l", "tty",            "use a tty line instead of pseudo terminal. Remaining parameters will be passed as flags to stty", false, "", "path-to-tty", *this},
 	rest{                "rest",           "command to execute instead of shell for -e, or if -l is not given. If -l is given then these are stty parameters", false, "extra-pars", *this}

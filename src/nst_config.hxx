@@ -78,17 +78,6 @@ constexpr bool ALLOW_WINDOW_OPS = false;
  */
 constexpr int TABSPACES = 8;
 
-/* these are indices into COLORNAMES or EXTENDED_COLORS */
-
-/// Default foreground color.
-constexpr ColorIndex DEFAULT_FG{258};
-/// Default background color.
-constexpr ColorIndex DEFAULT_BG{259};
-/// Default cursor color.
-constexpr ColorIndex DEFAULT_CURSOR_COLOR{256};
-/// Default reverse color.
-constexpr ColorIndex DEFAULT_CURSOR_REV_COLOR{257};
-
 /// Allow alternative screen usage
 constexpr bool ALLOW_ALTSCREEN = true;
 
@@ -154,39 +143,43 @@ constexpr int CURSOR_THICKNESS = 2;
  **/
 constexpr xpp::BellVolume BELL_VOLUME{0};
 
-/// Extended color palette beyond index 255.
-inline constexpr std::array<std::string_view, 4> EXTENDED_COLORS{{
-	/* more colors can be added after 255 to use with DefaultXX */
-	"#cccccc",
-	"#555555",
-	"gray90", /* default foreground colour */
-	"black"   /* default background colour */
-}};
+inline constexpr Theme DEFAULT_THEME{
+	{
+		/* 8 normal colors */
+		"black",
+		"red3",
+		"green3",
+		"yellow3",
+		/* instead of the original "blue2" use this - it's no that blue any
+		 * more but is at least readable when appearing on black background */
+		"#4444ff",
+		"magenta3",
+		"cyan3",
+		"gray90",
 
-/// Basic terminal colors (16 first used in escape sequence)
-inline constexpr std::array<std::string_view, 16> COLORNAMES{{
-	/* 8 normal colors */
-	"black",
-	"red3",
-	"green3",
-	"yellow3",
-	/* instead of the original "blue2" use this - it's no that blue any
-	 * more but is at least readable when appearing on black background */
-	"#4444ff",
-	"magenta3",
-	"cyan3",
-	"gray90",
+		/* 8 bright colors */
+		"gray50",
+		"red",
+		"green",
+		"yellow",
+		"#6c6cff",
+		"magenta",
+		"cyan",
+		"white",
+	},
+	{
+		"#cccccc",
+		"#555555",
+		"gray90", /* default foreground colour */
+		"black"   /* default background colour */
+	},
+	ColorIndex{258},
+	ColorIndex{259},
+	ColorIndex{256},
+	ColorIndex{257}
+};
 
-	/* 8 bright colors */
-	"gray50",
-	"red",
-	"green",
-	"yellow",
-	"#6c6cff",
-	"magenta",
-	"cyan",
-	"white",
-}};
+constexpr Theme THEME = DEFAULT_THEME;
 
 /// Default shape of cursor
 constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;

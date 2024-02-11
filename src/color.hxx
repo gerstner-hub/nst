@@ -136,8 +136,8 @@ public: // functions
 			m_twin{twin}
 	{}
 
-	const FontColor& defaultFront() const { return fontColor(config::DEFAULT_FG); }
-	const FontColor& defaultBack() const { return fontColor(config::DEFAULT_BG); }
+	const FontColor& defaultFront() const { return fontColor(config::THEME.fg); }
+	const FontColor& defaultBack() const { return fontColor(config::THEME.bg); }
 
 	const FontColor& fontColor(const ColorIndex index) const {
 		return m_colors.at(cosmos::to_integral(index));
@@ -178,7 +178,7 @@ protected: // data
 	/// Current background color for drawing.
 	FontColor m_back_color;
 	/// Colors corresponding to specific ColorIndex palette values.
-	std::array<FontColor, 256UL + config::EXTENDED_COLORS.size()> m_colors;
+	std::array<FontColor, 256UL + config::THEME.extended_colors.size()> m_colors;
 };
 
 } // end ns

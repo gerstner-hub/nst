@@ -532,7 +532,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		}
 		case 39:
-			term.setCursorFgColor(config::DEFAULT_FG);
+			term.setCursorFgColor(config::THEME.fg);
 			break;
 		case 48: {
 			if (auto colidx = parseColor(++it); colidx != ColorIndex::INVALID)
@@ -540,7 +540,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		}
 		case 49:
-			term.setCursorBgColor(config::DEFAULT_BG);
+			term.setCursorBgColor(config::THEME.bg);
 			break;
 		default:
 			if (!handleCursorColorSet(attr)) {

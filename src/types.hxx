@@ -555,4 +555,22 @@ inline ColorIndex to_true_color(const ColorIndex idx) {
 	return ColorIndex{raw};
 }
 
+struct Theme {
+	/// Basic terminal colors (16 first used in escape sequence)
+	std::array<std::string_view, 16> basic_colors;
+	/// Extended color palette beyond index 255.
+	std::array<std::string_view, 4>  extended_colors;
+
+	/* these are indices into COLORNAMES or EXTENDED_COLORS above */
+
+	/// Default foreground color.
+	ColorIndex fg;
+	/// Default background color.
+	ColorIndex bg;
+	/// Default cursor color.
+	ColorIndex cursor_color;
+	/// Default reverse color.
+	ColorIndex reverse_cursor_color;
+};
+
 } // end ns

@@ -211,27 +211,29 @@ const FontColor& ColorManager::applyCursorColor(const bool is_selected, Glyph &g
 	// Select the right color for the right mode.
 	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 
+	constexpr auto &THEME = config::THEME;
+
 	if (m_twin.inReverseMode()) {
 		glyph.setReverseColor();
-		glyph.bg = config::DEFAULT_FG;
+		glyph.bg = THEME.fg;
 		if (is_selected) {
-			glyph.fg = config::DEFAULT_CURSOR_REV_COLOR;
-			return fontColor(config::DEFAULT_CURSOR_COLOR);
+			glyph.fg = THEME.reverse_cursor_color;
+			return fontColor(THEME.cursor_color);
 		} else {
-			glyph.fg = config::DEFAULT_CURSOR_COLOR;
-			return fontColor(config::DEFAULT_CURSOR_REV_COLOR);
+			glyph.fg = THEME.cursor_color;
+			return fontColor(THEME.reverse_cursor_color);
 		}
 	} else {
 		if (is_selected) {
-			glyph.fg = config::DEFAULT_FG;
-			glyph.bg = config::DEFAULT_CURSOR_REV_COLOR;
+			glyph.fg = THEME.fg;
+			glyph.bg = THEME.reverse_cursor_color;
 		} else {
 			if (m_twin.getCursorStyle() == CursorStyle::REVERSE_BLOCK) {
 				glyph.setReverseColor();
-				return fontColor(config::DEFAULT_CURSOR_COLOR);
+				return fontColor(THEME.cursor_color);
 			} else {
-				glyph.fg = config::DEFAULT_BG;
-				glyph.bg = config::DEFAULT_CURSOR_COLOR;
+				glyph.fg = THEME.bg;
+				glyph.bg = THEME.cursor_color;
 			}
 		}
 
@@ -240,15 +242,18 @@ const FontColor& ColorManager::applyCursorColor(const bool is_selected, Glyph &g
 }
 
 cosmos::SysString get_color_name(const ColorIndex idx) {
-	if (auto raw = cosmos::to_integral(idx); raw < config::COLORNAMES.size()) {
+
+	constexpr auto &THEME = config::THEME;
+
+	if (auto raw = cosmos::to_integral(idx); raw < THEME.basic_colors.size()) {
 		// returning the raw pointer here is okay since we know that
 		// they're always null terminated.
-		return config::COLORNAMES[raw].data();
+		return THEME.basic_colors[raw].data();
 	} else if (idx >= ColorIndex::START_EXTENDED) {
 		const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
 		// check for extended colors
-		if (ext < config::EXTENDED_COLORS.size())
-			return config::EXTENDED_COLORS[ext].data();
+		if (ext < THEME.extended_colors.size())
+			return THEME.extended_colors[ext].data();
 	}
 
 	// unassigned

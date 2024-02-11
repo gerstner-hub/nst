@@ -77,7 +77,7 @@ struct TermWindow {
 	}
 
 	auto activeForegroundColor() const {
-		return m_mode[WinMode::REVERSE] ? config::DEFAULT_FG : config::DEFAULT_BG;
+		return m_mode[WinMode::REVERSE] ? config::THEME.fg : config::THEME.bg;
 	}
 
 	auto getCursorStyle() const { return m_cursor_style; }

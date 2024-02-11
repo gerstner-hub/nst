@@ -23,8 +23,8 @@ static_assert(std::is_trivially_copyable<nst::Glyph>::value, "Glyph type needs t
 
 
 CursorState::CursorState() {
-	m_attrs.fg = config::DEFAULT_FG;
-	m_attrs.bg = config::DEFAULT_BG;
+	m_attrs.fg = config::THEME.fg;
+	m_attrs.bg = config::THEME.bg;
 	m_attrs.rune = ' ';
 }
 
@@ -39,8 +39,8 @@ void CursorState::resetAttrs() {
 		Attr::INVISIBLE,
 		Attr::STRUCK
 	});
-	m_attrs.fg = config::DEFAULT_FG;
-	m_attrs.bg = config::DEFAULT_BG;
+	m_attrs.fg = config::THEME.fg;
+	m_attrs.bg = config::THEME.bg;
 	m_attrs.rune = ' ';
 }
 

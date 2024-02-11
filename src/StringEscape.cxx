@@ -181,11 +181,11 @@ bool StringEscape::processOSC() {
 			}
 			break;
 		case 10: // change text FG color
-			return handle_color("foreground", par, config::DEFAULT_FG);
+			return handle_color("foreground", par, config::THEME.fg);
 		case 11: // change text BG color
-			return handle_color("background", par, config::DEFAULT_BG);
+			return handle_color("background", par, config::THEME.bg);
 		case 12: // change text cursor color
-			return handle_color("cursor", par, config::DEFAULT_CURSOR_COLOR);
+			return handle_color("cursor", par, config::THEME.cursor_color);
 		case SET_COLOR_INDEX: // change color number to RGB value
 			if (numargs < 3)
 				return false;

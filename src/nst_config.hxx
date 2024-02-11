@@ -14,11 +14,10 @@
 // nst
 #include "fwd.hxx"
 #include "Selection.hxx"
+#include "themes.hxx"
 #include "types.hxx"
 
-namespace nst {
-
-namespace config {
+namespace nst::config {
 
 /// Default character font to use.
 /**
@@ -143,43 +142,8 @@ constexpr int CURSOR_THICKNESS = 2;
  **/
 constexpr xpp::BellVolume BELL_VOLUME{0};
 
-inline constexpr Theme DEFAULT_THEME{
-	{
-		/* 8 normal colors */
-		"black",
-		"red3",
-		"green3",
-		"yellow3",
-		/* instead of the original "blue2" use this - it's no that blue any
-		 * more but is at least readable when appearing on black background */
-		"#4444ff",
-		"magenta3",
-		"cyan3",
-		"gray90",
-
-		/* 8 bright colors */
-		"gray50",
-		"red",
-		"green",
-		"yellow",
-		"#6c6cff",
-		"magenta",
-		"cyan",
-		"white",
-	},
-	{
-		"#cccccc",
-		"#555555",
-		"gray90", /* default foreground colour */
-		"black"   /* default background colour */
-	},
-	ColorIndex{258},
-	ColorIndex{259},
-	ColorIndex{256},
-	ColorIndex{257}
-};
-
-constexpr Theme THEME = DEFAULT_THEME;
+/// Default colors to use, see themes.hxx for available themes.
+constexpr auto THEME = DEFAULT_THEME;
 
 /// Default shape of cursor
 constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;
@@ -561,4 +525,4 @@ std::vector<MouseShortcut> get_mouse_shortcuts(Nst &nst);
 // see implementation file
 std::vector<KbdShortcut> get_kbd_shortcuts(Nst &nst);
 
-}} // end ns nst::config
+} // end ns

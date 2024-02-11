@@ -1,6 +1,7 @@
 #pragma once
 
 // C++
+#include <array>
 #include <algorithm>
 #include <climits>
 #include <functional>
@@ -555,11 +556,12 @@ inline ColorIndex to_true_color(const ColorIndex idx) {
 	return ColorIndex{raw};
 }
 
+template <size_t NUM_EXT_COLORS>
 struct Theme {
 	/// Basic terminal colors (16 first used in escape sequence)
 	std::array<std::string_view, 16> basic_colors;
 	/// Extended color palette beyond index 255.
-	std::array<std::string_view, 4>  extended_colors;
+	std::array<std::string_view, NUM_EXT_COLORS> extended_colors;
 
 	/* these are indices into COLORNAMES or EXTENDED_COLORS above */
 

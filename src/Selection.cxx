@@ -175,6 +175,7 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 	else if (m_first_cont_extend) {
 		// avoid further extending on the first double-click already
 		m_first_cont_extend = false;
+		m_state = State::IDLE;
 		return;
 	}
 
@@ -201,6 +202,7 @@ void Selection::tryContinueWordSepSnap() {
 	else if (m_first_cont_extend) {
 		// avoid further extending on the first double-click already
 		m_first_cont_extend = false;
+		m_state = State::IDLE;
 		return;
 	}
 

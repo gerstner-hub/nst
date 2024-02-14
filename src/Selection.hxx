@@ -130,7 +130,7 @@ protected: // functions
 	bool inReadyState()  const { return m_state == State::READY; }
 
 	/// Updates the current selection after a change of m_orig.
-	void update(const Direction dir = Direction::FORWARD);
+	void update();
 
 	/// normalize the current selection range coordinates
 	/**
@@ -142,9 +142,9 @@ protected: // functions
 	 **/
 	void normalizeRange();
 
-	void extendSnap(const std::optional<Direction> dir = {});
+	void extendSnap();
 
-	bool tryExtendWordSep(const Direction dir);
+	bool tryExtendWordSep();
 
 	/// Attempt to extend the selection in the given direction corresponding to the current snap setting.
 	/**
@@ -176,13 +176,14 @@ protected: // data
 	Term &m_term;
 	bool m_alt_screen = false; /// alt screen setting seen when start() was invoked.
 	Snap m_snap = Snap::NONE;
+	Direction m_snap_dir = Direction::FORWARD;
 	Type m_type = Type::REGULAR;
 	State m_state = State::IDLE;
 	bool m_force_word_extend = false;
 	bool m_first_cont_extend = true;
 
 	Range m_range; /// selection range with normalized coordinates
-	Range m_orig; /// selection range with original cooridinates
+	mutable Range m_orig; /// selection range with original cooridinates
 
 	Range m_saved_range; /// selection range with normalized coordinates
 	Range m_saved_orig; /// selection range with original cooridinates

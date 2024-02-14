@@ -27,6 +27,7 @@ void Selection::clear() {
 
 	m_state = State::IDLE;
 	m_snap = Snap::NONE;
+	m_snap_dir = Direction::FORWARD;
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_range});
 	m_first_cont_extend = true;
@@ -53,7 +54,9 @@ void Selection::start(const CharPos pos, const Snap snap, const Direction dir) {
 	m_snap = snap;
 	m_orig = Range{pos, pos};
 
-	update(dir);
+	m_snap_dir = dir;
+
+	update();
 
 	if (m_snap != Snap::NONE)
 		m_state = State::READY;
@@ -61,9 +64,9 @@ void Selection::start(const CharPos pos, const Snap snap, const Direction dir) {
 	m_term.setDirty(LineSpan{m_range});
 }
 
-void Selection::update(const Direction dir) {
+void Selection::update() {
 	normalizeRange();
-	extendSnap(dir);
+	extendSnap();
 	extendLineBreaks();
 }
 
@@ -106,11 +109,11 @@ void Selection::extendLineBreaks() {
 		m_range.end.x = m_term.numCols() - 1;
 }
 
-void Selection::extendSnap(const std::optional<Direction> dir) {
+void Selection::extendSnap() {
 	if (m_snap == Snap::WORD_SEP) {
-		if (tryExtendWordSep(dir ? *dir : Direction::FORWARD)) {
+		if (tryExtendWordSep()) {
 			return;
-		} else if (!dir) {
+		} else if (m_snap_dir != Direction::BACKWARD) {
 			// otherwise fall back to regular word extension
 			m_snap = Snap::WORD;
 		} else {
@@ -127,23 +130,23 @@ void Selection::extendSnap(const std::optional<Direction> dir) {
 	tryURISnap();
 }
 
-bool Selection::tryExtendWordSep(const Direction dir) {
+bool Selection::tryExtendWordSep() {
 	// only do something if the clicked-on position is itself a separator.
 	const auto &screen = m_term.screen();
 	const auto &clicked = screen[m_range.begin];
 	if (clicked.isDelimiter()) {
-		if (dir == Direction::FORWARD) {
+		if (m_snap_dir == Direction::FORWARD) {
 			auto next = screen.nextInLine(m_range.begin);
 			if (next) {
 				m_range.begin = m_range.end = *next;
-				extendWordSnap(m_range.end, dir, clicked.rune);
+				extendWordSnap(m_range.end, m_snap_dir, clicked.rune);
 				return true;
 			}
 		} else {
 			auto prev = screen.prevInLine(m_range.begin);
 			if (prev) {
 				m_range.begin = m_range.end = *prev;
-				extendWordSnap(m_range.begin, dir, clicked.rune);
+				extendWordSnap(m_range.begin, m_snap_dir, clicked.rune);
 				return true;
 			}
 		}
@@ -208,20 +211,29 @@ void Selection::tryContinueWordSepSnap() {
 
 	const auto old_range = m_range;
 	const auto &screen = m_term.screen();
-	const auto sep_pos = screen.nextInLine(m_range.end);
 
-	if (!sep_pos)
-		return;
+	if (m_snap_dir == Direction::FORWARD) {
+		if (const auto sep_pos = screen.nextInLine(m_range.end); !sep_pos)
+			return;
+		else if (const auto next = screen.nextInLine(*sep_pos); !next)
+			return;
+		else
+			m_range.end = *next;
 
-	const auto next = screen.nextInLine(*sep_pos);
+		const auto delim_pos = m_range.begin.prevCol();
+		// take the start separator from begin.prevCol() so we make sure we really use the correct one
+		extendWordSnap(m_range.end, m_snap_dir, screen[delim_pos].rune);
+	} else {
+		if (const auto sep_pos = screen.prevInLine(m_range.begin); !sep_pos)
+			return;
+		else if (const auto prev = screen.prevInLine(*sep_pos); !prev)
+			return;
+		else
+			m_range.begin = *prev;
 
-	if (!next)
-		return;
-
-	m_range.end = *next;
-	// the start separator from begin.prevCol() so we make sure we really
-	// use the correct one
-	extendWordSnap(m_range.end, Direction::FORWARD, screen[m_range.begin.prevCol()].rune);
+		const auto delim_pos = m_range.end.nextCol();
+		extendWordSnap(m_range.begin, m_snap_dir, screen[delim_pos].rune);
+	}
 
 	if (old_range != m_range) {
 		m_term.setDirty(LineSpan{m_range});
@@ -286,6 +298,8 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::opt
 		pos = next;
 		prevgp = &gp;
 	}
+
+	m_orig = m_range;
 }
 
 void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
@@ -316,6 +330,8 @@ void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 		 }
 		 break;
 	};
+
+	m_orig = m_range;
 }
 
 void Selection::extend(const CharPos pos, const Type type, const bool done) {
@@ -425,7 +441,7 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 		// if our selection is completely within the scroll area
 		if (scroll_area.inRange(m_orig.begin) && scroll_area.inRange(m_orig.end)) {
 			// adjust selection to new coordinates
-			update();
+			normalizeRange();
 		} else {
 			clear();
 		}

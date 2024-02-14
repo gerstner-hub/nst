@@ -448,11 +448,8 @@ StopScrolling XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 		handleMouseReport(ev);
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
-	} else if (button == xpp::Button::BUTTON1) {
+	} else if (button == xpp::Button::BUTTON1 || button == xpp::Button::BUTTON3) {
 		handleMouseSelection(ev);
-	} else if (button == xpp::Button::BUTTON3) {
-		// make sure we apply a backward search selection as well.
-		applySelection(ev.time());
 	}
 
 	return StopScrolling{false};

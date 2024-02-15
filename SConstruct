@@ -16,12 +16,8 @@ except Exception:
     env = initSCons("nst", rtti=False, deflibtype="static")
     env['install_dev_files'] = False
 
-cosmos_env = env.Clone()
-cosmos_env['buildroot'] = ""
-SConscript('libcosmos/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libcosmos/", exports={"env": cosmos_env})
-xpp_env = env.Clone()
-xpp_env['buildroot'] = ""
-SConscript('libxpp/SConstruct', duplicate=0, variant_dir=env['buildroot'] + "libxpp/", exports={"env": xpp_env})
+env.AddLocalLibrary("libcosmos")
+env.AddLocalLibrary("libxpp")
 
 SConscript(env['buildroot'] + 'src/SConstruct')
 SConscript(env['buildroot'] + 'doc/SConstruct')

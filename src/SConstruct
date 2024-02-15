@@ -1,15 +1,20 @@
 Import('env')
 
+if env['use_system_pkgs']:
+    base_pkgs = ['tclap']
+else:
+    env.Append(CPPPATH=['#/tclap/include'])
+    base_pkgs = []
 
-env.Append(CPPPATH=['#/tclap/include'])
 env.Append(CCFLAGS=['-DNST_VERSION=\\"1.0\\"'])
 
 nst_env = env.Clone()
 sources = nst_env.GatherSources(suffixes=[".cxx"], recursive=False)
 
-nst_env.ConfigureForLib("libxpp", sources)
-nst_env.ConfigureForLib("libcosmos", sources)
-nst_env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11", "tclap"])
+# NOTE: libxpp must comes first here for static linking order
+nst_env.ConfigureForLibOrPackage("libxpp", sources)
+nst_env.ConfigureForLibOrPackage("libcosmos", sources)
+nst_env.ConfigureForPackage(["xft", "freetype2", "fontconfig", "x11"] + base_pkgs)
 
 nst = nst_env.Program("nst", sources)
 
@@ -19,7 +24,7 @@ env.Alias("nst", nst)
 msg_env = env.Clone()
 sources = ["msg/main.cxx"]
 msg_env.ConfigureForLib("libcosmos", sources)
-msg_env.ConfigureForPackage(["tclap"])
+msg_env.ConfigureForPackage(base_pkgs)
 msg_env.Append(CPPPATH=['#/src'])
 nst_msg = msg_env.Program("nst-msg", sources)
 

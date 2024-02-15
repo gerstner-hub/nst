@@ -6,19 +6,19 @@ doc_env = env.Clone()
 
 if env['build_docs']:
     doxy_cmd = doc_env.Command(
-        "doxygen/html/index.html",
-        "doxygen.conf",
-        action="doxygen -q $SOURCE")
+        'doxygen/html/index.html',
+        'doxygen.conf',
+        action='doxygen -q $SOURCE')
     env.AlwaysBuild(doxy_cmd)
-    env.Alias("doxygen", doxy_cmd)
+    env.Alias('doxygen', doxy_cmd)
 
 # man page
 
 # this is generated in the source tree!
 man_cmd = doc_env.Command(
-    "#doc/nst.1",
-    "nst.1.adoc",
-    action="a2x -f manpage -D ./doc $SOURCE"
+    '#doc/nst.1',
+    'nst.1.adoc',
+    action='a2x -f manpage -D ./doc $SOURCE'
 )
 
-env.Alias("man", man_cmd)
+env.Alias('man', man_cmd)

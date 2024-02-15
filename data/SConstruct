@@ -7,15 +7,15 @@ data_env = env.Clone()
 terminfo_dir = env['buildroot'] + '/data/terminfo'
 
 tic_cmd = data_env.Command(
-    "terminfo/s/st",
-    "nst.tinfo",
+    'terminfo/s/st',
+    'nst.tinfo',
     action=[
         Mkdir(terminfo_dir),
-        f"tic -o{terminfo_dir} -sx data/nst.tinfo"
+        f'tic -o{terminfo_dir} -sx data/nst.tinfo'
     ]
 )
 
-env.Alias("install", tic_cmd)
+env.Alias('install', tic_cmd)
 
 # terminfo user based install
 
@@ -23,9 +23,9 @@ Default(tic_cmd)
 
 tic_user_cmd = data_env.Command(
     None,
-    "nst.tinfo",
-    action="tic -sx data/nst.tinfo"
+    'nst.tinfo',
+    action='tic -sx data/nst.tinfo'
 )
 
-env.Alias("terminfo_user", tic_user_cmd)
+env.Alias('terminfo_user', tic_user_cmd)
 env.AlwaysBuild(tic_user_cmd)

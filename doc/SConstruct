@@ -18,7 +18,7 @@ if env['build_docs']:
 man_cmd = doc_env.Command(
     "#doc/nst.1",
     "nst.1.adoc",
-    action=f"a2x -f manpage -D ./doc $SOURCE"
+    action="a2x -f manpage -D ./doc $SOURCE"
 )
 
 env.Alias("man", man_cmd)

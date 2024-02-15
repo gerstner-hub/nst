@@ -11,6 +11,7 @@ import signal
 # it uses unbuffered input, single character commands can be used to issue
 # commands. See the COMMANDS dict.
 
+
 class TerminalSettings:
 
     def _prefix(self, on_off):
@@ -32,7 +33,9 @@ class TerminalSettings:
         rows, cols = self._call("size").decode().split()
         return int(rows), int(cols)
 
+
 stty = TerminalSettings()
+
 
 class TestScreen:
 
@@ -76,7 +79,7 @@ class TestScreen:
 
     def setupScrollArea(self):
         top = self.top
-        bottom = self.rows - self.bottom 
+        bottom = self.rows - self.bottom
         self._sendCSI(f"{top};{bottom}r")
 
     def moveTo(self, col, row):
@@ -213,12 +216,11 @@ class TestScreen:
                 parse_long_command = True
             elif ch.isnumeric():
                 self.amount += ch
-            elif ord(ch) == 0o33: # ANSI escape character
+            elif ord(ch) == 0o33:  # ANSI escape character
                 cmd = self.checkEscapeSeq()
                 cb = COMMANDS.get(cmd, None)
                 if cb:
                     self.runCB(cb)
-
 
     def runCB(self, cb):
         if self.amount:
@@ -240,6 +242,7 @@ class TestScreen:
             }
 
             return ARROWS.get(nxt, None)
+
 
 screen = TestScreen()
 screen.run()

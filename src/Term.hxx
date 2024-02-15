@@ -126,7 +126,7 @@ public: // functions
 
 	/// Select one of the four configurable character sets by index.
 	void setCharset(const size_t charset) {
-		m_active_charset = std::clamp(charset, 0UL, m_charsets.size() - 1);
+		m_active_charset = std::clamp(charset, size_t{0}, m_charsets.size() - 1);
 	}
 
 	/// Sets the given charset index to the given charset selection.

@@ -4,12 +4,13 @@ doc_env = env.Clone()
 
 # doxygen
 
-doxy_cmd = doc_env.Command(
-    "doxygen/html/index.html",
-    "doxygen.conf",
-    action="doxygen -q $SOURCE")
-env.AlwaysBuild(doxy_cmd)
-env.Alias("doxygen", doxy_cmd)
+if env['build_docs']:
+    doxy_cmd = doc_env.Command(
+        "doxygen/html/index.html",
+        "doxygen.conf",
+        action="doxygen -q $SOURCE")
+    env.AlwaysBuild(doxy_cmd)
+    env.Alias("doxygen", doxy_cmd)
 
 # man page
 

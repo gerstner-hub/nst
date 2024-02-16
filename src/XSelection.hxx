@@ -62,10 +62,10 @@ protected: // data
 
 	Nst &m_nst;
 	WindowSystem &m_wsys;
-	xpp::AtomID m_target_fmt; /// the X11 format used for the selection text
+	xpp::AtomID m_target_fmt; ///< the X11 format used for the selection text
 	std::map<xpp::Button, ClickState> m_click_state;
-	std::string m_clipboard; /// current clipboard contents
-	std::string m_primary; /// current primary selection contents
+	std::string m_clipboard; ///< current clipboard contents
+	std::string m_primary; ///< current primary selection contents
 };
 
 } // end ns

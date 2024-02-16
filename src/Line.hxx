@@ -141,7 +141,7 @@ protected: // data
 
 	mutable bool m_dirty = false;
 	const bool m_keep_data_on_shrink;
-	size_t m_cols = 0; /// number of colums actually used in m_glyphs
+	size_t m_cols = 0; ///< number of colums actually used in m_glyphs
 	GlyphVector m_glyphs;
 };
 

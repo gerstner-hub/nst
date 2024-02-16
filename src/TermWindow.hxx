@@ -107,10 +107,10 @@ struct TermWindow {
 protected: // data
 
 	CursorStyle m_cursor_style = CursorStyle::STEADY_BLOCK;
-	WinModeMask m_mode;  /// window state/mode flags
-	Extent m_tty_extent; /// window minus border size
-	Extent m_chr_extent; /// single character dimensions
-	Extent m_win_extent; /// window width and height
+	WinModeMask m_mode;  ///< window state/mode flags
+	Extent m_tty_extent; ///< window minus border size
+	Extent m_chr_extent; ///< single character dimensions
+	Extent m_win_extent; ///< window width and height
 };
 
 } // end ns

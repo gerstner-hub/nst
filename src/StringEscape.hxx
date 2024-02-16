@@ -79,8 +79,8 @@ protected: // functions
 
 protected: // data
 
-	std::string m_str; /// the escape sequence collected so far.
-	std::vector<std::string_view> m_args; /// views into m_str that make up the arguments.
+	std::string m_str; ///< the escape sequence collected so far.
+	std::vector<std::string_view> m_args; ///< views into m_str that make up the arguments.
 	Type m_esc_type = Type::NONE; // the active escape type being parsed.
 	Nst &m_nst;
 };

@@ -24,19 +24,19 @@ public: // types
 		REVERSE    = 1 << 5,
 		INVISIBLE  = 1 << 6,
 		STRUCK     = 1 << 7,
-		WRAP       = 1 << 8, /// an automatic line wrap was inserted at this position (can only occur at the end of a line)
-		WIDE       = 1 << 9, /// whether the Glyph spans multiple columns
-		WDUMMY     = 1 << 10 /// for wide UTF8 characters this is a dummy placeholder position (a following, blocked column)
+		WRAP       = 1 << 8, ///< an automatic line wrap was inserted at this position (can only occur at the end of a line)
+		WIDE       = 1 << 9, ///< whether the Glyph spans multiple columns
+		WDUMMY     = 1 << 10 ///< for wide UTF8 characters this is a dummy placeholder position (a following, blocked column)
 	};
 
 	using AttrBitMask = cosmos::BitMask<Attr>;
 
 public: // data
 
-	Rune rune = 0;    /// character code
-	AttrBitMask mode; /// attribute flags
-	ColorIndex fg = ColorIndex::INVALID; /// foreground color
-	ColorIndex bg = ColorIndex::INVALID; /// background color
+	Rune rune = 0;    ///< character code
+	AttrBitMask mode; ///< attribute flags
+	ColorIndex fg = ColorIndex::INVALID; ///< foreground color
+	ColorIndex bg = ColorIndex::INVALID; ///< background color
 
 public: // functions
 

@@ -217,7 +217,7 @@ protected: // data
 	Font m_bold_font;
 	Font m_italic_font;
 	Font m_italic_bold_font;
-	std::optional<double> m_used_font_size; /// may differ from default size due to zooming
+	std::optional<double> m_used_font_size; ///< may differ from default size due to zooming
 	std::optional<double> m_default_font_size;
 	std::vector<FontCache> m_font_cache;
 };

@@ -397,23 +397,23 @@ struct MouseShortcut {
 
 /// various X11 and drawing related window settings
 enum class WinMode {
-	VISIBLE     = 1 << 0,  /// whether the window is currently visible
-	FOCUSED     = 1 << 1,  /// whether the window is currently focused
-	APPKEYPAD   = 1 << 2,  /// keypad keys generate special events instead of numbers
-	MOUSEBTN    = 1 << 3,  /// report mouse button press on TTY level
-	MOUSEMOTION = 1 << 4,  /// report mouse motion events as CSI escape sequences on TTY level (if button pressed)
-	REVERSE     = 1 << 5,  /// reverse front and background colors
-	KBDLOCK     = 1 << 6,  /// the keyboard is locked (no input processed)
-	HIDE_CURSOR = 1 << 7,  /// hide the cursor when rendering
-	APPCURSOR   = 1 << 8,  /// cursor keys generate special events instead of ANSI escape codes
-	MOUSE_SGR   = 1 << 9,  /// extended SGR (select graphic randition) mouse reporting
-	EIGHT_BIT   = 1 << 10, /// encode meta (ALT) key by setting eighth bit of input characters
-	BLINK       = 1 << 11, /// whether blinking characters are currently shown or not
-	FOCUS       = 1 << 12, /// whether X11 focus changes should be reported on TTY level
-	MOUSEX10    = 1 << 13, /// X10 mouse backwards compatibility
-	MOUSEMANY   = 1 << 14, /// report mouse motion events as CSI escape sequences independently of button press
-	BRKT_PASTE  = 1 << 15, /// "bracketed" paste mode, an Xterm feature where pasted X selection is surrounded by special escape codes
-	NUMLOCK     = 1 << 16, /// Numlock enable status, used for key binding interpretation
+	VISIBLE     = 1 << 0,  ///< whether the window is currently visible
+	FOCUSED     = 1 << 1,  ///< whether the window is currently focused
+	APPKEYPAD   = 1 << 2,  ///< keypad keys generate special events instead of numbers
+	MOUSEBTN    = 1 << 3,  ///< report mouse button press on TTY level
+	MOUSEMOTION = 1 << 4,  ///< report mouse motion events as CSI escape sequences on TTY level (if button pressed)
+	REVERSE     = 1 << 5,  ///< reverse front and background colors
+	KBDLOCK     = 1 << 6,  ///< the keyboard is locked (no input processed)
+	HIDE_CURSOR = 1 << 7,  ///< hide the cursor when rendering
+	APPCURSOR   = 1 << 8,  ///< cursor keys generate special events instead of ANSI escape codes
+	MOUSE_SGR   = 1 << 9,  ///< extended SGR (select graphic randition) mouse reporting
+	EIGHT_BIT   = 1 << 10, ///< encode meta (ALT) key by setting eighth bit of input characters
+	BLINK       = 1 << 11, ///< whether blinking characters are currently shown or not
+	FOCUS       = 1 << 12, ///< whether X11 focus changes should be reported on TTY level
+	MOUSEX10    = 1 << 13, ///< X10 mouse backwards compatibility
+	MOUSEMANY   = 1 << 14, ///< report mouse motion events as CSI escape sequences independently of button press
+	BRKT_PASTE  = 1 << 15, ///< "bracketed" paste mode, an Xterm feature where pasted X selection is surrounded by special escape codes
+	NUMLOCK     = 1 << 16, ///< Numlock enable status, used for key binding interpretation
 	MOUSE       = MOUSEBTN|MOUSEMOTION|MOUSEX10|MOUSEMANY
 };
 

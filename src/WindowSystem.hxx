@@ -199,8 +199,8 @@ protected: // data
 
 	nst::Nst &m_nst;
 	const Cmdline &m_cmdline;
-	xpp::XWindow m_window; /// the main (and only) terminal window
-	Input m_input; /// X11 input handling logic
+	xpp::XWindow m_window; ///< the main (and only) terminal window
+	Input m_input; ///< X11 input handling logic
 	TermWindow m_twin;
 	FontManager m_font_manager;
 	FontDrawContext m_font_draw_ctx;

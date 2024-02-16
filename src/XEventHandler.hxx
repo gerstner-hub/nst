@@ -105,10 +105,10 @@ protected: // data
 	const TermWindow &m_twin;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
 	const std::vector<KbdShortcut> m_kbd_shortcuts;
-	PressedButtons m_buttons; /// Bit field of pressed buttons.
-	CharPos m_old_mouse_pos; /// The last seen mouse position in terminal coordinates
-	xpp::Event m_event; /// The currently handled event.
-	std::string m_key_buf; /// reused input sequence string for XInput
+	PressedButtons m_buttons; ///< Bit field of pressed buttons.
+	CharPos m_old_mouse_pos; ///< The last seen mouse position in terminal coordinates
+	xpp::Event m_event; ///< The currently handled event.
+	std::string m_key_buf; ///< reused input sequence string for XInput
 };
 
 } // end ns

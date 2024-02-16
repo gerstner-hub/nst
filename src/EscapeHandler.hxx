@@ -29,13 +29,13 @@ public: // types
 
 	/// Escape sequence parsing status to determine what to do with sequential input.
 	enum class Escape {
-		START      = 1 << 0, /// \033 escape sequence started
-		CSI        = 1 << 1, /// CSI escape sequence is about to be parsed (CSIEscape)
-		STR        = 1 << 2, /// DCS, OSC, PM, APC (StringEscape)
-		ALTCHARSET = 1 << 3, /// requests setting an alternative character set
-		STR_END    = 1 << 4, /// a StringEscape sequence is complete, waiting for ST or BEL
-		TEST       = 1 << 5, /// Enter in test mode
-		UTF8       = 1 << 6, /// UTF8 (character set) change requested
+		START      = 1 << 0, ///< \033 escape sequence started
+		CSI        = 1 << 1, ///< CSI escape sequence is about to be parsed (CSIEscape)
+		STR        = 1 << 2, ///< DCS, OSC, PM, APC (StringEscape)
+		ALTCHARSET = 1 << 3, ///< requests setting an alternative character set
+		STR_END    = 1 << 4, ///< a StringEscape sequence is complete, waiting for ST or BEL
+		TEST       = 1 << 5, ///< Enter in test mode
+		UTF8       = 1 << 6, ///< UTF8 (character set) change requested
 	};
 
 	using State = cosmos::BitMask<Escape>;
@@ -133,10 +133,10 @@ protected: // functions
 protected: // data
 
 	Nst &m_nst;
-	State m_state;             /// Escape state flags
-	StringEscape m_str_escape; /// keeps track of string escape input sequences
-	CSIEscape m_csi_escape;    /// keeps track of CSI escape input sequences
-	size_t m_esc_charset = 0;  /// selected charset for ALTCHARSET Escape
+	State m_state;             ///< Escape state flags
+	StringEscape m_str_escape; ///< keeps track of string escape input sequences
+	CSIEscape m_csi_escape;    ///< keeps track of CSI escape input sequences
+	size_t m_esc_charset = 0;  ///< selected charset for ALTCHARSET Escape
 };
 
 } // end ns

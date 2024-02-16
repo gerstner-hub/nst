@@ -86,7 +86,7 @@ protected: // data
 	Rune m_rune = 0;
 	const bool m_is_control = false;
 	int m_width = 1;
-	size_t m_enc_len = 1; /// valid bytes in m_encoded
+	size_t m_enc_len = 1; ///< valid bytes in m_encoded
 	char m_encoded[utf8::UTF_SIZE];
 };
 

@@ -31,20 +31,20 @@ public: // types
 
 	/// Gobal terminal mode settings.
 	enum class Mode {
-		WRAP        = 1 << 0, /// automatically wrap to next line if cursor reaches end of line
-		INSERT      = 1 << 1, /// if set, on input, shift existing characters in a line to the right
-		ALTSCREEN   = 1 << 2, /// if set then the alternative screen is shown
-		CRLF        = 1 << 3, /// implicit carriage return on newline
-		TECHO       = 1 << 4, /// whether input data should be echoed on the terminal screen (ECHO identifier conflicts with X headers)
-		PRINT       = 1 << 5, /// duplicate all input into I/O file
-		UTF8        = 1 << 6, /// UTF8 input support
+		WRAP        = 1 << 0, ///< automatically wrap to next line if cursor reaches end of line
+		INSERT      = 1 << 1, ///< if set, on input, shift existing characters in a line to the right
+		ALTSCREEN   = 1 << 2, ///< if set then the alternative screen is shown
+		CRLF        = 1 << 3, ///< implicit carriage return on newline
+		TECHO       = 1 << 4, ///< whether input data should be echoed on the terminal screen (ECHO identifier conflicts with X headers)
+		PRINT       = 1 << 5, ///< duplicate all input into I/O file
+		UTF8        = 1 << 6, ///< UTF8 input support
 	};
 
 	using ModeBitMask = cosmos::BitMask<Mode>;
 
 	/// Different terminal character sets (we don't support them all).
 	enum class Charset {
-		GRAPHIC0, /// DEC Special Graphics 7-bit character set
+		GRAPHIC0, ///< DEC Special Graphics 7-bit character set
 		GRAPHIC1,
 		UK,
 		USA, // US-ASCII
@@ -464,23 +464,23 @@ protected: // data
 	TTY &m_tty;
 	WindowSystem &m_wsys;
 
-	TermSize m_size;    /// current terminal dimensions
-	ModeBitMask m_mode; /// terminal mode flags
+	TermSize m_size;    ///< current terminal dimensions
+	ModeBitMask m_mode; ///< terminal mode flags
 
-	mutable CharPos m_last_cursor_pos; /// cursor position last drawn on screen
-	LineSpan m_scroll_area;    /// region of lines that will be affected by scroll operations
-	Rune m_last_char = 0;      /// last printed char outside of control sequence, 0 if control or otherwise unassigned
+	mutable CharPos m_last_cursor_pos; ///< cursor position last drawn on screen
+	LineSpan m_scroll_area;    ///< region of lines that will be affected by scroll operations
+	Rune m_last_char = 0;      ///< last printed char outside of control sequence, 0 if control or otherwise unassigned
 
-	std::array<Charset, 4> m_charsets; /// available configurable translation charsets
-	size_t m_active_charset = 0;       /// current charset used from m_charsets
+	std::array<Charset, 4> m_charsets; ///< available configurable translation charsets
+	size_t m_active_charset = 0;       ///< current charset used from m_charsets
 
-	CursorState m_cursor;             /// current cursor position and attributes
+	CursorState m_cursor;             ///< current cursor position and attributes
 
-	bool m_allow_altscreen = false;  /// whether altscreen support is enabled
-	EscapeHandler m_esc_handler; /// processes any kinds of terminal escape sequences
-	Screen m_screen;     /// all the glyphs that make up the current terminal screen
-	Screen m_saved_screen; /// all the glyphs that make up the saved terminal screen
-	std::vector<bool> m_tabs;                /// marks horizontal tab positions for all lines
+	bool m_allow_altscreen = false;  ///< whether altscreen support is enabled
+	EscapeHandler m_esc_handler; ///< processes any kinds of terminal escape sequences
+	Screen m_screen;     ///< all the glyphs that make up the current terminal screen
+	Screen m_saved_screen; ///< all the glyphs that make up the saved terminal screen
+	std::vector<bool> m_tabs;                ///< marks horizontal tab positions for all lines
 };
 
 } // end ns

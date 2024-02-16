@@ -95,8 +95,8 @@ public: // types
 		}
 
 	protected: // data
-		LV &m_lines; /// The vector representing the ring buffer
-		IT m_pos; /// The current iterator position
+		LV &m_lines; ///< The vector representing the ring buffer
+		IT m_pos; ///< The current iterator position
 	};
 
 	using iterator = IteratorT<LineVector, LineVector::iterator>;
@@ -423,14 +423,14 @@ protected: // functions
 
 protected: // data
 
-	LineVector m_lines; /// the actual ring buffer
-	size_t m_rows = 0; /// number of rows the visible screen has.
-	size_t m_cur_pos = 0; /// where the current screen content starts in the ring buffer.
-	size_t m_scroll_offset = 0; /// how many lines we are currently scrolled back.
-	size_t m_saved_scroll_index = SIZE_MAX; /// the index in m_lines that was previously scrolled to (top position)
-	size_t m_history_len = 0; /// how big the ring buffer for history should be (0 == no history)
-	bool m_is_alt_screen = false; /// Whether this represents the alternative screen.
-	CursorState m_cached_cursor; /// save/load cursor state for this screen.
+	LineVector m_lines; ///< the actual ring buffer
+	size_t m_rows = 0; ///< number of rows the visible screen has.
+	size_t m_cur_pos = 0; ///< where the current screen content starts in the ring buffer.
+	size_t m_scroll_offset = 0; ///< how many lines we are currently scrolled back.
+	size_t m_saved_scroll_index = SIZE_MAX; ///< the index in m_lines that was previously scrolled to (top position)
+	size_t m_history_len = 0; ///< how big the ring buffer for history should be (0 == no history)
+	bool m_is_alt_screen = false; ///< Whether this represents the alternative screen.
+	CursorState m_cached_cursor; ///< save/load cursor state for this screen.
 };
 
 } // end ns

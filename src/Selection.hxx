@@ -15,16 +15,16 @@ class Selection {
 public: // types
 
 	enum class Type {
-		REGULAR, /// select a range of continuous lines from start to end coordinate
-		RECTANGULAR /// select a rectangular area from start to end coordinate
+		REGULAR, ///< select a range of continuous lines from start to end coordinate
+		RECTANGULAR ///< select a rectangular area from start to end coordinate
 	};
 
 	/// Automatic selection of surrounding text.
 	enum class Snap {
-		NONE, /// don't automatically select additional text
-		WORD, /// try to select a complete word at the given location (based on config::WORDDELIMITERS)
-		WORD_SEP, /// if the clicked-on character is itself a delimiter, look for the next same delimiter.
-		LINE  /// try to select a complete line at the given location
+		NONE, ///< don't automatically select additional text
+		WORD, ///< try to select a complete word at the given location (based on config::WORDDELIMITERS)
+		WORD_SEP, ///< if the clicked-on character is itself a delimiter, look for the next same delimiter.
+		LINE  ///< try to select a complete line at the given location
 	};
 
 	/// for the snap algorithm this determines the direction in which to check.
@@ -36,9 +36,9 @@ public: // types
 protected: // types
 
 	enum class State {
-		IDLE, /// no selection process active
-		EMPTY, /// selection was started but nothing is selected yet
-		READY /// selection data is available
+		IDLE, ///< no selection process active
+		EMPTY, ///< selection was started but nothing is selected yet
+		READY ///< selection data is available
 	};
 
 public: // functions
@@ -174,7 +174,7 @@ protected: // data
 
 	Nst &m_nst;
 	Term &m_term;
-	bool m_alt_screen = false; /// alt screen setting seen when start() was invoked.
+	bool m_alt_screen = false; ///< alt screen setting seen when start() was invoked.
 	Snap m_snap = Snap::NONE;
 	Direction m_snap_dir = Direction::FORWARD;
 	Type m_type = Type::REGULAR;
@@ -182,11 +182,11 @@ protected: // data
 	bool m_force_word_extend = false;
 	bool m_first_cont_extend = true;
 
-	Range m_range; /// selection range with normalized coordinates
-	mutable Range m_orig; /// selection range with original cooridinates
+	Range m_range; ///< selection range with normalized coordinates
+	mutable Range m_orig; ///< selection range with original cooridinates
 
-	Range m_saved_range; /// selection range with normalized coordinates
-	Range m_saved_orig; /// selection range with original cooridinates
+	Range m_saved_range; ///< selection range with normalized coordinates
+	Range m_saved_orig; ///< selection range with original cooridinates
 };
 
 } // end ns

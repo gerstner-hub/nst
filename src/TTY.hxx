@@ -108,13 +108,13 @@ protected: // functions
 protected: // data
 
 	Nst &m_nst;
-	cosmos::SubProc m_child_proc; /// the actual child process running in the terminal
-	cosmos::File m_io_file; /// I/O file which receives all data displayed on the terminal
-	cosmos::File m_cmd_file; /// master end of pty or real TTY device
-	cosmos::Poller m_cmd_poller; /// event driven I/O for m_cmd_file
-	cosmos::Terminal m_terminal; /// wrapper around m_cmd_file for TTY ioctls
-	char m_buf[BUFSIZ]; /// holds data read from the TTY not yet forwarded to Term
-	size_t m_buf_bytes = 0; /// number of unprocessed bytes in m_buf
+	cosmos::SubProc m_child_proc; ///< the actual child process running in the terminal
+	cosmos::File m_io_file; ///< I/O file which receives all data displayed on the terminal
+	cosmos::File m_cmd_file; ///< master end of pty or real TTY device
+	cosmos::Poller m_cmd_poller; ///< event driven I/O for m_cmd_file
+	cosmos::Terminal m_terminal; ///< wrapper around m_cmd_file for TTY ioctls
+	char m_buf[BUFSIZ]; ///< holds data read from the TTY not yet forwarded to Term
+	size_t m_buf_bytes = 0; ///< number of unprocessed bytes in m_buf
 };
 
 } // end ns

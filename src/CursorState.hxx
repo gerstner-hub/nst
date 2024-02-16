@@ -21,22 +21,22 @@ public: // types
 
 	/// Cursor control operations.
 	enum class Control {
-		SAVE, /// save current cursor position
-		LOAD /// restore previously saved cursor position
+		SAVE, ///< save current cursor position
+		LOAD ///< restore previously saved cursor position
 	};
 
 	/// Cursor runtime state flags.
 	enum class State {
-		WRAPNEXT = 1, /// indicates that on next input automatic line wrap needs to occur
-		ORIGIN   = 2  /// if set then the cursor position is limited to the active scroll area
+		WRAPNEXT = 1, ///< indicates that on next input automatic line wrap needs to occur
+		ORIGIN   = 2  ///< if set then the cursor position is limited to the active scroll area
 	};
 
 	using StateBitMask = cosmos::BitMask<State>;
 
 protected: // data
 
-	CharPos pos;   /// current cursor position (not yet rendered)
-	Glyph m_attrs; /// contains the currently active font attributes for newly input characters
+	CharPos pos;   ///< current cursor position (not yet rendered)
+	Glyph m_attrs; ///< contains the currently active font attributes for newly input characters
 	StateBitMask m_state;
 
 public: // functions

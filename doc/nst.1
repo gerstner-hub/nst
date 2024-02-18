@@ -2,12 +2,12 @@
 .\"     Title: nst
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/05/2024
+.\"      Date: 02/18/2024
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "NST" "1" "02/05/2024" "\ \&" "\ \&"
+.TH "NST" "1" "02/18/2024" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,6 +35,8 @@ nst [\-l <path\-to\-tty>] [\-w <window\-id>] [\-o <iofile>] [\-f <fontconfig fon
 .SH "DESCRIPTION"
 .sp
 nst is a (not so) simple terminal emulator\&.
+.sp
+This is a C++ port and fork of the suckless\&.org ST simple terminal emulator\&.
 .SH "OPTIONS"
 .PP
 \fB\-a, \-\-no\-alt\-screen\fR
@@ -100,56 +102,96 @@ execute remaining parameters instead of the shell\&. This switch is not actually
 .PP
 Break
 .RS 4
-Send a break in the serial line\&. Break key is obtained in PC keyboards pressing at the same time control and pause\&.
+Sends a break in the serial line\&. The break key is obtained in PC keyboards pressing at the same time control and pause\&.
 .RE
 .PP
 Ctrl\-Print Screen
 .RS 4
-Toggle if nst should print to the iofile\&.
+Toggles if nst should print to the iofile\&.
 .RE
 .PP
 Shift\-Print Screen
 .RS 4
-Print the full screen to the iofile\&.
+Prints the full screen to the iofile\&.
 .RE
 .PP
 Print Screen
 .RS 4
-Print the selection to the iofile\&.
+Prints the selection to the iofile\&.
 .RE
 .PP
 Ctrl\-Scroll Wheel Up
 .RS 4
-Increase font size\&.
+Increases font size\&.
 .RE
 .PP
 Ctrl\-Scroll Wheel Down
 .RS 4
-Decrease font size\&.
+Decreases font size\&.
 .RE
 .PP
-Ctrl\-Mod1\-Home
+Shift\-Mod1\-Home
 .RS 4
-Reset to default font size\&.
+Resets to default font size\&.
+.RE
+.PP
+Ctrl\-Shift\-Home
+.RS 4
+Jumps to end of history (oldest) position\&.
+.RE
+.PP
+Ctrl\-Shift\-End
+.RS 4
+Jumps to current screen\&.
+.RE
+.PP
+Shift\-Page Up
+.RS 4
+Scrolls history up by 10 lines\&.
+.RE
+.PP
+Shift\-Page Down
+.RS 4
+Scrolls history down by 10 lines\&.
+.RE
+.PP
+Ctrl\-Shift\-Page Up
+.RS 4
+Scrolls history up by half a screen\&.
+.RE
+.PP
+Ctrl\-Shift\-Page Down
+.RS 4
+Scrolls history down by half a screen\&.
 .RE
 .PP
 Ctrl\-Shift\-y
 .RS 4
-Paste from primary selection (middle mouse button)\&.
+Pastes from primary selection (middle mouse button)\&.
 .RE
 .PP
 Ctrl\-Shift\-c
 .RS 4
-Copy the selected text to the clipboard selection\&.
+Copies the selected text to the clipboard selection\&.
 .RE
 .PP
 Ctrl\-Shift\-v
 .RS 4
-Paste from the clipboard selection\&.
+Pastes from the clipboard selection\&.
+.RE
+.PP
+Ctrl\-Shift\-Keypad Div
+.RS 4
+Inverts the color scheme\&.
+.RE
+.PP
+Ctrl\-Shift\-B
+.RS 4
+Invokes an external program and pipes the current history buffer to it (gvim by default)\&.
 .RE
 .SH "CUSTOMIZATION"
 .sp
-nst can be customized by creation a custom nst_config\&.hxx and (re)compiling the source code\&. This keeps it fast, secure and simple\&.
+nst can be customized by adjuting the nst_config\&.hxx and/or nst_config\&.cxx files and (re)compiling the source code\&. This keeps it fast, secure and simple\&.
 .SH "AUTHORS"
 .sp
 See the LICENSE file for the authors\&.

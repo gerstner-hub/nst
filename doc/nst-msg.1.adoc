@@ -1,0 +1,60 @@
+NST-MSG(1)
+==========
+
+== Name
+nst-msg - send message to nst terminal emulator
+
+== Synopsis
+nst-msg [-S] [-s] [-d] [-D] [-t] [--cwds]
+
+== Description
+nst-msg is a tool to interact with running nst(1) terminal emulator instances.
+
+Most commands target the currently running terminal which is identified by
+the *NST_IPC_ADDR* environment variable that is automatically set by nst. Some
+commands are global and target all terminal instances accessible by the
+calling user.
+
+== Options
+
+*-S*, *--snapshot*::
+  save snapshot of the current terminal history. The snapshot can later be
+  retrieved via -s.
+
+*-s*, *--get-snapshot*::
+  Print the data stored during the last snapshot operation (-S) to stdout. If
+  no snapshot is available then nothing is printed.
+
+*-d*, *--get-history*::
+  Print (dump) the current terminal history buffer to stdout.
+
+*-D*, *--get-global-history*::
+  Like -d but prints the concatenated history of all accessible nst instances
+  to stdout. This can be used to search for data lost in one of many terminal
+  instances.
+
+*-t*, *--test*::
+  Performs a connection test to the associated nst terminal emulator instance.
+  If the connection succeeds then an exit status of zero is returned, non-zero
+  otherwise. This can be used to determine whether an nst terminal is
+  associated at all.
+
+*--cwds*::
+  This retrieves the current working directories of the child processes of all
+  reachable nst instances. One CWD is printed per line, and only unique
+  entries are printed. This does not currently support the exotic case that
+  the CWD may contain a newline character.
+
+*--version*::
+  Print the nst-msg version number and exists.
+
+*-h*, *--help*::
+  Print a usage text.
+
+== Authors
+
+See the LICENSE file for the authors.
+
+== License
+
+See the LICENSE file for the terms of redistribution.

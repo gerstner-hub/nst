@@ -15,10 +15,18 @@ if env['build_docs']:
 # man page
 
 # this is generated in the source tree!
-man_cmd = doc_env.Command(
+nst_man_cmd = doc_env.Command(
     '#doc/nst.1',
     'nst.1.adoc',
     action='a2x -f manpage -D ./doc $SOURCE'
 )
 
-env.Alias('man', man_cmd)
+# this is generated in the source tree!
+nst_msg_man_cmd = doc_env.Command(
+    '#doc/nst-msg.1',
+    'nst-msg.1.adoc',
+    action='a2x -f manpage -D ./doc $SOURCE'
+)
+
+env.Alias('man', nst_man_cmd)
+env.Alias('man', nst_msg_man_cmd)

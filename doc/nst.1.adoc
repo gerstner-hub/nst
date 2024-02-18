@@ -10,6 +10,8 @@ nst  [-l <path-to-tty>] [-w <window-id>] [-o <iofile>] [-f <fontconfig font name
 == Description
 nst is a (not so) simple terminal emulator.
 
+This is a C++ port and fork of the suckless.org ST simple terminal emulator.
+
 == Options
 
 *-a, --no-alt-screen*::
@@ -63,39 +65,65 @@ nst is a (not so) simple terminal emulator.
 == Shortcuts
 
 Break::
-  Send a break in the serial line. Break key is obtained in PC keyboards pressing at the same time control and pause.
+  Sends a break in the serial line. The break key is obtained in PC keyboards pressing at the same time control and pause.
 
 Ctrl-Print Screen::
-  Toggle if nst should print to the iofile.
+  Toggles if nst should print to the iofile.
 
 Shift-Print Screen::
-  Print the full screen to the iofile.
+  Prints the full screen to the iofile.
 
 Print Screen::
-  Print the selection to the iofile.
+  Prints the selection to the iofile.
 
 Ctrl-Scroll Wheel Up::
-  Increase font size.
+  Increases font size.
 
 Ctrl-Scroll Wheel Down::
-  Decrease font size.
+  Decreases font size.
 
-Ctrl-Mod1-Home::
-  Reset to default font size.
+Shift-Mod1-Home::
+  Resets to default font size.
+
+Ctrl-Shift-Home::
+  Jumps to end of history (oldest) position.
+
+Ctrl-Shift-End::
+  Jumps to current screen.
+
+Shift-Page Up::
+  Scrolls history up by 10 lines.
+
+Shift-Page Down::
+  Scrolls history down by 10 lines.
+
+Ctrl-Shift-Page Up::
+  Scrolls history up by half a screen.
+
+Ctrl-Shift-Page Down::
+  Scrolls history down by half a screen.
 
 Ctrl-Shift-y::
-  Paste from primary selection (middle mouse button).
+  Pastes from primary selection (middle mouse button).
 
 Ctrl-Shift-c::
-  Copy the selected text to the clipboard selection.
+  Copies the selected text to the clipboard selection.
 
 Ctrl-Shift-v::
-  Paste from the clipboard selection.
+  Pastes from the clipboard selection.
+
+Ctrl-Shift-Keypad Div::
+  Inverts the color scheme.
+
+Ctrl-Shift-B::
+  Invokes an external program and pipes the current history buffer to it (gvim
+  by default).
 
 == Customization
 
-nst can be customized by creation a custom nst_config.hxx and (re)compiling
-the source code. This keeps it fast, secure and simple.
+nst can be customized by adjuting the nst_config.hxx and/or nst_config.cxx
+files and (re)compiling the source code. This keeps it fast, secure and
+simple.
 
 == Authors
 

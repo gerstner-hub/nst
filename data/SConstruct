@@ -7,7 +7,7 @@ data_env = env.Clone()
 terminfo_dir = env['buildroot'] + '/data/terminfo'
 
 tic_cmd = data_env.Command(
-    'terminfo/s/st',
+    'terminfo/n/nst',
     'nst.tinfo',
     action=[
         Mkdir(terminfo_dir),

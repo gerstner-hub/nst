@@ -53,7 +53,7 @@ constexpr std::string_view UTMP{};
 /// Scroll program: to enable use a string like "scroll"
 constexpr std::string_view SCROLL{};
 /// Default TERM value
-constexpr std::string_view TERM_NAME{"st-256color"};
+constexpr std::string_view TERM_NAME{"nst-256color"};
 
 /// Identification sequence returned in DA and DECID escape sequences
 constexpr std::string_view VT_IDENT{"\033[?6c"};

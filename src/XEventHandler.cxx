@@ -1,5 +1,5 @@
 // C++
-#include <iostream>
+#include <ostream>
 
 // cosmos
 #include "cosmos/formatting.hxx"
@@ -281,8 +281,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 		try {
 			win.getRawProperty(selprop, info, prop);
 		} catch (const std::exception &ex) {
-			std::cerr << "Selection property retrieval failed: "
-				<< ex.what() << std::endl;
+			m_nst.logger().error() << "Selection property retrieval failed: " << ex.what() << "\n";
 			return;
 		}
 
@@ -380,7 +379,8 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 				}
 			}
 		} catch (const std::exception &ex) {
-			std::cerr << "Failed to handle selection request for " << req.selection() << ": " << ex.what() << std::endl;
+			m_nst.logger().error() << "Failed to handle selection request for "
+				<< req.selection() << ": " << ex.what() << "\n";
 			return;
 		}
 
@@ -391,7 +391,7 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 		// all done, send a notification to the listener.
 		requestor.sendEvent(raw_response);
 	} catch(const std::exception &ex) {
-		std::cerr << "Error sending SelectionNotify event: " << ex.what() << std::endl;
+		m_nst.logger().error() << "Error sending SelectionNotify event: " << ex.what() << "\n";
 	}
 }
 

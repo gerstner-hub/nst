@@ -1,6 +1,7 @@
 // C++
 #include <cstring>
-#include <iostream>
+#include <functional>
+#include <ostream>
 
 // cosmos
 #include "cosmos/formatting.hxx"
@@ -87,7 +88,8 @@ void CSIEscape::parse() {
 }
 
 void CSIEscape::dump(const std::string_view prefix) const {
-	std::cerr << prefix << ": ESC[";
+	auto &errlog = m_nst.logger().error();
+	errlog << prefix << ": ESC[";
 
 	auto get_repr = [](const char ch) -> std::string {
 		switch(ch) {
@@ -100,13 +102,13 @@ void CSIEscape::dump(const std::string_view prefix) const {
 
 	for (auto c: m_str) {
 		if (cosmos::printable(c)) {
-			std::cerr << c;
+			errlog << c;
 		} else {
-			std::cerr << "(" << get_repr(c) << ")";
+			errlog << "(" << get_repr(c) << ")";
 		}
 	}
 
-	std::cerr << "\n";
+	errlog << "\n";
 }
 
 void CSIEscape::setModeGeneric(const bool enable) {
@@ -138,7 +140,7 @@ void CSIEscape::setMode(const bool set) {
 			term.setCarriageReturn(set);
 			break;
 		default:
-			std::cerr << "erresc: unknown set/reset mode " << arg << "\n";
+			m_nst.logger().error() << "erresc: unknown set/reset mode " << arg << "\n";
 			break;
 		}
 	}
@@ -226,7 +228,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 			   // codes.
 			break;
 		default:
-			std::cerr << "erresc: unknown private set/reset mode " << arg << "\n";
+			m_nst.logger().error() << "erresc: unknown private set/reset mode " << arg << "\n";
 			break;
 		}
 	}
@@ -544,7 +546,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		default:
 			if (!handleCursorColorSet(attr)) {
-				std::cerr << "erresc(default): gfx attr " << attr << " unknown\n",
+				m_nst.logger().error() << "erresc(default): gfx attr " << attr << " unknown\n",
 				ret = false;
 			}
 			break;
@@ -584,7 +586,6 @@ bool CSIEscape::handleCursorColorSet(const int attr) const {
 }
 
 ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
-
 	const size_t num_pars = m_args.end() - it;
 
 	auto toTrueColor = [](unsigned int r, unsigned int g, unsigned int b) -> ColorIndex {
@@ -592,8 +593,8 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 		return to_true_color(ColorIndex{raw});
 	};
 
-	auto badPars = [num_pars]() {
-		std::cerr << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
+	auto badPars = [num_pars, this]() {
+		m_nst.logger().error() << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
 		return ColorIndex::INVALID;
 	};
 
@@ -615,7 +616,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 		if (r <= 255 && g <= 255 && b <= 255) {
 			return toTrueColor(r, g, b);
 		} else {
-			std::cerr << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
+			m_nst.logger().error() << "erresc: bad rgb color (" << r << "," << g << "," << b << ")" << std::endl;
 			return ColorIndex::INVALID;
 		}
 	}
@@ -628,7 +629,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 		if (idx <= ColorIndex::END_256) {
 			return idx;
 		} else {
-			std::cerr << "erresc: bad fg/bgcolor " << *it << std::endl;
+			m_nst.logger().error() << "erresc: bad fg/bgcolor " << *it << std::endl;
 			return ColorIndex::INVALID;
 		}
 	}
@@ -637,7 +638,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	case 3: // direct color in CMY space
 	case 4: // direct color in CMYK space
 	default:
-		std::cerr << "erresc(38): gfx attr " << color_type << " unknown" << std::endl;
+		m_nst.logger().error() << "erresc(38): gfx attr " << color_type << " unknown" << std::endl;
 		return ColorIndex::INVALID;
 	}
 }

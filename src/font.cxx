@@ -201,7 +201,7 @@ void Font::checkSlant(const FontPattern &pattern) {
 		// slant but gave us one anyway. Try to mitigate.
 		if (auto our_slant = opened.getSlant(); our_slant != std::nullopt && *our_slant < *wanted_slant) {
 			m_bad_slant = true;
-			std::cerr << "font slant does not match\n";
+			std::cerr << "nst: font slant does not match\n";
 		}
 	}
 }
@@ -212,7 +212,7 @@ void Font::checkWeight(const FontPattern &pattern) {
 	if (auto wanted_weight = pattern.getWeight(); wanted_weight != std::nullopt) {
 		if (auto our_weight = opened.getWeight(); our_weight != std::nullopt && *our_weight != *wanted_weight) {
 			m_bad_weight = true;
-			std::cerr << "font weight does not match\n";
+			std::cerr << "nst: font weight does not match\n";
 		}
 	}
 }

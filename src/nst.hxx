@@ -1,6 +1,7 @@
 #pragma once
 
 // cosmos
+#include "cosmos/io/StdLogger.hxx"
 #include "cosmos/main.hxx"
 #include "cosmos/string.hxx"
 
@@ -52,6 +53,11 @@ public: // functions
 	 **/
 	void pipeBufferTo(const cosmos::StringViewVector cmdline);
 
+	/// Access to the central logger instance.
+	auto& logger() const {
+		return m_logger;
+	}
+
 protected: // functions
 
 	/// this is the main entry point of the Nst application that is also
@@ -74,6 +80,7 @@ protected: // data
 	TTY m_tty;
 	Selection m_selection;
 	XEventHandler m_event_handler;
+	mutable cosmos::StdLogger m_logger;
 };
 
 } // end ns

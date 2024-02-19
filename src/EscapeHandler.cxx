@@ -209,7 +209,7 @@ bool EscapeHandler::checkCSISequence(const RuneInfo &rinfo) {
 		// this is DEC VT100 spec related
 		switch(rune) {
 		default:
-			std::cerr << "esc unhandled charset: ESC ( " << rune << ")\n";
+			m_nst.logger().error() << "esc unhandled charset: ESC ( " << rune << ")\n";
 			break;
 		case '0':
 			term.setCharsetMapping(m_esc_charset, Term::Charset::GRAPHIC0);
@@ -306,7 +306,7 @@ std::optional<EscapeHandler::Escape> EscapeHandler::handleInitialEscape(const ch
 		handleCommandTerminator();
 		break;
 	default:
-		std::cerr << "erresc: unknown sequence ESC " << cosmos::HexNum(ch, 2)
+		m_nst.logger().error() << "erresc: unknown sequence ESC " << cosmos::HexNum(ch, 2)
 			<< " '" << (cosmos::printable(ch) ? ch : '.') << "'\n";
 		break;
 	}

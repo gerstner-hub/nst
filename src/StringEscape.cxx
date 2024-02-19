@@ -4,11 +4,11 @@
 #include "TTY.hxx"
 #include "nst.hxx"
 
-// stdlib
+// C++
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
+#include <ostream>
 
 // cosmos
 #include "cosmos/formatting.hxx"
@@ -47,7 +47,7 @@ void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 	uint8_t r, g, b;
 
 	if (!m_nst.wsys().colorManager().toRGB(idx, r, g, b)) {
-		std::cerr << "erresc: failed to fetch osc color " << cosmos::to_integral(idx) << "\n";
+		m_nst.logger().error() << "erresc: failed to fetch osc color " << cosmos::to_integral(idx) << "\n";
 		return;
 	}
 
@@ -62,7 +62,7 @@ void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 
 	if (res.empty()) {
 		// sprintf error occured
-		std::cerr << "error: sprintf failed while printing OSC (code " << code << ") response\n";
+		m_nst.logger().error() << "sprintf failed while printing OSC (code " << code << ") response\n";
 		return;
 	}
 
@@ -142,7 +142,7 @@ bool StringEscape::processOSC() {
 			// report current color setting
 			oscColorResponse(idx, code);
 		else if (!wsys.colorManager().setColorName(idx, arg.data()))
-			std::cerr << "erresc: invalid " << label << " color: " << arg << "\n";
+			m_nst.logger().error() << "erresc: invalid " << label << " color: " << arg << "\n";
 		else
 			m_nst.term().setAllDirty();
 
@@ -176,7 +176,7 @@ bool StringEscape::processOSC() {
 					wsys.selection().setSelection(decoded);
 					wsys.copyToClipboard();
 				} else {
-					std::cerr << "erresc: invalid base64\n";
+					m_nst.logger().error() << "erresc: invalid base64\n";
 				}
 			}
 			break;
@@ -202,7 +202,7 @@ bool StringEscape::processOSC() {
 					wsys.resetColors();
 					break; // color reset without parameter
 				}
-				std::cerr << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
+				m_nst.logger().error() << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
 			} else {
 				// TODO if defaultbg color is changed, borders are dirty
 				m_nst.term().setAllDirty();
@@ -238,30 +238,31 @@ void StringEscape::parseArgs() {
 	}
 
 	if (it != m_str.end()) {
-		std::cerr << __FUNCTION__ << ": maximum number of arguments exceeded\n";
+		m_nst.logger().error() << __FUNCTION__ << ": maximum number of arguments exceeded\n";
 	}
 }
 
 void StringEscape::dump(const std::string_view prefix) const {
-	std::cerr << prefix << " ESC" << static_cast<char>(m_esc_type);
+	auto &errlog = m_nst.logger().error();
+	errlog << prefix << " ESC" << static_cast<char>(m_esc_type);
 
 	for (const auto c: m_str) {
 		if (c == '\0') {
-			std::cerr << '\n';
+			errlog << '\n';
 			return;
 		} else if (cosmos::printable(c)) {
-			std::cerr << (char)c;
+			errlog << (char)c;
 		} else if (c == '\n') {
-			std::cerr << "(\\n)";
+			errlog << "(\\n)";
 		} else if (c == '\r') {
-			std::cerr << "(\\r)";
+			errlog << "(\\r)";
 		} else if (c == 0x1b) {
-			std::cerr << "(\\e)";
+			errlog << "(\\e)";
 		} else {
-			std::cerr << "(" << cosmos::HexNum{static_cast<unsigned>(c), 2}.showBase(false) << ")";
+			errlog << "(" << cosmos::HexNum{static_cast<unsigned>(c), 2}.showBase(false) << ")";
 		}
 	}
-	std::cerr << "ESC\\\n";
+	errlog << "ESC\\\n";
 }
 
 void StringEscape::reset(const Type type) {

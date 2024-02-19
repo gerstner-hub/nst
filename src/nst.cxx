@@ -1,14 +1,15 @@
 // cosmos
 #include "cosmos/error/ApiError.hxx"
+#include "cosmos/formatting.hxx"
 #include "cosmos/fs/filesystem.hxx"
 #include "cosmos/io/Pipe.hxx"
 #include "cosmos/io/Poller.hxx"
 #include "cosmos/io/StreamIO.hxx"
-#include "cosmos/proc/process.hxx"
+#include "cosmos/locale.hxx"
 #include "cosmos/proc/ChildCloner.hxx"
+#include "cosmos/proc/process.hxx"
 #include "cosmos/proc/Signal.hxx"
 #include "cosmos/proc/SigSet.hxx"
-#include "cosmos/locale.hxx"
 #include "cosmos/time/time.hxx"
 #include "cosmos/utils.hxx"
 
@@ -27,8 +28,10 @@ Nst::Nst() :
 		m_term{*this},
 		m_tty{*this},
 		m_selection{*this},
-		m_event_handler{*this}
-{}
+		m_event_handler{*this} {
+	auto pid = cosmos::proc::get_own_pid();
+	m_logger.setPrefix(cosmos::sprintf("nst[%d] ", cosmos::to_integral(pid)));
+}
 
 void Nst::waitForWindowMapping() {
 	xpp::Event ev;
@@ -58,9 +61,8 @@ cosmos::ExitStatus Nst::main(int argc, const char **argv) {
 		try {
 			cosmos::fs::change_dir(m_cmdline.cwd.getValue());
 		} catch (const cosmos::CosmosError &ex) {
-			std::cerr << "Warning: could not enter CWD "
-				<< m_cmdline.cwd.getValue()
-				<< ": " << ex.what() << std::endl;
+			m_logger.warn() << "could not enter CWD " << m_cmdline.cwd.getValue() << ": "
+				<< ex.what() << "\n";
 		}
 	}
 	setupSignals();
@@ -232,16 +234,17 @@ void Nst::pipeBufferTo(const cosmos::StringViewVector cmdline) {
 		io.writeAll(text);
 	} catch(const cosmos::ApiError &e) {
 		if (e.errnum() != cosmos::Errno::BROKEN_PIPE) {
-			std::cerr << "failed to write terminal buffer to " << cmdline << ": " << e.what() << std::endl;
+			m_logger.error() << "failed to write terminal buffer to " << cmdline << ": " << e.what() << "\n";
 		}
 	}
 
 	if (auto res = child.wait(); !res.exitedSuccessfully()) {
-		std::cerr << "pipe sub process exited unsuccessfully: ";
+		auto &errlog = m_logger.error();
+		errlog << "pipe sub process exited unsuccessfully: ";
 		if (res.exited()) {
-			std::cerr << "code = " << res.exitStatus() << "\n";
+			errlog << "code = " << res.exitStatus() << "\n";
 		} else {
-			std::cerr << "signal = " << res.termSignal() << "\n";
+			errlog << "signal = " << res.termSignal() << "\n";
 		}
 	}
 }

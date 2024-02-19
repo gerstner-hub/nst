@@ -1,7 +1,7 @@
 // C++
 #include <cstring>
 #include <cstdlib>
-#include <iostream>
+#include <ostream>
 
 // cosmos
 #include "cosmos/error/ApiError.hxx"
@@ -108,7 +108,7 @@ void TTY::setupIOFile(const std::string &path) {
 				cosmos::FileMode(cosmos::ModeT{0640})
 			);
 		} catch (const std::exception &ex) {
-			std::cerr << "Error opening " << path << ": " << ex.what() << std::endl;
+			m_nst.logger().error() << "Error opening " << path << ": " << ex.what() << "\n";
 		}
 	}
 
@@ -133,7 +133,7 @@ void TTY::configureTTY() {
 			cosmos_throw (cosmos::RuntimeError("stty returned non-zero"));
 		}
 	} catch (const std::exception &ex) {
-		std::cerr << "couldn't call stty: " << ex.what() << std::endl;
+		m_nst.logger().error() << "couldn't call stty: " << ex.what() << "\n";
 	}
 }
 
@@ -274,7 +274,7 @@ void TTY::resize(const Extent size) {
 	try {
 		m_terminal.setSize(toTermDimension(size));
 	} catch (const std::exception &ex) {
-		std::cerr << "Couldn't set window size: " << ex.what() << "\n";
+		m_nst.logger().error() << "Couldn't set TTY window size: " << ex.what() << "\n";
 	}
 }
 
@@ -382,7 +382,7 @@ void TTY::sendBreak() {
 	try {
 		m_terminal.sendBreak(std::chrono::milliseconds{0});
 	} catch (const std::exception &ex) {
-		std::cerr << "failed to send break: " << ex.what() << std::endl;
+		m_nst.logger().error() << "failed to send break: " << ex.what() << "\n";
 	}
 }
 
@@ -390,7 +390,7 @@ void TTY::doPrintToIoFile(const std::string_view s) {
 	try {
 		m_io_file.writeAll(s);
 	} catch (const std::exception &ex) {
-		std::cerr << "error writing to output file: " << ex.what() << std::endl;
+		m_nst.logger().error() << "error writing to I/O file: " << ex.what() << ". Closing I/O file\n";
 		m_io_file.close();
 	}
 }

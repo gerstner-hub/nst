@@ -35,6 +35,7 @@ public: // data
 	TCLAP::SwitchArg get_global_history;
 	TCLAP::SwitchArg test_connection;
 	TCLAP::SwitchArg get_cwds;
+	TCLAP::ValueArg<std::string> instance;
 
 protected: // data
 
@@ -48,7 +49,8 @@ Cmdline::Cmdline() :
 		get_history{"d", "get-history", "print (dump) the current history data to stdout"},
 		get_global_history{"D", "get-global-history", "print (dump) the current history of all available NST terminals to stdout"},
 		test_connection{"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"},
-		get_cwds{"", "cwds", "retrieve the current working directories of all available NST terminals one per line to stdout"} {
+		get_cwds{"", "cwds", "retrieve the current working directories of all available NST terminals one per line to stdout"},
+		instance{"p", "pid", "target the NST instance running at the given PID, ignores the NST_IPC_ADDR environment variable", false, "", "process ID", *this} {
 	m_xor_group.add(save_snapshot);
 	m_xor_group.add(get_snapshot);
 	m_xor_group.add(get_history);
@@ -74,20 +76,23 @@ protected: // functions
 	cosmos::ExitStatus main(const int argc, const char **argv) override;
 
 	/// Perform a request against the NST instances found in the environment.
-	void doActiveInstanceRequest();
+	void doSingleInstanceRequest();
 
 	/// Perform a request against the given specific NST instance.
 	void doInstanceRequest(const std::string_view addr);
 
 	void doInstanceRequest(cosmos::UnixConnection &connection);
 
-	cosmos::UnixConnection connectActiveInstance();
+	cosmos::UnixConnection connectSingleInstance();
 
 	/// Receives data after a request has been dispatched.
 	void receiveData(const Message request, cosmos::UnixConnection &connection, std::ostream &out = std::cout);
 
 	/// Returns the UNIX address of the active NST instance as found in the environment.
 	std::string_view activeInstanceAddr() const;
+
+	/// Returns the UNIX address of the instance selected on the command line.
+	std::string_view selectedInstanceAddr() const;
 
 	/// Looks up available NST instances and returns their UNIX addresses.
 	std::set<std::string> gatherGlobalInstances() const;
@@ -115,13 +120,13 @@ cosmos::ExitStatus IpcClient::main(const int argc, const char **argv) {
 			}
 		}
 	} else {
-		doActiveInstanceRequest();
+		doSingleInstanceRequest();
 	}
 
 	return cosmos::ExitStatus::SUCCESS;
 }
 
-void IpcClient::doActiveInstanceRequest() {
+void IpcClient::doSingleInstanceRequest() {
 	const auto request = [this]() -> Message {
 		if (m_cmdline.save_snapshot.isSet())
 			return Message::SNAPSHOT_HISTORY;
@@ -136,7 +141,7 @@ void IpcClient::doActiveInstanceRequest() {
 		}
 	}();
 
-	auto connection = connectActiveInstance();
+	auto connection = connectSingleInstance();
 	connection.send(&request, sizeof(request));
 	receiveData(request, connection);
 }
@@ -157,8 +162,24 @@ std::string_view IpcClient::activeInstanceAddr() const {
 	return addr->view();
 }
 
-cosmos::UnixConnection IpcClient::connectActiveInstance() {
-	const auto ipc_addr = activeInstanceAddr();
+std::string_view IpcClient::selectedInstanceAddr() const {
+	const auto needle = std::string{'-'} + m_cmdline.instance.getValue();
+
+	for (const auto &addr: gatherGlobalInstances()) {
+		if (cosmos::is_suffix(addr, needle))
+			return addr;
+	}
+
+	if (!m_cmdline.test_connection.isSet()) {
+		std::cerr << "No NST instance for PID " << m_cmdline.instance.getValue() << " found.\n";
+	}
+
+	throw CONN_ERR;
+}
+
+cosmos::UnixConnection IpcClient::connectSingleInstance() {
+	const auto ipc_addr = m_cmdline.instance.isSet() ?
+		selectedInstanceAddr() : activeInstanceAddr();
 
 	try {
 		cosmos::UnixSeqPacketClientSocket sock;

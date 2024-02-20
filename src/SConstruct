@@ -23,7 +23,7 @@ env.Alias('nst', nst)
 
 msg_env = env.Clone()
 sources = ['msg/main.cxx']
-msg_env.ConfigureForLib('libcosmos', sources)
+msg_env.ConfigureForLibOrPackage('libcosmos', sources)
 msg_env.ConfigureForPackage(base_pkgs)
 msg_env.Append(CPPPATH=['#/src'])
 nst_msg = msg_env.Program('nst-msg', sources)

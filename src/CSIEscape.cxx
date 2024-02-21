@@ -594,7 +594,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	};
 
 	auto badPars = [num_pars, this]() {
-		m_nst.logger().error() << "erresc(38): Incorrect number of parameters (" << num_pars << ")\n";
+		m_nst.logger().error() << "erresc(38,48): Incorrect number of parameters (" << num_pars << ")\n";
 		return ColorIndex::INVALID;
 	};
 
@@ -638,7 +638,7 @@ ColorIndex CSIEscape::parseColor(std::vector<int>::const_iterator &it) const {
 	case 3: // direct color in CMY space
 	case 4: // direct color in CMYK space
 	default:
-		m_nst.logger().error() << "erresc(38): gfx attr " << color_type << " unknown" << std::endl;
+		m_nst.logger().error() << "erresc(38,48): gfx attr " << color_type << " unknown" << std::endl;
 		return ColorIndex::INVALID;
 	}
 }

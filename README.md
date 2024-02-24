@@ -15,7 +15,7 @@ tool for one job", even though the decision not to have scroll support in
 
 Some time ago I looked deeper into *st* and wanted to understand it better in
 terms of some functionality and in terms of its
-[security](https://seclists.org/oss-sec/2017/q2/183). I soon found that *st's*
+[security](https://seclists.org/oss-sec/2017/q2/183). I soon found that *ST's*
 codebase is not as simple as the resulting program is. On top of this the C
 programming language, for me personally, does not do the job anymore these
 days in non-trivial userspace programs.
@@ -70,11 +70,11 @@ Scrollback Support
 The `scroll` program which is also offered on <http://suckless.org> was
 supposed to become a small standalone utility to provide scroll support on top
 of *st*. By now its authors noticed that its design has some limits, though,
-that are hard to overcome. Thereforce I took the route to implement scrollback
+that are hard to overcome. Therefore I took the route to implement scrollback
 support internally.
 
 Starting with *nst* version 1.0 the terminal emulator offers builtin scrollback
-support, mostly in the spirit of original *st*'s [scrollback ringbuffer
+support, mostly in the spirit of original *st*'s [scrollback ring buffer
 patch](http://st.suckless.org/patches/scrollback/st-scrollback-0.8.5.diff).
 
 I did *not* implement the [reflow
@@ -88,11 +88,11 @@ when making the emulator window smaller (and thus cutting of long lines). This
 is something that can quickly happen as a side effect of using a tiling window
 manager like i3, where automatic resizing of windows is an integral part of
 the user experience. To avoid such information loss I implemented a simpler
-logic that colums are never discarded upon window resize, except if the line
+logic that columns are never discarded upon window resize, except if the line
 is overwritten in the history. This way, when the window size is increased
 again, the previous columns will appear again and no information is lost.
 
-This approach is not perfect, as lines can become incosistent if programs are
+This approach is not perfect, as lines can become inconsistent if programs are
 manipulating the content of already existing lines, while previous columns are
 still hidden due to a smaller window size. When increasing the window size
 again then old columns appear that no longer match the current line content.
@@ -126,7 +126,7 @@ existing buffer text to external programs. There are two mechanisms available:
    contents of the currently running terminal emulator. This can be used to
    construct command lines on the fly like `nst-msg -d | grep mystring`. Since
    the output of the utility modifies the terminal buffer itself it can be
-   confusing when multiple subquent searches are performed this way. Therefore
+   confusing when multiple subsequent searches are performed this way. Therefore
    the utility allows to take a snapshot of the current terminal contents and
    operate on them, until a new snapshot is created.
 

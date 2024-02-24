@@ -147,6 +147,22 @@ Improved Text Selection
   clicking on the selection itself, then the selection will be extended in
   both directions.
 
+Features ported from the available ST patches
+=============================================
+
+For ST a range of patches is available from which I selected a subset and
+ported them to NST:
+
+- different color schemes are configurable via the `nst_config.hxx` header.
+- inverting the color scheme using a keyboard shortcut.
+- support for hiding the mouse cursor on keyboard input.
+- support for a keyboard shortcut to enter full screen mode.
+- support for a `REVERSE_BLOCK` cursor style that inverts the color of the
+  Glyph the cursor sits on.
+- support for CSI 22/23 title stack operations that allow to save and restore
+  window titles.
+- blinking cursor implementation is now working.
+
 Dependencies
 ============
 
@@ -171,8 +187,24 @@ for some hints about how to use it. In the default case simply run
 and you will find all installation artifacts in the `install` directory tree.
 
 Because the `libcosmos` and `libxpp` dependencies don't have a stable ABI
-concept yet the linking is done statically for them. So you don't have to
-worry about setting up the shared library path etc.
+concept yet the linking is done statically for them by default. So you don't
+have to worry about setting up the shared library path etc. For packaging you
+can still build against shared libraries by passing `libtype=shared` to SCons.
+
+Installation of terminfo files
+------------------------------
+
+Starting with version `1.0` nst now uses its own terminal identifier string
+and installs terminfo files distinct from ST's terminfo files. This is to avoid
+conflicts between the original ST and *nst*. To install the terminfo files
+locally into your home directory run `scons terminfo_user`. Otherwise
+the terminfo files are installed into the installation tree and can be
+packaged for system wide installation.
+
+The support for *nst* can be worse in some places than the support for the
+original ST, if software does not properly use terminfo to identify terminal
+features but relies on the terminal identification string found in the `$TERM`
+environment variable instead.
 
 Hints for Developers
 ====================
@@ -196,9 +228,8 @@ the related [GitHub Page](https://gerstner-hub.github.io/nst).
 Future Directions
 =================
 
-I am planning to implement some of the more interesting ST patches that are
-available. Also adding some level of configuration file support to make the
-terminal emulator more accessible are on my feature list.
+I am planning to add some level of configuration file support to make the
+terminal emulator more accessible.
 
 Contributing
 ============

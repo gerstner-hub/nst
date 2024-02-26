@@ -10,6 +10,7 @@
 
 // nst
 #include "Cmdline.hxx"
+#include "ConfigFile.hxx"
 #include "Selection.hxx"
 #include "Term.hxx"
 #include "TTY.hxx"
@@ -58,29 +59,35 @@ public: // functions
 		return m_logger;
 	}
 
+	/// Access to configuration file data.
+	auto& configFile() const {
+		return m_config_file;
+	}
+
 protected: // functions
 
 	/// this is the main entry point of the Nst application that is also
 	/// passed the command line parameters for the program
 	cosmos::ExitStatus main(int argc, const char **argv) override;
 
-
 	void mainLoop();
 	void setupSignals();
 	void waitForWindowMapping();
 	/// sets up predefined environment variables for the terminal process
 	void setEnv();
+	void loadConfig();
 
 protected: // data
 
 	xpp::Init m_xpp;
+	mutable cosmos::StdLogger m_logger;
+	ConfigFile m_config_file;
 	Cmdline m_cmdline;
 	WindowSystem m_wsys;
 	Term m_term;
 	TTY m_tty;
 	Selection m_selection;
 	XEventHandler m_event_handler;
-	mutable cosmos::StdLogger m_logger;
 };
 
 } // end ns

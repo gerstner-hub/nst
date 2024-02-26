@@ -24,6 +24,7 @@
 namespace nst {
 
 Nst::Nst() :
+		m_config_file{m_logger},
 		m_wsys{*this},
 		m_term{*this},
 		m_tty{*this},
@@ -66,11 +67,19 @@ cosmos::ExitStatus Nst::main(int argc, const char **argv) {
 		}
 	}
 	setupSignals();
+	loadConfig();
 	m_wsys.init();
 	m_term.init(*this);
 	setEnv();
 	mainLoop();
 	return cosmos::ExitStatus::SUCCESS;
+}
+
+void Nst::loadConfig() {
+	m_config_file.parse("/etc/nst.conf");
+	if (auto home = cosmos::proc::get_env_var("HOME"); home != std::nullopt) {
+		m_config_file.parse(home->str() + "/.config/nst.conf");
+	}
 }
 
 void Nst::setEnv() {

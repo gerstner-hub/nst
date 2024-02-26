@@ -179,6 +179,9 @@ public: // functions
 	void setFontSpec(const std::string_view font_spec) {
 		m_font_spec = font_spec;
 	}
+	const auto &fontSpec() const {
+		return m_font_spec;
+	}
 	/// Loads all necessary fonts.
 	bool loadFonts();
 	/// Zooms all fonts by the given amount of pixels (positive/negative for zoom in/out).

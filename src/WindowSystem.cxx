@@ -245,12 +245,15 @@ xpp::XWindow WindowSystem::parent() const {
 }
 
 void WindowSystem::init() {
-	const auto &fontspec = m_cmdline.font.getValue();
 
-	m_font_manager.setFontSpec(fontspec);
+	m_font_manager.setFontSpec(m_cmdline.font.getValue());
+
+	if (auto fontspec = m_nst.configFile().asString("font"); fontspec && !m_cmdline.font.isSet()) {
+		m_font_manager.setFontSpec(*fontspec);
+	}
 
 	if (!m_font_manager.loadFonts()) {
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", fontspec.c_str())));
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", m_font_manager.fontSpec().c_str())));
 	}
 
 	m_twin.setCharSize(m_font_manager.normalFont());

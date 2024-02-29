@@ -367,7 +367,7 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 void TTY::handleSigChildEvent() {
 	auto res = m_child_proc.wait();
 
-	if (res.exitedSuccessfully()) {
+	if (!res.exitedSuccessfully()) {
 		cosmos_throw (cosmos::RuntimeError(
 			cosmos::sprintf("child exited with status %d",
 				cosmos::to_integral(res.exitStatus()))));

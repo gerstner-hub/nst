@@ -56,7 +56,10 @@ public: // functions
 	 * - bad backslash escapes in string.
 	 * - string contains non-ASCII characters.
 	 **/
-	std::optional<std::string> asString(const std::string key) const;
+	std::optional<std::string> asString(const std::string &key) const;
+
+	/// Wide string variant of asString(const std::string&)
+	std::optional<std::wstring> asWideString(const std::string &key) const;
 
 protected: // functions
 

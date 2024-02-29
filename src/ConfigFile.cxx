@@ -15,7 +15,15 @@ ConfigFile::ConfigFile(cosmos::ILogger &logger) :
 		m_logger{logger} {
 }
 
-std::optional<std::string> ConfigFile::asString(const std::string key) const {
+std::optional<std::string> ConfigFile::asString(const std::string &key) const {
+	if (const auto ws = asWideString(key); ws != std::nullopt) {
+		return toNarrowString(*ws);
+	}
+
+	return std::nullopt;
+}
+
+std::optional<std::wstring> ConfigFile::asWideString(const std::string &key) const {
 	auto it = m_items.find(key);
 	if (it == m_items.end())
 		return std::nullopt;
@@ -25,7 +33,7 @@ std::optional<std::string> ConfigFile::asString(const std::string key) const {
 	if (!unquoteStringValue(value))
 		return std::nullopt;
 
-	return toNarrowString(value);
+	return value;
 }
 
 void ConfigFile::parse(const std::string_view path) {

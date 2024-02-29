@@ -120,6 +120,9 @@ public: // functions
 		m_range = m_saved_range;
 	}
 
+	/// Applies any settings found in the ConfigFile settings.
+	void applyConfig();
+
 protected: // functions
 
 	bool isRegularType() const { return m_type == Type::REGULAR; }
@@ -170,6 +173,9 @@ protected: // functions
 	/// Returns whether the alt/screen was switched since start().
 	bool hasScreenChanged() const;
 
+	/// Returns whether the contained Rune is a word delimiting character
+	bool isDelimiter(const Glyph &g) const;
+
 protected: // data
 
 	Nst &m_nst;
@@ -187,6 +193,9 @@ protected: // data
 
 	Range m_saved_range; ///< selection range with normalized coordinates
 	Range m_saved_orig; ///< selection range with original cooridinates
+
+	std::wstring m_word_delimiters;
+
 };
 
 } // end ns

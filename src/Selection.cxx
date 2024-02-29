@@ -17,7 +17,9 @@
 namespace nst {
 
 Selection::Selection(Nst &nst) :
-		m_nst{nst}, m_term{nst.term()} {
+		m_nst{nst},
+		m_term{nst.term()},
+		m_word_delimiters{config::WORD_DELIMITERS} {
 	m_orig.invalidate();
 }
 
@@ -35,6 +37,18 @@ void Selection::clear() {
 
 bool Selection::hasScreenChanged() const {
 	return m_alt_screen != m_term.onAltScreen();
+}
+
+bool Selection::isDelimiter(const Glyph &g) const {
+	return g.rune && m_word_delimiters.find_first_of(g.rune) != m_word_delimiters.npos;
+}
+
+void Selection::applyConfig() {
+	auto &config = m_nst.configFile();
+
+	if (const auto delimiters = config.asWideString("word_delimiters"); delimiters != std::nullopt) {
+		m_word_delimiters = *delimiters;
+	}
 }
 
 bool Selection::isSelected(const CharPos pos) const {
@@ -134,7 +148,7 @@ bool Selection::tryExtendWordSep() {
 	// only do something if the clicked-on position is itself a separator.
 	const auto &screen = m_term.screen();
 	const auto &clicked = screen[m_range.begin];
-	if (clicked.isDelimiter()) {
+	if (isDelimiter(clicked)) {
 		if (m_snap_dir == Direction::FORWARD) {
 			auto next = screen.nextInLine(m_range.begin);
 			if (next) {
@@ -246,11 +260,11 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::opt
 	// force at least on additional word, even if we are already at word
 	// borders.
 	bool force = m_force_word_extend;
-	auto isDelim = [delimiter](const Glyph &g) -> bool {
+	auto isDelim = [this, delimiter](const Glyph &g) -> bool {
 		if (delimiter)
 			return g.rune == *delimiter;
 		else
-			return g.isDelimiter();
+			return isDelimiter(g);
 	};
 
 	const Glyph *prevgp = &screen[pos];

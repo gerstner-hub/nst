@@ -4,7 +4,6 @@
 #include "cosmos/BitMask.hxx"
 
 // nst
-#include "nst_config.hxx"
 #include "types.hxx"
 
 namespace nst {
@@ -71,12 +70,6 @@ public: // functions
 
 	bool isSameRune(const Glyph &other) const {
 		return rune == other.rune;
-	}
-
-	/// Returns whether the contained Rune is a word delimiting character
-	bool isDelimiter() const {
-		using config::WORD_DELIMITERS;
-		return rune && WORD_DELIMITERS.find_first_of(rune) != WORD_DELIMITERS.npos;
 	}
 
 	/// Replace all attributes by WDUMMY, reset rune

@@ -80,6 +80,8 @@ void Nst::loadConfig() {
 	if (auto home = cosmos::proc::get_env_var("HOME"); home != std::nullopt) {
 		m_config_file.parse(home->str() + "/.config/nst.conf");
 	}
+
+	m_selection.applyConfig();
 }
 
 void Nst::setEnv() {

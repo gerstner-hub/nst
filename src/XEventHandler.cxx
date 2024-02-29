@@ -74,8 +74,15 @@ XEventHandler::XEventHandler(Nst &nst) :
 		m_wsys{nst.wsys()},
 		m_twin{m_wsys.termWin()},
 		m_mouse_shortcuts{config::get_mouse_shortcuts(nst)},
-		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)}
+		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)},
+		m_auto_clear_selection{config::SEL_CLEAR}
 {}
+
+void XEventHandler::applyConfig() {
+	if (auto auto_clear_sel = m_nst.configFile().asBool("auto_clear_selection"); auto_clear_sel) {
+		m_auto_clear_selection = *auto_clear_sel;
+	}
+}
 
 bool XEventHandler::checkEvents() {
 	auto &display = xpp::display;
@@ -336,7 +343,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 }
 
 void XEventHandler::selectionClear() {
-	if (config::SEL_CLEAR) {
+	if (m_auto_clear_selection) {
 		m_nst.selection().clear();
 	}
 }

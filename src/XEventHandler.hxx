@@ -30,6 +30,8 @@ public: // functions
 
 	explicit XEventHandler(Nst &nst);
 
+	void applyConfig();
+
 	/// Checks for and processes X11 events
 	/**
 	 * This returns `true` if any type of event occured, otherwise `false`.
@@ -109,6 +111,7 @@ protected: // data
 	CharPos m_old_mouse_pos; ///< The last seen mouse position in terminal coordinates
 	xpp::Event m_event; ///< The currently handled event.
 	std::string m_key_buf; ///< reused input sequence string for XInput
+	bool m_auto_clear_selection = false; ///< automatically clear selection on ownership loss
 };
 
 } // end ns

@@ -82,6 +82,7 @@ void Nst::loadConfig() {
 	}
 
 	m_selection.applyConfig();
+	m_event_handler.applyConfig();
 }
 
 void Nst::setEnv() {

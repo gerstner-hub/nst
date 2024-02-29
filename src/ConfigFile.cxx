@@ -59,6 +59,28 @@ std::optional<unsigned long> ConfigFile::asUnsigned(const std::string &key) cons
 	return ret;
 }
 
+std::optional<bool> ConfigFile::asBool(const std::string &key) const {
+	auto it = m_items.find(key);
+	if (it == m_items.end())
+		return std::nullopt;
+
+	auto value = toNarrowString(it->second);
+
+	std::string lower;
+
+	if (value) {
+		lower = cosmos::to_lower(*value);
+	}
+
+	if (lower == "true")
+		return true;
+	else if (lower == "false")
+		return false;
+
+	m_logger.error() << "ConfigFile parse error for key '" << key << "': expected boolean true or false setting\n";
+	return std::nullopt;
+}
+
 void ConfigFile::parse(const std::string_view path) {
 	std::wifstream fs{path.data()};
 	fs.imbue(std::locale("en_US.utf8"));

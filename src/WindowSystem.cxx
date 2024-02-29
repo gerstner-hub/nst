@@ -30,6 +30,7 @@ WindowSystem::WindowSystem(Nst &nst) :
 		m_input{m_window},
 		m_color_manager{m_twin},
 		m_selection{nst},
+		m_border_pixels{config::BORDERPX},
 		m_display{xpp::display} {
 	setCursorStyle(config::CURSORSHAPE);
 }
@@ -165,7 +166,7 @@ void WindowSystem::setupWindow(const xpp::XWindow &parent) {
 
 void WindowSystem::setSizeHints() {
 	using Flags = xpp::SizeHints::Flags;
-	constexpr auto BORDER_PIXELS = 2 * config::BORDERPX;
+	const auto BORDER_PIXELS = 2 * m_border_pixels;
 	const auto chr = m_twin.chrExtent();
 	const auto win = m_twin.winExtent();
 	xpp::SizeHints size_hints;
@@ -247,8 +248,9 @@ xpp::XWindow WindowSystem::parent() const {
 void WindowSystem::init() {
 
 	m_font_manager.setFontSpec(m_cmdline.font.getValue());
+	const auto config_file = m_nst.configFile();
 
-	if (auto fontspec = m_nst.configFile().asString("font"); fontspec && !m_cmdline.font.isSet()) {
+	if (auto fontspec = config_file.asString("font"); fontspec && !m_cmdline.font.isSet()) {
 		m_font_manager.setFontSpec(*fontspec);
 	}
 
@@ -256,6 +258,12 @@ void WindowSystem::init() {
 		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", m_font_manager.fontSpec().c_str())));
 	}
 
+	if (auto pixels = config_file.asUnsigned("border_pixels"); pixels != std::nullopt) {
+		auto num_pixels = std::min(*pixels, 100UL);
+		m_border_pixels = num_pixels;
+	}
+
+	m_twin.setBorderPixels(m_border_pixels);
 	m_twin.setCharSize(m_font_manager.normalFont());
 
 	m_color_manager.init();
@@ -424,11 +432,10 @@ void WindowSystem::drawGlyphs(Line::const_iterator it, const Line::const_iterato
 }
 
 void WindowSystem::cleanupWindowBorders(const int textwidth, const CharPos char_pos, const DrawPos draw_pos) {
-	constexpr auto BORDERPX = config::BORDERPX;
 	const auto chr = m_twin.chrExtent();
 	const auto tty = m_twin.TTYExtent();
 	const auto win = m_twin.winExtent();
-	const bool reaches_bottom_border = draw_pos.y + chr.height >= BORDERPX + tty.height;
+	const bool reaches_bottom_border = draw_pos.y + chr.height >= m_border_pixels + tty.height;
 
 	// NOTE: it is not fully clear why the window borders should get dirty
 	// in the first place.
@@ -437,14 +444,14 @@ void WindowSystem::cleanupWindowBorders(const int textwidth, const CharPos char_
 	if (char_pos.x == 0) {
 		const auto pos1 = DrawPos{0, char_pos.y ? draw_pos.y : 0};
 		const auto pos2 = DrawPos{
-			BORDERPX,
+			m_border_pixels,
 			char_pos.y + chr.height + (reaches_bottom_border ? win.height : 0)
 		};
 		clearRect(pos1, pos2);
 	}
 
 	// right border
-	if (draw_pos.x + textwidth >= BORDERPX + tty.width) {
+	if (draw_pos.x + textwidth >= m_border_pixels + tty.width) {
 		const auto pos1 = DrawPos{
 			draw_pos.x + textwidth,
 			char_pos.y ? draw_pos.y : 0};
@@ -459,11 +466,11 @@ void WindowSystem::cleanupWindowBorders(const int textwidth, const CharPos char_
 	if (char_pos.y == 0) {
 		clearRect(
 				DrawPos{draw_pos.x, 0},
-				DrawPos{draw_pos.x + textwidth, BORDERPX});
+				DrawPos{draw_pos.x + textwidth, m_border_pixels});
 	}
 
 	// bottom border
-	if (draw_pos.y + chr.height >= BORDERPX + tty.height) {
+	if (draw_pos.y + chr.height >= m_border_pixels + tty.height) {
 		clearRect(
 				DrawPos{draw_pos.x, draw_pos.y + chr.height},
 				DrawPos{draw_pos.x + textwidth, win.height});

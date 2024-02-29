@@ -36,6 +36,29 @@ std::optional<std::wstring> ConfigFile::asWideString(const std::string &key) con
 	return value;
 }
 
+std::optional<unsigned long> ConfigFile::asUnsigned(const std::string &key) const {
+	auto it = m_items.find(key);
+	if (it == m_items.end())
+		return std::nullopt;
+
+	auto &value = it->second;
+	size_t pos = 0;
+	unsigned long ret = 0;
+
+	try {
+		ret = std::stoul(value.c_str(), &pos);
+	} catch (...) {
+	}
+
+	if (value.empty() || pos < value.size()) {
+		m_logger.error() << "ConfigFile parse error for key '" << key << "': "
+			<< "'" << toUTF8(value) << "' is not an unsigned integer\n";
+		return std::nullopt;
+	}
+
+	return ret;
+}
+
 void ConfigFile::parse(const std::string_view path) {
 	std::wifstream fs{path.data()};
 	fs.imbue(std::locale("en_US.utf8"));

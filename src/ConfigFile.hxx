@@ -61,6 +61,9 @@ public: // functions
 	/// Wide string variant of asString(const std::string&)
 	std::optional<std::wstring> asWideString(const std::string &key) const;
 
+	/// Attempt to access the given configuration key as an unsigned integer value.
+	std::optional<unsigned long> asUnsigned(const std::string &key) const;
+
 protected: // functions
 
 	void parseLine(const std::string_view file, const size_t linenr, std::wstring &line);

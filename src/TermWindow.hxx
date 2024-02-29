@@ -15,6 +15,10 @@ struct TermWindow {
 
 	void setCharSize(const Font &font);
 
+	void setBorderPixels(int bpx) {
+		m_border_pixels = bpx;
+	}
+
 	/// Sets an absolute window size in pixels (as ported by X11).
 	void setWinExtent(const Extent ext) {
 		if (ext.width != 0)
@@ -25,13 +29,13 @@ struct TermWindow {
 
 	/// Sets the window size in pixel based on the current configuration.
 	void setWinExtent(const TermSize size) {
-		m_win_extent.width  = 2 * config::BORDERPX + size.cols * m_chr_extent.width;
-		m_win_extent.height = 2 * config::BORDERPX + size.rows * m_chr_extent.height;
+		m_win_extent.width  = 2 * m_border_pixels + size.cols * m_chr_extent.width;
+		m_win_extent.height = 2 * m_border_pixels + size.rows * m_chr_extent.height;
 	}
 
 	/// Calculates the number of characters that fit into the current terminal window.
 	TermSize getTermDim() const {
-		constexpr auto EXTRA_PIXELS = 2 * config::BORDERPX;
+		const auto EXTRA_PIXELS = 2 * m_border_pixels;
 		int cols = (m_win_extent.width - EXTRA_PIXELS) / m_chr_extent.width;
 		int rows = (m_win_extent.height - EXTRA_PIXELS) / m_chr_extent.height;
 		cols = std::max(1, cols);
@@ -48,8 +52,8 @@ struct TermWindow {
 	/// Converts a character position on the TTY into a pixel based DrawPos.
 	DrawPos toDrawPos(const CharPos cp) const {
 		return DrawPos{
-			config::BORDERPX + cp.x * m_chr_extent.width,
-			config::BORDERPX + cp.y * m_chr_extent.height
+			m_border_pixels + cp.x * m_chr_extent.width,
+			m_border_pixels + cp.y * m_chr_extent.height
 		};
 	}
 
@@ -65,7 +69,7 @@ struct TermWindow {
 
 	/// Converts a pixel based drawing position into the corresponding character position.
 	CharPos toCharPos(const DrawPos pos) const {
-		CharPos ret{pos.x - config::BORDERPX, pos.y - config::BORDERPX};
+		CharPos ret{pos.x - m_border_pixels, pos.y - m_border_pixels};
 
 		ret.clampX(m_tty_extent.width - 1);
 		ret.x /= m_chr_extent.width;
@@ -111,6 +115,7 @@ protected: // data
 	Extent m_tty_extent; ///< window minus border size
 	Extent m_chr_extent; ///< single character dimensions
 	Extent m_win_extent; ///< window width and height
+	int m_border_pixels = 0;
 };
 
 } // end ns

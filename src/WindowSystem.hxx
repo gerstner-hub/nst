@@ -207,6 +207,7 @@ protected: // data
 	ColorManager m_color_manager;
 	XSelection m_selection;
 	bool m_blinking_cursor_style = false;
+	int m_border_pixels = 0;
 
 	xpp::XDisplay &m_display;
 	xpp::GeometrySettingsMask m_geometry_mask;

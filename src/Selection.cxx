@@ -19,7 +19,8 @@ namespace nst {
 Selection::Selection(Nst &nst) :
 		m_nst{nst},
 		m_term{nst.term()},
-		m_word_delimiters{config::WORD_DELIMITERS} {
+		m_word_delimiters{config::WORD_DELIMITERS},
+		m_snap_keep_newline{config::SEL_LINE_SNAP_KEEP_NEWLINE}	{
 	m_orig.invalidate();
 }
 
@@ -48,6 +49,10 @@ void Selection::applyConfig() {
 
 	if (const auto delimiters = config.asWideString("word_delimiters"); delimiters != std::nullopt) {
 		m_word_delimiters = *delimiters;
+	}
+
+	if (const auto snap_keep_newline = config.asBool("snap_keep_newline"); snap_keep_newline != std::nullopt) {
+		m_snap_keep_newline = *snap_keep_newline;
 	}
 }
 
@@ -525,7 +530,7 @@ std::string Selection::selection() const {
 			ret.push_back('\n');
 	}
 
-	if (!config::SEL_LINE_SNAP_KEEP_NEWLINE && m_snap == Snap::LINE) {
+	if (!m_snap_keep_newline && m_snap == Snap::LINE) {
 		// removing trailing newlines if in line snap mode
 		while (!ret.empty() && ret.back() == '\n')
 			ret.pop_back();

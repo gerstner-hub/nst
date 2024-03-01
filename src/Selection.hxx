@@ -195,7 +195,7 @@ protected: // data
 	Range m_saved_orig; ///< selection range with original cooridinates
 
 	std::wstring m_word_delimiters;
-
+	bool m_snap_keep_newline = true;
 };
 
 } // end ns

@@ -31,6 +31,7 @@ WindowSystem::WindowSystem(Nst &nst) :
 		m_color_manager{m_twin},
 		m_selection{nst},
 		m_border_pixels{config::BORDERPX},
+		m_cursor_thickness{config::CURSOR_THICKNESS},
 		m_display{xpp::display} {
 	setCursorStyle(config::CURSORSHAPE);
 }
@@ -265,6 +266,11 @@ void WindowSystem::init() {
 
 	m_twin.setBorderPixels(m_border_pixels);
 	m_twin.setCharSize(m_font_manager.normalFont());
+
+	if (auto thickness = config_file.asUnsigned("cursor_thickness"); thickness != std::nullopt) {
+		auto num_pixels = std::min(static_cast<int>(*thickness), m_twin.chrExtent().height / 2);
+		m_cursor_thickness = num_pixels;
+	}
 
 	m_color_manager.init();
 
@@ -536,7 +542,6 @@ void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 
 	auto &color = m_color_manager.applyCursorColor(m_nst.selection().isSelected(pos), glyph);
 	const auto chr = m_twin.chrExtent();
-	constexpr auto CURSOR_THICKNESS = config::CURSOR_THICKNESS;
 
 	if (m_twin.hideCursor()) {
 		return;
@@ -561,14 +566,14 @@ void WindowSystem::drawCursor(const CharPos pos, Glyph glyph) {
 			case CursorStyle::BLINKING_UNDERLINE:
 			case CursorStyle::STEADY_UNDERLINE: {
 				auto dpos = m_twin.toDrawPos(pos.nextLine());
-				dpos.moveUp(CURSOR_THICKNESS);
-				m_font_draw_ctx.drawRect(color, dpos, Extent{chr.width, CURSOR_THICKNESS});
+				dpos.moveUp(m_cursor_thickness);
+				m_font_draw_ctx.drawRect(color, dpos, Extent{chr.width, m_cursor_thickness});
 				break;
 			}
 			case CursorStyle::BLINKING_BAR:
 			case CursorStyle::STEADY_BAR: {
 				auto dpos = m_twin.toDrawPos(pos);
-				m_font_draw_ctx.drawRect(color, dpos, Extent{CURSOR_THICKNESS, chr.height});
+				m_font_draw_ctx.drawRect(color, dpos, Extent{m_cursor_thickness, chr.height});
 				break;
 			}
 			default: // unknown cursor style

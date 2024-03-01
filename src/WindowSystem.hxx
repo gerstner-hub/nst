@@ -208,6 +208,7 @@ protected: // data
 	XSelection m_selection;
 	bool m_blinking_cursor_style = false;
 	int m_border_pixels = 0;
+	int m_cursor_thickness = 1;
 
 	xpp::XDisplay &m_display;
 	xpp::GeometrySettingsMask m_geometry_mask;

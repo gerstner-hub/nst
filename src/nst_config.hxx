@@ -133,7 +133,7 @@ constexpr std::chrono::milliseconds MAX_LATENCY{33};
  **/
 constexpr std::chrono::milliseconds BLINK_TIMEOUT{800};
 
-/// Thickness of underline attribute and bar cursors.
+/// Thickness of bar style cursors.
 constexpr int CURSOR_THICKNESS = 2;
 
 /// Terminal bell volume.

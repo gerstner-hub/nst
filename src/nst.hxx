@@ -88,6 +88,7 @@ protected: // data
 	TTY m_tty;
 	Selection m_selection;
 	XEventHandler m_event_handler;
+	std::chrono::milliseconds m_blink_timeout;
 };
 
 } // end ns

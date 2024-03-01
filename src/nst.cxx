@@ -29,7 +29,8 @@ Nst::Nst() :
 		m_term{*this},
 		m_tty{*this},
 		m_selection{*this},
-		m_event_handler{*this} {
+		m_event_handler{*this},
+		m_blink_timeout{config::BLINK_TIMEOUT} {
 	auto pid = cosmos::proc::get_own_pid();
 	m_logger.setPrefix(cosmos::sprintf("nst[%d] ", cosmos::to_integral(pid)));
 }
@@ -79,6 +80,10 @@ void Nst::loadConfig() {
 	m_config_file.parse("/etc/nst.conf");
 	if (auto home = cosmos::proc::get_env_var("HOME"); home != std::nullopt) {
 		m_config_file.parse(home->str() + "/.config/nst.conf");
+	}
+
+	if (auto blink_timeout = m_config_file.asUnsigned("blink_timeout"); blink_timeout != std::nullopt) {
+		m_blink_timeout = std::chrono::milliseconds(*blink_timeout);
 	}
 
 	m_selection.applyConfig();
@@ -203,15 +208,15 @@ void Nst::mainLoop() {
 		// idle detected or maxlatency exhausted -> draw
 		timeout = std::chrono::milliseconds(-1);
 
-		if (config::BLINK_TIMEOUT.count() > 0 && (m_wsys.isBlinkingCursorStyle() || m_term.existsBlinkingGlyph())) {
-			timeout = config::BLINK_TIMEOUT - blink_watch.elapsed();
+		if (m_blink_timeout.count() > 0 && (m_wsys.isBlinkingCursorStyle() || m_term.existsBlinkingGlyph())) {
+			timeout = m_blink_timeout - blink_watch.elapsed();
 			if (timeout.count() <= 0) {
-				if (-timeout.count() > config::BLINK_TIMEOUT.count()) // start visible
+				if (-timeout.count() > m_blink_timeout.count()) // start visible
 					m_wsys.setBlinking(true);
 				m_wsys.switchBlinking();
 				m_term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
-				timeout = config::BLINK_TIMEOUT;
+				timeout = m_blink_timeout;
 			}
 		}
 

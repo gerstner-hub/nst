@@ -248,29 +248,7 @@ xpp::XWindow WindowSystem::parent() const {
 
 void WindowSystem::init() {
 
-	m_font_manager.setFontSpec(m_cmdline.font.getValue());
-	const auto config_file = m_nst.configFile();
-
-	if (auto fontspec = config_file.asString("font"); fontspec && !m_cmdline.font.isSet()) {
-		m_font_manager.setFontSpec(*fontspec);
-	}
-
-	if (!m_font_manager.loadFonts()) {
-		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", m_font_manager.fontSpec().c_str())));
-	}
-
-	if (auto pixels = config_file.asUnsigned("border_pixels"); pixels != std::nullopt) {
-		auto num_pixels = std::min(*pixels, 100UL);
-		m_border_pixels = num_pixels;
-	}
-
-	m_twin.setBorderPixels(m_border_pixels);
-	m_twin.setCharSize(m_font_manager.normalFont());
-
-	if (auto thickness = config_file.asUnsigned("cursor_thickness"); thickness != std::nullopt) {
-		auto num_pixels = std::min(static_cast<int>(*thickness), m_twin.chrExtent().height / 2);
-		m_cursor_thickness = num_pixels;
-	}
+	applyConfig();
 
 	m_color_manager.init();
 
@@ -306,6 +284,65 @@ void WindowSystem::init() {
 
 	if (m_cmdline.useXSync()) {
 		m_display.setSynchronized(true);
+	}
+}
+
+void WindowSystem::applyConfig() {
+	m_font_manager.setFontSpec(m_cmdline.font.getValue());
+	const auto config_file = m_nst.configFile();
+
+	if (auto fontspec = config_file.asString("font"); fontspec && !m_cmdline.font.isSet()) {
+		m_font_manager.setFontSpec(*fontspec);
+	}
+
+	if (!m_font_manager.loadFonts()) {
+		cosmos_throw (cosmos::RuntimeError(cosmos::sprintf("Failed to open font %s", m_font_manager.fontSpec().c_str())));
+	}
+
+	if (auto pixels = config_file.asUnsigned("border_pixels"); pixels != std::nullopt) {
+		auto num_pixels = std::min(*pixels, 100UL);
+		m_border_pixels = num_pixels;
+	}
+
+	m_twin.setBorderPixels(m_border_pixels);
+	m_twin.setCharSize(m_font_manager.normalFont());
+
+	if (auto thickness = config_file.asUnsigned("cursor_thickness"); thickness != std::nullopt) {
+		auto num_pixels = std::min(static_cast<int>(*thickness), m_twin.chrExtent().height / 2);
+		m_cursor_thickness = num_pixels;
+	}
+
+	 auto toCursorStyle = [](std::string s) -> std::optional<CursorStyle>{
+		cosmos::strip(s);
+		s = cosmos::to_upper(s);
+		if (s == "BLINKING_BLOCK")
+			return CursorStyle::BLINKING_BLOCK;
+		else if (s == "STEADY_BLOCK")
+			return CursorStyle::STEADY_BLOCK;
+		else if (s == "REVERSE_BLOCK")
+			return CursorStyle::REVERSE_BLOCK;
+		else if (s == "BLINKING_UNDERLINE")
+			return CursorStyle::BLINKING_UNDERLINE;
+		else if (s == "STEADY_UNDERLINE")
+			return CursorStyle::STEADY_UNDERLINE;
+		else if (s == "BLINKING_BAR")
+			return CursorStyle::BLINKING_BAR;
+		else if (s == "STEADY_BAR")
+			return CursorStyle::STEADY_BAR;
+		else if (s == "SNOWMAN")
+			return CursorStyle::SNOWMAN;
+
+		return std::nullopt;
+	};
+
+	if (auto shape_str = config_file.asString("cursor_shape"); shape_str != std::nullopt) {
+		auto shape_opt = toCursorStyle(*shape_str);
+
+		if (shape_opt) {
+			setCursorStyle(*shape_opt);
+		} else {
+			m_nst.logger().error() << "invalid cursor_shape setting '" << *shape_str << "'" << std::endl;
+		}
 	}
 }
 

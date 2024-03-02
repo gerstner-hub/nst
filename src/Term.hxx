@@ -481,6 +481,7 @@ protected: // data
 	Screen m_screen;     ///< all the glyphs that make up the current terminal screen
 	Screen m_saved_screen; ///< all the glyphs that make up the saved terminal screen
 	std::vector<bool> m_tabs;                ///< marks horizontal tab positions for all lines
+	bool m_keep_scroll_position = true;
 };
 
 } // end ns

@@ -50,13 +50,18 @@ Term::Term(Nst &nst) :
 		m_allow_altscreen{config::ALLOW_ALTSCREEN},
 		m_esc_handler{nst},
 		m_screen{config::HISTORY_LEN},
-		m_saved_screen{0, /*is_alt_screen=*/true}
+		m_saved_screen{0, /*is_alt_screen=*/true},
+		m_keep_scroll_position{config::KEEP_SCROLL_POSITION}
 {}
 
 void Term::init(const Nst &nst) {
 
 	if (auto &cmdline = nst.cmdline(); cmdline.use_alt_screen.isSet()) {
 		m_allow_altscreen = cmdline.use_alt_screen.getValue();
+	}
+
+	if (auto keep_scroll = nst.configFile().asBool("keep_scroll_position"); keep_scroll != std::nullopt) {
+		m_keep_scroll_position = *keep_scroll;
 	}
 
 	resize(m_wsys.termWin().getTermDim());
@@ -822,7 +827,7 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 	// previous scroll position then we also have to restore the selection
 	// coordinates.
 	const auto saved_scroll = m_screen.saveScrollState();
-	if (config::KEEP_SCROLL_POSITION && saved_scroll) {
+	if (m_keep_scroll_position && saved_scroll) {
 		m_selection.saveRange();
 	}
 	m_screen.stopScrolling();
@@ -853,7 +858,7 @@ size_t Term::write(const std::string_view data, const ShowCtrlChars show_ctrl) {
 		putChar(rune);
 	}
 
-	if (config::KEEP_SCROLL_POSITION) {
+	if (m_keep_scroll_position) {
 		if (!m_screen.restoreScrollState()) {
 			scrollHistoryUpMax();
 		} else if (saved_scroll) {

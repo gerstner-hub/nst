@@ -145,7 +145,7 @@ public: // functions
 protected: // functions
 
 	/// Apply command line and configuration file settings.
-	void applyConfig();
+	void applyConfig(TermSize &tsize);
 
 	/// Change whether the given event types will be reported by X11.
 	void changeEventMask(const xpp::EventMask event, bool on_off);

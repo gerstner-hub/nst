@@ -248,11 +248,11 @@ xpp::XWindow WindowSystem::parent() const {
 
 void WindowSystem::init() {
 
-	applyConfig();
+	TermSize tsize{config::COLS, config::ROWS};
+	applyConfig(tsize);
 
 	m_color_manager.init();
 
-	TermSize tsize{config::COLS, config::ROWS};
 
 	// adjust fixed window geometry
 	if (m_cmdline.window_geometry.isSet()) {
@@ -287,7 +287,7 @@ void WindowSystem::init() {
 	}
 }
 
-void WindowSystem::applyConfig() {
+void WindowSystem::applyConfig(TermSize &tsize) {
 	m_font_manager.setFontSpec(m_cmdline.font.getValue());
 	const auto config_file = m_nst.configFile();
 
@@ -335,13 +335,31 @@ void WindowSystem::applyConfig() {
 		return std::nullopt;
 	};
 
+	auto &logger = m_nst.logger();
+
 	if (auto shape_str = config_file.asString("cursor_shape"); shape_str != std::nullopt) {
 		auto shape_opt = toCursorStyle(*shape_str);
 
 		if (shape_opt) {
 			setCursorStyle(*shape_opt);
 		} else {
-			m_nst.logger().error() << "invalid cursor_shape setting '" << *shape_str << "'" << std::endl;
+			logger.error() << "invalid cursor_shape setting '" << *shape_str << "'" << std::endl;
+		}
+	}
+
+	if (auto rows = config_file.asUnsigned("rows"); rows != std::nullopt) {
+		if (*rows < 1 || *rows > 1000) {
+			logger.error() << "value for rows '" << *rows << "' is out of range" << std::endl;
+		} else {
+			tsize.rows = *rows;
+		}
+	}
+
+	if (auto cols = config_file.asUnsigned("cols"); cols != std::nullopt) {
+		if (*cols < 1 || *cols > 1000) {
+			logger.error() << "value for cols '" << *cols << "' is out of range" << std::endl;
+		} else {
+			tsize.cols = *cols;
 		}
 	}
 }

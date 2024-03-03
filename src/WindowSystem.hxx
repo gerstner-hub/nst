@@ -221,6 +221,7 @@ protected: // data
 	xpp::GraphicsContext m_graphics_context;
 	xpp::XCursor m_font_pointer;
 	xpp::XCursor m_blank_pointer;
+	bool m_hide_mouse_cursor = true;
 	bool m_is_pointer_visible = true;
 
 	GlyphFontSpecVector m_font_specs;

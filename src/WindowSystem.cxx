@@ -32,7 +32,8 @@ WindowSystem::WindowSystem(Nst &nst) :
 		m_selection{nst},
 		m_border_pixels{config::BORDERPX},
 		m_cursor_thickness{config::CURSOR_THICKNESS},
-		m_display{xpp::display} {
+		m_display{xpp::display},
+		m_hide_mouse_cursor{config::HIDE_MOUSE_CURSOR}	{
 	setCursorStyle(config::CURSORSHAPE);
 }
 
@@ -362,6 +363,10 @@ void WindowSystem::applyConfig(TermSize &tsize) {
 			tsize.cols = *cols;
 		}
 	}
+
+	if (auto hide = config_file.asBool("hide_mouse_cursor"); hide != std::nullopt) {
+		m_hide_mouse_cursor = *hide;
+	}
 }
 
 void WindowSystem::makeGlyphFontSpecs(const Glyph *glyphs, const size_t count, const CharPos char_pos) {
@@ -565,7 +570,7 @@ void WindowSystem::setupPointer() {
 }
 
 void WindowSystem::hidePointer() {
-	if (config::HIDE_MOUSE_CURSOR && m_is_pointer_visible) {
+	if (m_hide_mouse_cursor && m_is_pointer_visible) {
 		m_is_pointer_visible = false;
 		m_window.defineCursor(m_blank_pointer);
 		setPointerMotion(true);

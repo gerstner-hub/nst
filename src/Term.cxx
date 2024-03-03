@@ -60,8 +60,14 @@ void Term::init(const Nst &nst) {
 		m_allow_altscreen = cmdline.use_alt_screen.getValue();
 	}
 
-	if (auto keep_scroll = nst.configFile().asBool("keep_scroll_position"); keep_scroll != std::nullopt) {
+	auto &config_file = nst.configFile();
+
+	if (auto keep_scroll = config_file.asBool("keep_scroll_position"); keep_scroll != std::nullopt) {
 		m_keep_scroll_position = *keep_scroll;
+	}
+
+	if (auto history_len = config_file.asUnsigned("history_len"); history_len != std::nullopt) {
+		m_screen.setHistoryLen(*history_len);
 	}
 
 	resize(m_wsys.termWin().getTermDim());

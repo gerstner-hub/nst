@@ -237,6 +237,15 @@ public: // functions
 	 **/
 	void setDimension(const TermSize size, const Glyph defattrs);
 
+	/// Change the size of the scrollback buffer.
+	/**
+	 * Changing this setting will only take effect when setDimension() is
+	 * called.
+	 **/
+	void setHistoryLen(const size_t len) {
+		m_history_len = len;
+	}
+
 	/// Scrolls the screen content up to display the oldest history position.
 	/**
 	 * \return The number of lines actually scrolled

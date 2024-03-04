@@ -2,6 +2,7 @@
 
 // C++
 #include <optional>
+#include <set>
 #include <string>
 
 // nst
@@ -196,6 +197,7 @@ protected: // data
 
 	std::wstring m_word_delimiters;
 	bool m_snap_keep_newline = true;
+	std::set<std::string> m_uri_schemes;
 };
 
 } // end ns

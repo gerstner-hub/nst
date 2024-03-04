@@ -22,6 +22,9 @@ Selection::Selection(Nst &nst) :
 		m_word_delimiters{config::WORD_DELIMITERS},
 		m_snap_keep_newline{config::SEL_LINE_SNAP_KEEP_NEWLINE}	{
 	m_orig.invalidate();
+	for (auto scheme: config::SEL_URI_SCHEMES) {
+		m_uri_schemes.insert(std::string{scheme});
+	}
 }
 
 void Selection::clear() {
@@ -53,6 +56,15 @@ void Selection::applyConfig() {
 
 	if (const auto snap_keep_newline = config.asBool("snap_keep_newline"); snap_keep_newline != std::nullopt) {
 		m_snap_keep_newline = *snap_keep_newline;
+	}
+
+	if (const auto uri_schemes = config.asString("selection_uri_schemes"); uri_schemes != std::nullopt) {
+		m_uri_schemes.clear();
+
+		for (const auto &scheme: cosmos::split(
+					*uri_schemes, " ", cosmos::SplitFlags{cosmos::SplitFlag::STRIP_PARTS})) {
+			m_uri_schemes.insert(scheme);
+		}
 	}
 }
 
@@ -400,8 +412,8 @@ void Selection::tryURISnap() {
 
 	const auto protocol = cosmos::to_lower(selection());
 
-	auto isURI = [](const std::string_view sv) -> bool {
-		for (const auto scheme: config::SEL_URI_SCHEMES) {
+	auto isURI = [this](const std::string_view sv) -> bool {
+		for (const auto &scheme: m_uri_schemes) {
 			if (sv == scheme)
 				return true;
 		}

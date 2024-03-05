@@ -140,10 +140,16 @@ public: // functions
 	const FontColor& defaultBack() const { return fontColor(config::THEME.bg); }
 
 	const FontColor& fontColor(const ColorIndex index) const {
-		return m_colors.at(cosmos::to_integral(index));
+		auto &manager = const_cast<ColorManager&>(*this);
+		return manager.fontColor(index);
 	}
-	FontColor& fontColor(const ColorIndex index) {
-		return m_colors.at(cosmos::to_integral(index));
+
+	FontColor& fontColor(ColorIndex index) {
+		if (const auto num = cosmos::to_integral(index); num < m_colors.size())
+			return m_colors[num];
+		else {
+			return m_ext_colors.at(num - m_colors.size());
+		}
 	}
 
 	/// Returns the RGB components of the given color index
@@ -178,7 +184,8 @@ protected: // data
 	/// Current background color for drawing.
 	FontColor m_back_color;
 	/// Colors corresponding to specific ColorIndex palette values.
-	std::array<FontColor, 256UL + config::THEME.extended_colors.size()> m_colors;
+	std::array<FontColor, 256UL> m_colors;
+	std::vector<FontColor> m_ext_colors;
 };
 
 } // end ns

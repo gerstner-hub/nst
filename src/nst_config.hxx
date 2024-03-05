@@ -143,7 +143,7 @@ constexpr int CURSOR_THICKNESS = 2;
 constexpr xpp::BellVolume BELL_VOLUME{0};
 
 /// Default colors to use, see themes.hxx for available themes.
-constexpr auto THEME = DEFAULT_THEME;
+const auto THEME = DEFAULT_THEME;
 
 /// Default shape of cursor
 constexpr CursorStyle CURSORSHAPE = CursorStyle::STEADY_BLOCK;

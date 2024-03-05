@@ -5,7 +5,7 @@
 
 namespace nst::config {
 
-inline constexpr Theme<4> DEFAULT_THEME{
+const Theme DEFAULT_THEME{
 	{
 		/* 8 normal colors */
 		"black",
@@ -44,7 +44,7 @@ inline constexpr Theme<4> DEFAULT_THEME{
 // see http://st.suckless.org/patches/solarized for the authors and
 // documentation of the two solarlized themes.
 
-inline constexpr Theme<0> SOLARIZED_LIGHT{
+const Theme SOLARIZED_LIGHT{
 	{
 		"#eee8d5",  /*  0: black    */
 		"#dc322f",  /*  1: red      */
@@ -70,7 +70,7 @@ inline constexpr Theme<0> SOLARIZED_LIGHT{
 	ColorIndex{15},
 };
 
-inline constexpr Theme<0> SOLARIZED_DARK{
+const Theme SOLARIZED_DARK{
 	{
 		"#073642",  /*  0: black    */
 		"#dc322f",  /*  1: red      */
@@ -103,7 +103,7 @@ inline constexpr Theme<0> SOLARIZED_DARK{
 // "Inspired by the beauty of the arctic, the colors reflect the cold, yet
 // harmonious world of ice and the colorfulness of the Aurora Borealis."
 
-inline constexpr Theme<2> NORDTHEME{
+const Theme NORDTHEME{
 	{
 		"#3b4252", /* black   */
 		"#bf616a", /* red     */
@@ -137,7 +137,7 @@ inline constexpr Theme<2> NORDTHEME{
 //
 // Moonfly is a dark color scheme for Vim and Neovim made by bluz71.
 
-inline constexpr Theme<4> MOONFLY{
+const Theme MOONFLY{
 	{
 		"#323437",
 		"#ff5454",
@@ -171,7 +171,7 @@ inline constexpr Theme<4> MOONFLY{
 // Cyberpunk-Neon is a color scheme made by Roboron3042.
 //
 // see http://st.suckless.org/patches/cyberpunk-neon/
-inline constexpr Theme<3> CYBERPUNK_NEON{
+const Theme CYBERPUNK_NEON{
 	{
 		"#123e7c",
 		"#ff0000",
@@ -206,7 +206,7 @@ inline constexpr Theme<3> CYBERPUNK_NEON{
 //
 // Dracula is a color scheme made by Zeno Rocha based on Solarized.
 
-inline constexpr Theme<2> DRACULA{
+const Theme DRACULA{
 	{
 		"#000000", /* black   */
 		"#ff5555", /* red     */
@@ -239,7 +239,7 @@ inline constexpr Theme<2> DRACULA{
 // documentaton of this theme.
 //
 // gruvbox is a retro groove color scheme made by morhetz
-inline constexpr Theme<0> GRUVBOX{
+const Theme GRUVBOX{
 	{
 		"#f9f5d7", /* hard contrast: #f9f5d7 / soft contrast: #f2e5bc */
 		"#cc241d", /* red     */

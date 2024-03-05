@@ -121,7 +121,15 @@ void RenderColor::setFromRGB(const ColorIndex rgb) {
 
 void ColorManager::init() {
 	for (uint32_t colnr = 0; colnr < m_colors.size(); colnr++) {
-		ColorIndex idx{colnr};
+		const ColorIndex idx{colnr};
+		auto &fc = fontColor(idx);
+		fc.load(idx);
+	}
+
+	m_ext_colors.resize(config::THEME.extended_colors.size());
+
+	for (uint32_t extcol = 0; extcol < m_ext_colors.size(); extcol++) {
+		const ColorIndex idx{uint32_t(extcol + m_colors.size())};
 		auto &fc = fontColor(idx);
 		fc.load(idx);
 	}

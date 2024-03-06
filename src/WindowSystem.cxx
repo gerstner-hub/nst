@@ -28,7 +28,7 @@ WindowSystem::WindowSystem(Nst &nst) :
 		m_nst{nst},
 		m_cmdline{nst.cmdline()},
 		m_input{m_window},
-		m_color_manager{m_twin},
+		m_color_manager{nst.theme(), m_twin},
 		m_selection{nst},
 		m_border_pixels{config::BORDERPX},
 		m_cursor_thickness{config::CURSOR_THICKNESS},
@@ -109,7 +109,7 @@ void WindowSystem::clearWindow() {
 }
 
 void WindowSystem::clearRect(const DrawPos pos1, const DrawPos pos2) {
-	const auto idx = m_twin.activeForegroundColor();
+	const auto idx = m_twin.activeForegroundColor(m_nst.theme());
 	m_font_draw_ctx.drawRect(m_color_manager.fontColor(idx), pos1, Extent{pos2.x - pos1.x, pos2.y - pos1.y});
 }
 
@@ -547,7 +547,7 @@ void WindowSystem::setupPointer() {
 
 	auto parseColor = [this](const ColorIndex idx, const unsigned short fallback) {
 		xpp::XColor ret;
-		auto name = get_color_name(idx);
+		auto name = m_nst.theme().getColorName(idx);
 		try {
 			m_display.parseColor(ret, name);
 		} catch (const cosmos::CosmosError &) {
@@ -715,7 +715,7 @@ void WindowSystem::popTitle() {
 
 void WindowSystem::finishDraw() {
 	const auto extent = m_twin.winExtent();
-	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor());
+	const auto &color = m_color_manager.fontColor(m_twin.activeForegroundColor(m_nst.theme()));
 
 	m_window.copyArea(m_graphics_context, m_pixmap, extent);
 	m_graphics_context.setForeground(color.index());

@@ -473,6 +473,7 @@ void CSIEscape::process() {
 bool CSIEscape::setCursorAttrs() const {
 	bool ret = true;
 	auto &term = m_nst.term();
+	auto &theme = m_nst.theme();
 
 	for (auto it = m_args.begin(); it < m_args.end(); it++) {
 		const auto attr = *it;
@@ -534,7 +535,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		}
 		case 39:
-			term.setCursorFgColor(config::THEME.fg);
+			term.setCursorFgColor(theme.fg);
 			break;
 		case 48: {
 			if (auto colidx = parseColor(++it); colidx != ColorIndex::INVALID)
@@ -542,7 +543,7 @@ bool CSIEscape::setCursorAttrs() const {
 			break;
 		}
 		case 49:
-			term.setCursorBgColor(config::THEME.bg);
+			term.setCursorBgColor(theme.bg);
 			break;
 		default:
 			if (!handleCursorColorSet(attr)) {

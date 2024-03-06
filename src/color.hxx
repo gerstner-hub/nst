@@ -22,13 +22,6 @@
 
 namespace nst {
 
-/// Returns the color name for a color number taking into account extended color configuration.
-/**
- * \return
- * 	The according color name or an empty string if none is configured for the given index.
- **/
-cosmos::SysString get_color_name(ColorIndex idx);
-
 /// Wrapper around the XftColor type which is a composite of XRenderColor and additional "pixel" info.
 /**
  * The additional "pixel" info is potentially allocated by the XServer via
@@ -77,7 +70,7 @@ public: // functions
 			color.blue == other.color.blue;
 	}
 
-	void load(const ColorIndex idx, cosmos::SysString name = {});
+	void load(const Theme &theme, const ColorIndex idx, cosmos::SysString name = {});
 
 	void load(const XRenderColor &rc);
 
@@ -132,12 +125,13 @@ public: // functions
 /// Management of the color palette and per-Glyph color settings.
 class ColorManager {
 public: // functions
-	explicit ColorManager(TermWindow &twin) :
-			m_twin{twin}
+	explicit ColorManager(const Theme &theme, TermWindow &twin) :
+			m_twin{twin},
+			m_theme{theme}
 	{}
 
-	const FontColor& defaultFront() const { return fontColor(config::THEME.fg); }
-	const FontColor& defaultBack() const { return fontColor(config::THEME.bg); }
+	const FontColor& defaultFront() const { return fontColor(m_theme.fg); }
+	const FontColor& defaultBack() const { return fontColor(m_theme.bg); }
 
 	const FontColor& fontColor(const ColorIndex index) const {
 		auto &manager = const_cast<ColorManager&>(*this);
@@ -186,6 +180,7 @@ protected: // data
 	/// Colors corresponding to specific ColorIndex palette values.
 	std::array<FontColor, 256UL> m_colors;
 	std::vector<FontColor> m_ext_colors;
+	const Theme &m_theme;
 };
 
 } // end ns

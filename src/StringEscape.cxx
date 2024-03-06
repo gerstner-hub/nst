@@ -152,6 +152,8 @@ bool StringEscape::processOSC() {
 	constexpr int SET_COLOR_INDEX = 4;
 	constexpr int RESET_COLOR_INDEX = 104;
 
+	auto &theme = m_nst.theme();
+
 	// for reference see: https://www.xfree86.org/current/ctlseqs.html
 	switch (par) {
 		case 0: // change icon name _and_ window title
@@ -181,11 +183,11 @@ bool StringEscape::processOSC() {
 			}
 			break;
 		case 10: // change text FG color
-			return handle_color("foreground", par, config::THEME.fg);
+			return handle_color("foreground", par, theme.fg);
 		case 11: // change text BG color
-			return handle_color("background", par, config::THEME.bg);
+			return handle_color("background", par, theme.bg);
 		case 12: // change text cursor color
-			return handle_color("cursor", par, config::THEME.cursor_color);
+			return handle_color("cursor", par, theme.cursor_color);
 		case SET_COLOR_INDEX: // change color number to RGB value
 			if (numargs < 3)
 				return false;

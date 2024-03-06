@@ -15,14 +15,14 @@ inline auto cmap() {
 	return xpp::raw_cmap(xpp::colormap);
 }
 
-void FontColor::load(const ColorIndex idx, cosmos::SysString name) {
+void FontColor::load(const Theme &theme, const ColorIndex idx, cosmos::SysString name) {
 	if (name.empty()) {
 		// 256 color range
 		if (cosmos::in_range(idx, ColorIndex::START_256, ColorIndex::END_256)) {
 			load256(idx);
 			return;
 		} else {
-			name = get_color_name(idx);
+			name = theme.getColorName(idx);
 		}
 	}
 
@@ -37,7 +37,7 @@ void FontColor::load(const ColorIndex idx, cosmos::SysString name) {
 		return;
 	}
 
-	auto colorname = get_color_name(idx);
+	auto colorname = theme.getColorName(idx);
 
 	cosmos_throw (cosmos::RuntimeError(
 			cosmos::sprintf("could not allocate color %d ('%s')", cosmos::to_integral(idx),
@@ -123,15 +123,15 @@ void ColorManager::init() {
 	for (uint32_t colnr = 0; colnr < m_colors.size(); colnr++) {
 		const ColorIndex idx{colnr};
 		auto &fc = fontColor(idx);
-		fc.load(idx);
+		fc.load(m_theme, idx);
 	}
 
-	m_ext_colors.resize(config::THEME.extended_colors.size());
+	m_ext_colors.resize(m_theme.extended_colors.size());
 
 	for (uint32_t extcol = 0; extcol < m_ext_colors.size(); extcol++) {
 		const ColorIndex idx{uint32_t(extcol + m_colors.size())};
 		auto &fc = fontColor(idx);
-		fc.load(idx);
+		fc.load(m_theme, idx);
 	}
 }
 
@@ -154,7 +154,7 @@ bool ColorManager::setColorName(const ColorIndex idx, const cosmos::SysString na
 		auto &old_color = fontColor(idx);
 		FontColor new_color;
 
-		new_color.load(idx, name);
+		new_color.load(m_theme, idx, name);
 		old_color = std::move(new_color);
 		return true;
 	} catch (...) {
@@ -219,54 +219,32 @@ const FontColor& ColorManager::applyCursorColor(const bool is_selected, Glyph &g
 	// Select the right color for the right mode.
 	glyph.mode.limit({Attr::BOLD, Attr::ITALIC, Attr::UNDERLINE, Attr::STRUCK, Attr::WIDE});
 
-	constexpr auto &THEME = config::THEME;
-
 	if (m_twin.inReverseMode()) {
 		glyph.setReverseColor();
-		glyph.bg = THEME.fg;
+		glyph.bg = m_theme.fg;
 		if (is_selected) {
-			glyph.fg = THEME.reverse_cursor_color;
-			return fontColor(THEME.cursor_color);
+			glyph.fg = m_theme.reverse_cursor_color;
+			return fontColor(m_theme.cursor_color);
 		} else {
-			glyph.fg = THEME.cursor_color;
-			return fontColor(THEME.reverse_cursor_color);
+			glyph.fg = m_theme.cursor_color;
+			return fontColor(m_theme.reverse_cursor_color);
 		}
 	} else {
 		if (is_selected) {
-			glyph.fg = THEME.fg;
-			glyph.bg = THEME.reverse_cursor_color;
+			glyph.fg = m_theme.fg;
+			glyph.bg = m_theme.reverse_cursor_color;
 		} else {
 			if (m_twin.getCursorStyle() == CursorStyle::REVERSE_BLOCK) {
 				glyph.setReverseColor();
-				return fontColor(THEME.cursor_color);
+				return fontColor(m_theme.cursor_color);
 			} else {
-				glyph.fg = THEME.bg;
-				glyph.bg = THEME.cursor_color;
+				glyph.fg = m_theme.bg;
+				glyph.bg = m_theme.cursor_color;
 			}
 		}
 
 		return fontColor(glyph.bg);
 	}
-}
-
-cosmos::SysString get_color_name(const ColorIndex idx) {
-
-	constexpr auto &THEME = config::THEME;
-
-	if (auto raw = cosmos::to_integral(idx); raw < THEME.basic_colors.size()) {
-		// returning the raw pointer here is okay since we know that
-		// they're always null terminated.
-		return THEME.basic_colors[raw].data();
-	} else if (idx >= ColorIndex::START_EXTENDED) {
-		const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
-		// check for extended colors
-		if (ext < THEME.extended_colors.size())
-			return THEME.extended_colors[ext].data();
-	}
-
-	// unassigned
-	// NOTE: the libX functions that consume this are tolerant towards null pointers
-	return {};
 }
 
 } // end ns

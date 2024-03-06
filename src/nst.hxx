@@ -64,6 +64,10 @@ public: // functions
 		return m_config_file;
 	}
 
+	const auto& theme() const {
+		return m_theme;
+	}
+
 protected: // functions
 
 	/// this is the main entry point of the Nst application that is also
@@ -81,6 +85,7 @@ protected: // data
 
 	xpp::Init m_xpp;
 	mutable cosmos::StdLogger m_logger;
+	Theme m_theme;
 	ConfigFile m_config_file;
 	Cmdline m_cmdline;
 	WindowSystem m_wsys;

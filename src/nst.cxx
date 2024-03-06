@@ -24,6 +24,7 @@
 namespace nst {
 
 Nst::Nst() :
+		m_theme{config::THEME},
 		m_config_file{m_logger},
 		m_wsys{*this},
 		m_term{*this},

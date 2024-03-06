@@ -35,6 +35,8 @@ public: // types
 
 protected: // data
 
+	static ColorIndex m_def_fg;
+	static ColorIndex m_def_bg;
 	CharPos pos;   ///< current cursor position (not yet rendered)
 	Glyph m_attrs; ///< contains the currently active font attributes for newly input characters
 	StateBitMask m_state;
@@ -42,6 +44,11 @@ protected: // data
 public: // functions
 
 	CursorState();
+
+	void setDefaultColors(const ColorIndex fg, const ColorIndex bg) {
+		m_def_fg = m_attrs.fg = fg;
+		m_def_bg = m_attrs.bg = bg;
+	}
 
 	const auto& attrs() const { return m_attrs; }
 

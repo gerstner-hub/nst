@@ -20,11 +20,13 @@ namespace nst {
 // in this unit
 static_assert(std::is_trivially_copyable<nst::Glyph>::value, "Glyph type needs to be POD because of memmove");
 
+ColorIndex CursorState::m_def_fg = ColorIndex::INVALID;
+ColorIndex CursorState::m_def_bg = ColorIndex::INVALID;
 
 CursorState::CursorState() {
-	m_attrs.fg = config::THEME.fg;
-	m_attrs.bg = config::THEME.bg;
 	m_attrs.rune = ' ';
+	m_attrs.fg = m_def_fg;
+	m_attrs.bg = m_def_bg;
 }
 
 void CursorState::resetAttrs() {
@@ -38,8 +40,8 @@ void CursorState::resetAttrs() {
 		Attr::INVISIBLE,
 		Attr::STRUCK
 	});
-	m_attrs.fg = config::THEME.fg;
-	m_attrs.bg = config::THEME.bg;
+	m_attrs.fg = m_def_fg;
+	m_attrs.bg = m_def_bg;
 	m_attrs.rune = ' ';
 }
 
@@ -59,6 +61,9 @@ void Term::init(const Nst &nst) {
 	if (auto &cmdline = nst.cmdline(); cmdline.use_alt_screen.isSet()) {
 		m_allow_altscreen = cmdline.use_alt_screen.getValue();
 	}
+
+	auto &theme = nst.theme();
+	m_cursor.setDefaultColors(theme.fg, theme.bg);
 
 	auto &config_file = nst.configFile();
 

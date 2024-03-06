@@ -9,8 +9,9 @@
 #include <string_view>
 
 // cosmos
-#include "cosmos/utils.hxx"
 #include "cosmos/BitMask.hxx"
+#include "cosmos/SysString.hxx"
+#include "cosmos/utils.hxx"
 
 // xpp
 #include "xpp/types.hxx"
@@ -557,10 +558,34 @@ inline ColorIndex to_true_color(const ColorIndex idx) {
 }
 
 struct Theme {
+
 	/// Basic terminal colors (16 first used in escape sequence)
 	std::array<std::string_view, 16> basic_colors;
 	/// Extended color palette beyond index 255.
 	std::vector<std::string_view> extended_colors;
+
+	/// Returns the color name for a color number taking into account extended color configuration.
+	/**
+	 * \return
+	 * 	The according color name or an empty string if none is configured for the given index.
+	 **/
+	cosmos::SysString getColorName(const ColorIndex idx) const {
+
+		if (auto raw = cosmos::to_integral(idx); raw < basic_colors.size()) {
+			// returning the raw pointer here is okay since we know that
+			// they're always null terminated.
+			return basic_colors[raw].data();
+		} else if (idx >= ColorIndex::START_EXTENDED) {
+			const auto ext = cosmos::to_integral(idx - ColorIndex::START_EXTENDED);
+			// check for extended colors
+			if (ext < extended_colors.size())
+				return extended_colors[ext].data();
+		}
+
+		// unassigned
+		// NOTE: the libX functions that consume this are tolerant towards null pointers
+		return {};
+	}
 
 	/* these are indices into COLORNAMES or EXTENDED_COLORS above */
 

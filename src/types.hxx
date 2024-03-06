@@ -558,7 +558,7 @@ inline ColorIndex to_true_color(const ColorIndex idx) {
 }
 
 struct Theme {
-
+	std::string_view name;
 	/// Basic terminal colors (16 first used in escape sequence)
 	std::array<std::string_view, 16> basic_colors;
 	/// Extended color palette beyond index 255.

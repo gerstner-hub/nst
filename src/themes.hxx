@@ -6,6 +6,7 @@
 namespace nst::config {
 
 const Theme DEFAULT_THEME{
+	"default",
 	{
 		/* 8 normal colors */
 		"black",
@@ -45,6 +46,7 @@ const Theme DEFAULT_THEME{
 // documentation of the two solarlized themes.
 
 const Theme SOLARIZED_LIGHT{
+	"solarized-light",
 	{
 		"#eee8d5",  /*  0: black    */
 		"#dc322f",  /*  1: red      */
@@ -71,6 +73,7 @@ const Theme SOLARIZED_LIGHT{
 };
 
 const Theme SOLARIZED_DARK{
+	"solarized-dark",
 	{
 		"#073642",  /*  0: black    */
 		"#dc322f",  /*  1: red      */
@@ -104,6 +107,7 @@ const Theme SOLARIZED_DARK{
 // harmonious world of ice and the colorfulness of the Aurora Borealis."
 
 const Theme NORDTHEME{
+	"nordtheme",
 	{
 		"#3b4252", /* black   */
 		"#bf616a", /* red     */
@@ -138,6 +142,7 @@ const Theme NORDTHEME{
 // Moonfly is a dark color scheme for Vim and Neovim made by bluz71.
 
 const Theme MOONFLY{
+	"moonfly",
 	{
 		"#323437",
 		"#ff5454",
@@ -172,6 +177,7 @@ const Theme MOONFLY{
 //
 // see http://st.suckless.org/patches/cyberpunk-neon/
 const Theme CYBERPUNK_NEON{
+	"cyberpunk-neon",
 	{
 		"#123e7c",
 		"#ff0000",
@@ -207,6 +213,7 @@ const Theme CYBERPUNK_NEON{
 // Dracula is a color scheme made by Zeno Rocha based on Solarized.
 
 const Theme DRACULA{
+	"dracula",
 	{
 		"#000000", /* black   */
 		"#ff5555", /* red     */
@@ -240,6 +247,7 @@ const Theme DRACULA{
 //
 // gruvbox is a retro groove color scheme made by morhetz
 const Theme GRUVBOX{
+	"gruvbox",
 	{
 		"#f9f5d7", /* hard contrast: #f9f5d7 / soft contrast: #f2e5bc */
 		"#cc241d", /* red     */

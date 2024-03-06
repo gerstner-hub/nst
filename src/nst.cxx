@@ -87,6 +87,25 @@ void Nst::loadConfig() {
 		m_blink_timeout = std::chrono::milliseconds(*blink_timeout);
 	}
 
+	if (auto theme_opt = m_config_file.asString("theme"); theme_opt != std::nullopt) {
+		bool found = false;
+
+		for (auto &theme: {
+				config::DEFAULT_THEME, config::SOLARIZED_LIGHT, config::SOLARIZED_DARK,
+				config::NORDTHEME, config::MOONFLY, config::CYBERPUNK_NEON,
+				config::DRACULA, config::GRUVBOX}) {
+			if (theme.name == *theme_opt) {
+				m_theme = theme;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			m_logger.error() << "invalid theme setting '" << *theme_opt << "'\n";
+		}
+	}
+
 	m_selection.applyConfig();
 	m_event_handler.applyConfig();
 }

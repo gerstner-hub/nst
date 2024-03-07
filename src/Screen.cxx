@@ -119,7 +119,10 @@ std::string Screen::asText(const CursorState &cursor) const {
 		for (auto it = line.raw().begin(); it < line.raw().begin() + used_cols; it++) {
 			utf8::encode(it->rune, ret);
 		}
-		utf8::encode(Rune{'\n'}, ret);
+
+		if (!line.raw().back().isWrapped()) {
+			utf8::encode(Rune{'\n'}, ret);
+		}
 	};
 
 	if (m_cur_pos + m_rows <= m_lines.size()) {

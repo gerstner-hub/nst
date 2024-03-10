@@ -77,6 +77,13 @@ cosmos::ExitStatus Nst::main(int argc, const char **argv) {
 	return cosmos::ExitStatus::SUCCESS;
 }
 
+namespace {
+	// since we are storing std::string_view for color names in the Theme
+	// struct we need to store custom colors from the config file
+	// somewhere proper. This is a bit ugly but does the trick.
+	std::list<std::string> custom_colors;
+}
+
 void Nst::loadConfig() {
 	m_config_file.parse("/etc/nst.conf");
 	if (auto home = cosmos::proc::get_env_var("HOME"); home != std::nullopt) {
@@ -108,6 +115,49 @@ void Nst::loadConfig() {
 
 	m_selection.applyConfig();
 	m_event_handler.applyConfig();
+
+	// assign basic color overrides from configuration file
+	for (size_t colnum = 1; colnum <= m_theme.basic_colors.size(); colnum++) {
+		const auto key = cosmos::sprintf("color%zd", colnum);
+		if (const auto color_opt = m_config_file.asString(key); color_opt != std::nullopt) {
+			auto color = *color_opt;
+
+			custom_colors.push_back(color);
+			m_theme.basic_colors[colnum-1] = custom_colors.back();
+		}
+	}
+
+	// assign extended color overrides from configuration file
+	for (size_t colnum = 1; colnum <= 4; colnum++) {
+		const auto key = cosmos::sprintf("extcolor%zd", colnum);
+		if (const auto color_opt = m_config_file.asString(key); color_opt != std::nullopt) {
+			auto color = *color_opt;
+
+			custom_colors.push_back(color);
+			if (m_theme.extended_colors.size() < colnum) {
+				m_theme.extended_colors.resize(colnum);
+			}
+
+			m_theme.extended_colors[colnum-1] = custom_colors.back();
+		}
+	}
+
+	for (auto &color_pair: {
+			std::pair<const char*, ColorIndex&>{"default_fg_color", m_theme.fg},
+			                                   {"default_bg_color", m_theme.bg},
+			                                   {"default_cursor_color", m_theme.cursor_color},
+			                                   {"default_rev_cursor_color", m_theme.reverse_cursor_color}}) {
+		const auto key = color_pair.first;
+		if (const auto idx_opt = m_config_file.asUnsigned(key); idx_opt != std::nullopt) {
+			const auto idx = *idx_opt;
+			if (idx == 0 || idx > 256 + 4) {
+				m_logger.error() << key << " in config file exceeds maximum color index\n";
+			} else {
+				color_pair.second = ColorIndex(idx-1);
+			}
+		}
+	}
+
 }
 
 void Nst::setEnv() {

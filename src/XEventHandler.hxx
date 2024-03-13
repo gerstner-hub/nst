@@ -100,13 +100,16 @@ protected: // functions
 	/// Store the currently selected text in the X11 selection buffer.
 	void applySelection(Time time);
 
+	/// Applies configuration file settings for the given KbdShortcut.
+	void applyKeyBindingConfig(KbdShortcut &shortcut, const std::string &key, const std::string &binding);
+
 protected: // data
 
 	Nst &m_nst;
 	WindowSystem &m_wsys;
 	const TermWindow &m_twin;
 	const std::vector<MouseShortcut> m_mouse_shortcuts;
-	const std::vector<KbdShortcut> m_kbd_shortcuts;
+	std::vector<KbdShortcut> m_kbd_shortcuts;
 	PressedButtons m_buttons; ///< Bit field of pressed buttons.
 	CharPos m_old_mouse_pos; ///< The last seen mouse position in terminal coordinates
 	xpp::Event m_event; ///< The currently handled event.

@@ -385,6 +385,7 @@ struct KbdShortcut {
 	xpp::InputMask mod;
 	xpp::KeySymID keysym;
 	InputCallback func;
+	const std::string_view label = {}; ///< used for matching ConfigFile entries, can be an empty string.
 	StopScrolling stop_scrolling = StopScrolling(false);
 };
 

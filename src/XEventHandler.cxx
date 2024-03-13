@@ -1,8 +1,11 @@
 // C++
 #include <ostream>
 
+using namespace std::literals;
+
 // cosmos
 #include "cosmos/formatting.hxx"
+#include "cosmos/string.hxx"
 #include "cosmos/utils.hxx"
 
 // xpp
@@ -79,9 +82,62 @@ XEventHandler::XEventHandler(Nst &nst) :
 {}
 
 void XEventHandler::applyConfig() {
-	if (auto auto_clear_sel = m_nst.configFile().asBool("auto_clear_selection"); auto_clear_sel) {
+	auto &config = m_nst.configFile();
+
+	if (auto auto_clear_sel = config.asBool("auto_clear_selection"); auto_clear_sel) {
 		m_auto_clear_selection = *auto_clear_sel;
 	}
+
+	/* Generically check keybinding overrides.
+	 * Each configurable keybinding has a unique label. We check for
+	 * matching configuration file keys and apply overrides as necessary. */
+	for (auto &shortcut: m_kbd_shortcuts) {
+		if (shortcut.label.empty())
+			continue;
+
+		const auto key = "keybinding_"s + std::string{shortcut.label};
+
+		if (auto keybind = config.asString(key); keybind != std::nullopt) {
+			if (*keybind == "[disable]") {
+				shortcut.keysym = xpp::KeySymID::NO_SYMBOL;
+			} else {
+				applyKeyBindingConfig(shortcut, key, *keybind);
+			}
+		}
+	}
+}
+
+void XEventHandler::applyKeyBindingConfig(KbdShortcut &shortcut, const std::string &key, const std::string &binding) {
+	auto &logger = m_nst.logger();
+	auto parts = cosmos::split(binding, " ", cosmos::SplitFlags{cosmos::SplitFlag::STRIP_PARTS});
+	// the last space separated item is the actual KeySymID string.
+	// the rest of the parts make up InputModifier strings.
+	const auto keysym_str = parts.back();
+	xpp::InputMask modmask;
+
+	parts.pop_back();
+
+	for (const auto &mod_str: parts) {
+		if (const auto mod = xpp::string_to_input_mod(mod_str); mod) {
+			modmask.set(*mod);
+		} else {
+			logger.error() << "Bad InputModifier for keybinding '" << key << "': "
+				<< mod_str << ". Skipping.\n";
+			return;
+		}
+	}
+
+	if (const auto keysym = xpp::string_to_keysym(keysym_str); keysym) {
+		shortcut.keysym = *keysym;
+	} else {
+		logger.error() << "Bad KeySymID for keybinding '" << key << "': "
+			<< keysym_str << ". Skipping.\n";
+		return;
+	}
+
+	// only apply changes to the modifiers now that we know no errors
+	// occured.
+	shortcut.mod = modmask;
 }
 
 bool XEventHandler::checkEvents() {

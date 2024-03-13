@@ -52,7 +52,7 @@ public: // functions
 	 * \param[in] cmdline The path to the program to run as well any
 	 * additional command line parameters.
 	 **/
-	void pipeBufferTo(const cosmos::StringViewVector cmdline);
+	void pipeBufferToExternalCommand();
 
 	/// Access to the central logger instance.
 	auto& logger() const {
@@ -87,6 +87,7 @@ protected: // data
 	mutable cosmos::StdLogger m_logger;
 	Theme m_theme;
 	ConfigFile m_config_file;
+	cosmos::StringVector m_pipe_buffer_command;
 	Cmdline m_cmdline;
 	WindowSystem m_wsys;
 	Term m_term;

@@ -38,6 +38,9 @@ constexpr std::array<std::string_view, 8> STTY_ARGS{{
 	"stty", "raw", "pass8", "nl", "-echo", "-iexten", "-cstopb", "38400"
 }};
 
+/// The default command to invoke for when the "open_buffer_in_editor" keyboard shortcut is executed.
+const std::vector<std::string> EXTERNAL_PIPE_CMDLINE{"gvim", "--not-a-term", "-"};
+
 /*
  * What program is executeed by nst depends on these precedence rules:
  * 1: program passed with -e

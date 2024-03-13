@@ -26,6 +26,7 @@ namespace nst {
 Nst::Nst() :
 		m_theme{config::THEME},
 		m_config_file{m_logger},
+		m_pipe_buffer_command{config::EXTERNAL_PIPE_CMDLINE},
 		m_wsys{*this},
 		m_term{*this},
 		m_tty{*this},
@@ -102,6 +103,12 @@ void Nst::loadConfig() {
 			m_logger.warn() << "couldn't parse configuration file '" << path
 				<< "' supplied in NST_CONFIG environment variable\n";
 		}
+	}
+
+	if (auto editor_cmdline = m_config_file.asString("open_buffer_in_editor_cmdline");
+			editor_cmdline != std::nullopt) {
+		m_pipe_buffer_command = cosmos::split(
+				*editor_cmdline, " ", cosmos::SplitFlags{cosmos::SplitFlag::STRIP_PARTS});
 	}
 
 	if (auto blink_timeout = m_config_file.asUnsigned("blink_timeout"); blink_timeout != std::nullopt) {
@@ -319,10 +326,10 @@ void Nst::resizeConsole() {
 	m_tty.resize(twin.TTYExtent());
 }
 
-void Nst::pipeBufferTo(const cosmos::StringViewVector cmdline) {
+void Nst::pipeBufferToExternalCommand() {
 	cosmos::Pipe pipe;
 	cosmos::ChildCloner cloner;
-	cloner.setArgsFromView(cmdline);
+	cloner.setArgs(m_pipe_buffer_command);
 	cloner.setStdIn(pipe.readEnd());
 
 	auto child = cloner.run();
@@ -335,7 +342,7 @@ void Nst::pipeBufferTo(const cosmos::StringViewVector cmdline) {
 		io.writeAll(text);
 	} catch(const cosmos::ApiError &e) {
 		if (e.errnum() != cosmos::Errno::BROKEN_PIPE) {
-			m_logger.error() << "failed to write terminal buffer to " << cmdline << ": " << e.what() << "\n";
+			m_logger.error() << "failed to write terminal buffer to " << m_pipe_buffer_command << ": " << e.what() << "\n";
 		}
 	}
 

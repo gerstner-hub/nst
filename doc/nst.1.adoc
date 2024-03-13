@@ -5,7 +5,7 @@ NST(1)
 nst - not (so) simple terminal
 
 == Synopsis
-nst  [-l <path-to-tty>] [-w <window-id>] [-o <iofile>] [-f <fontconfig font name>] [-g <X11 gemeoetry>] [-t <title>] [-n <name>] [-c <class>] [-e] [-i] [-a] [--] [--version] [-h] [command [arguments...]]
+nst  [-l <path-to-tty>] [-w <window-id>] [-o <iofile>] [-f <fontconfig font name>] [-g <X11 gemeoetry>] [-t <title>] [-n <name>] [-c <class>] [-e] [-i] [-a] [--config <path-to-config>] [--] [--version] [-h] [command [arguments...]]
 
 == Description
 nst is a (not so) simple terminal emulator.
@@ -61,6 +61,22 @@ This is a C++ port and fork of the suckless.org ST simple terminal emulator.
   execute remaining parameters instead of the shell. This switch is not
   actually needed, it is only for backwards compatibility. The remaining
   parameters will be used even without this switch, except if -l is given.
+
+*--config*::
+  specify the path to a custom nst.conf(5) configuration file to parse. This
+  will override settings from the system wide and per-user configuration file. A
+  failure to open the file will trigger a warning but nst will still start
+  successfully.
+
+== Environment Variables
+
+*NST_IPC_ADDR*:: this contains the name of an abstract UNIX domain socket
+that is connected to the active nst terminal. It is used by nst-msg(1).
+
+*NST_CONFIG*:: if specified then it is interpreted as a path to a custom nst
+configuration file that will be parsed during startup. It will override
+settings from all other configuration files found implicitly or specified via
+--config.
 
 == Shortcuts
 
@@ -118,6 +134,9 @@ Ctrl-Shift-Keypad Div::
 Ctrl-Shift-B::
   Invokes an external program and pipes the current history buffer to it (gvim
   by default).
+
+F11::
+  Toggle fullscreen mode of the nst window.
 
 == Customization
 

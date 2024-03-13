@@ -1,0 +1,126 @@
+'\" t
+.\"     Title: nst.conf
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 03/13/2024
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "NST\&.CONF" "5" "03/13/2024" "\ \&" "\ \&"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+nst.conf \- nst(1) configuration file
+.SH "DESCRIPTION"
+.sp
+nst\&.conf is the configuration file for the nst(1) terminal emulator\&. It allows to change a range of settings to override the compiled\-in defaults during runtime\&.
+.sp
+The configuration file is read once during startup of nst(1)\&. Multiple configuration files will be looked up in the following order:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+/etc/nst\&.conf for system wide configuration\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+$HOME/\&.config/nst\&.conf for user specific configuration\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+the file specified via the \-\-config command line switch\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+the file specified in the NST_CONFIG environment variable\&.
+.RE
+.sp
+The settings found in the configuration files are accumulated\&. Settings from configuration files that are parsed at a later time will override previously seen settings, if they overlap\&.
+.sp
+The configuration file is parsed line by line\&. Lines starting with a "#" character (after stripping leading whitespace) will be treated as comments and will be ignored\&. There is no support for line continuation neither in comments nor in configuration lines\&.
+.sp
+All configuration lines follow the format "<key> = <value>"\&. <key> is an alphanumerical string containing only ASCII characters, underscores and no whitespace\&. Leading and trailing whitespace is stripped\&. <key> items that are unknown to nst(1) will be parsed for syntax errors but will be ignored otherwise\&. <value> can be of one of the following formats, depending on the configuration <key>:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+a UTF8 encoded unicode string surrounded by double quotes\&. To embed double quotes in the string, minimal backslash escape sequences are supported, namely \e" to embed a double quote and \e\e to embed a literal backslash character\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+an unsigned 32\-bit integer consisting of only numerical characters\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+a boolean value consisting either of the string true or false (without using quotes)\&.
+.RE
+.sp
+Parse errors will be diagnosed by nst(1) on stderr, but will not cause the terminal emulator to abort\&. Bad configuration settings (on a logical level) can still lead to a non\-functional nst(1)\&.
+.sp
+The available configuration keys along with a description and their compiled\-in defaults can be found in the template configuration file installed in /etc/nst\&.conf\&.
+.SH "FILES"
+.sp
+/etc/nst\&.conf $HOME/\&.config/nst\&.conf

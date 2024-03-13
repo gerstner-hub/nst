@@ -28,5 +28,13 @@ nst_msg_man_cmd = doc_env.Command(
     action='a2x -f manpage -D ./doc $SOURCE'
 )
 
+# this is generated in the source tree!
+nst_conf_man_cmd = doc_env.Command(
+    '#doc/nst.conf.5',
+    'nst.conf.5.adoc',
+    action='a2x -f manpage -D ./doc $SOURCE'
+)
+
 env.Alias('man', nst_man_cmd)
 env.Alias('man', nst_msg_man_cmd)
+env.Alias('man', nst_conf_man_cmd)

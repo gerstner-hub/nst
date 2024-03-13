@@ -2,12 +2,12 @@
 .\"     Title: nst
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/18/2024
+.\"      Date: 03/13/2024
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "NST" "1" "02/18/2024" "\ \&" "\ \&"
+.TH "NST" "1" "03/13/2024" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 nst \- not (so) simple terminal
 .SH "SYNOPSIS"
 .sp
-nst [\-l <path\-to\-tty>] [\-w <window\-id>] [\-o <iofile>] [\-f <fontconfig font name>] [\-g <X11 gemeoetry>] [\-t <title>] [\-n <name>] [\-c <class>] [\-e] [\-i] [\-a] [\-\-] [\-\-version] [\-h] [command [arguments\&...]]
+nst [\-l <path\-to\-tty>] [\-w <window\-id>] [\-o <iofile>] [\-f <fontconfig font name>] [\-g <X11 gemeoetry>] [\-t <title>] [\-n <name>] [\-c <class>] [\-e] [\-i] [\-a] [\-\-config <path\-to\-config>] [\-\-] [\-\-version] [\-h] [command [arguments\&...]]
 .SH "DESCRIPTION"
 .sp
 nst is a (not so) simple terminal emulator\&.
@@ -97,6 +97,22 @@ prints version information and exits\&.
 \fB\-e\fR
 .RS 4
 execute remaining parameters instead of the shell\&. This switch is not actually needed, it is only for backwards compatibility\&. The remaining parameters will be used even without this switch, except if \-l is given\&.
+.RE
+.PP
+\fB\-\-config\fR
+.RS 4
+specify the path to a custom nst\&.conf(5) configuration file to parse\&. This will override settings from the system wide and per\-user configuration file\&. A failure to open the file will trigger a warning but nst will still start successfully\&.
+.RE
+.SH "ENVIRONMENT VARIABLES"
+.PP
+\fBNST_IPC_ADDR\fR
+.RS 4
+this contains the name of an abstract UNIX domain socket that is connected to the active nst terminal\&. It is used by nst\-msg(1)\&.
+.RE
+.PP
+\fBNST_CONFIG\fR
+.RS 4
+if specified then it is interpreted as a path to a custom nst configuration file that will be parsed during startup\&. It will override settings from all other configuration files found implicitly or specified via \-\-config\&.
 .RE
 .SH "SHORTCUTS"
 .PP
@@ -188,6 +204,11 @@ Inverts the color scheme\&.
 Ctrl\-Shift\-B
 .RS 4
 Invokes an external program and pipes the current history buffer to it (gvim by default)\&.
+.RE
+.PP
+F11
+.RS 4
+Toggle fullscreen mode of the nst window\&.
 .RE
 .SH "CUSTOMIZATION"
 .sp

@@ -3,11 +3,11 @@ Import('env')
 # always use the in-tree TCLAP for now, we rely on version 1.4 which isn't
 # packaged yet in most distros (it's still a development branch).
 
-#if env['use_system_pkgs']:
-#    base_pkgs = ['tclap']
-#else:
-#    env.Append(CPPPATH=['#/tclap/include'])
-#    base_pkgs = []
+# if env['use_system_pkgs']:
+#     base_pkgs = ['tclap']
+# else:
+#     env.Append(CPPPATH=['#/tclap/include'])
+#     base_pkgs = []
 
 base_pkgs = []
 env.Append(CPPPATH=['#/tclap/include'])

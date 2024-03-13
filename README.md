@@ -147,6 +147,18 @@ Improved Text Selection
   clicking on the selection itself, then the selection will be extended in
   both directions.
 
+Configuration File Support
+==========================
+
+Starting with version 1.0 the more common nst options can now be influenced
+via the `nst.conf(5)` configuration file. The defaults can still be configured
+via the `nst_config.hxx` header. The configuration file will be looked up
+during startup, though, and can override the compiled in defaults.
+
+To achieve this I implemented a minimal custom configuration file parser. I
+did this to avoid having to pull in yet another complex dependency - and the
+effort to implement it was relatively small.
+
 Features ported from the available ST patches
 =============================================
 
@@ -228,8 +240,11 @@ the related [GitHub Page](https://gerstner-hub.github.io/nst).
 Future Directions
 =================
 
-I am planning to add some level of configuration file support to make the
-terminal emulator more accessible.
+With version 1.0 of nst I have reached the feature set that I had in mind. I
+am planning to do some more refactoring in some areas that already started to
+become a bit convoluted again. Also some formal fuzzing tests of the
+terminal's escape sequence handling and things like that are on my list as
+finishing touches to the project.
 
 Contributing
 ============

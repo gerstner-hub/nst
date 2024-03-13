@@ -270,7 +270,7 @@ const Theme GRUVBOX{
 	ColorIndex{15},
 	ColorIndex{0},
 	ColorIndex{15},
-	ColorIndex{257}
+	ColorIndex{0}
 };
 
 } // end ns

@@ -45,6 +45,7 @@ public: // data
 	TCLAP::ValueArg<std::string> cwd;
 	TCLAP::ValueArg<unsigned long> embed_window;
 	TCLAP::ValueArg<std::string> tty_line;
+	TCLAP::ValueArg<std::string> config_file;
 	TCLAP::UnlabeledMultiArg<std::string> rest;
 };
 

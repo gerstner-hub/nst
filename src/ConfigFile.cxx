@@ -81,12 +81,12 @@ std::optional<bool> ConfigFile::asBool(const std::string &key) const {
 	return std::nullopt;
 }
 
-void ConfigFile::parse(const std::string_view path) {
+bool ConfigFile::parse(const std::string_view path) {
 	std::wifstream fs{path.data()};
 	fs.imbue(std::locale("en_US.utf8"));
 
 	if (!fs) {
-		return;
+		return false;
 	}
 
 	size_t linenr = 1;
@@ -95,6 +95,8 @@ void ConfigFile::parse(const std::string_view path) {
 		parseLine(path, linenr, line);
 		linenr++;
 	}
+
+	return true;
 }
 
 void ConfigFile::parseLine(const std::string_view file, const size_t linenr, std::wstring &line) {

@@ -89,6 +89,13 @@ void Nst::loadConfig() {
 	if (auto home = cosmos::proc::get_env_var("HOME"); home != std::nullopt) {
 		m_config_file.parse(home->str() + "/.config/nst.conf");
 	}
+	if (m_cmdline.config_file.isSet()) {
+		const auto &path = m_cmdline.config_file.getValue();
+		if (!m_config_file.parse(path)) {
+			m_logger.warn() << "couldn't parse configuration file '" << path
+				<< "' supplied on command line\n";
+		}
+	}
 
 	if (auto blink_timeout = m_config_file.asUnsigned("blink_timeout"); blink_timeout != std::nullopt) {
 		m_blink_timeout = std::chrono::milliseconds(*blink_timeout);

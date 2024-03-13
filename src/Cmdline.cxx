@@ -23,6 +23,7 @@ Cmdline::Cmdline() :
 	cwd{            "d", "dir",            "set the initial working directory of NST", false, "", "path", *this},
 	embed_window{   "w", "embed-window",   "embeds nst within the window identified by given windowid", false, 0, "window-id", *this},
 	tty_line{       "l", "tty",            "use a tty line instead of pseudo terminal. Remaining parameters will be passed as flags to stty", false, "", "path-to-tty", *this},
+	config_file{    "",  "config",         "custom path to an nst.conf file to use", false, "", "path-to-config", *this},
 	rest{                "rest",           "command to execute instead of shell for -e, or if -l is not given. If -l is given then these are stty parameters", false, "extra-pars", *this}
 {}
 

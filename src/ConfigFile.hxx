@@ -39,12 +39,13 @@ public: // functions
 
 	/// Try to parse the given configuration file and add its items to internal state.
 	/**
-	 * If the file does not exist then nothing happens.
+	 * If the file does not exist then nothing happens and `false` is
+	 * returned.
 	 *
 	 * Existing configuration items will overwritten by new configuration
 	 * items found in the new configuration file.
 	 **/
-	void parse(const std::string_view path);
+	bool parse(const std::string_view path);
 
 	/// Attempt to access the given configuration key and returns its ASCII string value.
 	/**

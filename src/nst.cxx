@@ -96,6 +96,13 @@ void Nst::loadConfig() {
 				<< "' supplied on command line\n";
 		}
 	}
+	if (auto conf = cosmos::proc::get_env_var("NST_CONFIG"); conf != std::nullopt) {
+		const auto &path = *conf;
+		if (!m_config_file.parse(path)) {
+			m_logger.warn() << "couldn't parse configuration file '" << path
+				<< "' supplied in NST_CONFIG environment variable\n";
+		}
+	}
 
 	if (auto blink_timeout = m_config_file.asUnsigned("blink_timeout"); blink_timeout != std::nullopt) {
 		m_blink_timeout = std::chrono::milliseconds(*blink_timeout);

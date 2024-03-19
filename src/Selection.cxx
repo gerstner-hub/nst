@@ -447,7 +447,7 @@ void Selection::tryURISnap() {
 }
 
 void Selection::scroll(const int origin_y, const int num_lines) {
-	if (!m_orig.isValid())
+	if (!m_orig.isValid() || hasScreenChanged())
 		return;
 
 	const auto scroll_area = m_term.scrollArea();

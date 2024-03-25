@@ -220,8 +220,10 @@ void Font::checkWeight(const FontPattern &pattern) {
 FcPattern* Font::queryFontConfig(const Rune rune) const {
 	FcResult fc_res;
 	if (!m_set) {
-		// TODO: error checking?
 		m_set = FcFontSort(nullptr, m_pattern, /*trim=*/FcTrue, nullptr, &fc_res);
+
+		if (!m_set)
+			return nullptr;
 	}
 	FcFontSet *fc_sets[] = { m_set };
 

@@ -31,15 +31,15 @@ namespace nst {
  * when being on the alt screen (which is non-scrolled), where the application
  * is usually responsible of restoring screen content upon resize.
  *
- * TODO: we might need to better detect changes to existing lines to cut-off
- * hidden Glyphs after all, to avoid then inconsistent content coming back
- * into view.  Sadly there is no central spot to detect actual content changes
- * to Lines currently. The dirty attribute is only concerned with drawing
- * changes, not wich logical line changes.
+ * NOTE: ideally we would be able to better detect changes to existing lines
+ * to cut-off hidden Glyphs after all, to avoid then inconsistent content
+ * coming back into view. Sadly there is no central spot to detect actual
+ * content changes to Lines currently. The dirty attribute is only concerned
+ * with drawing changes, not wich logical line changes.
  *
- * Currently this is done in Term::clearRegion() to clear lines that are
- * edited using various operations or whell scrolling the screen (not history)
- * up/down. Hopefully this is enough to catch most situations.
+ * Currently this is done in Term::clearRegion(), to clear lines that are
+ * edited using various operations or when scrolling the screen (not history)
+ * up/down. It seems this is enough for most situations.
  **/
 class Line {
 public: // types

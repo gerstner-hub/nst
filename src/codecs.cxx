@@ -25,7 +25,7 @@ namespace {
 constexpr utf8_t UTF_BYTE[UTF_SIZE + 1] = {0x80, 0x00, 0xC0, 0xE0, 0xF0};
 constexpr utf8_t UTF_MASK[UTF_SIZE + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 
-// index for a detected trailing byte in UFT_BYTE / UTF_MASk above
+// index for a detected trailing byte in UFT_BYTE / UTF_MASK above
 constexpr size_t TRAILING_BYTE = 0;
 
 // the maximum code point value ranges for sequences of one, two, three, four
@@ -107,7 +107,7 @@ size_t decode(const std::string_view encoded, Rune &rune) {
 	size_t byte_type;
 
 	for (; curbyte < encoded.length() && curbyte < numbytes; curbyte++) {
-		// add six more bytes from each trailing byte
+		// add six more bits from each trailing byte
 		decoded = (decoded << 6) | decodebyte(encoded[curbyte], byte_type);
 		if (byte_type != TRAILING_BYTE)
 			// less trailing bytes encountered than announced
@@ -116,9 +116,7 @@ size_t decode(const std::string_view encoded, Rune &rune) {
 
 	// short input sequence
 	if (curbyte < numbytes)
-		// TODO: inconsistent error handling? Above 1 is returned for
-		// an invalid start byte, but here after we processed an
-		// incomplete sequence we return 0?
+		// this causes the caller to stop processing input and wait for more data
 		return 0;
 
 	rune = decoded;

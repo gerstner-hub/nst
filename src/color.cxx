@@ -183,25 +183,7 @@ void ColorManager::configureFor(const Glyph base) {
 	}
 
 	if (m_twin.inReverseMode()) {
-		// NOTE: this is a bit strange logic by now which stems from
-		// the fact that previously this have been pointers that
-		// pointed either to fixed colors in the array or to a
-		// temporary color object on the stack. For performance this
-		// would certainly still be better to make this distinction,
-		// but it causes ugly code ...
-		// TODO: either find a nice way to implement copy-on-write, or
-		// simplify this code by only calling `.invert()` right away.
-		if (m_front_color == defaultFront()) {
-			m_front_color = defaultBack();
-		} else {
-			m_front_color.invert();
-		}
-
-		if (m_back_color == defaultBack()) {
-			m_back_color = defaultFront();
-		} else {
-			m_back_color.invert();
-		}
+		applyReverseMode();
 	}
 
 	if (base.useReverseColor()) {
@@ -212,6 +194,23 @@ void ColorManager::configureFor(const Glyph base) {
 		m_front_color = m_back_color;
 	} else if (base.mode[Attr::INVISIBLE]) {
 		m_front_color = m_back_color;
+	}
+}
+
+void ColorManager::applyReverseMode() {
+	// if one of the colors is the default color then switch to the
+	// reverse default color, otherwise simply invert the raw color value
+
+	if (m_front_color == defaultFront()) {
+		m_front_color = defaultBack();
+	} else {
+		m_front_color.invert();
+	}
+
+	if (m_back_color == defaultBack()) {
+		m_back_color = defaultFront();
+	} else {
+		m_back_color.invert();
 	}
 }
 

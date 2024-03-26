@@ -170,6 +170,11 @@ public: // functions
 	/// Applies cursor color settings to `glyph` and returns the FontColor to be used.
 	const FontColor& applyCursorColor(const bool is_selected, Glyph &glyph) const;
 
+protected: // functions
+
+	/// Reverses the front and background colors for reverse terminal mode
+	void applyReverseMode();
+
 protected: // data
 
 	TermWindow &m_twin;

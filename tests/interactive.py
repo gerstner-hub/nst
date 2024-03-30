@@ -5,6 +5,8 @@ import sys
 import subprocess
 import signal
 
+from enum import Enum
+
 # this script allows to test a range of escape sequences on the terminal to
 # observe the behaviour, find bugs etc.
 #
@@ -35,6 +37,7 @@ class TerminalSettings:
 
 
 stty = TerminalSettings()
+Mode = Enum('Mode', 'INSERT NORMAL COMMAND')
 
 
 class TestScreen:
@@ -46,6 +49,7 @@ class TestScreen:
         self.top = 3
         self.bottom = 3
         self.screen = 'main'
+        self.mode = Mode.NORMAL
 
     def updateWindowSize(self):
         self.rows, self.cols = stty.size()
@@ -54,22 +58,22 @@ class TestScreen:
     def writeDefinedLines(self):
 
         for i in range(1, self.top):
-            self.moveTo(0, i)
+            self.moveCursorTo(0, i)
             self.writeFullRow(f'{self.screen}: Non-Scrolled Top {i}')
 
         for i in range(3, self.rows - 2):
-            self.moveTo(0, i)
+            self.moveCursorTo(0, i)
             self.writeFullRow(f'line {i}')
 
         for i in range(self.rows - self.bottom + 1, self.rows):
-            self.moveTo(0, i)
+            self.moveCursorTo(0, i)
             self.writeFullRow(f'{self.screen}: Non-Scrolled Bottom {i}')
 
     def _windowSizeChanged(self, sig, frame):
         self.updateWindowSize()
 
-    def _readByte(self):
-        return os.read(sys.stdin.fileno(), 1).decode()
+    def _readKey(self):
+        return os.read(sys.stdin.fileno(), 256).decode()
 
     def _sendCSI(self, seq):
         sys.stdout.write('\033[' + seq)
@@ -82,7 +86,7 @@ class TestScreen:
         bottom = self.rows - self.bottom
         self._sendCSI(f'{top};{bottom}r')
 
-    def moveTo(self, col, row):
+    def moveCursorTo(self, col, row):
         self._sendCSI(f'{row};{col}H')
 
     def scrollUp(self):
@@ -113,6 +117,21 @@ class TestScreen:
         cols = self.amount
         self._sendCSI(f'{cols}D')
 
+    def moveCursorToCol(self, col):
+        self._sendCSI(f'{col}G')
+
+    def moveCursorToBegin(self):
+        self.moveCursorToCol(0)
+
+    def moveCursorToEnd(self):
+        self.moveCursorToCol(self.cols)
+
+    def saveCursorPos(self):
+        self._sendCSI('s')
+
+    def restoreCursorPos(self):
+        self._sendCSI('u')
+
     def switchScreen(self):
         mode = 'h' if self.screen == 'main' else 'l'
         self._sendCSI(f'?1047{mode}')
@@ -134,7 +153,7 @@ class TestScreen:
 
         sys.stdout.write(' ' * left)
 
-    def processLongCommand(self, command):
+    def processCommand(self, command):
 
         if '=' in command:
             key, val = command.split('=', 1)
@@ -155,6 +174,13 @@ class TestScreen:
 
         cb(val)
 
+    def processNormal(self, cb):
+        if self.amount:
+            self.amount = int(self.amount)
+        cb()
+        if self.mode == Mode.NORMAL:
+            self.enterNormalMode()
+
     def setTitle(self, title):
         self._sendStringEscape(f'2;{title}')
 
@@ -168,13 +194,54 @@ class TestScreen:
         signal.signal(signal.SIGWINCH, self._windowSizeChanged)
         self.updateWindowSize()
         self.writeDefinedLines()
-        self.moveTo(0, 10)
+        self.moveCursorTo(0, 10)
         stty.setEcho(False)
         stty.setLineBuffering(False)
+        self.enterNormalMode()
 
         self.loop()
 
+    def enterNormalMode(self):
+        if self.mode == Mode.COMMAND:
+            self.moveCursorTo(0, self.rows)
+            sys.stdout.write(' ' * self.cols)
+            self.restoreCursorPos()
+
+        self.mode = Mode.NORMAL
+        # optional amount modifier supported by some commands e.g. 10d to
+        # scroll 10 lines down
+        self.amount = ''
+
+    def enterInsertMode(self):
+        self.mode = Mode.INSERT
+
+    def enterCommandMode(self):
+        self.mode = Mode.COMMAND
+        # the string parsed so far
+        self.cmd = ''
+        self.saveCursorPos()
+        self.moveCursorTo(0, self.rows)
+        sys.stdout.write(':')
+
     def loop(self):
+
+        while True:
+            sys.stdout.flush()
+            key = self._readKey()
+            if key is None:
+                break
+
+            if self.mode == Mode.NORMAL:
+                self.handleNormalKey(key)
+            elif self.mode == Mode.COMMAND:
+                self.handleCommandKey(key)
+            elif ord(key[0]) == 0o33:
+                if len(key) == 1:
+                    self.enterNormalMode()
+            else:  # insert mode
+                sys.stdout.write(key)
+
+    def handleNormalKey(self, key):
         COMMANDS = {
             'u': self.scrollUp,
             'd': self.scrollDown,
@@ -182,57 +249,48 @@ class TestScreen:
             's': self.switchScreen,
             'r': self.writeDefinedLines,
             'q': sys.exit,
+            'i': self.enterInsertMode,
+            ':': self.enterCommandMode,
+            'h': self.moveCursorLeft,
+            'j': self.moveCursorDown,
+            'k': self.moveCursorUp,
+            'l': self.moveCursorRight,
+            '$': self.moveCursorToEnd,
+            '^': self.moveCursorToBegin,
             'arrow-up': self.moveCursorUp,
             'arrow-down': self.moveCursorDown,
             'arrow-left': self.moveCursorLeft,
             'arrow-right': self.moveCursorRight,
         }
 
-        # optional amount modifier supported by some commands e.g. 10d to
-        # scroll 10 lines down
-        self.amount = ''
-        long_command = ''
-        parse_long_command = False
-
-        while True:
-            sys.stdout.flush()
-            ch = self._readByte()
-            if ch is None:
-                break
-            elif parse_long_command:
-                if ch == '\n':
-                    self.processLongCommand(long_command)
-                    long_command = ''
-                    parse_long_command = False
-                    continue
-                else:
-                    long_command += ch
-                    continue
-
-            cb = COMMANDS.get(ch, None)
-            if cb:
-                self.runCB(cb)
-            elif ch == ':':
-                parse_long_command = True
-            elif ch.isnumeric():
-                self.amount += ch
-            elif ord(ch) == 0o33:  # ANSI escape character
-                cmd = self.checkEscapeSeq()
+        cb = COMMANDS.get(key, None)
+        if cb:
+            self.processNormal(cb)
+        elif key.isnumeric():
+            self.amount += key
+        elif ord(key[0]) == 0o33:  # ANSI escape character
+            if len(key) == 1:
+                self.enterNormalMode()
+            else:
+                cmd = self.checkEscapeSeq(key)
                 cb = COMMANDS.get(cmd, None)
                 if cb:
-                    self.runCB(cb)
+                    self.processNormal(cb)
 
-    def runCB(self, cb):
-        if self.amount:
-            self.amount = int(self.amount)
-        cb()
-        self.amount = ''
+    def handleCommandKey(self, key):
+        if key == '\n':
+            self.processCommand(self.cmd)
+            self.cmd = ''
+            self.enterNormalMode()
+        elif len(key) == 1 and key[0] == 0o33:
+            self.enterNormalMode()
+        else:
+            self.cmd += key
+            sys.stdout.write(key)
 
-    def checkEscapeSeq(self):
-        nxt = self._readByte()
-        if nxt == '[':
+    def checkEscapeSeq(self, seq):
+        if seq[1] == '[' and len(seq) > 2:
             # possibly an arrow key
-            nxt = self._readByte()
 
             ARROWS = {
                 'A': 'arrow-up',
@@ -241,7 +299,7 @@ class TestScreen:
                 'D': 'arrow-left'
             }
 
-            return ARROWS.get(nxt, None)
+            return ARROWS.get(seq[2], None)
 
 
 screen = TestScreen()

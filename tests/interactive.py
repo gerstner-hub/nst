@@ -164,7 +164,8 @@ class TestScreen:
         COMMANDS = {
             'set-title': self.setTitle,
             'push-title': self.pushTitle,
-            'pop-title': self.popTitle
+            'pop-title': self.popTitle,
+            'insert-mode': self.setInsertMode
         }
 
         cb = COMMANDS.get(key, None)
@@ -183,6 +184,12 @@ class TestScreen:
 
     def setTitle(self, title):
         self._sendStringEscape(f'2;{title}')
+
+    def setInsertMode(self, on_off):
+        if on_off.lower() == "on":
+            self._sendCSI('4h')
+        elif on_off.lower() == "off":
+            self._sendCSI('4l')
 
     def pushTitle(self, _):
         self._sendCSI('22;2t')

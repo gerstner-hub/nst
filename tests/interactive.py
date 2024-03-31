@@ -50,6 +50,10 @@ class TestScreen:
         self.bottom = 3
         self.screen = 'main'
         self.mode = Mode.NORMAL
+        self.running = True
+
+    def quit(self, _):
+        self.running = False
 
     def updateWindowSize(self):
         self.rows, self.cols = stty.size()
@@ -141,6 +145,9 @@ class TestScreen:
         else:
             self.screen = 'main'
 
+    def resetTerm(self):
+        subprocess.call(["reset"])
+
     def writeFullRow(self, text):
         left = self.cols
 
@@ -165,15 +172,16 @@ class TestScreen:
             'set-title': self.setTitle,
             'push-title': self.pushTitle,
             'pop-title': self.popTitle,
-            'insert-mode': self.setInsertMode
+            'insert-mode': self.setInsertMode,
+            'q': self.quit
         }
 
         cb = COMMANDS.get(key, None)
 
         if not cb:
-            return
+            return "unknown command"
 
-        cb(val)
+        return cb(val)
 
     def processNormal(self, cb):
         if self.amount:
@@ -184,6 +192,7 @@ class TestScreen:
 
     def setTitle(self, title):
         self._sendStringEscape(f'2;{title}')
+        return "changed title"
 
     def setInsertMode(self, on_off):
         if on_off.lower() == "on":
@@ -191,11 +200,15 @@ class TestScreen:
         elif on_off.lower() == "off":
             self._sendCSI('4l')
 
+        return f"set insert mode = {on_off}"
+
     def pushTitle(self, _):
         self._sendCSI('22;2t')
+        return "pushed title"
 
     def popTitle(self, _):
         self._sendCSI('23;2t')
+        return "popped title"
 
     def run(self):
         signal.signal(signal.SIGWINCH, self._windowSizeChanged)
@@ -206,13 +219,23 @@ class TestScreen:
         stty.setLineBuffering(False)
         self.enterNormalMode()
 
-        self.loop()
+        try:
+            self.loop()
+        finally:
+            self.resetTerm()
+
+    def leaveCommandMode(self, text=None):
+        self.moveCursorTo(0, self.rows)
+        sys.stdout.write(' ' * self.cols)
+        if text:
+            self.moveCursorTo(0, self.rows)
+            sys.stdout.write(text)
+        self.restoreCursorPos()
+        self.mode = Mode.NORMAL
 
     def enterNormalMode(self):
         if self.mode == Mode.COMMAND:
-            self.moveCursorTo(0, self.rows)
-            sys.stdout.write(' ' * self.cols)
-            self.restoreCursorPos()
+            self.leaveCommandMode()
 
         self.mode = Mode.NORMAL
         # optional amount modifier supported by some commands e.g. 10d to
@@ -232,7 +255,7 @@ class TestScreen:
 
     def loop(self):
 
-        while True:
+        while self.running:
             sys.stdout.flush()
             key = self._readKey()
             if key is None:
@@ -244,9 +267,12 @@ class TestScreen:
                 self.handleCommandKey(key)
             elif ord(key[0]) == 0o33:
                 if len(key) == 1:
-                    self.enterNormalMode()
+                    self.handleEscapeMode()
             else:  # insert mode
                 sys.stdout.write(key)
+
+    def handleEscapeMode(self):
+        self.enterNormalMode()
 
     def handleNormalKey(self, key):
         COMMANDS = {
@@ -286,11 +312,18 @@ class TestScreen:
 
     def handleCommandKey(self, key):
         if key == '\n':
-            self.processCommand(self.cmd)
+            reply = self.processCommand(self.cmd)
+            self.leaveCommandMode(reply)
             self.cmd = ''
             self.enterNormalMode()
-        elif len(key) == 1 and key[0] == 0o33:
-            self.enterNormalMode()
+        elif key[0] == 0o33:
+            if len(key) == 1:
+                self.enterNormalMode()
+        elif len(key) == 1 and ord(key[0]) == 0x7F:
+            self.cmd = self.cmd[:-1]
+            self.moveCursorLeft()
+            sys.stdout.write(' ')
+            self.moveCursorLeft()
         else:
             self.cmd += key
             sys.stdout.write(key)

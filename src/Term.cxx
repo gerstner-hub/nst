@@ -769,20 +769,21 @@ void Term::putChar(const Rune rune) {
 
 	const auto req_width = rinfo.width();
 
+	if (const auto left = lineSpaceLeft(); left < req_width) {
+		// if this is a multi-column wide character that doesn't fit
+		// into this line anymore then clear remaining existing
+		// characters
+		clearColsAfterCursor();
+		moveToNewline();
+		gp = curGlyph();
+	}
+
 	// shift any remaining Glyphs to the right
 	if (m_mode[Mode::INSERT]) {
-		// TODO: when there's not enough line space left and we move
-		// to newline below, then we won't shift the next line
-		// properly, no?
-		if (auto to_move = lineSpaceLeft() - req_width; to_move > 0) {
+		if (const auto to_move = lineSpaceLeft() - req_width; to_move > 0) {
 			std::memmove(gp + req_width, gp, to_move * sizeof(Line::value_type));
 			gp->mode.reset();
 		}
-	}
-
-	if (lineSpaceLeft() < req_width) {
-		moveToNewline();
-		gp = curGlyph();
 	}
 
 	setChar(rune, m_cursor.pos);

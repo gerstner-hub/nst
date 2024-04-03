@@ -136,6 +136,8 @@ public: // functions
 
 	void invertColors();
 
+	void clearWindow();
+
 	const xpp::XWindow& window() const { return m_window; }
 	xpp::XWindow& window() { return m_window; }
 	auto& selection() { return m_selection; }
@@ -158,7 +160,6 @@ protected: // functions
 	xpp::Gravity gravity() const;
 	/// Clear a rectangular font area using absolute coordinates, using the current background color.
 	void clearRect(const DrawPos pos1, const DrawPos pos2);
-	void clearWindow();
 	void unloadFonts();
 
 	/// Loads specs into `m_font_specs` to display the `count` glyphs found and `glyphs`.

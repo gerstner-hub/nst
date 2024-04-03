@@ -589,6 +589,7 @@ void WindowSystem::showPointer() {
 
 void WindowSystem::invertColors() {
 	m_twin.flipFlag(WinMode::REVERSE);
+	clearWindow();
 	m_nst.term().redraw();
 }
 

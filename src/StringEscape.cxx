@@ -206,8 +206,8 @@ bool StringEscape::processOSC() {
 				}
 				m_nst.logger().error() << "erresc: invalid color index=" << rawindex << ", name=" << (name.empty() ? "(null)" : name) << "\n";
 			} else {
-				// TODO if defaultbg color is changed, borders are dirty
 				m_nst.term().setAllDirty();
+				wsys.clearWindow();
 			}
 			break;
 		}

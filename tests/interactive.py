@@ -137,8 +137,8 @@ class TestScreen:
         self._sendCSI('u')
 
     def switchScreen(self):
-        mode = 'h' if self.screen == 'main' else 'l'
-        self._sendCSI(f'?1047{mode}')
+        on_off = 'on' if self.screen == 'main' else 'off'
+        self.setAltScreen(on_off)
         self.setupScrollArea()
         if self.screen == 'main':
             self.screen = 'alt'
@@ -173,6 +173,7 @@ class TestScreen:
             'push-title': self.pushTitle,
             'pop-title': self.popTitle,
             'insert-mode': self.setInsertMode,
+            'altscreen': self.setAltScreen,
             'q': self.quit
         }
 
@@ -190,11 +191,43 @@ class TestScreen:
         if self.mode == Mode.NORMAL:
             self.enterNormalMode()
 
+    def _checkOnOff(self, on_off):
+        return on_off == 'on' or on_off == 'off'
+
     def setTitle(self, title):
         self._sendStringEscape(f'2;{title}')
         return "changed title"
 
+    def setAltScreen(self, on_off):
+        if not self._checkOnOff(on_off):
+            return "bad value for altscreen"
+        mode = 'h' if on_off == 'on' else 'l'
+        self._sendCSI(f'?1047{mode}')
+
+        return f"set altscreen = {on_off}"
+
+    def privateAltOn(self):
+        self.privateAlt("h")
+
+    def privateAltOff(self):
+        self.privateAlt("l")
+
+    def privateAlt(self, ch):
+        self._sendCSI(f'?1049{ch}')
+
+    def privateAlt2On(self):
+        self.privateAlt2("h")
+
+    def privateAlt2Off(self):
+        self.privateAlt2("l")
+
+    def privateAlt2(self, ch):
+        self._sendCSI(f'?47{ch}')
+
     def setInsertMode(self, on_off):
+        if not self._checkOnOff(on_off):
+            return "bad insert mode value"
+
         if on_off.lower() == "on":
             self._sendCSI('4h')
         elif on_off.lower() == "off":
@@ -224,9 +257,21 @@ class TestScreen:
         finally:
             self.resetTerm()
 
-    def leaveCommandMode(self, text=None):
+    def enterCommandMode(self):
+        self.saveCursorPos()
+        self.clearCommandStatus()
+        self.mode = Mode.COMMAND
+        # the string parsed so far
+        self.cmd = ''
+        self.moveCursorTo(0, self.rows)
+        sys.stdout.write(':')
+
+    def clearCommandStatus(self):
         self.moveCursorTo(0, self.rows)
         sys.stdout.write(' ' * self.cols)
+
+    def leaveCommandMode(self, text=None):
+        self.clearCommandStatus()
         if text:
             self.moveCursorTo(0, self.rows)
             sys.stdout.write(text)
@@ -244,14 +289,6 @@ class TestScreen:
 
     def enterInsertMode(self):
         self.mode = Mode.INSERT
-
-    def enterCommandMode(self):
-        self.mode = Mode.COMMAND
-        # the string parsed so far
-        self.cmd = ''
-        self.saveCursorPos()
-        self.moveCursorTo(0, self.rows)
-        sys.stdout.write(':')
 
     def loop(self):
 
@@ -290,6 +327,12 @@ class TestScreen:
             'l': self.moveCursorRight,
             '$': self.moveCursorToEnd,
             '^': self.moveCursorToBegin,
+            'S': self.saveCursorPos,
+            'R': self.restoreCursorPos,
+            'Z': self.privateAltOn,
+            'z': self.privateAltOff,
+            'A': self.privateAlt2On,
+            'a': self.privateAlt2Off,
             'arrow-up': self.moveCursorUp,
             'arrow-down': self.moveCursorDown,
             'arrow-left': self.moveCursorLeft,

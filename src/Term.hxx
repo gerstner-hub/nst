@@ -182,7 +182,7 @@ public: // functions
 	 * \param[in] with_cursor If set then also the cursor position will be
 	 * saved (on enable) or restore (on disable).
 	 **/
-	void setAltScreen(const bool enable, const bool with_cursor);
+	void setAltScreen(const bool enable, const bool with_cursor, const bool clear_alt);
 
 	void cursorControl(const CursorState::Control ctrl);
 

@@ -296,34 +296,35 @@ void Term::moveCursorAbsTo(CharPos pos) {
 	moveCursorTo(pos);
 }
 
-void Term::setAltScreen(const bool enable, const bool with_cursor) {
+void Term::setAltScreen(const bool enable, const bool with_cursor, const bool clear_alt) {
 	if (!m_allow_altscreen)
 		return;
 
-	// TODO: the exact order of events for this case are a bit unclear;
-	// whether to switch screen first and/or save/restore cursor first.
-	//
-	// What would make most sense in my mind is:
-	//
-	// Only if the mode actually changed save current cursor position
-	// before switching screen, only then restore the alternate cursor
-	// position.
-	//
-	// We should test original Xterm what is does in this regard.
-	const auto cursor_ctrl = enable ? CursorState::Control::SAVE : CursorState::Control::LOAD;
+	// if the mode actually changed
+	const bool need_switch = enable ^ onAltScreen();
 
-	if (with_cursor)
-		cursorControl(cursor_ctrl);
+	/*
+	 * indeed original XTerm save/restores the cursor position again even
+	 * if the screen is already set to the correct target
+	 */
 
-	if (onAltScreen()) {
-		clearRegion({topLeft(), bottomRight()});
+	if (with_cursor && enable)
+		// save cursor before entering alt screen
+		cursorControl(CursorState::Control::SAVE);
+
+	if (need_switch) {
+		// one control clears only upon leaving the alt screen,
+		// another only upon entering it
+		if (clear_alt && onAltScreen())
+			clearScreen();
+		swapScreen();
+		if (clear_alt && onAltScreen())
+			clearScreen();
 	}
 
-	if (enable ^ onAltScreen()) // if the mode actually changed
-		swapScreen();
-
-	if (with_cursor)
-		cursorControl(cursor_ctrl);
+	if (with_cursor && !enable)
+		// restore cursor when returning from alt screen
+		cursorControl(CursorState::Control::LOAD);
 }
 
 void Term::swapScreen() {

@@ -207,14 +207,25 @@ void CSIEscape::setPrivateMode(const bool set) {
 		case 1034: // signify META key press by setting eight bit on input
 			wsys.setMode(WinMode::EIGHT_BIT, set);
 			break;
+			/*
+			 * the documentation for 47, 1047 and 1049 is not
+			 * fully precise. Practical tests with current xterm
+			 * yielded the results now implemented here.
+			 */
 		case 1049: // swap screen & set/restore cursor as xterm
+			/*
+			 * - clear alt screen when switching to ALT, but not on return
+			 * - save/restore cursor even if already on the target screen
+			 */
 			/* FALLTHROUGH */
-		case 47: // both stand for swap screen (XTerm), clearing it first
+		case 47: // swap screen (XTerm), don't clear alt screen
 			/* FALLTHROUGH */
-		case 1047:
-			term.setAltScreen(set, /*with_cursor=*/arg == 1049);
+		case 1047: // like 47 but clear alt when leaving it
+			term.setAltScreen(set,
+					/*with_cursor=*/arg == 1049,
+					/*clear_alt=*/(arg == 1049 && set) || (arg == 1047 && !set));
 			break;
-		case 1048: // save/load cursor
+		case 1048: // save/load cursor on current screen
 			term.cursorControl(set ? CursorState::Control::SAVE : CursorState::Control::LOAD);
 			break;
 		case 2004: // bracketed paste mode

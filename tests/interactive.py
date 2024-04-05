@@ -174,6 +174,7 @@ class TestScreen:
             'pop-title': self.popTitle,
             'insert-mode': self.setInsertMode,
             'altscreen': self.setAltScreen,
+            'autowrap': self.setAutoWrap,
             'q': self.quit
         }
 
@@ -192,19 +193,43 @@ class TestScreen:
             self.enterNormalMode()
 
     def _checkOnOff(self, on_off):
-        return on_off == 'on' or on_off == 'off'
+        on_off = on_off.lower()
+
+        if on_off in ('on', '1', 'true', 'yes'):
+            return True
+        elif on_off in ('off', '0', 'false', 'no'):
+            return False
+        else:
+            return None
 
     def setTitle(self, title):
         self._sendStringEscape(f'2;{title}')
         return "changed title"
 
-    def setAltScreen(self, on_off):
-        if not self._checkOnOff(on_off):
-            return "bad value for altscreen"
-        mode = 'h' if on_off == 'on' else 'l'
-        self._sendCSI(f'?1047{mode}')
+    def _getPrivateOnOff(self, on_off):
+        on_off = self._checkOnOff(on_off)
+        if on_off is None:
+            return None
 
-        return f"set altscreen = {on_off}"
+        return 'h' if on_off else 'l'
+
+    def setAltScreen(self, on_off):
+        mode = self._getPrivateOnOff(on_off)
+
+        if mode:
+            self._sendCSI(f'?1047{mode}')
+            return f"set altscreen = {on_off}"
+        else:
+            return "bad value for altscreen"
+
+    def setAutoWrap(self, on_off):
+        mode = self._getPrivateOnOff(on_off)
+
+        if mode:
+            self._sendCSI(f'?7{mode}')
+            return f"set autowrap = {on_off}"
+        else:
+            return "bad value for autowrap"
 
     def privateAltOn(self):
         self.privateAlt("h")
@@ -225,15 +250,13 @@ class TestScreen:
         self._sendCSI(f'?47{ch}')
 
     def setInsertMode(self, on_off):
-        if not self._checkOnOff(on_off):
-            return "bad insert mode value"
+        mode = self._getPrivateOnOff(on_off)
 
-        if on_off.lower() == "on":
-            self._sendCSI('4h')
-        elif on_off.lower() == "off":
-            self._sendCSI('4l')
-
-        return f"set insert mode = {on_off}"
+        if mode:
+            self._sendCSI(f'4{mode}')
+            return f"set insert mode = {on_off}"
+        else:
+            return "bad value for insert-mode"
 
     def pushTitle(self, _):
         self._sendCSI('22;2t')

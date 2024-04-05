@@ -90,9 +90,6 @@ void Term::reset() {
 
 	setupTabs();
 	resetScrollArea();
-	// TODO: A test with disabled WRAP mode showed that the screen kind of
-	// scrolls right and back left again (when deleting characters) but
-	// the original screen content does not appear again.
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	m_charsets.fill(Charset::USA);
 	m_active_charset = 0;

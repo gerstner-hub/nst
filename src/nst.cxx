@@ -256,6 +256,7 @@ void Nst::mainLoop() {
 
 			if (fd == childfd) {
 				m_tty.handleSigChildEvent();
+				return;
 			} else if (fd == ttyfd) {
 				if (m_tty.read() == 0)
 					// EOF condition

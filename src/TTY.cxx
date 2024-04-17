@@ -299,7 +299,7 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 
 	// if still empty then use compile time default
 	if (shell.empty()) {
-		shell = nst::config::SHELL.data();
+		shell = config::SHELL.data();
 	}
 
 	cosmos::ChildCloner cloner;

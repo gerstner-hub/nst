@@ -68,16 +68,16 @@ public: // functions
 	unsigned char asChar() const { return static_cast<unsigned char>(m_rune); }
 
 	/// checks whether the given rune is an ASCII 7 bit control code (C0 class)
-	static bool isControlC0(const nst::Rune r) {
+	static bool isControlC0(const Rune r) {
 		return r < 0x1f || r == 0x7f;
 	}
 
 	/// checks whether the given rune is an extended 8 bit control code (C1 class)
-	static bool isControlC1(const nst::Rune r) {
+	static bool isControlC1(const Rune r) {
 		return cosmos::in_range(r, 0x80, 0x9f);
 	}
 
-	static bool isControlChar(const nst::Rune r) {
+	static bool isControlChar(const Rune r) {
 		return isControlC0(r) || isControlC1(r);
 	}
 

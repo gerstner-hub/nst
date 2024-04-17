@@ -201,7 +201,7 @@ protected: // functions
 
 protected: // data
 
-	nst::Nst &m_nst;
+	Nst &m_nst;
 	const Cmdline &m_cmdline;
 	xpp::XWindow m_window; ///< the main (and only) terminal window
 	Input m_input; ///< X11 input handling logic

@@ -738,6 +738,10 @@ void Term::repeatChar(int count) {
 		// nothing to repeat
 		return;
 
+	const int max_repeat = m_size.cols * m_size.rows;
+
+	count = std::min(count, max_repeat);
+
 	while (count-- > 0)
 		putChar(m_last_char);
 }

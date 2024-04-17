@@ -93,7 +93,7 @@ std::string StringEscape::joinArgs(const size_t start_idx) const {
 
 	for (auto it = m_args.begin() + start_idx; it < m_args.end(); it++) {
 		auto &arg = *it;
-		if (!arg[0])
+		if (arg.empty() || !arg[0])
 			return ret;
 
 		if (!ret.empty())

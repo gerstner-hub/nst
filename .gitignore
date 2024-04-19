@@ -16,3 +16,4 @@ __pycache__
 build
 build.*
 install
+install.*

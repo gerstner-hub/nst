@@ -366,7 +366,7 @@ public: // functions
 	/// Resets the scrolling data and ring buffer position.
 	/**
 	 * All scrollback history will be discarded along with the current
-	 * screen content.
+	 * screen content. The new screen content will be undefined.
 	 **/
 	void resetScrollBuffer() {
 		m_cur_pos = 0;

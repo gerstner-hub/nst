@@ -347,8 +347,10 @@ void CSIEscape::process() {
 			term.clearColsBeforeCursor();
 			return;
 		case 2: // whole display
-		case 3: // including scroll-back buffer (which we don't have)
 			term.clearScreen();
+			return;
+		case 3: // including scroll-back buffer
+			term.clearScreen(/*with_scrollback=*/true);
 			return;
 		default:
 			break;

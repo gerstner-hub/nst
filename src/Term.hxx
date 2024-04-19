@@ -83,7 +83,11 @@ public: // functions
 	void clearLines(const LineSpan span);
 
 	/// Clears the complete screen.
-	void clearScreen() {
+	void clearScreen(const bool with_scrollback = false) {
+		if (with_scrollback) {
+			m_screen.resetScrollBuffer();
+		}
+
 		clearRegion({topLeft(), bottomRight()});
 	}
 

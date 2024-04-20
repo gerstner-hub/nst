@@ -90,6 +90,7 @@ void Term::reset() {
 
 	setupTabs();
 	resetScrollArea();
+	m_mode.reset();
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	m_charsets.fill(Charset::USA);
 	m_active_charset = 0;

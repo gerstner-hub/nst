@@ -63,6 +63,12 @@ public: // functions
 		m_csi_escape.reportPaste(started);
 	}
 
+	void reset() {
+		m_csi_escape.reset();
+		m_str_escape.reset(StringEscape::Type::NONE);
+		m_state.reset();
+	}
+
 protected: // functions
 
 	/// Returns whether we're currently parsing a StringEscape sequence.

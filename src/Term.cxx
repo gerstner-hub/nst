@@ -94,6 +94,8 @@ void Term::reset() {
 	m_mode.set({Mode::WRAP, Mode::UTF8});
 	m_charsets.fill(Charset::USA);
 	m_active_charset = 0;
+	m_last_cursor_pos = CharPos{};
+	m_esc_handler.reset();
 
 	// reset main and alt screen
 	for (size_t i = 0; i < 2; i++) {

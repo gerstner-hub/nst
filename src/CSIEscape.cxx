@@ -178,7 +178,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 		case 25: // DECTCEM -- Text Cursor Enable Mode
 			wsys.setMode(WinMode::HIDE_CURSOR, !set);
 			break;
-		case 9:    // X10 mouse compatibility mode
+		case 9:  // X10 mouse compatibility mode
 			wsys.setPointerMotion(false);
 			wsys.setMode(WinMode::MOUSE, false);
 			wsys.setMode(WinMode::MOUSEX10, set);
@@ -204,7 +204,7 @@ void CSIEscape::setPrivateMode(const bool set) {
 		case 1006: // extended mouse reporting mode
 			wsys.setMode(WinMode::MOUSE_SGR, set);
 			break;
-		case 1034: // signify META key press by setting eight bit on input
+		case 1034: // signify META key press by setting eighth bit on input
 			wsys.setMode(WinMode::EIGHT_BIT, set);
 			break;
 			/*

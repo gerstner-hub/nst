@@ -406,6 +406,11 @@ void Term::deleteColsAfterCursor(int count) {
 		CharPos{m_size.cols - count, cursor.y},
 		Width{count}
 	});
+
+	if (line[dst].isDummy()) {
+		// we delete only part of a wide character, shift the line for another column then
+		deleteColsAfterCursor(1);
+	}
 }
 
 void Term::deleteLinesBelowCursor(int count) {

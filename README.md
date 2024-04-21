@@ -237,14 +237,20 @@ doxygen`, provided you have the Doxygen program installed on your system.
 Otherwise you can find the generated HTML version of the API documentation on
 the related [GitHub Page](https://gerstner-hub.github.io/nst).
 
+AFL Fuzzing
+-----------
+
+I performed fuzzing with AFL++, feeding fuzzed input to `Term::write()`. This
+mostly covers the various escape sequences and their robustness. If found a
+few corner cases this way that could be fixed. For more details check out the
+"afl" branch and the "README.fuzzing" there.
+
 Future Directions
 =================
 
 With version 1.0 of nst I have reached the feature set that I had in mind. I
 am planning to do some more refactoring in some areas that already started to
-become a bit convoluted again. Also some formal fuzzing tests of the
-terminal's escape sequence handling and things like that are on my list as
-finishing touches to the project.
+become a bit convoluted again.
 
 Contributing
 ============

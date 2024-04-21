@@ -68,6 +68,7 @@ public: // functions
 	void resetState() {
 		setDefaultTitle();
 		m_color_manager.resetColors();
+		m_twin.reset();
 	}
 
 	void resetColors() {

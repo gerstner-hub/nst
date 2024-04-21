@@ -13,6 +13,10 @@ struct TermWindow {
 		m_mode{WinModeMask{WinMode::NUMLOCK}}
 	{}
 
+	void reset() {
+		m_mode.reset();
+	}
+
 	void setCharSize(const Font &font);
 
 	void setBorderPixels(int bpx) {

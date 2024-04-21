@@ -1,0 +1,33 @@
+This branch contains some changes to the code that allow persistent mode
+fuzzing using AFL++. Using preprocessor defines the code is kept in a state
+that allows to compile still it without fuzzing.
+
+To compiler the code with afl fuzzing instrumentation you can use the
+following command line:
+
+    scons install compiler=afl-clang-lto++
+
+In the tests/afl/input directory are two start files for the fuzzer. One
+simply contains text, the other is a concatenation of pretty much all escape
+sequences understood by nst.
+
+In tests/afl/dict a dictionary of all individual CSI and string escape
+sequences is provided.
+
+To start fuzzing using these ingredients you can invoke afl like this:
+
+    afl-fuzz -t 2000 -i ./tests/afl/input -x tests/afl/dict -o /some/state/dir -- ./install/bin/nst cat
+
+Using this setup I was able to identify a couple of corner cases in the code
+base that mostly triggered STL assertions trying to access data structures out
+of bounds.
+
+The fuzzer setup according to AFL's status screen still suffers from some
+instability (sitting around 85 %). I already improved the global state cleanup
+per AFL loop iteration as much as I could. I have no idea where this might be
+coming from, and some comparisons with simple test programs show that
+persistent mode fuzzing seems to always suffer from this for some reason. Very
+confusingly, cutting of complex logic like the escape sequence parsing, lowers
+stability even more.
+
+The AFL++ version I've been using so far was AFLplusplus 4.08c on Gentoo Linux.

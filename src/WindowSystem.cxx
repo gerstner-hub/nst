@@ -278,7 +278,9 @@ void WindowSystem::init() {
 
 	setupPointer();
 
+#ifndef __AFL_LOOP
 	m_display.mapWindow(m_window);
+#endif
 	m_display.sync();
 
 	m_selection.init();

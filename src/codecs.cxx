@@ -115,9 +115,18 @@ size_t decode(const std::string_view encoded, Rune &rune) {
 	}
 
 	// short input sequence
-	if (curbyte < numbytes)
+	if (curbyte < numbytes) {
+#ifdef __AFL_LOOP
+		// if the test input ends with an invalid utf8 sequence then
+		// returning zero here would cause an infinite loop and cause
+		// timeouts in the fuzzer. Thus discard the incomplete data.
+		rune = UTF_INVALID;
+		return curbyte;
+#else
 		// this causes the caller to stop processing input and wait for more data
 		return 0;
+#endif
+	}
 
 	rune = decoded;
 	validate(rune, numbytes);

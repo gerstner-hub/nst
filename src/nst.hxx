@@ -17,7 +17,7 @@
 #include "XEventHandler.hxx"
 #include "WindowSystem.hxx"
 
-namespace nst {
+using namespace nst;
 
 /// Nst main application class.
 /**
@@ -96,5 +96,3 @@ protected: // data
 	XEventHandler m_event_handler;
 	std::chrono::milliseconds m_blink_timeout;
 };
-
-} // end ns

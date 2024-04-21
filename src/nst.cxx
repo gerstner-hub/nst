@@ -21,7 +21,12 @@
 #include "nst.hxx"
 #include "IpcHandler.hxx"
 
-namespace nst {
+using namespace nst;
+
+#ifdef __AFL_LOOP
+__AFL_FUZZ_INIT();
+#	define USE_AFL
+#endif
 
 Nst::Nst() :
 		m_theme{config::THEME},
@@ -213,7 +218,9 @@ void Nst::mainLoop() {
 	std::chrono::milliseconds timeout{-1};
 
 	poller.create();
+#ifndef USE_AFL
 	waitForWindowMapping();
+#endif
 
 	// don't create the TTY before we know the proper initial TTY size
 	// from X11, otherwise child processes that evaluate the TTY size
@@ -239,16 +246,31 @@ void Nst::mainLoop() {
 		ipc_handler->init();
 	}
 
+#ifdef USE_AFL
+	// this must be assigned outside of the __AFL_LOOP according to the docs
+	const unsigned char *testcase = __AFL_FUZZ_TESTCASE_BUF;
+
+	while (__AFL_LOOP(1000)) {
+
+		auto testcase_cur = testcase;
+		// this must be assigned like this and not passed directly as
+		// function parameter according to the docs
+		auto testcase_left = __AFL_FUZZ_TESTCASE_LEN;
+
+	while (testcase_left > 0) {
+#else
 	while (true) {
+#endif
 		if (display.hasPendingEvents())
 			// existing events might not set the display FD
 			timeout = std::chrono::milliseconds(0);
 
+		bool draw_event = false;
+
+#ifndef USE_AFL
 		auto events = poller.wait(timeout.count() >= 0 ?
 				std::optional<std::chrono::milliseconds>{timeout} :
 				std::nullopt);
-
-		bool draw_event = false;
 		bool timedout = events.empty();
 
 		for (const auto &event: events) {
@@ -270,6 +292,9 @@ void Nst::mainLoop() {
 		}
 
 		draw_event |= m_event_handler.checkEvents();
+#else
+		bool timedout = true;
+#endif
 
 		// To reduce flicker and tearing, when new content or an event
 		// triggers drawing, we first wait a bit to ensure we got
@@ -297,6 +322,11 @@ void Nst::mainLoop() {
 			continue;
 		}
 
+#ifdef USE_AFL
+		auto written = m_term.write(std::string_view{(const char*)testcase_cur, testcase_left}, Term::ShowCtrlChars{false});
+		testcase_left -= written;
+		testcase_cur += written;
+#else
 		// idle detected or maxlatency exhausted -> draw
 		timeout = std::chrono::milliseconds(-1);
 
@@ -311,11 +341,21 @@ void Nst::mainLoop() {
 				timeout = m_blink_timeout;
 			}
 		}
+#endif
 
 		m_term.draw();
 		display.flush();
 		drawing = false;
+#ifdef USE_AFL
+		break;
+#endif
 	}
+
+#ifdef USE_AFL
+	m_term.reset();
+	m_wsys.resetState();
+	}
+#endif
 }
 
 void Nst::resizeConsole() {
@@ -357,8 +397,6 @@ void Nst::pipeBufferToExternalCommand() {
 		}
 	}
 }
-
-} // end ns nst
 
 int main(int argc, const char **argv) {
 	return cosmos::main<nst::Nst>(argc, argv);

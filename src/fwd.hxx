@@ -5,10 +5,11 @@
  * easy use in headers.
  **/
 
+class Nst;
+
 namespace nst {
 
 class FontColor;
-class Nst;
 class RuneInfo;
 class Selection;
 class TTY;
@@ -17,5 +18,6 @@ class WindowSystem;
 struct Font;
 struct Glyph;
 struct TermWindow;
+using Nst = ::Nst;
 
 } // end ns

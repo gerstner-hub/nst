@@ -14,7 +14,9 @@ struct TermWindow {
 	{}
 
 	void reset() {
-		m_mode.reset();
+		// keep only state information that relates to the window
+		// system (and that we cannot reset)
+		m_mode.limit({WinMode::VISIBLE, WinMode::FOCUSED, WinMode::BLINK, WinMode::NUMLOCK});
 	}
 
 	void setCharSize(const Font &font);

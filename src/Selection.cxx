@@ -33,10 +33,9 @@ void Selection::clear() {
 
 	m_state = State::IDLE;
 	m_snap = Snap::NONE;
-	m_snap_dir = Direction::FORWARD;
+	m_ctx.reset();
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_range});
-	m_first_cont_extend = true;
 }
 
 bool Selection::hasScreenChanged() const {
@@ -71,41 +70,90 @@ void Selection::applyConfig() {
 bool Selection::isSelected(const CharPos pos) const {
 	if (inEmptyState() || !m_orig.isValid() || hasScreenChanged())
 		return false;
-	else if (isRectType())
+	else if (isRectangular() || isFullLines())
 		return Rect{m_range}.inRect(pos);
 	else // regular type
 		return LinearRange{m_range}.inRange(pos);
 }
 
-void Selection::start(const CharPos pos, const Snap snap, const Direction dir) {
+bool Selection::shouldStartNewSelection(const Snap snap, const Context ctx) const {
+
+	if (m_snap == Snap::NONE && snap != Snap::NONE)
+		return true;
+
+	if (ctx[ContextFlag::BACKWARD]) {
+		// will be handled during update()
+		return false;
+	} else if (ctx[ContextFlag::ALT_SNAP]) {
+		// will be handled during update()
+		return false;
+	}
+
+	return true;
+}
+
+void Selection::start(const CharPos pos, const Snap snap, const Context ctx) {
+
+	if (!shouldStartNewSelection(snap, ctx)) {
+		return;
+	}
+
 	clear();
+
 	m_state = State::EMPTY;
-	m_type = Type::REGULAR;
 	m_alt_screen = m_term.onAltScreen();
 	m_snap = snap;
 	m_orig = Range{pos, pos};
+	m_ctx = ctx;
 
-	m_snap_dir = dir;
-
-	update();
-
-	if (m_snap != Snap::NONE)
-		m_state = State::READY;
+	recalculate();
 
 	m_term.setDirty(LineSpan{m_range});
 }
 
-void Selection::update() {
+void Selection::recalculate() {
 	normalizeRange();
-	extendSnap();
+
+	if (isFinished()) {
+		extendSnap();
+	}
 	extendLineBreaks();
+	if (isFullLines()) {
+		extendOverLine(m_range.begin, Direction::BACKWARD);
+		extendOverLine(m_range.end, Direction::FORWARD);
+	}
+}
+
+void Selection::update(const CharPos pos, const Context ctx) {
+	const bool changed_ctx = m_ctx != ctx;
+	const auto old_range = m_range;
+
+	if (ctx[ContextFlag::FINISHED] && !snapActive() && m_state == State::EMPTY) {
+		clear();
+		return;
+	}
+
+	if (changed_ctx)
+		m_ctx = ctx;
+
+	if (forceExtendSnap()) {
+		tryContinueWordSnap(pos);
+		tryContinueWordSepSnap();
+	} else {
+		extend(pos);
+	}
+
+	if (old_range != m_range || changed_ctx) {
+		m_term.setDirty(LineSpan{m_range});
+		m_term.setDirty(LineSpan{old_range});
+	}
 }
 
 void Selection::normalizeRange() {
 	const auto begin = m_orig.begin;
 	const auto end = m_orig.end;
 
-	if (isRegularType() && LinearRange{m_orig}.height() > Height{1}) {
+	if (isRegular() && LinearRange{m_orig}.height() > Height{1}) {
 		// regular selection over more than one line:
 		// use the correct start column and end column
 		m_range.begin.x = begin.y < end.y ? begin.x : end.x;
@@ -122,16 +170,13 @@ void Selection::normalizeRange() {
 }
 
 void Selection::extendLineBreaks() {
-	if (!isRegularType())
+	if (isRectangular() || isFullLines())
 		return;
 
 	// expand selection over line breaks for regular selection
 	//
-	// this makes sure that the start X coordinate is not larger than the
-	// logic end of the start line. furthermore the end X coordinate will
-	// be extended to the physical end of the line, if the logical end has
-	// been exceeded by the selection.
-	// It's not fully clear to my what the aim of that logic is.
+	// this extends the selection if the start or end coordinate points to
+	// unassigned space.
 	const auto start_line_len = m_term.lineLen(m_range.begin);
 	const auto end_line_len   = m_term.lineLen(m_range.end);
 
@@ -144,7 +189,7 @@ void Selection::extendSnap() {
 	if (m_snap == Snap::WORD_SEP) {
 		if (tryExtendWordSep()) {
 			return;
-		} else if (m_snap_dir != Direction::BACKWARD) {
+		} else if (m_ctx[ContextFlag::BACKWARD]) {
 			// otherwise fall back to regular word extension
 			m_snap = Snap::WORD;
 		} else {
@@ -153,12 +198,11 @@ void Selection::extendSnap() {
 			clear();
 			return;
 		}
+	} else if (m_snap == Snap::WORD) {
+		extendWordSnap(m_range.begin, Direction::BACKWARD);
+		extendWordSnap(m_range.end,   Direction::FORWARD);
+		tryURISnap();
 	}
-
-	extendSnap(m_range.begin, Direction::BACKWARD);
-	extendSnap(m_range.end,   Direction::FORWARD);
-
-	tryURISnap();
 }
 
 bool Selection::tryExtendWordSep() {
@@ -166,18 +210,20 @@ bool Selection::tryExtendWordSep() {
 	const auto &screen = m_term.screen();
 	const auto &clicked = screen[m_range.begin];
 	if (isDelimiter(clicked)) {
-		if (m_snap_dir == Direction::FORWARD) {
+		const auto snap_dir = currentSnapDir();
+
+		if (snap_dir == Direction::FORWARD) {
 			auto next = screen.nextInLine(m_range.begin);
 			if (next) {
 				m_range.begin = m_range.end = *next;
-				extendWordSnap(m_range.end, m_snap_dir, clicked.rune);
+				extendWordSnap(m_range.end, snap_dir, clicked.rune);
 				return true;
 			}
 		} else {
 			auto prev = screen.prevInLine(m_range.begin);
 			if (prev) {
 				m_range.begin = m_range.end = *prev;
-				extendWordSnap(m_range.begin, m_snap_dir, clicked.rune);
+				extendWordSnap(m_range.begin, snap_dir, clicked.rune);
 				return true;
 			}
 		}
@@ -186,35 +232,19 @@ bool Selection::tryExtendWordSep() {
 	return false;
 }
 
-void Selection::extendSnap(CharPos &pos, const Direction direction) const {
-	switch (m_snap) {
-		case Snap::NONE: return;
-		case Snap::WORD_SEP: return; // this is specially handled in extendSnap()
-		case Snap::WORD: return extendWordSnap(pos, direction);
-		case Snap::LINE: return extendLineSnap(pos, direction);
-	}
-}
-
 bool Selection::canExtendWord() const {
-	return m_type == Type::REGULAR && m_snap == Snap::WORD && m_orig.isValid();
+	return !isRectangular() && m_snap == Snap::WORD && m_orig.isValid();
 }
 
 bool Selection::canExtendWordSep() const {
-	return m_type == Type::REGULAR && m_snap == Snap::WORD_SEP && m_orig.isValid();
+	return !isRectangular() && m_snap == Snap::WORD_SEP && m_orig.isValid();
 }
 
 void Selection::tryContinueWordSnap(const CharPos pos) {
 	if (!canExtendWord())
 		return;
-	else if (m_first_cont_extend) {
-		// avoid further extending on the first double-click already
-		m_first_cont_extend = false;
-		m_state = State::IDLE;
-		return;
-	}
 
 	const auto old_range = m_range;
-	m_force_word_extend = true;
 
 	if (const auto &range = LinearRange{m_range}; range.inRange(pos)) {
 		extendSnap();
@@ -224,7 +254,6 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 		extendWordSnap(m_range.end, Direction::FORWARD);
 	}
 
-	m_force_word_extend = false;
 	if (old_range != m_range) {
 		m_term.setDirty(LineSpan{m_range});
 	}
@@ -233,17 +262,12 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 void Selection::tryContinueWordSepSnap() {
 	if (!canExtendWordSep())
 		return;
-	else if (m_first_cont_extend) {
-		// avoid further extending on the first double-click already
-		m_first_cont_extend = false;
-		m_state = State::IDLE;
-		return;
-	}
 
 	const auto old_range = m_range;
 	const auto &screen = m_term.screen();
+	const auto snap_dir = currentSnapDir();
 
-	if (m_snap_dir == Direction::FORWARD) {
+	if (snap_dir == Direction::FORWARD) {
 		if (const auto sep_pos = screen.nextInLine(m_range.end); !sep_pos)
 			return;
 		else if (const auto next = screen.nextInLine(*sep_pos); !next)
@@ -253,7 +277,7 @@ void Selection::tryContinueWordSepSnap() {
 
 		const auto delim_pos = m_range.begin.prevCol();
 		// take the start separator from begin.prevCol() so we make sure we really use the correct one
-		extendWordSnap(m_range.end, m_snap_dir, screen[delim_pos].rune);
+		extendWordSnap(m_range.end, snap_dir, screen[delim_pos].rune);
 	} else {
 		if (const auto sep_pos = screen.prevInLine(m_range.begin); !sep_pos)
 			return;
@@ -263,7 +287,7 @@ void Selection::tryContinueWordSepSnap() {
 			m_range.begin = *prev;
 
 		const auto delim_pos = m_range.end.nextCol();
-		extendWordSnap(m_range.begin, m_snap_dir, screen[delim_pos].rune);
+		extendWordSnap(m_range.begin, snap_dir, screen[delim_pos].rune);
 	}
 
 	if (old_range != m_range) {
@@ -274,9 +298,8 @@ void Selection::tryContinueWordSepSnap() {
 void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::optional<Rune> delimiter) const {
 	const auto &screen = m_term.screen();
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
-	// force at least on additional word, even if we are already at word
-	// borders.
-	bool force = m_force_word_extend;
+	// force at least on additional word, even if we are already at word borders.
+	bool force = forceExtendSnap();
 	auto isDelim = [this, delimiter](const Glyph &g) -> bool {
 		if (delimiter)
 			return g.rune == *delimiter;
@@ -329,11 +352,9 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::opt
 		pos = next;
 		prevgp = &gp;
 	}
-
-	m_orig = m_range;
 }
 
-void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
+void Selection::extendOverLine(CharPos &pos, const Direction direction) const {
 	const auto &screen = m_term.screen();
 
 	const auto last_col = m_term.numCols() - 1;
@@ -342,58 +363,44 @@ void Selection::extendLineSnap(CharPos &pos, const Direction direction) const {
 	// Snap around if the the previous line or the current one has set
 	// WRAP at its end. Then the whole next or previous line will be
 	// selected.
-	switch (direction) {
-	default: break;
-	case Direction::FORWARD:
+	if (direction == Direction::FORWARD) {
 		 // move to the end of the line, following wraps
 		 pos.x = last_col;
 		 for (; pos.y < last_row; pos.moveDown()) {
 			 if (!screen[pos].isWrapped())
 				 break;
 		 }
-		 break;
-	case Direction::BACKWARD:
+	} else if (direction == Direction::BACKWARD) {
 		 // move to the beginning of the line, following wraps
 		 pos.x = 0;
 		 for (; pos.y > 0; pos.moveUp()) {
 			 if (!screen[pos.y-1][last_col].isWrapped())
 				 break;
 		 }
-		 break;
-	};
-
-	m_orig = m_range;
+	}
 }
 
-void Selection::extend(const CharPos pos, const Type type, const bool done) {
+void Selection::extend(const CharPos pos) {
 	if (inIdleState()) {
 		return;
-	} else if (done && inEmptyState()) {
-		clear();
-		return;
 	}
-
-	const auto old_end = m_orig.end;
-	const LineSpan old_normal_span{m_range};
-	const auto oldtype = m_type;
 
 	m_orig.end = pos;
-	update();
-	m_type = type;
+	recalculate();
 
-	if (old_end != m_orig.end || oldtype != m_type || inEmptyState()) {
-		const LineSpan new_normal_span{m_range};
-		LineSpan dirty_span;
-		dirty_span.top = std::min(new_normal_span.top, old_normal_span.top);
-		dirty_span.bottom = std::max(new_normal_span.bottom, old_normal_span.bottom);
-		m_term.setDirty(dirty_span);
+	if (isFinished()) {
+		m_state = State::IDLE;
+		// we need to store the new coordinates for proper scroll()
+		// behaviour. since the selection process is no longer active
+		// we don't need the original coordinates any more.
+		m_orig = m_range;
+	} else if (!snapActive()) {
+		m_state = State::READY;
 	}
-
-	m_state = done ? State::IDLE : State::READY;
 }
 
 void Selection::tryURISnap() {
-	if (m_snap != Snap::WORD || m_type != Type::REGULAR)
+	if (m_snap != Snap::WORD || isRectangular())
 		return;
 
 	const auto screen = m_term.screen();
@@ -447,7 +454,13 @@ void Selection::tryURISnap() {
 }
 
 void Selection::scroll(const int origin_y, const int num_lines) {
-	if (!m_orig.isValid() || hasScreenChanged())
+	/*
+	 * do nothing if:
+	 * - there are no selection coordinates
+	 * - the selection is from the other screen
+	 * - a selection process is still ongoing
+	 */
+	if (!m_orig.isValid() || hasScreenChanged() || !inIdleState())
 		return;
 
 	const auto scroll_area = m_term.scrollArea();
@@ -505,7 +518,7 @@ std::string Selection::selection() const {
 			continue;
 		}
 
-		if (isRectType()) {
+		if (isRectangular() || isFullLines()) {
 			// our selection range is correct for the rectangular
 			// selection, only select the current line
 			gp = &screen[y][m_range.begin.x];
@@ -538,11 +551,11 @@ std::string Selection::selection() const {
 		// and convert '\n' to '\r', when something to be pasted is
 		// received by nst.
 		// FIXME: Fix the computer world.
-		if ((!is_last_line || lastx >= linelen) && (!last->isWrapped() || isRectType()))
+		if ((!is_last_line || lastx >= linelen) && (!last->isWrapped() || isRectangular()))
 			ret.push_back('\n');
 	}
 
-	if (!m_snap_keep_newline && m_snap == Snap::LINE) {
+	if (!m_snap_keep_newline && isFullLines()) {
 		// removing trailing newlines if in line snap mode
 		while (!ret.empty() && ret.back() == '\n')
 			ret.pop_back();

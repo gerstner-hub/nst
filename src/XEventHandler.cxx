@@ -1,5 +1,6 @@
 // C++
 #include <ostream>
+#include <type_traits>
 
 using namespace std::literals;
 
@@ -68,6 +69,43 @@ namespace {
 		// if the key is not explicitly mapped and it is outside the
 		// range of X11 function keys, don't continue.
 		return false;
+	}
+
+	template <typename EV>
+	Selection::Context getSelCtx(const EV &ev) {
+		constexpr xpp::InputMask MOD_MASK{
+			xpp::InputModifier::SHIFT,
+			xpp::InputModifier::CONTROL,
+			xpp::InputModifier::MOD1,
+			xpp::InputModifier::MOD2,
+			xpp::InputModifier::MOD3,
+			xpp::InputModifier::MOD4,
+			xpp::InputModifier::MOD5,
+		};
+		using Context = Selection::ContextFlag;
+		Selection::Context ctx;
+
+		if (ev.type() == xpp::EventType::BUTTON_RELEASE)
+			ctx.set(Context::FINISHED);
+
+		if (ev.state().limit(MOD_MASK) == config::SEL_ALT_MOD)
+			ctx.set(Context::ALT_SNAP);
+
+		if constexpr (std::is_same_v<EV, xpp::ButtonEvent>) {
+			if (ev.buttonNr() == xpp::Button::BUTTON3) {
+				ctx.set(Context::BACKWARD);
+			}
+		}
+
+		const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
+
+		for (auto [extra_ctx, mask]: config::SEL_MASKS) {
+			if (state_matches(mask, state)) {
+				ctx = ctx + extra_ctx;
+			}
+		}
+
+		return ctx;
 	}
 
 } // end anon ns
@@ -459,43 +497,19 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 }
 
 StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
-	const auto button = ev.buttonNr();
 	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
-	const auto sel_alt_mod = ev.state().allOf(config::SEL_ALT_MOD);
-
+	const auto button = ev.buttonNr();
 	m_buttons.setPressed(button);
 
 	if (m_twin.inMouseMode() && !force_mouse) {
 		handleMouseReport(ev);
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
-	} else if (button == xpp::Button::BUTTON1) {
-		auto snap = m_wsys.selection().handleClick(button);
+	} else if (cosmos::in_list(button, {xpp::Button::BUTTON1, xpp::Button::BUTTON3})) {
+		const auto ctx = getSelCtx(ev);
+		const auto snap = m_wsys.selection().handleClick(button, ctx);
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-		auto &selection = m_nst.selection();
-		// if the SEL_ALT_MOD is pressed and a word selection exists
-		// then don't start a new selection. The selection will be
-		// extended in buttonRelease() instead.
-		const auto skip_start = sel_alt_mod &&
-			(selection.canExtendWord() || selection.canExtendWordSep());
-
-		if (!skip_start) {
-			if (snap == Selection::Snap::WORD && sel_alt_mod)
-				snap = Selection::Snap::WORD_SEP;
-
-			selection.start(pos, snap, Selection::Direction::FORWARD);
-		}
-	} else if (button == xpp::Button::BUTTON3) {
-		// support word-separator backwards expansion only with right
-		// click.
-		auto snap = m_wsys.selection().handleClick(button);
-		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-		auto &selection = m_nst.selection();
-
-		if (selection.isIdle() && snap == Selection::Snap::WORD && sel_alt_mod) {
-			snap = Selection::Snap::WORD_SEP;
-			selection.start(pos, snap, Selection::Direction::BACKWARD);
-		}
+		m_nst.selection().start(pos, snap, ctx);
 	}
 
 	return StopScrolling{false};
@@ -656,35 +670,12 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 
 template <typename EVENT>
 void XEventHandler::handleMouseSelection(const EVENT &ev) {
-	auto find_seltype = [](const xpp::InputMask state) {
-		for (auto [type, mask]: config::SEL_MASKS) {
-			if (state_matches(mask, state)) {
-				return type;
-			}
-		}
-
-		return Selection::Type::REGULAR;
-	};
-
-	const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
-	const auto seltype = find_seltype(state);
-
-	auto &sel = m_nst.selection();
-	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
+	const auto ctx = getSelCtx(ev);
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-	const auto sel_alt_mod = ev.state().allOf(config::SEL_ALT_MOD);
-	const auto extend_word = sel_alt_mod && sel.canExtendWord();
-	const auto extend_word_sep = sel_alt_mod && sel.canExtendWordSep();
 
-	if (extend_word && is_release) {
-		sel.tryContinueWordSnap(pos);
-	} else if (extend_word_sep && is_release) {
-		sel.tryContinueWordSepSnap();
-	} else {
-		sel.extend(pos, seltype, /*done=*/is_release);
-	}
+	m_nst.selection().update(pos, ctx);
 
-	if (is_release) {
+	if (ctx[Selection::ContextFlag::FINISHED]) {
 		// button was released, only now set the actual X selection
 		applySelection(ev.time());
 	}

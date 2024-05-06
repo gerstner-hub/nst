@@ -44,7 +44,7 @@ public: // functions
 	 * \return the kind of selection behaviour that was identified, or
 	 * Snap::NONE if no special selection behaviour should be used.
 	 **/
-	Selection::Snap handleClick(const xpp::Button button);
+	Selection::Snap handleClick(const xpp::Button button, const Selection::Context ctx);
 
 protected: // types
 

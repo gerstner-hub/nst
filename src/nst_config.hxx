@@ -92,8 +92,6 @@ constexpr float CH_SCALE = 1.0;
 
 /// Double click selection timeout.
 constexpr std::chrono::milliseconds DOUBLE_CLICK_TIMEOUT{300};
-/// Triple click selectin timeout.
-constexpr std::chrono::milliseconds TRIPLE_CLICK_TIMEOUT{600};
 
 /// Automatically clear selection when selection ownership is lost.
 /**
@@ -490,9 +488,9 @@ inline constexpr std::string_view ASCII_PRINTABLE{
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
  **/
-constexpr std::array<std::pair<Selection::Type, xpp::InputMask>, 2> SEL_MASKS = {
-	std::pair{Selection::Type::REGULAR,     xpp::InputMask{}},
-	         {Selection::Type::RECTANGULAR, xpp::InputMask{xpp::InputModifier::MOD1}}
+constexpr std::array<std::pair<Selection::Context, xpp::InputMask>, 2> SEL_MASKS = {
+	std::pair{Selection::Context{Selection::ContextFlag::RECTANGULAR}, xpp::InputMask{xpp::InputModifier::CONTROL}},
+	std::pair{Selection::Context{Selection::ContextFlag::FULL_LINES}, xpp::InputMask{xpp::InputModifier::CONTROL, xpp::InputModifier::MOD1}}
 };
 
 /// Modifier used for alternative selection behaviour.

@@ -5,6 +5,9 @@
 #include <set>
 #include <string>
 
+// cosmos
+#include <cosmos/BitMask.hxx>
+
 // nst
 #include "fwd.hxx"
 #include "types.hxx"
@@ -15,31 +18,39 @@ namespace nst {
 class Selection {
 public: // types
 
-	enum class Type {
-		REGULAR, ///< select a range of continuous lines from start to end coordinate
-		RECTANGULAR ///< select a rectangular area from start to end coordinate
-	};
-
-	/// Automatic selection of surrounding text.
+	/// Different methods for automatic selection of surrounding text.
 	enum class Snap {
-		NONE, ///< don't automatically select additional text
-		WORD, ///< try to select a complete word at the given location (based on config::WORDDELIMITERS)
-		WORD_SEP, ///< if the clicked-on character is itself a delimiter, look for the next same delimiter.
-		LINE  ///< try to select a complete line at the given location
+		NONE,    ///< don't automatically select additional text.
+		WORD,    ///< try to select a complete word at the given location (based on config::WORDDELIMITERS).
+		WORD_SEP ///< if the clicked-on character is itself a delimiter, look for the next same delimiter.
 	};
 
-	/// for the snap algorithm this determines the direction in which to check.
+	/// Selection context flags.
+	/**
+	 * These flags can change while a selection is modified, they're
+	 * passed to start() and update() to indicate what the user wants.
+	 **/
+	enum class ContextFlag {
+		BACKWARD    = 1 << 0, ///< For the Snap::WORD_SEP algorithm, look in backward direction
+		ALT_SNAP    = 1 << 1, ///< Use an alternative Snap algorithm
+		FINISHED    = 1 << 2, ///< The select operation is finished with this call
+		RECTANGULAR = 1 << 3, ///< Select a rectangular range between start and end coordinates
+		FULL_LINES  = 1 << 4, ///< Select a full line range between start and end coordinates.
+	};
+
+	using Context = cosmos::BitMask<ContextFlag>;
+
+protected: // types
+
 	enum class Direction {
 		FORWARD,
 		BACKWARD
 	};
 
-protected: // types
-
 	enum class State {
 		IDLE, ///< no selection process active
-		EMPTY, ///< selection was started but nothing is selected yet
-		READY ///< selection data is available
+		EMPTY, ///< selection was started but nothing is selected yet.
+		READY, ///< selection data is available.
 	};
 
 public: // functions
@@ -53,22 +64,14 @@ public: // functions
 	/// Removes the current selection and resets Selection state.
 	void clear();
 
-	/// Starts a new selection operation at the given start position using the given snap behaviour.
-	void start(const CharPos pos, const Snap snap, const Direction dir);
+	/// Starts a new selection operation at the given start position using the given snap behaviour and context.
+	void start(const CharPos pos, Snap snap, const Context ctx);
+
+	/// Updates an active selection at/to the given position using the given type and context.
+	void update(const CharPos pos, const Context ctx);
 
 	/// returns whether the given position is part of the current selection.
 	bool isSelected(const CharPos pos) const;
-
-	/// Extends the current selection to the given position.
-	/**
-	 * The current selection range is changed towards the new end position
-	 * `pos`. The passed in selection `type` specifies how the new
-	 * selection will be calculated.
-	 *
-	 * \param[in] done Whether the select operation is finished with this
-	 * call (e.g. due to button release).
-	 **/
-	void extend(const CharPos pos, const Type type, const bool done);
 
 	/// Adjust the current selection to a scroll operation, if possible.
 	/**
@@ -91,6 +94,36 @@ public: // functions
 	/// Dump current selection into the I/O file.
 	void dump() const;
 
+	void saveRange() {
+		m_saved_orig = m_orig;
+		m_saved_range = m_range;
+	}
+
+	void restoreRange() {
+		m_orig = m_saved_orig;
+		m_range = m_saved_range;
+	}
+
+	/// Applies any settings found in the ConfigFile settings.
+	void applyConfig();
+
+protected: // functions
+
+	bool forceExtendSnap() const {
+		return !inEmptyState() && snapActive() && m_ctx.allOf({ContextFlag::ALT_SNAP, ContextFlag::FINISHED});
+	}
+
+	/// Extends the current selection to the given position.
+	/**
+	 * The current selection range is changed towards the new end position
+	 * `pos`. The passed in selection `type` specifies how the new
+	 * selection will be calculated.
+	 *
+	 * \param[in] finished Whether the select operation is finished with this
+	 * call (e.g. due to button release).
+	 **/
+	void extend(const CharPos pos);
+
 	/// Attempt to continue the word snap algorithm on an existing selection.
 	/**
 	 * \param[in] pos The position of the click event that caused this.
@@ -107,34 +140,25 @@ public: // functions
 	/// Returns whether it is possible to extend a current word-sep selection.
 	bool canExtendWordSep() const;
 
-	bool isIdle() const {
-		return m_state == State::IDLE;
+	bool canExtendAny() const {
+		return canExtendWord() || canExtendWordSep();
 	}
 
-	void saveRange() {
-		m_saved_orig = m_orig;
-		m_saved_range = m_range;
-	}
+	bool shouldStartNewSelection(const Snap snap, const Context ctx) const;
 
-	void restoreRange() {
-		m_orig = m_saved_orig;
-		m_range = m_saved_range;
-	}
-
-	/// Applies any settings found in the ConfigFile settings.
-	void applyConfig();
-
-protected: // functions
-
-	bool isRegularType() const { return m_type == Type::REGULAR; }
-	bool isRectType()    const { return m_type == Type::RECTANGULAR; }
+	bool isRectangular() const { return m_ctx[ContextFlag::RECTANGULAR]; }
+	bool isFullLines()   const { return m_ctx[ContextFlag::FULL_LINES]; }
+	bool isRegular()     const { return !isRectangular() && !isFullLines(); }
 
 	bool inIdleState()   const { return m_state == State::IDLE; }
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }
 
-	/// Updates the current selection after a change of m_orig.
-	void update();
+	bool snapActive() const { return m_snap != Snap::NONE; }
+	bool isFinished() const { return m_ctx[ContextFlag::FINISHED]; }
+
+	/// Recalculates the current selection after a change of m_orig.
+	void recalculate();
 
 	/// normalize the current selection range coordinates
 	/**
@@ -150,20 +174,19 @@ protected: // functions
 
 	bool tryExtendWordSep();
 
-	/// Attempt to extend the selection in the given direction corresponding to the current snap setting.
+	/// Attempt to extend the selection to word boundaries.
 	/**
 	 * \param[in,out] pos The position from which to start extending. Will
 	 * be updated with the new start/end of the selection, if applicable.
-	 **/
-	void extendSnap(    CharPos &pos, const Direction direction) const;
-	/// Attempt to extend the selection to word boundaries.
-	/**
+	 *
 	 * \param[in] delimiter If set then the word will be expanded using
 	 * this delimiting character *only*. Otherwise the configured set of
 	 * word delimiters is used.
 	 **/
 	void extendWordSnap(CharPos &pos, const Direction direction, std::optional<Rune> delimiter = std::nullopt) const;
-	void extendLineSnap(CharPos &pos, const Direction direction) const;
+
+	/// Extends the selection coordinate forwards or backwards to cover full lines.
+	void extendOverLine(CharPos &pos, const Direction direction) const;
 
 	/// Extends the selection over line breaks for the regular selection type.
 	void extendLineBreaks();
@@ -177,20 +200,21 @@ protected: // functions
 	/// Returns whether the contained Rune is a word delimiting character
 	bool isDelimiter(const Glyph &g) const;
 
+	Direction currentSnapDir() const {
+		return m_ctx[ContextFlag::BACKWARD] ? Direction::BACKWARD : Direction::FORWARD;
+	}
+
 protected: // data
 
 	Nst &m_nst;
 	Term &m_term;
 	bool m_alt_screen = false; ///< alt screen setting seen when start() was invoked.
 	Snap m_snap = Snap::NONE;
-	Direction m_snap_dir = Direction::FORWARD;
-	Type m_type = Type::REGULAR;
+	Context m_ctx;
 	State m_state = State::IDLE;
-	bool m_force_word_extend = false;
-	bool m_first_cont_extend = true;
 
 	Range m_range; ///< selection range with normalized coordinates
-	mutable Range m_orig; ///< selection range with original cooridinates
+	Range m_orig; ///< selection range with original cooridinates
 
 	Range m_saved_range; ///< selection range with normalized coordinates
 	Range m_saved_orig; ///< selection range with original cooridinates

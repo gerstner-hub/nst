@@ -210,8 +210,8 @@ public: // functions
 
 	explicit Rect(const Range &r) : m_range{r} {}
 
-	Width width() const   { return  Width{m_range.end.x - m_range.begin.x + 1}; }
-	Height height() const { return Height{m_range.end.y - m_range.begin.y + 1}; }
+	Width width() const   { return  Width{std::abs(m_range.end.x - m_range.begin.x) + 1}; }
+	Height height() const { return Height{std::abs(m_range.end.y - m_range.begin.y) + 1}; }
 
 	/// Checks whether `pos` is within the rectangular area.
 	bool inRect(const CharPos pos) const {
@@ -260,7 +260,7 @@ public: // functions
 	}
 
 	/// Height (number of lines) for the current linear range.
-	Height height() const { return Height{m_range.end.y - m_range.begin.y + 1}; }
+	Height height() const { return Height{std::abs(m_range.end.y - m_range.begin.y) + 1}; }
 
 	/// Checks whether the given position is logically smaller than the current Range.
 	/**

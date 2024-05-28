@@ -15,6 +15,13 @@
 namespace nst {
 
 /// This type handles the current copy/paste selection on a purely logical level (without X11 aspects).
+/**
+ * Mostly the XEventHandler interacts with this type, to process mouse and
+ * keyboard events related to selection handling. The type handles the
+ * different selection styles, keeps the current selection range and can
+ * return the text data corresponding to it, to fill the actual X selection
+ * buffer with (this is done by the XSelection type).
+ **/
 class Selection {
 public: // types
 
@@ -22,23 +29,24 @@ public: // types
 	enum class Snap {
 		NONE,    ///< don't automatically select additional text.
 		WORD,    ///< try to select a complete word at the given location (based on config::WORDDELIMITERS).
-		WORD_SEP ///< if the clicked-on character is itself a delimiter, look for the next same delimiter.
+		SEPARATOR ///< if the clicked-on character is itself a delimiter, look for the next same delimiter.
 	};
 
 	/// Selection context flags.
 	/**
-	 * These flags can change while a selection is modified, they're
-	 * passed to start() and update() to indicate what the user wants.
+	 * These flags influence the selection process and can change even
+	 * during a single selection process, to indicate what the user
+	 * wants.
 	 **/
-	enum class ContextFlag {
-		BACKWARD    = 1 << 0, ///< For the Snap::WORD_SEP algorithm, look in backward direction
+	enum class Flag {
+		BACKWARD    = 1 << 0, ///< For the Snap::SEPARATOR algorithm, look in backward direction
 		ALT_SNAP    = 1 << 1, ///< Use an alternative Snap algorithm
 		FINISHED    = 1 << 2, ///< The select operation is finished with this call
 		RECTANGULAR = 1 << 3, ///< Select a rectangular range between start and end coordinates
 		FULL_LINES  = 1 << 4, ///< Select a full line range between start and end coordinates.
 	};
 
-	using Context = cosmos::BitMask<ContextFlag>;
+	using Flags = cosmos::BitMask<Flag>;
 
 protected: // types
 
@@ -50,7 +58,7 @@ protected: // types
 	enum class State {
 		IDLE, ///< no selection process active
 		EMPTY, ///< selection was started but nothing is selected yet.
-		READY, ///< selection data is available.
+		READY, ///< selection data is available, can still be updated.
 	};
 
 public: // functions
@@ -65,10 +73,10 @@ public: // functions
 	void clear();
 
 	/// Starts a new selection operation at the given start position using the given snap behaviour and context.
-	void start(const CharPos pos, Snap snap, const Context ctx);
+	void start(const CharPos pos, Snap snap, const Flags flags);
 
 	/// Updates an active selection at/to the given position using the given type and context.
-	void update(const CharPos pos, const Context ctx);
+	void update(const CharPos pos, const Flags flags);
 
 	/// returns whether the given position is part of the current selection.
 	bool isSelected(const CharPos pos) const;
@@ -94,11 +102,13 @@ public: // functions
 	/// Dump current selection into the I/O file.
 	void dump() const;
 
+	/// Save the current selection range for later restoring.
 	void saveRange() {
 		m_saved_orig = m_orig;
 		m_saved_range = m_range;
 	}
 
+	/// Restore the previously saved selection range.
 	void restoreRange() {
 		m_orig = m_saved_orig;
 		m_range = m_saved_range;
@@ -110,7 +120,7 @@ public: // functions
 protected: // functions
 
 	bool forceExtendSnap() const {
-		return !inEmptyState() && snapActive() && m_ctx.allOf({ContextFlag::ALT_SNAP, ContextFlag::FINISHED});
+		return !inEmptyState() && snapActive() && m_flags.allOf({Flag::ALT_SNAP, Flag::FINISHED});
 	}
 
 	/// Extends the current selection to the given position.
@@ -132,22 +142,22 @@ protected: // functions
 	 **/
 	void tryContinueWordSnap(const CharPos pos);
 
-	void tryContinueWordSepSnap();
+	void tryContinueSeparatorSnap();
 
 	/// Returns whether it is possible to extend a current word selection.
 	bool canExtendWord() const;
 
 	/// Returns whether it is possible to extend a current word-sep selection.
-	bool canExtendWordSep() const;
+	bool canExtendSeparator() const;
 
 	bool canExtendAny() const {
-		return canExtendWord() || canExtendWordSep();
+		return canExtendWord() || canExtendSeparator();
 	}
 
-	bool shouldStartNewSelection(const Snap snap, const Context ctx) const;
+	bool shouldStartNewSelection(const Snap snap, const Flags flags) const;
 
-	bool isRectangular() const { return m_ctx[ContextFlag::RECTANGULAR]; }
-	bool isFullLines()   const { return m_ctx[ContextFlag::FULL_LINES]; }
+	bool isRectangular() const { return m_flags[Flag::RECTANGULAR]; }
+	bool isFullLines()   const { return m_flags[Flag::FULL_LINES]; }
 	bool isRegular()     const { return !isRectangular() && !isFullLines(); }
 
 	bool inIdleState()   const { return m_state == State::IDLE; }
@@ -155,7 +165,7 @@ protected: // functions
 	bool inReadyState()  const { return m_state == State::READY; }
 
 	bool snapActive() const { return m_snap != Snap::NONE; }
-	bool isFinished() const { return m_ctx[ContextFlag::FINISHED]; }
+	bool isFinished() const { return m_flags[Flag::FINISHED]; }
 
 	/// Recalculates the current selection after a change of m_orig.
 	void recalculate();
@@ -172,7 +182,7 @@ protected: // functions
 
 	void extendSnap();
 
-	bool tryExtendWordSep();
+	bool tryExtendSeparator();
 
 	/// Attempt to extend the selection to word boundaries.
 	/**
@@ -201,7 +211,7 @@ protected: // functions
 	bool isDelimiter(const Glyph &g) const;
 
 	Direction currentSnapDir() const {
-		return m_ctx[ContextFlag::BACKWARD] ? Direction::BACKWARD : Direction::FORWARD;
+		return m_flags[Flag::BACKWARD] ? Direction::BACKWARD : Direction::FORWARD;
 	}
 
 protected: // data
@@ -210,14 +220,14 @@ protected: // data
 	Term &m_term;
 	bool m_alt_screen = false; ///< alt screen setting seen when start() was invoked.
 	Snap m_snap = Snap::NONE;
-	Context m_ctx;
+	Flags m_flags;
 	State m_state = State::IDLE;
 
 	Range m_range; ///< selection range with normalized coordinates
 	Range m_orig; ///< selection range with original cooridinates
 
-	Range m_saved_range; ///< selection range with normalized coordinates
-	Range m_saved_orig; ///< selection range with original cooridinates
+	Range m_saved_range; ///< saved selection range with normalized coordinates
+	Range m_saved_orig; ///< saved selection range with original cooridinates
 
 	std::wstring m_word_delimiters;
 	bool m_snap_keep_newline = true;

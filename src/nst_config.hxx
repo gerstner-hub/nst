@@ -488,9 +488,9 @@ inline constexpr std::string_view ASCII_PRINTABLE{
  * ButtonRelease and MotionNotify.
  * If no match is found, regular selection is used.
  **/
-constexpr std::array<std::pair<Selection::Context, xpp::InputMask>, 2> SEL_MASKS = {
-	std::pair{Selection::Context{Selection::ContextFlag::RECTANGULAR}, xpp::InputMask{xpp::InputModifier::CONTROL}},
-	std::pair{Selection::Context{Selection::ContextFlag::FULL_LINES}, xpp::InputMask{xpp::InputModifier::CONTROL, xpp::InputModifier::MOD1}}
+constexpr std::array<std::pair<Selection::Flags, xpp::InputMask>, 2> SEL_MASKS = {
+	std::pair{Selection::Flags{Selection::Flag::RECTANGULAR}, xpp::InputMask{xpp::InputModifier::CONTROL}},
+	std::pair{Selection::Flags{Selection::Flag::FULL_LINES},  xpp::InputMask{xpp::InputModifier::CONTROL, xpp::InputModifier::MOD1}}
 };
 
 /// Modifier used for alternative selection behaviour.

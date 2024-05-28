@@ -33,7 +33,7 @@ void Selection::clear() {
 
 	m_state = State::IDLE;
 	m_snap = Snap::NONE;
-	m_ctx.reset();
+	m_flags.reset();
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_range});
 }
@@ -76,15 +76,15 @@ bool Selection::isSelected(const CharPos pos) const {
 		return LinearRange{m_range}.inRange(pos);
 }
 
-bool Selection::shouldStartNewSelection(const Snap snap, const Context ctx) const {
+bool Selection::shouldStartNewSelection(const Snap snap, const Flags flags) const {
 
 	if (m_snap == Snap::NONE && snap != Snap::NONE)
 		return true;
 
-	if (ctx[ContextFlag::BACKWARD]) {
+	if (flags[Flag::BACKWARD]) {
 		// will be handled during update()
 		return false;
-	} else if (ctx[ContextFlag::ALT_SNAP]) {
+	} else if (flags[Flag::ALT_SNAP]) {
 		// will be handled during update()
 		return false;
 	}
@@ -92,9 +92,9 @@ bool Selection::shouldStartNewSelection(const Snap snap, const Context ctx) cons
 	return true;
 }
 
-void Selection::start(const CharPos pos, const Snap snap, const Context ctx) {
+void Selection::start(const CharPos pos, const Snap snap, const Flags flags) {
 
-	if (!shouldStartNewSelection(snap, ctx)) {
+	if (!shouldStartNewSelection(snap, flags)) {
 		return;
 	}
 
@@ -104,7 +104,7 @@ void Selection::start(const CharPos pos, const Snap snap, const Context ctx) {
 	m_alt_screen = m_term.onAltScreen();
 	m_snap = snap;
 	m_orig = Range{pos, pos};
-	m_ctx = ctx;
+	m_flags = flags;
 
 	recalculate();
 
@@ -124,26 +124,26 @@ void Selection::recalculate() {
 	}
 }
 
-void Selection::update(const CharPos pos, const Context ctx) {
-	const bool changed_ctx = m_ctx != ctx;
+void Selection::update(const CharPos pos, const Flags flags) {
+	const bool flags_changed = m_flags != flags;
 	const auto old_range = m_range;
 
-	if (ctx[ContextFlag::FINISHED] && !snapActive() && m_state == State::EMPTY) {
+	if (flags[Flag::FINISHED] && !snapActive() && m_state == State::EMPTY) {
 		clear();
 		return;
 	}
 
-	if (changed_ctx)
-		m_ctx = ctx;
+	if (flags_changed)
+		m_flags = flags;
 
 	if (forceExtendSnap()) {
 		tryContinueWordSnap(pos);
-		tryContinueWordSepSnap();
+		tryContinueSeparatorSnap();
 	} else {
 		extend(pos);
 	}
 
-	if (old_range != m_range || changed_ctx) {
+	if (old_range != m_range || flags_changed) {
 		m_term.setDirty(LineSpan{m_range});
 		m_term.setDirty(LineSpan{old_range});
 	}
@@ -186,14 +186,14 @@ void Selection::extendLineBreaks() {
 }
 
 void Selection::extendSnap() {
-	if (m_snap == Snap::WORD_SEP) {
-		if (tryExtendWordSep()) {
+	if (m_snap == Snap::SEPARATOR) {
+		if (tryExtendSeparator()) {
 			return;
-		} else if (m_ctx[ContextFlag::BACKWARD]) {
+		} else if (m_flags[Flag::BACKWARD]) {
 			// otherwise fall back to regular word extension
 			m_snap = Snap::WORD;
 		} else {
-			// this is a special backwards search for WORD_SEP but
+			// this is a special backwards search for SEPARATOR but
 			// nothing was found, so give up.
 			clear();
 			return;
@@ -205,7 +205,7 @@ void Selection::extendSnap() {
 	}
 }
 
-bool Selection::tryExtendWordSep() {
+bool Selection::tryExtendSeparator() {
 	// only do something if the clicked-on position is itself a separator.
 	const auto &screen = m_term.screen();
 	const auto &clicked = screen[m_range.begin];
@@ -236,8 +236,8 @@ bool Selection::canExtendWord() const {
 	return !isRectangular() && m_snap == Snap::WORD && m_orig.isValid();
 }
 
-bool Selection::canExtendWordSep() const {
-	return !isRectangular() && m_snap == Snap::WORD_SEP && m_orig.isValid();
+bool Selection::canExtendSeparator() const {
+	return !isRectangular() && m_snap == Snap::SEPARATOR && m_orig.isValid();
 }
 
 void Selection::tryContinueWordSnap(const CharPos pos) {
@@ -259,8 +259,8 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 	}
 }
 
-void Selection::tryContinueWordSepSnap() {
-	if (!canExtendWordSep())
+void Selection::tryContinueSeparatorSnap() {
+	if (!canExtendSeparator())
 		return;
 
 	const auto old_range = m_range;

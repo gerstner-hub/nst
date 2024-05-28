@@ -72,7 +72,7 @@ namespace {
 	}
 
 	template <typename EV>
-	Selection::Context getSelCtx(const EV &ev) {
+	Selection::Flags getSelFlags(const EV &ev) {
 		constexpr xpp::InputMask MOD_MASK{
 			xpp::InputModifier::SHIFT,
 			xpp::InputModifier::CONTROL,
@@ -82,30 +82,30 @@ namespace {
 			xpp::InputModifier::MOD4,
 			xpp::InputModifier::MOD5,
 		};
-		using Context = Selection::ContextFlag;
-		Selection::Context ctx;
+		using Flag = Selection::Flag;
+		Selection::Flags flags;
 
 		if (ev.type() == xpp::EventType::BUTTON_RELEASE)
-			ctx.set(Context::FINISHED);
+			flags.set(Flag::FINISHED);
 
 		if (ev.state().limit(MOD_MASK) == config::SEL_ALT_MOD)
-			ctx.set(Context::ALT_SNAP);
+			flags.set(Flag::ALT_SNAP);
 
 		if constexpr (std::is_same_v<EV, xpp::ButtonEvent>) {
 			if (ev.buttonNr() == xpp::Button::BUTTON3) {
-				ctx.set(Context::BACKWARD);
+				flags.set(Flag::BACKWARD);
 			}
 		}
 
 		const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
 
-		for (auto [extra_ctx, mask]: config::SEL_MASKS) {
+		for (auto [extra_flags, mask]: config::SEL_MASKS) {
 			if (state_matches(mask, state)) {
-				ctx = ctx + extra_ctx;
+				flags = flags + extra_flags;
 			}
 		}
 
-		return ctx;
+		return flags;
 	}
 
 } // end anon ns
@@ -506,10 +506,10 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
 	} else if (cosmos::in_list(button, {xpp::Button::BUTTON1, xpp::Button::BUTTON3})) {
-		const auto ctx = getSelCtx(ev);
-		const auto snap = m_wsys.selection().handleClick(button, ctx);
+		const auto flags = getSelFlags(ev);
+		const auto snap = m_wsys.selection().handleClick(button, flags);
 		const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
-		m_nst.selection().start(pos, snap, ctx);
+		m_nst.selection().start(pos, snap, flags);
 	}
 
 	return StopScrolling{false};
@@ -670,12 +670,12 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 
 template <typename EVENT>
 void XEventHandler::handleMouseSelection(const EVENT &ev) {
-	const auto ctx = getSelCtx(ev);
+	const auto flags = getSelFlags(ev);
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 
-	m_nst.selection().update(pos, ctx);
+	m_nst.selection().update(pos, flags);
 
-	if (ctx[Selection::ContextFlag::FINISHED]) {
+	if (flags[Selection::Flag::FINISHED]) {
 		// button was released, only now set the actual X selection
 		applySelection(ev.time());
 	}

@@ -43,23 +43,10 @@ public: // types
 		ALT_SNAP    = 1 << 1, ///< Use an alternative Snap algorithm
 		FINISHED    = 1 << 2, ///< The select operation is finished with this call
 		RECTANGULAR = 1 << 3, ///< Select a rectangular range between start and end coordinates
-		FULL_LINES  = 1 << 4, ///< Select a full line range between start and end coordinates.
+		LINES       = 1 << 4, ///< Select a range of full lines between start and end coordinates.
 	};
 
 	using Flags = cosmos::BitMask<Flag>;
-
-protected: // types
-
-	enum class Direction {
-		FORWARD,
-		BACKWARD
-	};
-
-	enum class State {
-		IDLE, ///< no selection process active
-		EMPTY, ///< selection was started but nothing is selected yet.
-		READY, ///< selection data is available, can still be updated.
-	};
 
 public: // functions
 
@@ -72,7 +59,7 @@ public: // functions
 	/// Removes the current selection and resets Selection state.
 	void clear();
 
-	/// Starts a new selection operation at the given start position using the given snap behaviour and context.
+	/// Starts a new selection operation at the given start position using the given snap behaviour and settings.
 	void start(const CharPos pos, Snap snap, const Flags flags);
 
 	/// Updates an active selection at/to the given position using the given type and context.
@@ -93,11 +80,11 @@ public: // functions
 	 **/
 	void scroll(const int origin_y, const int num_lines);
 
-	/// Retrieves the content of the current selection.
+	/// Retrieves the current selection data as an UTF8 encoded string.
 	/**
 	 * If nothing is currently selected then an empty string is returned.
 	 **/
-	std::string selection() const;
+	std::string data() const;
 
 	/// Dump current selection into the I/O file.
 	void dump() const;
@@ -117,7 +104,25 @@ public: // functions
 	/// Applies any settings found in the ConfigFile settings.
 	void applyConfig();
 
+protected: // types
+
+	enum class Direction {
+		FORWARD,
+		BACKWARD
+	};
+
+	enum class State {
+		IDLE, ///< no selection process active
+		EMPTY, ///< selection was started but nothing is selected yet.
+		READY, ///< selection data is available, can still be updated.
+	};
+
 protected: // functions
+
+
+	bool existsSelection() const {
+		return m_orig.isValid();
+	}
 
 	bool forceExtendSnap() const {
 		return !inEmptyState() && snapActive() && m_flags.allOf({Flag::ALT_SNAP, Flag::FINISHED});
@@ -156,21 +161,23 @@ protected: // functions
 
 	bool shouldStartNewSelection(const Snap snap, const Flags flags) const;
 
-	bool isRectangular() const { return m_flags[Flag::RECTANGULAR]; }
-	bool isFullLines()   const { return m_flags[Flag::FULL_LINES]; }
-	bool isRegular()     const { return !isRectangular() && !isFullLines(); }
+	bool isFinished()    const { return m_flags[Flag::FINISHED]; }
+	bool doAltSnap()     const { return m_flags[Flag::ALT_SNAP]; }
+	bool snapBackwards() const { return m_flags[Flag::BACKWARD]; }
+	bool selectRect()    const { return m_flags[Flag::RECTANGULAR]; }
+	bool selectLines()   const { return m_flags[Flag::LINES]; }
+	bool selectExact()   const { return !selectRect() && !selectLines(); }
 
 	bool inIdleState()   const { return m_state == State::IDLE; }
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }
 
 	bool snapActive() const { return m_snap != Snap::NONE; }
-	bool isFinished() const { return m_flags[Flag::FINISHED]; }
 
-	/// Recalculates the current selection after a change of m_orig.
-	void recalculate();
+	/// Calculates the current selection after a change of m_orig or other settings.
+	void calculate();
 
-	/// normalize the current selection range coordinates
+	/// Normalize the current selection range coordinates.
 	/**
 	 * This function makes sure that the begin of the selection is
 	 * actually a logically smaller coordinate than the end of the
@@ -230,7 +237,7 @@ protected: // data
 	Range m_saved_orig; ///< saved selection range with original cooridinates
 
 	std::wstring m_word_delimiters;
-	bool m_snap_keep_newline = true;
+	bool m_line_paste_keep_newline = true;
 	std::set<std::string> m_uri_schemes;
 };
 

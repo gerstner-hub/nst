@@ -100,16 +100,17 @@ constexpr std::chrono::milliseconds DOUBLE_CLICK_TIMEOUT{300};
  **/
 constexpr bool SEL_CLEAR = false;
 
-/// Keep trailing newlines in Selection::Snap::LINE selections.
+/// Keep trailing newlines in Selection::Flag::LINES style selections.
 /**
- * When selecting a line via LINE snap mode keep trailing newlines. Upon
- * pasting this causes a complete line plus newline to be pasted. This can be
- * undesirable when pasting e.g. in a shell prompt.
+ * When selecting a range of full lines, keep trailing newlines. Upon
+ * pasting this causes a final newline to be pasted, as well. This can be
+ * undesirable when pasting e.g. a single line in a shell prompt (which you
+ * want to edit, before executing it).
  *
  * If disabled then trailing newline characters will be skipped during
  * pasting.
  **/
-constexpr bool SEL_LINE_SNAP_KEEP_NEWLINE = false;
+constexpr bool LINE_PASTE_KEEP_NEWLINE = false;
 
 /// Minimum draw latency.
 /*
@@ -490,7 +491,7 @@ inline constexpr std::string_view ASCII_PRINTABLE{
  **/
 constexpr std::array<std::pair<Selection::Flags, xpp::InputMask>, 2> SEL_MASKS = {
 	std::pair{Selection::Flags{Selection::Flag::RECTANGULAR}, xpp::InputMask{xpp::InputModifier::CONTROL}},
-	std::pair{Selection::Flags{Selection::Flag::FULL_LINES},  xpp::InputMask{xpp::InputModifier::CONTROL, xpp::InputModifier::MOD1}}
+	std::pair{Selection::Flags{Selection::Flag::LINES},       xpp::InputMask{xpp::InputModifier::CONTROL, xpp::InputModifier::MOD1}}
 };
 
 /// Modifier used for alternative selection behaviour.

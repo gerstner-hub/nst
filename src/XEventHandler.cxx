@@ -412,7 +412,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 		}
 
 		/*
-		 * As seen in Selection::selection():
+		 * As seen in Selection::data():
 		 * Line endings are inconsistent in the terminal and GUI world
 		 * copy and pasting. When receiving some selection data,
 		 * replace all '\n' with '\r'.
@@ -682,7 +682,7 @@ void XEventHandler::handleMouseSelection(const EVENT &ev) {
 }
 
 void XEventHandler::applySelection(Time time) {
-	auto seldata = m_nst.selection().selection();
+	auto seldata = m_nst.selection().data();
 	m_wsys.selection().setSelection(seldata, time);
 }
 

@@ -20,7 +20,7 @@ Selection::Selection(Nst &nst) :
 		m_nst{nst},
 		m_term{nst.term()},
 		m_word_delimiters{config::WORD_DELIMITERS},
-		m_snap_keep_newline{config::SEL_LINE_SNAP_KEEP_NEWLINE}	{
+		m_line_paste_keep_newline{config::LINE_PASTE_KEEP_NEWLINE}	{
 	m_orig.invalidate();
 	for (auto scheme: config::SEL_URI_SCHEMES) {
 		m_uri_schemes.insert(std::string{scheme});
@@ -28,7 +28,7 @@ Selection::Selection(Nst &nst) :
 }
 
 void Selection::clear() {
-	if (!m_orig.isValid())
+	if (!existsSelection())
 		return;
 
 	m_state = State::IDLE;
@@ -53,8 +53,8 @@ void Selection::applyConfig() {
 		m_word_delimiters = *delimiters;
 	}
 
-	if (const auto snap_keep_newline = config.asBool("snap_keep_newline"); snap_keep_newline != std::nullopt) {
-		m_snap_keep_newline = *snap_keep_newline;
+	if (const auto keep_newline = config.asBool("line_paste_keep_newline"); keep_newline != std::nullopt) {
+		m_line_paste_keep_newline = *keep_newline;
 	}
 
 	if (const auto uri_schemes = config.asString("selection_uri_schemes"); uri_schemes != std::nullopt) {
@@ -68,24 +68,23 @@ void Selection::applyConfig() {
 }
 
 bool Selection::isSelected(const CharPos pos) const {
-	if (inEmptyState() || !m_orig.isValid() || hasScreenChanged())
+	if (inEmptyState() || !existsSelection() || hasScreenChanged())
 		return false;
-	else if (isRectangular() || isFullLines())
+	else if (selectRect() || selectLines())
 		return Rect{m_range}.inRect(pos);
-	else // regular type
+	else // exact range
 		return LinearRange{m_range}.inRange(pos);
 }
 
 bool Selection::shouldStartNewSelection(const Snap snap, const Flags flags) const {
 
-	if (m_snap == Snap::NONE && snap != Snap::NONE)
+	if (m_snap == Snap::NONE && snap != Snap::NONE) {
+		// snap behaviour is newly requested, so start over in any case.
 		return true;
+	}
 
-	if (flags[Flag::BACKWARD]) {
-		// will be handled during update()
-		return false;
-	} else if (flags[Flag::ALT_SNAP]) {
-		// will be handled during update()
+	if (flags[Flag::BACKWARD] || flags[Flag::ALT_SNAP]) {
+		// will be handled during update() instead.
 		return false;
 	}
 
@@ -106,22 +105,24 @@ void Selection::start(const CharPos pos, const Snap snap, const Flags flags) {
 	m_orig = Range{pos, pos};
 	m_flags = flags;
 
-	recalculate();
+	calculate();
 
 	m_term.setDirty(LineSpan{m_range});
 }
 
-void Selection::recalculate() {
+void Selection::calculate() {
 	normalizeRange();
 
 	if (isFinished()) {
 		extendSnap();
 	}
-	extendLineBreaks();
-	if (isFullLines()) {
+
+	if (selectLines()) {
 		extendOverLine(m_range.begin, Direction::BACKWARD);
 		extendOverLine(m_range.end, Direction::FORWARD);
 	}
+
+	extendLineBreaks();
 }
 
 void Selection::update(const CharPos pos, const Flags flags) {
@@ -153,14 +154,14 @@ void Selection::normalizeRange() {
 	const auto begin = m_orig.begin;
 	const auto end = m_orig.end;
 
-	if (isRegular() && LinearRange{m_orig}.height() > Height{1}) {
-		// regular selection over more than one line:
-		// use the correct start column and end column
+	if (selectExact() && LinearRange{m_orig}.height() > Height{1}) {
+		// exact selection over more than one line:
+		// use the exact start column and end column
 		m_range.begin.x = begin.y < end.y ? begin.x : end.x;
 		m_range.end.x   = begin.y < end.y ? end.x   : begin.x;
 	} else {
-		// for rectangular or single-line selections we only need the
-		// min/max values
+		// for rectangular style or single-line selections we only
+		// need the min/max values
 		m_range.begin.x = std::min(begin.x, end.x);
 		m_range.end.x   = std::max(begin.x, end.x);
 	}
@@ -170,7 +171,7 @@ void Selection::normalizeRange() {
 }
 
 void Selection::extendLineBreaks() {
-	if (isRectangular() || isFullLines())
+	if (!selectExact())
 		return;
 
 	// expand selection over line breaks for regular selection
@@ -233,11 +234,11 @@ bool Selection::tryExtendSeparator() {
 }
 
 bool Selection::canExtendWord() const {
-	return !isRectangular() && m_snap == Snap::WORD && m_orig.isValid();
+	return !selectRect() && m_snap == Snap::WORD && m_orig.isValid();
 }
 
 bool Selection::canExtendSeparator() const {
-	return !isRectangular() && m_snap == Snap::SEPARATOR && m_orig.isValid();
+	return !selectRect() && m_snap == Snap::SEPARATOR && m_orig.isValid();
 }
 
 void Selection::tryContinueWordSnap(const CharPos pos) {
@@ -386,7 +387,7 @@ void Selection::extend(const CharPos pos) {
 	}
 
 	m_orig.end = pos;
-	recalculate();
+	calculate();
 
 	if (isFinished()) {
 		m_state = State::IDLE;
@@ -400,7 +401,7 @@ void Selection::extend(const CharPos pos) {
 }
 
 void Selection::tryURISnap() {
-	if (m_snap != Snap::WORD || isRectangular())
+	if (m_snap != Snap::WORD || selectRect())
 		return;
 
 	const auto screen = m_term.screen();
@@ -417,7 +418,7 @@ void Selection::tryURISnap() {
 			return;
 	}
 
-	const auto protocol = cosmos::to_lower(selection());
+	const auto protocol = cosmos::to_lower(data());
 
 	auto isURI = [this](const std::string_view sv) -> bool {
 		for (const auto &scheme: m_uri_schemes) {
@@ -492,8 +493,8 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 	}
 }
 
-std::string Selection::selection() const {
-	if (!m_orig.isValid())
+std::string Selection::data() const {
+	if (!existsSelection())
 		return "";
 
 	const auto &screen = m_term.screen();
@@ -505,8 +506,8 @@ std::string Selection::selection() const {
 		ret.reserve(bufsize);
 	}
 
-	const Glyph *gp, *last;
-	int lastx = m_range.end.x;
+	const Glyph *cur, *last;
+	int endx = m_range.end.x;
 
 	// append every set & selected glyph to the selection
 	for (int y = m_range.begin.y; y <= m_range.end.y; y++) {
@@ -518,31 +519,30 @@ std::string Selection::selection() const {
 			continue;
 		}
 
-		if (isRectangular() || isFullLines()) {
-			// our selection range is correct for the rectangular
-			// selection, only select the current line
-			gp = &screen[y][m_range.begin.x];
-		} else {
+		if (selectExact()) {
 			const bool is_first_line = m_range.begin.y == y;
 
-			// our selection's X coordinates are only relevant for
-			// the first and last line, all lines in-between will
-			// be used completely
+			// in the exact selection case the begin/end column
+			// coordinates are only relevant for the first/last
+			// line, all lines in-between will be used completely
 
-			gp = &screen[y][is_first_line ? m_range.begin.x : 0];
-			lastx = is_last_line ? m_range.end.x : screen.numCols() - 1;
+			cur = &screen[y][is_first_line ? m_range.begin.x : 0];
+			endx = is_last_line ? m_range.end.x : screen.numCols() - 1;
+		} else {
+			// the start column is correct for the rectangular selection styles
+			cur = &screen[y][m_range.begin.x];
 		}
 
-		last = &screen[y][std::min(lastx, linelen-1)];
+		last = &screen[y][std::min(endx, linelen-1)];
 		// skip trailing spaces
-		while (last >= gp && last->isEmpty())
+		while (last >= cur && last->isEmpty())
 			--last;
 
-		for ( ; gp <= last; ++gp) {
-			if (gp->isDummy())
+		for ( ; cur <= last; ++cur) {
+			if (cur->isDummy())
 				continue;
 
-			utf8::encode(gp->rune, ret);
+			utf8::encode(cur->rune, ret);
 		}
 
 		// Copy and pasting of line endings is inconsistent in the
@@ -550,13 +550,13 @@ std::string Selection::selection() const {
 		// seems like to produce '\n' when something is copied from nst
 		// and convert '\n' to '\r', when something to be pasted is
 		// received by nst.
-		// FIXME: Fix the computer world.
-		if ((!is_last_line || lastx >= linelen) && (!last->isWrapped() || isRectangular()))
+		if ((!is_last_line || endx >= linelen) && (!last->isWrapped() || selectRect()))
 			ret.push_back('\n');
 	}
 
-	if (!m_snap_keep_newline && isFullLines()) {
-		// removing trailing newlines if in line snap mode
+	if (selectLines() && !m_line_paste_keep_newline) {
+		// removing trailing newlines if so configured for line wise
+		// selection mode
 		while (!ret.empty() && ret.back() == '\n')
 			ret.pop_back();
 	}
@@ -565,7 +565,7 @@ std::string Selection::selection() const {
 }
 
 void Selection::dump() const {
-	if (auto sel = selection(); !sel.empty()) {
+	if (const auto sel = data(); !sel.empty()) {
 		m_nst.tty().printToIoFile(sel);
 	}
 }

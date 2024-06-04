@@ -63,10 +63,10 @@ const std::string& XSelection::getSelection(const xpp::AtomID which) const {
 	throw std::runtime_error("invalid selection requested");
 }
 
-Selection::Snap XSelection::handleClick(const xpp::Button button, const Selection::Flags flags) {
+std::optional<Selection::Mode> XSelection::handleClick(const xpp::Button button, const Selection::Flags flags) {
 	// If the user left-clicks below predefined timeouts specific snapping
 	// behaviour is exposed.
-	auto ret = Selection::Snap::NONE;
+	std::optional<Selection::Mode> ret = std::nullopt;
 
 	auto it = m_click_state.find(button);
 	if (it == m_click_state.end())
@@ -76,7 +76,7 @@ Selection::Snap XSelection::handleClick(const xpp::Button button, const Selectio
 
 	if (state.last_click.elapsed() <= config::DOUBLE_CLICK_TIMEOUT) {
 		// in alt mode search for an explicit word separator
-		ret = flags[Selection::Flag::ALT_SNAP] ? Selection::Snap::SEPARATOR : Selection::Snap::WORD;
+		ret = flags[Selection::Flag::ALT] ? Selection::Mode::SEP_SNAP : Selection::Mode::WORD_SNAP;
 	}
 
 	state.newClick();

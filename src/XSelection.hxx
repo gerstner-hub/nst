@@ -41,10 +41,9 @@ public: // functions
 	 * detect special click sequences that enable specific selection
 	 * behaviour.
 	 *
-	 * \return the kind of selection behaviour that was identified, or
-	 * Snap::NONE if no special selection behaviour should be used.
+	 * \return the special selection mode that was identified, if any.
 	 **/
-	Selection::Snap handleClick(const xpp::Button button, const Selection::Flags flags);
+	std::optional<Selection::Mode> handleClick(const xpp::Button button, const Selection::Flags flags);
 
 protected: // types
 

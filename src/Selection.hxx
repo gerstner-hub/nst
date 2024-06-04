@@ -25,13 +25,6 @@ namespace nst {
 class Selection {
 public: // types
 
-	/// Different methods for automatic selection of surrounding text.
-	enum class Snap {
-		NONE,    ///< don't automatically select additional text.
-		WORD,    ///< try to select a complete word at the given location (based on config::WORDDELIMITERS).
-		SEPARATOR ///< if the clicked-on character is itself a delimiter, look for the next same delimiter.
-	};
-
 	/// Selection context flags.
 	/**
 	 * These flags influence the selection process and can change even
@@ -39,14 +32,21 @@ public: // types
 	 * wants.
 	 **/
 	enum class Flag {
-		BACKWARD    = 1 << 0, ///< For the Snap::SEPARATOR algorithm, look in backward direction
-		ALT_SNAP    = 1 << 1, ///< Use an alternative Snap algorithm
-		FINISHED    = 1 << 2, ///< The select operation is finished with this call
-		RECTANGULAR = 1 << 3, ///< Select a rectangular range between start and end coordinates
-		LINES       = 1 << 4, ///< Select a range of full lines between start and end coordinates.
+		BACKWARD    = 1 << 0, ///< In SNAP_SEP mode, look in backward direction.
+		ALT         = 1 << 1, ///< Use alternative logic (e.g. extend snap mode selection).
+		FINISHED    = 1 << 2, ///< The select operation is finished with this call.
 	};
 
 	using Flags = cosmos::BitMask<Flag>;
+
+	/// Different selection modes that can be used.
+	enum class Mode {
+		CONT_RANGE, ///< Select continuous text between start/end coordinates (default).
+		RECT_RANGE, ///< Select a rectangular region between start/end coordinates.
+		LINE_RANGE, ///< Select full lines between start/end coordinates.
+		WORD_SNAP,  ///< Select a word delimited by separators at the given start coordinate.
+		SEP_SNAP    ///< Select text between two word separators at the given start coordinate.
+	};
 
 public: // functions
 
@@ -60,10 +60,10 @@ public: // functions
 	void clear();
 
 	/// Starts a new selection operation at the given start position using the given snap behaviour and settings.
-	void start(const CharPos pos, Snap snap, const Flags flags);
+	void start(const CharPos pos, const Mode mode, const Flags flags);
 
 	/// Updates an active selection at/to the given position using the given type and context.
-	void update(const CharPos pos, const Flags flags);
+	void update(const CharPos pos, const Mode mode, const Flags flags);
 
 	/// returns whether the given position is part of the current selection.
 	bool isSelected(const CharPos pos) const;
@@ -125,7 +125,7 @@ protected: // functions
 	}
 
 	bool forceExtendSnap() const {
-		return !inEmptyState() && snapActive() && m_flags.allOf({Flag::ALT_SNAP, Flag::FINISHED});
+		return !inEmptyState() && inSnapMode() && m_flags.allOf({Flag::ALT, Flag::FINISHED});
 	}
 
 	/// Extends the current selection to the given position.
@@ -159,20 +159,24 @@ protected: // functions
 		return canExtendWord() || canExtendSeparator();
 	}
 
-	bool shouldStartNewSelection(const Snap snap, const Flags flags) const;
+	bool shouldStartNewSelection(const Mode mode, const Flags flags) const;
 
 	bool isFinished()    const { return m_flags[Flag::FINISHED]; }
-	bool doAltSnap()     const { return m_flags[Flag::ALT_SNAP]; }
+	bool altLogic()      const { return m_flags[Flag::ALT]; }
 	bool snapBackwards() const { return m_flags[Flag::BACKWARD]; }
-	bool selectRect()    const { return m_flags[Flag::RECTANGULAR]; }
-	bool selectLines()   const { return m_flags[Flag::LINES]; }
-	bool selectExact()   const { return !selectRect() && !selectLines(); }
+
+	bool doContRange()   const { return m_mode == Mode::CONT_RANGE; }
+	bool doRectRange()   const { return m_mode == Mode::RECT_RANGE; }
+	bool doLineRange()   const { return m_mode == Mode::LINE_RANGE; }
+	bool doWordSnap()    const { return m_mode == Mode::WORD_SNAP;  }
+	bool doSepSnap()     const { return m_mode == Mode::SEP_SNAP;   }
 
 	bool inIdleState()   const { return m_state == State::IDLE; }
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }
 
-	bool snapActive() const { return m_snap != Snap::NONE; }
+	bool inSnapMode() const { return doWordSnap() || doSepSnap(); }
+	bool allowModeChange() const { return !inSnapMode(); }
 
 	/// Calculates the current selection after a change of m_orig or other settings.
 	void calculate();
@@ -208,7 +212,7 @@ protected: // functions
 	/// Extends the selection over line breaks for the regular selection type.
 	void extendLineBreaks();
 
-	/// Checks the current selection in Snap::WORD context, whether a full URI can be selected.
+	/// Checks the current selection in WORD_SNAP mode, whether a full URI can be selected.
 	void tryURISnap();
 
 	/// Returns whether the alt/screen was switched since start().
@@ -226,7 +230,7 @@ protected: // data
 	Nst &m_nst;
 	Term &m_term;
 	bool m_alt_screen = false; ///< alt screen setting seen when start() was invoked.
-	Snap m_snap = Snap::NONE;
+	Mode m_mode = Mode::CONT_RANGE;
 	Flags m_flags;
 	State m_state = State::IDLE;
 

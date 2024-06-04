@@ -32,7 +32,7 @@ void Selection::clear() {
 		return;
 
 	m_state = State::IDLE;
-	m_snap = Snap::NONE;
+	m_mode = Mode::CONT_RANGE;
 	m_flags.reset();
 	m_orig.invalidate();
 	m_term.setDirty(LineSpan{m_range});
@@ -70,30 +70,30 @@ void Selection::applyConfig() {
 bool Selection::isSelected(const CharPos pos) const {
 	if (inEmptyState() || !existsSelection() || hasScreenChanged())
 		return false;
-	else if (selectRect() || selectLines())
+	else if (doRectRange() || doLineRange())
 		return Rect{m_range}.inRect(pos);
 	else // exact range
 		return LinearRange{m_range}.inRange(pos);
 }
 
-bool Selection::shouldStartNewSelection(const Snap snap, const Flags flags) const {
+bool Selection::shouldStartNewSelection(const Mode mode, const Flags flags) const {
 
-	if (m_snap == Snap::NONE && snap != Snap::NONE) {
+	if ((mode == Mode::WORD_SNAP || mode == Mode::SEP_SNAP) && !inSnapMode()) {
 		// snap behaviour is newly requested, so start over in any case.
 		return true;
 	}
 
-	if (flags[Flag::BACKWARD] || flags[Flag::ALT_SNAP]) {
-		// will be handled during update() instead.
+	if (flags[Flag::BACKWARD] || flags[Flag::ALT]) {
+		// modifying an existing selection will be handled during update() instead.
 		return false;
 	}
 
 	return true;
 }
 
-void Selection::start(const CharPos pos, const Snap snap, const Flags flags) {
+void Selection::start(const CharPos pos, const Mode mode, const Flags flags) {
 
-	if (!shouldStartNewSelection(snap, flags)) {
+	if (!shouldStartNewSelection(mode, flags)) {
 		return;
 	}
 
@@ -101,7 +101,7 @@ void Selection::start(const CharPos pos, const Snap snap, const Flags flags) {
 
 	m_state = State::EMPTY;
 	m_alt_screen = m_term.onAltScreen();
-	m_snap = snap;
+	m_mode = mode;
 	m_orig = Range{pos, pos};
 	m_flags = flags;
 
@@ -117,7 +117,7 @@ void Selection::calculate() {
 		extendSnap();
 	}
 
-	if (selectLines()) {
+	if (doLineRange()) {
 		extendOverLine(m_range.begin, Direction::BACKWARD);
 		extendOverLine(m_range.end, Direction::FORWARD);
 	}
@@ -125,17 +125,20 @@ void Selection::calculate() {
 	extendLineBreaks();
 }
 
-void Selection::update(const CharPos pos, const Flags flags) {
+void Selection::update(const CharPos pos, const Mode mode, const Flags flags) {
 	const bool flags_changed = m_flags != flags;
+	const bool mode_changed = allowModeChange() && m_mode != mode;
 	const auto old_range = m_range;
 
-	if (flags[Flag::FINISHED] && !snapActive() && m_state == State::EMPTY) {
+	if (flags[Flag::FINISHED] && !inSnapMode() && inEmptyState()) {
 		clear();
 		return;
 	}
 
 	if (flags_changed)
 		m_flags = flags;
+	if (mode_changed)
+		m_mode = mode;
 
 	if (forceExtendSnap()) {
 		tryContinueWordSnap(pos);
@@ -144,7 +147,7 @@ void Selection::update(const CharPos pos, const Flags flags) {
 		extend(pos);
 	}
 
-	if (old_range != m_range || flags_changed) {
+	if (old_range != m_range || flags_changed || mode_changed) {
 		m_term.setDirty(LineSpan{m_range});
 		m_term.setDirty(LineSpan{old_range});
 	}
@@ -154,7 +157,7 @@ void Selection::normalizeRange() {
 	const auto begin = m_orig.begin;
 	const auto end = m_orig.end;
 
-	if (selectExact() && LinearRange{m_orig}.height() > Height{1}) {
+	if (doContRange() && LinearRange{m_orig}.height() > Height{1}) {
 		// exact selection over more than one line:
 		// use the exact start column and end column
 		m_range.begin.x = begin.y < end.y ? begin.x : end.x;
@@ -171,7 +174,7 @@ void Selection::normalizeRange() {
 }
 
 void Selection::extendLineBreaks() {
-	if (!selectExact())
+	if (!doContRange())
 		return;
 
 	// expand selection over line breaks for regular selection
@@ -187,19 +190,19 @@ void Selection::extendLineBreaks() {
 }
 
 void Selection::extendSnap() {
-	if (m_snap == Snap::SEPARATOR) {
+	if (m_mode == Mode::SEP_SNAP) {
 		if (tryExtendSeparator()) {
 			return;
 		} else if (m_flags[Flag::BACKWARD]) {
 			// otherwise fall back to regular word extension
-			m_snap = Snap::WORD;
+			m_mode = Mode::WORD_SNAP;
 		} else {
 			// this is a special backwards search for SEPARATOR but
 			// nothing was found, so give up.
 			clear();
 			return;
 		}
-	} else if (m_snap == Snap::WORD) {
+	} else if (m_mode == Mode::WORD_SNAP) {
 		extendWordSnap(m_range.begin, Direction::BACKWARD);
 		extendWordSnap(m_range.end,   Direction::FORWARD);
 		tryURISnap();
@@ -234,11 +237,11 @@ bool Selection::tryExtendSeparator() {
 }
 
 bool Selection::canExtendWord() const {
-	return !selectRect() && m_snap == Snap::WORD && m_orig.isValid();
+	return m_mode == Mode::WORD_SNAP && m_orig.isValid();
 }
 
 bool Selection::canExtendSeparator() const {
-	return !selectRect() && m_snap == Snap::SEPARATOR && m_orig.isValid();
+	return m_mode == Mode::SEP_SNAP && m_orig.isValid();
 }
 
 void Selection::tryContinueWordSnap(const CharPos pos) {
@@ -395,13 +398,13 @@ void Selection::extend(const CharPos pos) {
 		// behaviour. since the selection process is no longer active
 		// we don't need the original coordinates any more.
 		m_orig = m_range;
-	} else if (!snapActive()) {
+	} else if (!inSnapMode()) {
 		m_state = State::READY;
 	}
 }
 
 void Selection::tryURISnap() {
-	if (m_snap != Snap::WORD || selectRect())
+	if (m_mode != Mode::WORD_SNAP)
 		return;
 
 	const auto screen = m_term.screen();
@@ -519,7 +522,7 @@ std::string Selection::data() const {
 			continue;
 		}
 
-		if (selectExact()) {
+		if (doContRange()) {
 			const bool is_first_line = m_range.begin.y == y;
 
 			// in the exact selection case the begin/end column
@@ -550,11 +553,11 @@ std::string Selection::data() const {
 		// seems like to produce '\n' when something is copied from nst
 		// and convert '\n' to '\r', when something to be pasted is
 		// received by nst.
-		if ((!is_last_line || endx >= linelen) && (!last->isWrapped() || selectRect()))
+		if ((!is_last_line || endx >= linelen) && (!last->isWrapped() || doRectRange()))
 			ret.push_back('\n');
 	}
 
-	if (selectLines() && !m_line_paste_keep_newline) {
+	if (doLineRange() && !m_line_paste_keep_newline) {
 		// removing trailing newlines if so configured for line wise
 		// selection mode
 		while (!ret.empty() && ret.back() == '\n')

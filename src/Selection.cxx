@@ -3,8 +3,8 @@
 #include <cctype>
 
 // cosmos
-#include "cosmos/utils.hxx"
 #include "cosmos/string.hxx"
+#include "cosmos/utils.hxx"
 
 // nst
 #include "codecs.hxx"
@@ -27,7 +27,7 @@ Selection::Selection(Nst &nst) :
 	}
 }
 
-void Selection::clear() {
+void Selection::reset() {
 	if (!existsSelection())
 		return;
 
@@ -76,7 +76,7 @@ bool Selection::isSelected(const CharPos pos) const {
 		return LinearRange{m_range}.inRange(pos);
 }
 
-bool Selection::shouldStartNewSelection(const Mode mode, const Flags flags) const {
+bool Selection::allowNewSelection(const Mode mode, const Flags flags) const {
 
 	if ((mode == Mode::WORD_SNAP || mode == Mode::SEP_SNAP) && !inSnapMode()) {
 		// snap behaviour is newly requested, so start over in any case.
@@ -84,7 +84,8 @@ bool Selection::shouldStartNewSelection(const Mode mode, const Flags flags) cons
 	}
 
 	if (flags[Flag::BACKWARD] || flags[Flag::ALT]) {
-		// modifying an existing selection will be handled during update() instead.
+		// modifying an existing selection will be handled during
+		// update() instead.
 		return false;
 	}
 
@@ -93,11 +94,11 @@ bool Selection::shouldStartNewSelection(const Mode mode, const Flags flags) cons
 
 void Selection::start(const CharPos pos, const Mode mode, const Flags flags) {
 
-	if (!shouldStartNewSelection(mode, flags)) {
+	if (!allowNewSelection(mode, flags)) {
 		return;
 	}
 
-	clear();
+	reset();
 
 	m_state = State::EMPTY;
 	m_alt_screen = m_term.onAltScreen();
@@ -105,51 +106,85 @@ void Selection::start(const CharPos pos, const Mode mode, const Flags flags) {
 	m_orig = Range{pos, pos};
 	m_flags = flags;
 
-	calculate();
+	calcRange();
 
 	m_term.setDirty(LineSpan{m_range});
 }
 
-void Selection::calculate() {
-	normalizeRange();
-
-	if (isFinished()) {
-		extendSnap();
-	}
-
-	if (doLineRange()) {
-		extendOverLine(m_range.begin, Direction::BACKWARD);
-		extendOverLine(m_range.end, Direction::FORWARD);
-	}
-
-	extendLineBreaks();
-}
-
-void Selection::update(const CharPos pos, const Mode mode, const Flags flags) {
+bool Selection::update(const CharPos pos, const Mode mode, const Flags flags) {
 	const bool flags_changed = m_flags != flags;
 	const bool mode_changed = allowModeChange() && m_mode != mode;
 	const auto old_range = m_range;
+	const auto is_finished = flags[Flag::FINISHED];
 
-	if (flags[Flag::FINISHED] && !inSnapMode() && inEmptyState()) {
-		clear();
-		return;
+	if (inIdleState() && inRangeMode())
+		// once a range selection is finished, don't change anything
+		return is_finished;
+	else if (is_finished && !inSnapMode() && inEmptyState()) {
+		// no selection was made at all, so reset state
+		reset();
+		return true;
 	}
+
 
 	if (flags_changed)
 		m_flags = flags;
 	if (mode_changed)
 		m_mode = mode;
 
-	if (forceExtendSnap()) {
-		tryContinueWordSnap(pos);
-		tryContinueSeparatorSnap();
+	if (allowExtendSnap()) {
+		if (canExtendWordSnap()) {
+			continueWordSnap(pos);
+		} else if (canExtendSepSnap()) {
+			continueSepSnap();
+		}
 	} else {
-		extend(pos);
+		// extend to the new end position
+		m_orig.end = pos;
+
+		if (inRangeMode()) {
+			calcRange();
+		}
+
+		if (isFinished()) {
+			// only now calculate an initial snap, if applicable
+			calcSnap();
+
+			if (!existsSelection()) {
+				// this can happen if in snap mode nothing
+				// could be selected.
+				return is_finished;
+			}
+
+			m_state = State::IDLE;
+			// we need to store the new coordinates for proper scroll()
+			// behaviour. since the selection process is no longer active
+			// we don't need the original coordinates any more.
+			m_orig = m_range;
+		} else if (!inSnapMode()) {
+			// snap modes are never ready, either IDLE or EMPTY.
+			m_state = State::READY;
+		}
 	}
 
-	if (old_range != m_range || flags_changed || mode_changed) {
+	if (const auto range_changed = old_range != m_range; range_changed || flags_changed || mode_changed) {
 		m_term.setDirty(LineSpan{m_range});
 		m_term.setDirty(LineSpan{old_range});
+	}
+
+	return is_finished;
+}
+
+void Selection::calcRange() {
+	normalizeRange();
+
+	if (doLineRange()) {
+		extendLine(Direction::BACKWARD);
+		extendLine(Direction::FORWARD);
+	}
+
+	if (doContRange()) {
+		extendLineBreaks();
 	}
 }
 
@@ -174,13 +209,10 @@ void Selection::normalizeRange() {
 }
 
 void Selection::extendLineBreaks() {
-	if (!doContRange())
-		return;
-
 	// expand selection over line breaks for regular selection
 	//
-	// this extends the selection if the start or end coordinate points to
-	// unassigned space.
+	// this extends the selection over full rows if the start or end
+	// coordinate points to unassigned space.
 	const auto start_line_len = m_term.lineLen(m_range.begin);
 	const auto end_line_len   = m_term.lineLen(m_range.end);
 
@@ -189,45 +221,39 @@ void Selection::extendLineBreaks() {
 		m_range.end.x = m_term.numCols() - 1;
 }
 
-void Selection::extendSnap() {
-	if (m_mode == Mode::SEP_SNAP) {
-		if (tryExtendSeparator()) {
-			return;
-		} else if (m_flags[Flag::BACKWARD]) {
-			// otherwise fall back to regular word extension
-			m_mode = Mode::WORD_SNAP;
-		} else {
-			// this is a special backwards search for SEPARATOR but
+void Selection::calcSnap() {
+	if (doSepSnap()) {
+		if (!extendToSep()) {
 			// nothing was found, so give up.
-			clear();
-			return;
+			reset();
 		}
-	} else if (m_mode == Mode::WORD_SNAP) {
-		extendWordSnap(m_range.begin, Direction::BACKWARD);
-		extendWordSnap(m_range.end,   Direction::FORWARD);
+	} else if (doWordSnap()) {
+		extendWord(Direction::BACKWARD);
+		extendWord(Direction::FORWARD);
 		tryURISnap();
 	}
 }
 
-bool Selection::tryExtendSeparator() {
-	// only do something if the clicked-on position is itself a separator.
+bool Selection::extendToSep() {
 	const auto &screen = m_term.screen();
 	const auto &clicked = screen[m_range.begin];
+
+	// only do something if the clicked-on position is itself a separator.
 	if (isDelimiter(clicked)) {
-		const auto snap_dir = currentSnapDir();
+		const auto snap_dir = snapDirection();
 
 		if (snap_dir == Direction::FORWARD) {
 			auto next = screen.nextInLine(m_range.begin);
 			if (next) {
 				m_range.begin = m_range.end = *next;
-				extendWordSnap(m_range.end, snap_dir, clicked.rune);
+				extendWord(snap_dir, clicked.rune);
 				return true;
 			}
 		} else {
 			auto prev = screen.prevInLine(m_range.begin);
 			if (prev) {
 				m_range.begin = m_range.end = *prev;
-				extendWordSnap(m_range.begin, snap_dir, clicked.rune);
+				extendWord(snap_dir, clicked.rune);
 				return true;
 			}
 		}
@@ -236,26 +262,19 @@ bool Selection::tryExtendSeparator() {
 	return false;
 }
 
-bool Selection::canExtendWord() const {
-	return m_mode == Mode::WORD_SNAP && m_orig.isValid();
-}
-
-bool Selection::canExtendSeparator() const {
-	return m_mode == Mode::SEP_SNAP && m_orig.isValid();
-}
-
-void Selection::tryContinueWordSnap(const CharPos pos) {
-	if (!canExtendWord())
-		return;
-
+void Selection::continueWordSnap(const CharPos pos) {
 	const auto old_range = m_range;
 
 	if (const auto &range = LinearRange{m_range}; range.inRange(pos)) {
-		extendSnap();
+		// clicked on the selected word itself, expand in both directions
+		extendWord(Direction::BACKWARD);
+		extendWord(Direction::FORWARD);
 	} else if(range > pos) {
-		extendWordSnap(m_range.begin, Direction::BACKWARD);
+		// clicked before / above the selected word, expand only backwards
+		extendWord(Direction::BACKWARD);
 	} else {
-		extendWordSnap(m_range.end, Direction::FORWARD);
+		// ditto forwards
+		extendWord(Direction::FORWARD);
 	}
 
 	if (old_range != m_range) {
@@ -263,35 +282,30 @@ void Selection::tryContinueWordSnap(const CharPos pos) {
 	}
 }
 
-void Selection::tryContinueSeparatorSnap() {
-	if (!canExtendSeparator())
-		return;
-
+void Selection::continueSepSnap() {
 	const auto old_range = m_range;
 	const auto &screen = m_term.screen();
-	const auto snap_dir = currentSnapDir();
+	const auto snap_dir = snapDirection();
 
 	if (snap_dir == Direction::FORWARD) {
 		if (const auto sep_pos = screen.nextInLine(m_range.end); !sep_pos)
 			return;
-		else if (const auto next = screen.nextInLine(*sep_pos); !next)
-			return;
-		else
+		else if (const auto next = screen.nextInLine(*sep_pos); !next) {
+			m_range.end = *sep_pos;
+		} else {
 			m_range.end = *next;
+			extendWord(snap_dir, screen[*sep_pos].rune);
+		}
 
-		const auto delim_pos = m_range.begin.prevCol();
-		// take the start separator from begin.prevCol() so we make sure we really use the correct one
-		extendWordSnap(m_range.end, snap_dir, screen[delim_pos].rune);
 	} else {
 		if (const auto sep_pos = screen.prevInLine(m_range.begin); !sep_pos)
 			return;
-		else if (const auto prev = screen.prevInLine(*sep_pos); !prev)
-			return;
-		else
+		else if (const auto prev = screen.prevInLine(*sep_pos); !prev) {
+			m_range.begin = *sep_pos;
+		} else {
 			m_range.begin = *prev;
-
-		const auto delim_pos = m_range.end.nextCol();
-		extendWordSnap(m_range.begin, snap_dir, screen[delim_pos].rune);
+			extendWord(snap_dir, screen[*sep_pos].rune);
+		}
 	}
 
 	if (old_range != m_range) {
@@ -299,11 +313,12 @@ void Selection::tryContinueSeparatorSnap() {
 	}
 }
 
-void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::optional<Rune> delimiter) const {
+void Selection::extendWord(const Direction direction, std::optional<Rune> delimiter) {
+	auto &pos = direction == Direction::FORWARD ? m_range.end : m_range.begin;
 	const auto &screen = m_term.screen();
 	const int move_offset = direction == Direction::FORWARD ? 1 : -1;
-	// force at least on additional word, even if we are already at word borders.
-	bool force = forceExtendSnap();
+	// extend at least on additional word, even if we are already at word borders.
+	bool extend = allowExtendSnap();
 	auto isDelim = [this, delimiter](const Glyph &g) -> bool {
 		if (delimiter)
 			return g.rune == *delimiter;
@@ -344,13 +359,13 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::opt
 		if (!gp.isDummy()) {
 			// we support selecting not only words but also sequences of the same delimiter.
 			if (is_delim != prev_is_delim || (is_delim && !gp.isSameRune(*prevgp))) {
-				if (!force)
+				if (!extend)
 					break;
 				else
 					prev_is_delim = isDelim(gp);
 			}
 
-			force = false;
+			extend = false;
 		}
 
 		pos = next;
@@ -358,7 +373,8 @@ void Selection::extendWordSnap(CharPos &pos, const Direction direction, std::opt
 	}
 }
 
-void Selection::extendOverLine(CharPos &pos, const Direction direction) const {
+void Selection::extendLine(const Direction direction) {
+	auto &pos = direction == Direction::FORWARD ? m_range.end : m_range.begin;
 	const auto &screen = m_term.screen();
 
 	const auto last_col = m_term.numCols() - 1;
@@ -384,35 +400,13 @@ void Selection::extendOverLine(CharPos &pos, const Direction direction) const {
 	}
 }
 
-void Selection::extend(const CharPos pos) {
-	if (inIdleState()) {
-		return;
-	}
-
-	m_orig.end = pos;
-	calculate();
-
-	if (isFinished()) {
-		m_state = State::IDLE;
-		// we need to store the new coordinates for proper scroll()
-		// behaviour. since the selection process is no longer active
-		// we don't need the original coordinates any more.
-		m_orig = m_range;
-	} else if (!inSnapMode()) {
-		m_state = State::READY;
-	}
-}
-
 void Selection::tryURISnap() {
-	if (m_mode != Mode::WORD_SNAP)
-		return;
-
 	const auto screen = m_term.screen();
-	constexpr Rune URI_SEP[] = {':', '/', '/'};
+	constexpr Rune URI_SEPS[] = {':', '/', '/'};
 
 	auto pos = m_range.end;
 
-	for (const auto sepchar: URI_SEP) {
+	for (const auto sepchar: URI_SEPS) {
 		auto next = screen.nextInLine(pos);
 		if (!next)
 			return;
@@ -483,7 +477,7 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 	if (
 			in_range(m_range.begin.y, origin_y, scroll_area.bottom) !=
 			in_range(  m_range.end.y, origin_y, scroll_area.bottom)) {
-		clear();
+		reset();
 	} else if (in_range(m_range.begin.y, origin_y, scroll_area.bottom)) {
 		m_orig.scroll(num_lines);
 		// if our selection is completely within the scroll area
@@ -491,7 +485,7 @@ void Selection::scroll(const int origin_y, const int num_lines) {
 			// adjust selection to new coordinates
 			normalizeRange();
 		} else {
-			clear();
+			reset();
 		}
 	}
 }

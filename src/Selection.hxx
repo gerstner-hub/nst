@@ -32,7 +32,7 @@ public: // types
 	 * wants.
 	 **/
 	enum class Flag {
-		BACKWARD    = 1 << 0, ///< In SNAP_SEP mode, look in backward direction.
+		BACKWARD    = 1 << 0, ///< For SEP_SNAP mode, look in backward direction.
 		ALT         = 1 << 1, ///< Use alternative logic (e.g. extend snap mode selection).
 		FINISHED    = 1 << 2, ///< The select operation is finished with this call.
 	};
@@ -41,10 +41,10 @@ public: // types
 
 	/// Different selection modes that can be used.
 	enum class Mode {
-		CONT_RANGE, ///< Select continuous text between start/end coordinates (default).
+		CONT_RANGE, ///< Select contiguous text between start/end coordinates (default).
 		RECT_RANGE, ///< Select a rectangular region between start/end coordinates.
 		LINE_RANGE, ///< Select full lines between start/end coordinates.
-		WORD_SNAP,  ///< Select a word delimited by separators at the given start coordinate.
+		WORD_SNAP,  ///< Select a word delimited by any separators at the given start coordinate.
 		SEP_SNAP    ///< Select text between two word separators at the given start coordinate.
 	};
 
@@ -56,14 +56,17 @@ public: // functions
 	Selection(const Selection &other) = delete;
 	Selection& operator=(const Selection&) = delete;
 
-	/// Removes the current selection and resets Selection state.
-	void clear();
-
 	/// Starts a new selection operation at the given start position using the given snap behaviour and settings.
 	void start(const CharPos pos, const Mode mode, const Flags flags);
 
 	/// Updates an active selection at/to the given position using the given type and context.
-	void update(const CharPos pos, const Mode mode, const Flags flags);
+	/**
+	 * \return Whether the selection process has finished.
+	 **/
+	bool update(const CharPos pos, const Mode mode, const Flags flags);
+
+	/// Removes the current selection and resets Selection state.
+	void reset();
 
 	/// returns whether the given position is part of the current selection.
 	bool isSelected(const CharPos pos) const;
@@ -112,57 +115,15 @@ protected: // types
 	};
 
 	enum class State {
-		IDLE, ///< no selection process active
+		IDLE,  ///< no selection process active
 		EMPTY, ///< selection was started but nothing is selected yet.
 		READY, ///< selection data is available, can still be updated.
 	};
 
 protected: // functions
 
-
-	bool existsSelection() const {
-		return m_orig.isValid();
-	}
-
-	bool forceExtendSnap() const {
-		return !inEmptyState() && inSnapMode() && m_flags.allOf({Flag::ALT, Flag::FINISHED});
-	}
-
-	/// Extends the current selection to the given position.
-	/**
-	 * The current selection range is changed towards the new end position
-	 * `pos`. The passed in selection `type` specifies how the new
-	 * selection will be calculated.
-	 *
-	 * \param[in] finished Whether the select operation is finished with this
-	 * call (e.g. due to button release).
-	 **/
-	void extend(const CharPos pos);
-
-	/// Attempt to continue the word snap algorithm on an existing selection.
-	/**
-	 * \param[in] pos The position of the click event that caused this.
-	 * This position influences the direction(s) in which the word snap
-	 * will be performed, if possible.
-	 **/
-	void tryContinueWordSnap(const CharPos pos);
-
-	void tryContinueSeparatorSnap();
-
-	/// Returns whether it is possible to extend a current word selection.
-	bool canExtendWord() const;
-
-	/// Returns whether it is possible to extend a current word-sep selection.
-	bool canExtendSeparator() const;
-
-	bool canExtendAny() const {
-		return canExtendWord() || canExtendSeparator();
-	}
-
-	bool shouldStartNewSelection(const Mode mode, const Flags flags) const;
-
 	bool isFinished()    const { return m_flags[Flag::FINISHED]; }
-	bool altLogic()      const { return m_flags[Flag::ALT]; }
+	bool useAltLogic()   const { return m_flags[Flag::ALT]; }
 	bool snapBackwards() const { return m_flags[Flag::BACKWARD]; }
 
 	bool doContRange()   const { return m_mode == Mode::CONT_RANGE; }
@@ -175,11 +136,43 @@ protected: // functions
 	bool inEmptyState()  const { return m_state == State::EMPTY; }
 	bool inReadyState()  const { return m_state == State::READY; }
 
-	bool inSnapMode() const { return doWordSnap() || doSepSnap(); }
+	bool inSnapMode()      const { return doWordSnap() || doSepSnap(); }
+	bool inRangeMode()     const { return !inSnapMode(); }
 	bool allowModeChange() const { return !inSnapMode(); }
 
-	/// Calculates the current selection after a change of m_orig or other settings.
-	void calculate();
+	bool existsSelection() const {
+		return m_orig.isValid();
+	}
+
+	bool allowExtendSnap() const {
+		return !inEmptyState() && inSnapMode() && m_flags.allOf({Flag::ALT, Flag::FINISHED});
+	}
+
+	/// Returns whether it is possible to extend a current word selection.
+	bool canExtendWordSnap() const {
+		return m_mode == Mode::WORD_SNAP && m_orig.isValid();
+	}
+
+	/// Returns whether it is possible to extend a current word-sep selection.
+	bool canExtendSepSnap() const {
+		return m_mode == Mode::SEP_SNAP && m_orig.isValid();
+	}
+
+	/// Checks whether current state allows starting a new selection process.
+	bool allowNewSelection(const Mode mode, const Flags flags) const;
+
+	/// Returns whether the alt/screen was switched since start().
+	bool hasScreenChanged() const;
+
+	/// Returns whether the contained Rune is a word delimiting character
+	bool isDelimiter(const Glyph &g) const;
+
+	Direction snapDirection() const {
+		return snapBackwards() ? Direction::BACKWARD : Direction::FORWARD;
+	}
+
+	/// Calculates the current selection range a change of m_orig or other settings, for the RANGE modes.
+	void calcRange();
 
 	/// Normalize the current selection range coordinates.
 	/**
@@ -191,39 +184,44 @@ protected: // functions
 	 **/
 	void normalizeRange();
 
-	void extendSnap();
+	/// Calculates the initial snap selection for SNAP modes.
+	void calcSnap();
 
-	bool tryExtendSeparator();
-
-	/// Attempt to extend the selection to word boundaries.
+	/// Continue the WORD_SNAP algorithm on an existing selection.
 	/**
-	 * \param[in,out] pos The position from which to start extending. Will
-	 * be updated with the new start/end of the selection, if applicable.
-	 *
-	 * \param[in] delimiter If set then the word will be expanded using
-	 * this delimiting character *only*. Otherwise the configured set of
-	 * word delimiters is used.
+	 * \param[in] pos The position of the click event that caused this.
+	 * This position influences the direction(s) in which the word snap
+	 * will be performed, if possible.
 	 **/
-	void extendWordSnap(CharPos &pos, const Direction direction, std::optional<Rune> delimiter = std::nullopt) const;
+	void continueWordSnap(const CharPos pos);
 
-	/// Extends the selection coordinate forwards or backwards to cover full lines.
-	void extendOverLine(CharPos &pos, const Direction direction) const;
-
-	/// Extends the selection over line breaks for the regular selection type.
-	void extendLineBreaks();
+	/// Continue the SEP_SNAP algorithm on an existing selection.
+	void continueSepSnap();
 
 	/// Checks the current selection in WORD_SNAP mode, whether a full URI can be selected.
 	void tryURISnap();
 
-	/// Returns whether the alt/screen was switched since start().
-	bool hasScreenChanged() const;
+	/// Attempt to extend the current selection to word boundaries.
+	/**
+	 * \param[in] delimiter If set then the word will be expanded using
+	 * this delimiting character *only*. Otherwise the configured set of
+	 * m_word_delimiters is used.
+	 **/
+	void extendWord(const Direction direction, std::optional<Rune> delimiter = std::nullopt);
 
-	/// Returns whether the contained Rune is a word delimiting character
-	bool isDelimiter(const Glyph &g) const;
+	/// Extends the selection coordinate forwards or backwards to expand lines.
+	void extendLine(const Direction direction);
 
-	Direction currentSnapDir() const {
-		return m_flags[Flag::BACKWARD] ? Direction::BACKWARD : Direction::FORWARD;
-	}
+	/// Attempt to extend from one word separator to the next.
+	/**
+	 * If the clicked-on characater isn't a word separator, or if there is
+	 * no data to select (start/end of line reached) then \c false is
+	 * returned.
+	 **/
+	bool extendToSep();
+
+	/// Extends the selection over line breaks for CONT_RANGE mode.
+	void extendLineBreaks();
 
 protected: // data
 

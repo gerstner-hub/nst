@@ -40,7 +40,7 @@ void XSelection::setSelection(const std::string_view str, const Time t) {
 	our_window.makeSelectionOwner(primary, t);
 	if (auto owner = xpp::display.selectionOwner(primary); !owner || *owner != our_window)
 		// we could not become the new selection owner
-		m_nst.selection().clear();
+		m_nst.selection().reset();
 }
 
 void XSelection::copyPrimaryToClipboard() {

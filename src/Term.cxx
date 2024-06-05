@@ -192,7 +192,7 @@ void Term::resize(const TermSize new_size) {
 	// changing the scrolling position.
 	if (!m_screen.restoreScrollState()) {
 		scrollHistoryUpMax();
-		m_selection.clear();
+		m_selection.reset();
 	}
 
 	if (m_screen.isScrolled()) {
@@ -219,7 +219,7 @@ void Term::clearRegion(Range range) {
 
 		for (pos.x = range.begin.x; pos.x <= range.end.x; pos.x++) {
 			if (m_selection.isSelected(pos))
-				m_selection.clear();
+				m_selection.reset();
 			auto &gp = m_screen[pos];
 			gp.clear(m_cursor.attrs());
 		}
@@ -766,7 +766,7 @@ void Term::putChar(const Rune rune) {
 		return;
 
 	if (m_selection.isSelected(m_cursor.pos))
-		m_selection.clear();
+		m_selection.reset();
 
 	Glyph *gp = curGlyph();
 

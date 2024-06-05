@@ -72,7 +72,7 @@ namespace {
 	}
 
 	template <typename EV>
-	Selection::Flags getSelectionFlags(const EV &ev) {
+	Selection::Flags get_selection_flags(const EV &ev) {
 		constexpr xpp::InputMask MOD_MASK{
 			xpp::InputModifier::SHIFT,
 			xpp::InputModifier::CONTROL,
@@ -101,7 +101,7 @@ namespace {
 	}
 
 	template <typename EV>
-	Selection::Mode getSelectionMode(const EV &ev) {
+	Selection::Mode get_selection_mode(const EV &ev) {
 		const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
 
 		for (auto [mode, mask]: config::SEL_MASKS) {
@@ -271,18 +271,18 @@ XEventHandler::customKeyMapping(const xpp::KeySymID keysym, const xpp::InputMask
 
 StopScrolling XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 	const auto tmode = m_twin.mode();
-	const auto defret = StopScrolling{false};
+	const auto keepscroll = StopScrolling{false};
 
 	m_wsys.hidePointer();
 
 	if (tmode[WinMode::KBDLOCK])
-		return defret;
+		return keepscroll;
 
 	const auto ksym = m_wsys.m_input.lookupString(ev, m_key_buf);
 
 	if (ksym == xpp::KeySymID::NO_SYMBOL && m_key_buf.empty())
 		// lookup failed
-		return defret;
+		return keepscroll;
 
 	// 1. shortcuts
 	for (auto &shortcut: m_kbd_shortcuts) {
@@ -300,7 +300,7 @@ StopScrolling XEventHandler::keyPress(const xpp::KeyEvent &ev) {
 	}
 
 	if (m_key_buf.empty())
-		return defret;
+		return keepscroll;
 
 	// 3. composed string from input method
 	if (m_key_buf.size() == 1 && ev.state()[xpp::InputModifier::MOD1]) {
@@ -443,7 +443,7 @@ void XEventHandler::handleSelectionEvent(const xpp::AtomID selprop) {
 
 void XEventHandler::selectionClear() {
 	if (m_auto_clear_selection) {
-		m_nst.selection().clear();
+		m_nst.selection().reset();
 	}
 }
 
@@ -511,8 +511,8 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
 	} else if (cosmos::in_list(button, {xpp::Button::BUTTON1, xpp::Button::BUTTON3})) {
-		const auto flags = getSelectionFlags(ev);
-		auto mode = getSelectionMode(ev);
+		const auto flags = get_selection_flags(ev);
+		auto mode = get_selection_mode(ev);
 		if (const auto click_mode = m_wsys.selection().handleClick(button, flags); click_mode != std::nullopt) {
 			mode = *click_mode;
 		}
@@ -678,13 +678,11 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 
 template <typename EVENT>
 void XEventHandler::handleMouseSelection(const EVENT &ev) {
-	const auto mode = getSelectionMode(ev);
-	const auto flags = getSelectionFlags(ev);
+	const auto mode = get_selection_mode(ev);
+	const auto flags = get_selection_flags(ev);
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 
-	m_nst.selection().update(pos, mode, flags);
-
-	if (flags[Selection::Flag::FINISHED]) {
+	if (const auto finished = m_nst.selection().update(pos, mode, flags); finished) {
 		// button was released, only now set the actual X selection
 		applySelection(ev.time());
 	}

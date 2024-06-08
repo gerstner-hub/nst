@@ -137,15 +137,23 @@ Improved Text Selection
 
 - a double-click on a URI scheme like `http://` will select the complete URL.
   See `SEL_URI_SCHEMES` in `nst_config.hxx`.
-- a double-click on a word delimiting character, while holding the `alt`
-  modifier, will select the following word up until the next delimiter of the
+- a double-click on a word delimiting character, while pressing MOD1 (`alt`)`,
+  will select the following word up until the next delimiter of the
   same kind. E.g. when clicking on the double quotes of `"a couple of words"`
   then the complete string delimited by the double quotes will be selected.
-- if a selection already exists and you click left or right of the selection
-  while holding the `alt` modifier, then the selection will be expanded to the
-  left or right, respectively, until the next word delimiter is found. When
-  clicking on the selection itself, then the selection will be extended in
-  both directions.
+  When double-right-clicking on a word delimiting character, then a backward
+  search for the same delimiter is performed. In both cases, if nothing is
+  found, nothing is selected. The start/end of line count as matching
+  delimiting characters.
+- if a word selection already exists and a left or right click occurs,
+  while pressing MOD1 (`alt`), then the selection will be expanded to the
+  left, to the right, or in both directions. Expansion to the left happens
+  when the click is above or left of the existing selection. Expansion to the
+  right happens when the click is below or right of the existing selection.
+  Expansion in both direction happens when the click is on the existing
+  selection itself.
+- selecting text while holding CONTROL and MOD1 (`alt`), will select full
+  lines between the selected start and end coordinates.
 
 Configuration File Support
 ==========================
@@ -248,9 +256,8 @@ few corner cases this way that could be fixed. For more details check out the
 Future Directions
 =================
 
-With version 1.0 of nst I have reached the feature set that I had in mind. I
-am planning to do some more refactoring in some areas that already started to
-become a bit convoluted again.
+With version 1.1 of nst I have reached the feature set, stability and code
+quality that I had in mind.
 
 Contributing
 ============

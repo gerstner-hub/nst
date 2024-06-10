@@ -214,7 +214,6 @@ void TTY::write(const std::string_view sv, const MayEcho echo) {
 void TTY::writeRaw(const std::string_view sv) {
 	// Remember that we are potentially using a real TTY, which might be a modem line.
 	// Writing too much will clog the line. That's why we are doing this dance.
-	// FIXME: Migrate the world to Plan 9.
 	using Event = cosmos::Poller::Event;
 	const char *data = sv.data();
 	size_t written;

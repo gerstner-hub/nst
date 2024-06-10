@@ -14,7 +14,7 @@ struct TermWindow {
 	{}
 
 	void reset() {
-		m_mode.reset();
+		m_mode.limit({WinMode::FOCUSED, WinMode::VISIBLE, WinMode::NUMLOCK});
 	}
 
 	void setCharSize(const Font &font);

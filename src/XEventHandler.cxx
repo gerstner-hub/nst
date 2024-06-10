@@ -583,10 +583,11 @@ XEventHandler::checkMouseReport(const xpp::PointerMovedEvent &ev) {
 		// mouse reporting is not enabled.
 		return {};
 	} else if (m_twin.reportMouseMotion() && m_buttons.none()) {
-		// FIXME: doesn't this mean that MOUSEMANY won't work
-		// if reportMouseMotion() is also set and no button is pressed?
-		//
 		// WinMode::MOUSEMOTION: no reporting if no button is pressed
+		//
+		// NOTE: MOUSEMOTION and MOUSEREPORT are mutually exclusive,
+		// this condition is maintained in CSIEscape when one is
+		// enabled, the other is disabled.
 		return {};
 	}
 

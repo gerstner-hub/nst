@@ -173,6 +173,7 @@ class TestScreen:
             'push-title': self.pushTitle,
             'pop-title': self.popTitle,
             'insert-mode': self.setInsertMode,
+            'mouse-report': self.setMouseReport,
             'altscreen': self.setAltScreen,
             'autowrap': self.setAutoWrap,
             'q': self.quit
@@ -257,6 +258,15 @@ class TestScreen:
             return f"set insert mode = {on_off}"
         else:
             return "bad value for insert-mode"
+
+    def setMouseReport(self, on_off):
+        mode = self._getPrivateOnOff(on_off)
+
+        if mode:
+            self._sendCSI(f'?1003{mode}')
+            return f"set mouse-report = {on_off}"
+        else:
+            return "bad value for mouse-report"
 
     def pushTitle(self, _):
         self._sendCSI('22;2t')

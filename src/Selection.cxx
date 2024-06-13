@@ -115,6 +115,7 @@ bool Selection::update(const CharPos pos, const Mode mode, const Flags flags) {
 	const bool flags_changed = m_flags != flags;
 	const bool mode_changed = allowModeChange() && m_mode != mode;
 	const auto old_range = m_range;
+	const auto old_state = m_state;
 	const auto is_finished = flags[Flag::FINISHED];
 
 	if (inIdleState() && inRangeMode())
@@ -167,7 +168,10 @@ bool Selection::update(const CharPos pos, const Mode mode, const Flags flags) {
 		}
 	}
 
-	if (const auto range_changed = old_range != m_range; range_changed || flags_changed || mode_changed) {
+	const auto range_changed = old_range != m_range;
+	const auto state_changed = m_state != old_state;
+
+	if (range_changed || state_changed || flags_changed || mode_changed) {
 		m_term.setDirty(LineSpan{m_range});
 		m_term.setDirty(LineSpan{old_range});
 	}

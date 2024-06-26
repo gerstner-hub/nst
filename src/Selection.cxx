@@ -140,10 +140,10 @@ bool Selection::update(const CharPos pos, const Mode mode, const Flags flags) {
 			continueSepSnap();
 		}
 	} else {
-		// extend to the new end position
-		m_orig.end = pos;
-
 		if (inRangeMode()) {
+			// extend to the new end position
+			m_orig.end = pos;
+
 			calcRange();
 		}
 

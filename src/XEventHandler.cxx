@@ -101,8 +101,8 @@ namespace {
 	}
 
 	template <typename EV>
-	Selection::Mode get_selection_mode(const EV &ev) {
-		const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - config::FORCE_MOUSE_MOD;
+	Selection::Mode get_selection_mode(const EV &ev, const xpp::InputMask force_mouse_mod) {
+		const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - force_mouse_mod;
 
 		for (auto [mode, mask]: config::SEL_MASKS) {
 			if (state_matches(mask, state)) {
@@ -121,13 +121,14 @@ XEventHandler::XEventHandler(Nst &nst) :
 		m_twin{m_wsys.termWin()},
 		m_mouse_shortcuts{config::get_mouse_shortcuts(nst)},
 		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)},
+		m_force_mouse_mod{config::FORCE_MOUSE_MOD},
 		m_auto_clear_selection{config::SEL_CLEAR}
 {}
 
 void XEventHandler::applyConfig() {
 	auto &config = m_nst.configFile();
 
-	if (auto auto_clear_sel = config.asBool("auto_clear_selection"); auto_clear_sel) {
+	if (const auto auto_clear_sel = config.asBool("auto_clear_selection"); auto_clear_sel) {
 		m_auto_clear_selection = *auto_clear_sel;
 	}
 
@@ -145,6 +146,21 @@ void XEventHandler::applyConfig() {
 				shortcut.keysym = xpp::KeySymID::NO_SYMBOL;
 			} else {
 				applyKeyBindingConfig(shortcut, key, *keybind);
+			}
+		}
+	}
+
+	if (const auto mod_string = config.asString("force_mouse_mod"); mod_string) {
+		const auto parts = cosmos::split(*mod_string, " ", cosmos::SplitFlags{cosmos::SplitFlag::STRIP_PARTS});
+		m_force_mouse_mod.reset();
+
+		for (auto &part: parts) {
+			if (const auto mod = xpp::string_to_input_mod(part); mod) {
+				m_force_mouse_mod.set(*mod);
+			} else {
+				m_nst.logger().warn() << "invalid 'force_mouse_mod' setting '" << *mod_string << "': not a valid X11 input modifier name" << std::endl;
+				m_force_mouse_mod = config::FORCE_MOUSE_MOD;
+				break;
 			}
 		}
 	}
@@ -502,7 +518,7 @@ void XEventHandler::selectionRequest(const xpp::SelectionRequestEvent &req) {
 }
 
 StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
-	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
+	const auto force_mouse = ev.state().anyOf(m_force_mouse_mod);
 	const auto button = ev.buttonNr();
 	m_buttons.setPressed(button);
 
@@ -512,7 +528,7 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 		return *ss;
 	} else if (cosmos::in_list(button, {xpp::Button::BUTTON1, xpp::Button::BUTTON3})) {
 		const auto flags = get_selection_flags(ev);
-		auto mode = get_selection_mode(ev);
+		auto mode = get_selection_mode(ev, m_force_mouse_mod);
 		if (const auto click_mode = m_wsys.selection().handleClick(button, flags); click_mode != std::nullopt) {
 			mode = *click_mode;
 		}
@@ -525,7 +541,7 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 
 StopScrolling XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 	const auto button = ev.buttonNr();
-	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
+	const auto force_mouse = ev.state().anyOf(m_force_mouse_mod);
 
 	m_buttons.setReleased(button);
 
@@ -541,7 +557,7 @@ StopScrolling XEventHandler::buttonRelease(const xpp::ButtonEvent &ev) {
 }
 
 void XEventHandler::pointerMovedEvent(const xpp::PointerMovedEvent &ev) {
-	const auto force_mouse = ev.state().anyOf(config::FORCE_MOUSE_MOD);
+	const auto force_mouse = ev.state().anyOf(m_force_mouse_mod);
 
 	m_wsys.showPointer();
 
@@ -556,7 +572,7 @@ std::optional<StopScrolling> XEventHandler::handleMouseAction(const xpp::ButtonE
 	// ignore Button<N>mask for Button<N> - it's set on release
 	const auto state = ev.state() - button_mask(ev.buttonNr());
 	const bool is_release = ev.type() == xpp::EventType::BUTTON_RELEASE;
-	const auto force_mouse = state - config::FORCE_MOUSE_MOD;
+	const auto force_mouse = state - m_force_mouse_mod;
 
 	for (auto &shortcut: m_mouse_shortcuts) {
 		if (shortcut.release != is_release || shortcut.button != ev.buttonNr())
@@ -679,7 +695,7 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 
 template <typename EVENT>
 void XEventHandler::handleMouseSelection(const EVENT &ev) {
-	const auto mode = get_selection_mode(ev);
+	const auto mode = get_selection_mode(ev, m_force_mouse_mod);
 	const auto flags = get_selection_flags(ev);
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 

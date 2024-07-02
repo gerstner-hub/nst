@@ -202,9 +202,14 @@ constexpr ColorIndex DEFAULT_ATTR{11};
 
 /// Input modifier mask which forces mouse select/shortcuts in WinMode::MOUSE.
 /**
- * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).
- * Note that if you want to use ShiftMask with selmasks, set this to an other
- * modifier, set to InputModifier::NONE to not use it.
+ * Force mouse select/shortcuts while mask is active (when WinMode::MOUSE is
+ * set). Some terminal applications may interpret mouse events and prevent you
+ * from performing select operations on nst level. For still being able to
+ * perform nst operations, this modifier can be pressed to bypass the
+ * application.
+ *
+ * Note that if this modifier will have priority over the same modifiers used
+ * in SEL_MASKS. The latter will become unusable, if the modifiers conflict.
  **/
 constexpr xpp::InputMask FORCE_MOUSE_MOD{xpp::InputModifier::SHIFT};
 

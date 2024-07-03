@@ -72,7 +72,7 @@ namespace {
 	}
 
 	template <typename EV>
-	Selection::Flags get_selection_flags(const EV &ev) {
+	Selection::Flags get_selection_flags(const EV &ev, const xpp::InputMask alt_mod) {
 		constexpr xpp::InputMask MOD_MASK{
 			xpp::InputModifier::SHIFT,
 			xpp::InputModifier::CONTROL,
@@ -88,7 +88,7 @@ namespace {
 		if (ev.type() == xpp::EventType::BUTTON_RELEASE)
 			flags.set(Flag::FINISHED);
 
-		if (ev.state().limit(MOD_MASK) == config::SEL_ALT_MOD)
+		if (ev.state().limit(MOD_MASK) == alt_mod)
 			flags.set(Flag::ALT);
 
 		if constexpr (std::is_same_v<EV, xpp::ButtonEvent>) {
@@ -109,6 +109,7 @@ XEventHandler::XEventHandler(Nst &nst) :
 		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)},
 		m_force_mouse_mod{config::FORCE_MOUSE_MOD},
 		m_sel_mode_masks{config::SEL_MASKS},
+		m_sel_alt_mod{config::SEL_ALT_MOD},
 		m_auto_clear_selection{config::SEL_CLEAR}
 {}
 
@@ -147,6 +148,22 @@ void XEventHandler::applyConfig() {
 			} else {
 				m_nst.logger().warn() << "invalid 'force_mouse_mod' setting '" << *mod_string << "': not a valid X11 input modifier name" << std::endl;
 				m_force_mouse_mod = config::FORCE_MOUSE_MOD;
+				break;
+			}
+		}
+	}
+
+	if (const auto mod_string = config.asString("sel_alt_mod"); mod_string) {
+		const auto parts = cosmos::split(*mod_string, " ", cosmos::SplitFlags{cosmos::SplitFlag::STRIP_PARTS});
+
+		m_sel_alt_mod.reset();
+
+		for (auto &part: parts) {
+			if (const auto mod = xpp::string_to_input_mod(part); mod) {
+				m_sel_alt_mod.set(*mod);
+			} else {
+				m_nst.logger().warn() << "invalid 'sel_alt_mod' setting '" << *mod_string << "': not a valid X11 input modifier name" << std::endl;
+				m_sel_alt_mod = config::SEL_ALT_MOD;
 				break;
 			}
 		}
@@ -561,7 +578,7 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 	} else if (auto ss = handleMouseAction(ev); ss) {
 		return *ss;
 	} else if (cosmos::in_list(button, {xpp::Button::BUTTON1, xpp::Button::BUTTON3})) {
-		const auto flags = get_selection_flags(ev);
+		const auto flags = get_selection_flags(ev, m_sel_alt_mod);
 		auto mode = getSelectionMode(ev);
 		if (const auto click_mode = m_wsys.selection().handleClick(button, flags); click_mode != std::nullopt) {
 			mode = *click_mode;
@@ -730,7 +747,7 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 template <typename EVENT>
 void XEventHandler::handleMouseSelection(const EVENT &ev) {
 	const auto mode = getSelectionMode(ev);
-	const auto flags = get_selection_flags(ev);
+	const auto flags = get_selection_flags(ev, m_sel_alt_mod);
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 
 	if (const auto finished = m_nst.selection().update(pos, mode, flags); finished) {

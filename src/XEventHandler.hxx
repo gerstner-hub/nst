@@ -119,6 +119,7 @@ protected: // data
 	std::string m_key_buf; ///< reused input sequence string for XInput
 	xpp::InputMask m_force_mouse_mod; ///< runtime configured key modifiers for force mouse mod
 	std::array<std::pair<Selection::Mode, xpp::InputMask>, 2> m_sel_mode_masks; ///< runtime configured selection mode masks
+	xpp::InputMask m_sel_alt_mod; ///< runtime configured alternative selection mode key modifiers
 	bool m_auto_clear_selection = false; ///< automatically clear selection on ownership loss
 };
 

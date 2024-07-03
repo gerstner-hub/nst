@@ -103,6 +103,9 @@ protected: // functions
 	/// Applies configuration file settings for the given KbdShortcut.
 	void applyKeyBindingConfig(KbdShortcut &shortcut, const std::string &key, const std::string &binding);
 
+	template <typename EV>
+	Selection::Mode getSelectionMode(const EV &ev);
+
 protected: // data
 
 	Nst &m_nst;
@@ -115,6 +118,7 @@ protected: // data
 	xpp::Event m_event; ///< The currently handled event.
 	std::string m_key_buf; ///< reused input sequence string for XInput
 	xpp::InputMask m_force_mouse_mod; ///< runtime configured key modifiers for force mouse mod
+	std::array<std::pair<Selection::Mode, xpp::InputMask>, 2> m_sel_mode_masks; ///< runtime configured selection mode masks
 	bool m_auto_clear_selection = false; ///< automatically clear selection on ownership loss
 };
 

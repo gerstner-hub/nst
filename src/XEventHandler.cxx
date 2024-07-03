@@ -99,20 +99,6 @@ namespace {
 
 		return flags;
 	}
-
-	template <typename EV>
-	Selection::Mode get_selection_mode(const EV &ev, const xpp::InputMask force_mouse_mod) {
-		const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - force_mouse_mod;
-
-		for (auto [mode, mask]: config::SEL_MASKS) {
-			if (state_matches(mask, state)) {
-				return mode;
-			}
-		}
-
-		return Selection::Mode::CONT_RANGE;
-	}
-
 } // end anon ns
 
 XEventHandler::XEventHandler(Nst &nst) :
@@ -122,6 +108,7 @@ XEventHandler::XEventHandler(Nst &nst) :
 		m_mouse_shortcuts{config::get_mouse_shortcuts(nst)},
 		m_kbd_shortcuts{config::get_kbd_shortcuts(nst)},
 		m_force_mouse_mod{config::FORCE_MOUSE_MOD},
+		m_sel_mode_masks{config::SEL_MASKS},
 		m_auto_clear_selection{config::SEL_CLEAR}
 {}
 
@@ -164,6 +151,40 @@ void XEventHandler::applyConfig() {
 			}
 		}
 	}
+
+	for (const auto &sel_mask_setting: {
+				std::make_pair(Selection::Mode::RECT_RANGE, "rect_range"),
+					      {Selection::Mode::LINE_RANGE, "line_range"}
+			}) {
+		const auto key = cosmos::sprintf("select_%s_mod", sel_mask_setting.second);
+
+		if (const auto mod_string = config.asString(key); mod_string) {
+			const auto parts = cosmos::split(*mod_string, " ", cosmos::SplitFlags{cosmos::SplitFlag::STRIP_PARTS});
+
+			xpp::InputMask new_mask;
+
+			for (auto &part: parts) {
+				if (const auto mod = xpp::string_to_input_mod(part); mod) {
+					new_mask.set(*mod);
+				} else {
+					m_nst.logger().warn() << "invalid '" << key << "' setting '" << *mod_string << "': not a valid X11 input modifier name" << std::endl;
+					new_mask.reset();
+					break;
+				}
+			}
+
+			if (!new_mask.any()) {
+				continue;
+			}
+
+			for (auto &entry: m_sel_mode_masks) {
+				if (entry.first == sel_mask_setting.first) {
+					entry.second = new_mask;
+				}
+			}
+		}
+	}
+
 }
 
 void XEventHandler::applyKeyBindingConfig(KbdShortcut &shortcut, const std::string &key, const std::string &binding) {
@@ -197,6 +218,19 @@ void XEventHandler::applyKeyBindingConfig(KbdShortcut &shortcut, const std::stri
 	// only apply changes to the modifiers now that we know no errors
 	// occured.
 	shortcut.mod = modmask;
+}
+
+template <typename EV>
+Selection::Mode XEventHandler::getSelectionMode(const EV &ev) {
+	const auto state = (ev.state() - xpp::InputModifier::BUTTON1) - m_force_mouse_mod;
+
+	for (auto [mode, mask]: m_sel_mode_masks) {
+		if (state_matches(mask, state)) {
+			return mode;
+		}
+	}
+
+	return Selection::Mode::CONT_RANGE;
 }
 
 bool XEventHandler::checkEvents() {
@@ -528,7 +562,7 @@ StopScrolling XEventHandler::buttonPress(const xpp::ButtonEvent &ev) {
 		return *ss;
 	} else if (cosmos::in_list(button, {xpp::Button::BUTTON1, xpp::Button::BUTTON3})) {
 		const auto flags = get_selection_flags(ev);
-		auto mode = get_selection_mode(ev, m_force_mouse_mod);
+		auto mode = getSelectionMode(ev);
 		if (const auto click_mode = m_wsys.selection().handleClick(button, flags); click_mode != std::nullopt) {
 			mode = *click_mode;
 		}
@@ -695,7 +729,7 @@ void XEventHandler::handleMouseReport(const EVENT &ev) {
 
 template <typename EVENT>
 void XEventHandler::handleMouseSelection(const EVENT &ev) {
-	const auto mode = get_selection_mode(ev, m_force_mouse_mod);
+	const auto mode = getSelectionMode(ev);
 	const auto flags = get_selection_flags(ev);
 	const auto pos = m_twin.toCharPos(DrawPos{ev.pos()});
 

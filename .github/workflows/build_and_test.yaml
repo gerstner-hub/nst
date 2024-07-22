@@ -1,7 +1,7 @@
 name: Build nst
 on: [push, pull_request]
 jobs:
-  build_libxpp:
+  build_nst:
     runs-on: ubuntu-latest
     steps:
       - run: echo "The job was automatically triggered by a ${{ github.event_name }} event."

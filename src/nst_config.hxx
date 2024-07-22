@@ -42,7 +42,7 @@ constexpr std::array<std::string_view, 8> STTY_ARGS{{
 const std::vector<std::string> EXTERNAL_PIPE_CMDLINE{"gvim", "--not-a-term", "-"};
 
 /*
- * What program is executeed by nst depends on these precedence rules:
+ * What program is executed by nst depends on these precedence rules:
  * 1: program passed with -e
  * 2: scroll and/or utmp
  * 3: SHELL environment variable
@@ -116,9 +116,9 @@ constexpr bool LINE_PASTE_KEEP_NEWLINE = false;
 /*
  * Time from new content/keypress/etc until drawing.
  *
- * Within this range, nst draws when content stops arriving (idle). mostly
+ * Within this range, nst draws when content stops arriving (idle). Mostly
  * it's near MINLATENCY, but it waits longer for slow updates to avoid partial
- * draw.  low MINLATENCY Will tear/flicker more, as it can "detect" idle too
+ * draw. Low MINLATENCY Will tear/flicker more, as it can "detect" idle too
  * early.
  */
 constexpr std::chrono::milliseconds MIN_LATENCY{8};

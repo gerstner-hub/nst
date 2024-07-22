@@ -12,7 +12,7 @@ namespace nst {
 /// Cursor related state.
 /**
  * This contains the current logical cursor position as well as cursor
- * attributes for newly inpurt characters and cursor specific control
+ * attributes for newly input characters and cursor specific control
  * settings.
  **/
 struct CursorState {

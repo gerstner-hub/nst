@@ -426,7 +426,7 @@ void WindowSystem::drawGlyphFontSpecs(Glyph base, const size_t count, const Char
 	// Render the glyphs.
 	m_font_draw_ctx.drawSpecs(front_color, m_next_font_spec, m_next_font_spec + count);
 
-	// Render underline and strikethrough.
+	// Render underline and strike through.
 	if (base.isUnderlined()) {
 		m_font_draw_ctx.drawRect(front_color, pos.atBelow(m_font_manager.ascent() * config::CH_SCALE + 1), Extent{textwidth, 1});
 	}
@@ -475,7 +475,7 @@ void WindowSystem::drawGlyphs(Line::const_iterator it, const Line::const_iterato
 			glyph.mode.flip(Attr::REVERSE);
 		}
 
-		// a change in drawing features occured, draw the series we collected so far
+		// a change in drawing features occurred, draw the series we collected so far
 		if (num_specs != 0 && base.featuresDiffer(glyph)) {
 			drawGlyphFontSpecs(base, num_specs, start_pos);
 			specs_left = m_font_specs.end() - m_next_font_spec;

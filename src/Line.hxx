@@ -20,7 +20,7 @@ namespace nst {
  * is decreased in size temporarily (e.g. due to a tiling window manager).
  *
  * To achieve this we keep existing columns that would otherwise be dropped
- * when the number of colums is decreased. The actual vector never shrinks but
+ * when the number of columns is decreased. The actual vector never shrinks but
  * the iterator interfaces only iterates over the currently set dimension of
  * the screen.
  *
@@ -35,7 +35,7 @@ namespace nst {
  * to cut-off hidden Glyphs after all, to avoid then inconsistent content
  * coming back into view. Sadly there is no central spot to detect actual
  * content changes to Lines currently. The dirty attribute is only concerned
- * with drawing changes, not wich logical line changes.
+ * with drawing changes, not which logical line changes.
  *
  * Currently this is done in Term::clearRegion(), to clear lines that are
  * edited using various operations or when scrolling the screen (not history)
@@ -141,7 +141,7 @@ protected: // data
 
 	mutable bool m_dirty = false;
 	const bool m_keep_data_on_shrink;
-	size_t m_cols = 0; ///< number of colums actually used in m_glyphs
+	size_t m_cols = 0; ///< number of columns actually used in m_glyphs
 	GlyphVector m_glyphs;
 };
 

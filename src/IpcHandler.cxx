@@ -187,7 +187,7 @@ std::string IpcHandler::childCWD() const {
 	const auto pid = m_nst.tty().childPID();
 	// NOTE: this does currently not take into account possible
 	// inter-mediate processes like a `scroll` helper program. In this
-	// case we'd need the grandchilds CWD (the shell).
+	// case we'd need the grandchildren CWD (the shell).
 	std::string str = cosmos::sprintf(
 			"/proc/%s/cwd",
 			std::to_string(cosmos::to_integral(pid)).c_str());

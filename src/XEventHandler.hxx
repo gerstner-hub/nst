@@ -34,7 +34,7 @@ public: // functions
 
 	/// Checks for and processes X11 events
 	/**
-	 * This returns `true` if any type of event occured, otherwise `false`.
+	 * This returns `true` if any type of event occurred, otherwise `false`.
 	 **/
 	bool checkEvents();
 

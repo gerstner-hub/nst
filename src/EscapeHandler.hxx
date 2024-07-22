@@ -53,7 +53,7 @@ public: // functions
 	 **/
 	WasProcessed process(const RuneInfo &r);
 
-	/// A focus change occured, report this on TTY level.
+	/// A focus change occurred, report this on TTY level.
 	void reportFocus(const bool in_focus) {
 		m_csi_escape.reportFocus(in_focus);
 	}

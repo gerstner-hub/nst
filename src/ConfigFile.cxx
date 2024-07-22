@@ -115,7 +115,7 @@ void ConfigFile::parseLine(const std::string_view file, const size_t linenr, std
 	auto sep = line.find(L'=');
 
 	if (sep == line.npos) {
-		parseError("missing '=' seperator");
+		parseError("missing '=' separator");
 		return;
 	}
 

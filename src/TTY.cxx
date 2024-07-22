@@ -169,7 +169,7 @@ size_t TTY::read() {
 		m_buf_bytes -= written;
 		// keep any incomplete UTF-8 byte sequence for the next call
 		if (m_buf_bytes > 0)
-			// NOTE: using a ringbuffer (e.g. via memmap) we could
+			// NOTE: using a ring buffer (e.g. via memmap) we could
 			// probably avoid this memmove with the trade off of
 			// added complexity.
 			std::memmove(m_buf, m_buf + written, m_buf_bytes);

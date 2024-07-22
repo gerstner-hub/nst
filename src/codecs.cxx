@@ -29,7 +29,7 @@ constexpr utf8_t UTF_MASK[UTF_SIZE + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 constexpr size_t TRAILING_BYTE = 0;
 
 // the maximum code point value ranges for sequences of one, two, three, four
-// byte sequences.  for four byte sequences not all of the 21 bits make valid
+// byte sequences. For four byte sequences not all of the 21 bits make valid
 // code points, thus the different maximum value. For the zero index
 // (TRAILING_BYTE) these values don't actually make sense.
 constexpr Rune UTF_MIN[UTF_SIZE + 1] = {       0,    0,  0x80,  0x800,  0x10000};

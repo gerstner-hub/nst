@@ -29,7 +29,7 @@ namespace nst {
 class Term {
 public: // types
 
-	/// Gobal terminal mode settings.
+	/// Global terminal mode settings.
 	enum class Mode {
 		WRAP        = 1 << 0, ///< automatically wrap to next line if cursor reaches end of line
 		INSERT      = 1 << 1, ///< if set, on input, shift existing characters in a line to the right
@@ -68,7 +68,7 @@ public: // functions
 	/// Change the terminal dimensions.
 	/**
 	 * This performs rather complex adjustments to refit the scrolling
-	 * reagion, adjust the cursor position and maintainer internal
+	 * region, adjust the cursor position and maintainer internal
 	 * bookkeeping.
 	 **/
 	void resize(const TermSize new_size);
@@ -100,7 +100,7 @@ public: // functions
 
 	/// Clears all rows and cols up to the current cursor position.
 	/**
-	 * Colums on the current line after the current cursor column will
+	 * Columns on the current line after the current cursor column will
 	 * remain
 	 **/
 	void clearLinesAboveCursor();
@@ -215,7 +215,7 @@ public: // functions
 	void moveToNextTab(size_t count = 1);
 	/// Moves the cursor to the previous `count` tab position(s).
 	void moveToPrevTab(size_t count = 1);
-	/// Moves the cursor the the next line (and also the first column, if set).
+	/// Moves the cursor the next line (and also the first column, if set).
 	void moveToNewline(const CarriageReturn cr = CarriageReturn{});
 
 	/// Setup a tabstop at the current cursor position.

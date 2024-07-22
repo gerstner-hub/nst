@@ -384,7 +384,7 @@ void Selection::extendLine(const Direction direction) {
 	const auto last_col = m_term.numCols() - 1;
 	const auto last_row = m_term.numRows() - 1;
 
-	// Snap around if the the previous line or the current one has set
+	// Snap around if the previous line or the current one has set
 	// WRAP at its end. Then the whole next or previous line will be
 	// selected.
 	if (direction == Direction::FORWARD) {

@@ -92,7 +92,7 @@ const Theme SOLARIZED_DARK{
 		"#93a1a1",  /* 14: brcyan   */
 		"#fdf6e3",  /* 15: brwhite  */
 	},
-	/* actually unused, but we need to fill the aeay */
+	/* actually unused, but we need to fill the array */
 	{},
 	ColorIndex{12},
 	ColorIndex{8},

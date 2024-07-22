@@ -25,7 +25,7 @@ namespace nst {
  * and colors.
  *
  * Basic unicode support is necessary for configuration string values e.g. for
- * the word seperator characters. Therefore strings configuration values have
+ * the word separator characters. Therefore strings configuration values have
  * to be quoted like "this". Minimal backslash escapes are supported for
  * escaping double quotes '\"' and the backslash character itself '\\'.
  *

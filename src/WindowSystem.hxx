@@ -26,7 +26,7 @@
 
 namespace nst {
 
-/// This is the central interace towards X11 graphics, input and font handling.
+/// This is the central interface towards X11 graphics, input and font handling.
 class WindowSystem {
 	friend class XEventHandler;
 public: // functions

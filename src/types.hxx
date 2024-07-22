@@ -227,7 +227,7 @@ protected: // data
 
 /// A linear range defined by a begin and end coordinate.
 /**
- * This defines a contiguous range of characters. all lines in-between the
+ * This defines a contiguous range of characters. All lines in-between the
  * begin and end coordinate are part of the range:
  *
  * ```
@@ -268,7 +268,7 @@ public: // functions
 	 * coordinate is actually smaller than the end coordinate.
 	 *
 	 * The comparison checks whether the end coordinate of the current
-	 * range is appearing on an earlier line than `pos` or on an ealier
+	 * range is appearing on an earlier line than `pos` or on an earlier
 	 * column (if on the same line).
 	 **/
 	bool operator<(const CharPos pos) const {

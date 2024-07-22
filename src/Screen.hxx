@@ -232,7 +232,7 @@ public: // functions
 	 * longer fit the current screen will be deleted.
 	 *
 	 * If the number of columns is increased then new cells will be
-	 * initialized using the provided `defattrs`. If the number of colums
+	 * initialized using the provided `defattrs`. If the number of columns
 	 * is decreased then lost cells will be deleted.
 	 **/
 	void setDimension(const TermSize size, const Glyph defattrs);

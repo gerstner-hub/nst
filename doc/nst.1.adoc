@@ -140,7 +140,7 @@ F11::
 
 == Customization
 
-nst can be customized by adjuting the nst_config.hxx and/or nst_config.cxx
+nst can be customized by adjusting the nst_config.hxx and/or nst_config.cxx
 files and (re)compiling the source code. This keeps it fast, secure and
 simple.
 

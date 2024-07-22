@@ -61,7 +61,7 @@ void StringEscape::oscColorResponse(const ColorIndex idx, const int code) {
 	}
 
 	if (res.empty()) {
-		// sprintf error occured
+		// sprintf error occurred
 		m_nst.logger().error() << "sprintf failed while printing OSC (code " << code << ") response\n";
 		return;
 	}
@@ -221,7 +221,7 @@ bool StringEscape::processOSC() {
 void StringEscape::parseArgs() {
 	auto it = m_str.begin();
 
-	// parameters are separated by semilocon, extract them
+	// parameters are separated by semicloon, extract them
 
 	while (it != m_str.end() && m_args.size() < MAX_STR_ARGS) {
 		auto end = std::find(it, m_str.end(), ';');

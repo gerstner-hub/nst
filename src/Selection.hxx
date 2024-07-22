@@ -214,7 +214,7 @@ protected: // functions
 
 	/// Attempt to extend from one word separator to the next.
 	/**
-	 * If the clicked-on characater isn't a word separator, or if there is
+	 * If the clicked-on character isn't a word separator, or if there is
 	 * no data to select (start/end of line reached) then \c false is
 	 * returned.
 	 **/
@@ -233,10 +233,10 @@ protected: // data
 	State m_state = State::IDLE;
 
 	Range m_range; ///< selection range with normalized coordinates
-	Range m_orig; ///< selection range with original cooridinates
+	Range m_orig; ///< selection range with original coordinates
 
 	Range m_saved_range; ///< saved selection range with normalized coordinates
-	Range m_saved_orig; ///< saved selection range with original cooridinates
+	Range m_saved_orig; ///< saved selection range with original coordinates
 
 	std::wstring m_word_delimiters;
 	bool m_line_paste_keep_newline = true;

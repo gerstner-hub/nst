@@ -233,7 +233,7 @@ void XEventHandler::applyKeyBindingConfig(KbdShortcut &shortcut, const std::stri
 	}
 
 	// only apply changes to the modifiers now that we know no errors
-	// occured.
+	// occurred.
 	shortcut.mod = modmask;
 }
 

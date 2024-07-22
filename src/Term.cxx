@@ -161,7 +161,7 @@ void Term::resize(const TermSize new_size) {
 	// make use of the clamping in moveCursorTo() to get a valid cursor position again
 	moveCursorTo(m_cursor.pos);
 
-	// Clear both screens (it marks all lines drity)
+	// Clear both screens (it marks all lines dirty)
 	const auto saved_cursor = m_cursor;
 
 	for (size_t i = 0; i < 2; i++) {
@@ -715,7 +715,7 @@ Rune Term::translateChar(Rune rune) const {
 void Term::setChar(const Rune rune, const CharPos pos) {
 	auto &glyph = m_screen[pos];
 
-	// if we replace a WIDE/DUMMY position then correct the sibbling position
+	// if we replace a WIDE/DUMMY position then correct the sibling position
 	if (glyph.isWide()) {
 		if (!isAtEndOfLine(pos)) {
 			auto &next_glyph = m_screen[pos.nextCol()];

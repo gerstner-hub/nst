@@ -12,7 +12,7 @@ Import('env')
 base_pkgs = []
 env.Append(CPPPATH=['#/tclap/include'])
 
-env.Append(CCFLAGS=['-DNST_VERSION=\\"1.0\\"'])
+env.Append(CCFLAGS=['-DNST_VERSION=\\"1.0.2\\"'])
 
 nst_env = env.Clone()
 sources = nst_env.GatherSources(suffixes=['.cxx'], recursive=False)

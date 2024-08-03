@@ -10,9 +10,12 @@ Import('env')
 #     base_pkgs = []
 
 base_pkgs = []
-env.Append(CPPPATH=['#/tclap/include'])
+current_version = env.GetCurrentGitTag("nst")
+env.AddVersionFileTarget("nst", current_version)
 
-env.Append(CCFLAGS=['-DNST_VERSION=\\"1.0.2\\"'])
+env.Append(CPPPATH=['#/tclap/include'])
+env.Append(CCFLAGS=[f'-DNST_VERSION=\\"{current_version.strip("v")}\\"'])
+
 
 nst_env = env.Clone()
 sources = nst_env.GatherSources(suffixes=['.cxx'], recursive=False)

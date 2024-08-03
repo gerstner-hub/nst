@@ -17,3 +17,5 @@ build
 build.*
 install
 install.*
+.lib*.tag
+.nst.tag

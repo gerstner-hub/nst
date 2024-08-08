@@ -405,7 +405,7 @@ void Selection::extendLine(const Direction direction) {
 }
 
 void Selection::tryURISnap() {
-	const auto screen = m_term.screen();
+	const auto &screen = m_term.screen();
 	constexpr Rune URI_SEPS[] = {':', '/', '/'};
 
 	auto pos = m_range.end;

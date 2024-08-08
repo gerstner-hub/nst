@@ -284,7 +284,6 @@ void Nst::mainLoop() {
 			if (!drawing) {
 				draw_watch.mark();
 				drawing = true;
-				m_wsys.setBlinking(false);
 			}
 
 			const auto diff = draw_watch.elapsed();

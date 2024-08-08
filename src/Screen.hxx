@@ -113,6 +113,24 @@ public: // functions
 			m_history_len{history_len},
 			m_is_alt_screen{is_alt_screen} {}
 
+	Screen(const Screen&) = delete;
+	Screen& operator=(const Screen&) = delete;
+
+	Screen(Screen &&other) noexcept {
+		*this = std::move(other);
+	}
+
+	Screen& operator=(Screen &&other) noexcept {
+		m_lines = std::move(other.m_lines);
+		m_rows = other.m_rows;
+		m_cur_pos = other.m_cur_pos;
+		m_saved_scroll_index = other.m_saved_scroll_index;
+		m_history_len = other.m_history_len;
+		m_is_alt_screen = other.m_is_alt_screen;
+		m_cached_cursor = other.m_cached_cursor;
+		return *this;
+	}
+
 	size_t numCols() const {
 		return m_lines.empty() ? 0 : m_lines.front().size();
 	}

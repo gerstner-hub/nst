@@ -59,11 +59,23 @@ public: // functions
 		*this = other;
 	}
 
+	Line(Line &&other) noexcept {
+		*this = std::move(other);
+	}
+
 	Line& operator=(const Line &other) {
 		assert(m_keep_data_on_shrink == other.m_keep_data_on_shrink);
 		m_dirty = other.m_dirty;
 		m_glyphs = other.m_glyphs;
 		m_cols = other.m_cols;
+		return *this;
+	}
+
+	Line& operator=(Line &&other) noexcept {
+		m_dirty = other.m_dirty;
+		m_cols = other.m_cols;
+		m_glyphs = std::move(other.m_glyphs);
+		m_keep_data_on_shrink = other.m_keep_data_on_shrink;
 		return *this;
 	}
 
@@ -140,7 +152,7 @@ public: // functions
 protected: // data
 
 	mutable bool m_dirty = false;
-	const bool m_keep_data_on_shrink;
+	bool m_keep_data_on_shrink = false;
 	size_t m_cols = 0; ///< number of columns actually used in m_glyphs
 	GlyphVector m_glyphs;
 };

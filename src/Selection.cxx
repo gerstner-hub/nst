@@ -520,7 +520,7 @@ std::string Selection::data() const {
 			continue;
 		}
 
-		if (doContRange()) {
+		if (doContRange() || inSnapMode()) {
 			const bool is_first_line = m_range.begin.y == y;
 
 			// in the exact selection case the begin/end column

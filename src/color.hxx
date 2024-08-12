@@ -38,11 +38,11 @@ public: // functions
 		destroy();
 	}
 
-	FontColor(FontColor &&other) {
+	FontColor(FontColor &&other) noexcept {
 		*this = std::move(other);
 	}
 
-	FontColor& operator=(FontColor &&other) {
+	FontColor& operator=(FontColor &&other) noexcept {
 		static_cast<XftColor&>(*this) = other;
 		other.m_loaded = false;
 		return *this;

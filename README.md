@@ -140,7 +140,7 @@ Improved Text Selection
 - a double-click on a URI scheme like `http://` will select the complete URL.
   See `SEL_URI_SCHEMES` in `nst_config.hxx` and `selection_uri_schemes` in the
   configuration file.
-- a double-click on a word delimiting character, while pressing MOD1 (`alt`)`,
+- a double-click on a word delimiting character, while pressing MOD1 (`alt`),
   will select the following word up until the next delimiter of the
   same kind. E.g. when clicking on the double quotes of `"a couple of words"`
   then the complete string delimited by the double quotes will be selected.

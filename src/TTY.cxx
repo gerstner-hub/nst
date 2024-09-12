@@ -366,10 +366,12 @@ void TTY::executeShell(cosmos::FileDescriptor slave) {
 void TTY::handleSigChildEvent() {
 	auto res = m_child_proc.wait();
 
-	if (!res.exitedSuccessfully()) {
-		cosmos_throw (cosmos::RuntimeError(
-			cosmos::sprintf("child exited with status %d",
-				cosmos::to_integral(res.exitStatus()))));
+	if (res.exited()) {
+		if (!res.exitedSuccessfully()) {
+			cosmos_throw (cosmos::RuntimeError(
+				cosmos::sprintf("child exited with status %d",
+					cosmos::to_integral(res.exitStatus()))));
+		}
 	} else if (res.signaled()) {
 		cosmos_throw (cosmos::RuntimeError(
 			cosmos::sprintf("child terminated due to signal %d",

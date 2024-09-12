@@ -279,7 +279,11 @@ void TTY::resize(const Extent size) {
 
 void TTY::hangup() {
 	// Send SIGHUP to shell
-	m_child_proc.kill(cosmos::signal::HANGUP);
+	try {
+		m_child_proc.kill(cosmos::signal::HANGUP);
+	} catch (const std::exception &ex) {
+		m_nst.logger().error() << "Failed to send SIGHUP to child: " << ex.what() << "\n";
+	}
 }
 
 void TTY::executeShell(cosmos::FileDescriptor slave) {

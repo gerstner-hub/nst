@@ -255,7 +255,11 @@ void Nst::mainLoop() {
 			const auto fd = event.fd();
 
 			if (fd == childfd) {
-				m_tty.handleSigChildEvent();
+				try {
+					m_tty.handleSigChildEvent();
+				} catch (const std::exception &ex) {
+					std::cerr << "Child exited unexpectedly: " << ex.what() << "\n";
+				}
 				return;
 			} else if (fd == ttyfd) {
 				if (m_tty.read() == 0)

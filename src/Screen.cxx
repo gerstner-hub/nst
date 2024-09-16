@@ -131,7 +131,7 @@ std::string Screen::asText(const CursorState &cursor) const {
 		}
 
 		for (size_t line = 0; line < m_cur_pos + m_rows; line++) {
-			if (reachedEndOfScreen(screenPos(line)))
+			if (line >= m_cur_pos && reachedEndOfScreen(line - m_cur_pos))
 				break;
 			addLine(m_lines[line]);
 		}

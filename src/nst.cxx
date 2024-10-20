@@ -61,21 +61,51 @@ cosmos::ExitStatus Nst::main(int argc, const char **argv) {
 	::XSetLocaleModifiers("");
 
 	m_cmdline.parse(argc, argv);
-	if (m_cmdline.cwd.isSet()) {
-		try {
-			cosmos::fs::change_dir(m_cmdline.cwd.getValue());
-		} catch (const cosmos::CosmosError &ex) {
-			m_logger.warn() << "could not enter CWD " << m_cmdline.cwd.getValue() << ": "
-				<< ex.what() << "\n";
+	if (m_cmdline.list_themes.isSet()) {
+		for (auto &theme: config::get_theme_list()) {
+			std::cout << theme.name << "\n";
 		}
+		return cosmos::ExitStatus::SUCCESS;
 	}
+	if (m_cmdline.cwd.isSet()) {
+		applyCWDFromCmdline(m_cmdline.cwd.getValue());
+	}
+
 	setupSignals();
 	loadConfig();
+
+	// only apply theme after loading the config to avoid custom color
+	// settings from messing up the newly selected theme
+	if (m_cmdline.theme.isSet()) {
+		applyThemeFromCmdline(m_cmdline.theme.getValue());
+	}
+
 	m_wsys.init();
 	m_term.init(*this);
 	setEnv();
 	mainLoop();
 	return cosmos::ExitStatus::SUCCESS;
+}
+
+void Nst::applyCWDFromCmdline(const std::string &cwd) {
+	try {
+		cosmos::fs::change_dir(cwd);
+	} catch (const cosmos::CosmosError &ex) {
+		m_logger.warn() << "could not enter CWD " << m_cmdline.cwd.getValue() << ": "
+			<< ex.what() << "\n";
+	}
+}
+
+void Nst::applyThemeFromCmdline(const std::string_view theme_name) {
+	if (setTheme(theme_name)) {
+		return;
+	}
+
+	std::cerr << "invalid theme name '" << theme_name << "'. Available themes:\n\n";
+	for (auto &theme: config::get_theme_list()) {
+		std::cerr << "- " << theme.name << "\n";
+	}
+	throw cosmos::ExitStatus::FAILURE;
 }
 
 namespace {
@@ -115,22 +145,11 @@ void Nst::loadConfig() {
 		m_blink_timeout = std::chrono::milliseconds(*blink_timeout);
 	}
 
-	if (auto theme_opt = m_config_file.asString("theme"); theme_opt != std::nullopt) {
-		bool found = false;
-
-		for (auto &theme: {
-				config::DEFAULT_THEME, config::SOLARIZED_LIGHT, config::SOLARIZED_DARK,
-				config::NORDTHEME, config::MOONFLY, config::CYBERPUNK_NEON,
-				config::DRACULA, config::GRUVBOX}) {
-			if (theme.name == *theme_opt) {
-				m_theme = theme;
-				found = true;
-				break;
+	if (!m_cmdline.theme.isSet()) {
+		if (auto theme_opt = m_config_file.asString("theme"); theme_opt != std::nullopt) {
+			if (!setTheme(*theme_opt)) {
+				m_logger.error() << "invalid theme setting '" << *theme_opt << "'\n";
 			}
-		}
-
-		if (!found) {
-			m_logger.error() << "invalid theme setting '" << *theme_opt << "'\n";
 		}
 	}
 
@@ -179,6 +198,20 @@ void Nst::loadConfig() {
 		}
 	}
 
+}
+
+bool Nst::setTheme(const std::string_view name) {
+	for (auto &theme: {
+			config::DEFAULT_THEME, config::SOLARIZED_LIGHT, config::SOLARIZED_DARK,
+			config::NORDTHEME, config::MOONFLY, config::CYBERPUNK_NEON,
+			config::DRACULA, config::GRUVBOX}) {
+		if (theme.name == name) {
+			m_theme = theme;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void Nst::setEnv() {

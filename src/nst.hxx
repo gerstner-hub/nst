@@ -80,6 +80,9 @@ protected: // functions
 	/// sets up predefined environment variables for the terminal process
 	void setEnv();
 	void loadConfig();
+	bool setTheme(const std::string_view name);
+	void applyThemeFromCmdline(const std::string_view theme_name);
+	void applyCWDFromCmdline(const std::string& cwd);
 
 protected: // data
 

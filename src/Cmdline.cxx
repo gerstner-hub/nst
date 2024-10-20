@@ -12,6 +12,7 @@ Cmdline::Cmdline() :
 	use_alt_screen{ "a", "no-alt-screen",  "disable the alternative screen buffer", *this, true},
 	fixed_geometry{ "i", "fixed-geometry", "fixate the position specified via -g", *this, false},
 	execute{        "e", "execute",        "execute remaining parameters as command. Only for backward compatibility.", *this, false},
+	list_themes{    "",  "list-themes",    "print a list of all supported theme names, one per line, and exit.", *this, false},
 	window_class{   "c", "window-class",   "defines the window class (default $TERM)", false, config::TERM_NAME.data(), "string", *this},
 	window_name{    "n", "window-name",    "defines the window instance name (default $TERM)", false, config::TERM_NAME.data(), "string", *this},
 	// NOTE: original st also allowed -T title but TCLAP doesn't seem to
@@ -24,6 +25,7 @@ Cmdline::Cmdline() :
 	embed_window{   "w", "embed-window",   "embeds nst within the window identified by given windowid", false, 0, "window-id", *this},
 	tty_line{       "l", "tty",            "use a tty line instead of pseudo terminal. Remaining parameters will be passed as flags to stty", false, "", "path-to-tty", *this},
 	config_file{    "",  "config",         "custom path to an nst.conf file to use", false, "", "path-to-config", *this},
+	theme{          "",  "theme",          "color theme to use", false, "", "theme name", *this},
 	rest{                "rest",           "command to execute instead of shell for -e, or if -l is not given. If -l is given then these are stty parameters", false, "extra-pars", *this}
 {}
 

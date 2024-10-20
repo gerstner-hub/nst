@@ -1,5 +1,8 @@
 #pragma once
 
+// C++
+#include <array>
+
 // nst
 #include "types.hxx"
 
@@ -272,5 +275,13 @@ const Theme GRUVBOX{
 	ColorIndex{15},
 	ColorIndex{0}
 };
+
+static inline auto get_theme_list() {
+	return std::array<const Theme, 8>{
+		DEFAULT_THEME, SOLARIZED_LIGHT, SOLARIZED_DARK,
+		NORDTHEME, MOONFLY, CYBERPUNK_NEON, DRACULA,
+		GRUVBOX
+	};
+}
 
 } // end ns

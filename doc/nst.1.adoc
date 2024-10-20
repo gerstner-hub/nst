@@ -68,6 +68,13 @@ This is a C++ port and fork of the suckless.org ST simple terminal emulator.
   failure to open the file will trigger a warning but nst will still start
   successfully.
 
+*--list-themes*::
+  list the supported theme names, one per line, and exit.
+
+*--theme*::
+  start the terminal using the specified theme, overriding configuration file
+  and builtin settings.
+
 == Environment Variables
 
 *NST_IPC_ADDR*:: this contains the name of an abstract UNIX domain socket

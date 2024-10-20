@@ -2,12 +2,12 @@
 .\"     Title: nst
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/22/2024
+.\"      Date: 10/27/2024
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "NST" "1" "07/22/2024" "\ \&" "\ \&"
+.TH "NST" "1" "10/27/2024" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -102,6 +102,16 @@ execute remaining parameters instead of the shell\&. This switch is not actually
 \fB\-\-config\fR
 .RS 4
 specify the path to a custom nst\&.conf(5) configuration file to parse\&. This will override settings from the system wide and per\-user configuration file\&. A failure to open the file will trigger a warning but nst will still start successfully\&.
+.RE
+.PP
+\fB\-\-list\-themes\fR
+.RS 4
+list the supported theme names, one per line, and exit\&.
+.RE
+.PP
+\fB\-\-theme\fR
+.RS 4
+start the terminal using the specified theme, overriding configuration file and builtin settings\&.
 .RE
 .SH "ENVIRONMENT VARIABLES"
 .PP

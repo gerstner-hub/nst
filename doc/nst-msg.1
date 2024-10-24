@@ -2,12 +2,12 @@
 .\"     Title: nst-msg
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/16/2024
+.\"      Date: 10/24/2024
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "NST\-MSG" "1" "02/16/2024" "\ \&" "\ \&"
+.TH "NST\-MSG" "1" "10/24/2024" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,6 +77,32 @@ Print the nst\-msg version number and exists\&.
 \fB\-h\fR, \fB\-\-help\fR
 .RS 4
 Print a usage text\&.
+.RE
+.SH "EXIT CODES"
+.PP
+0
+.RS 4
+Success\&.
+.RE
+.PP
+1
+.RS 4
+Other errors\&.
+.RE
+.PP
+2
+.RS 4
+Error connecting to one or more NST instances\&.
+.RE
+.PP
+3
+.RS 4
+One or more NST instances reported an error on protocol level\&.
+.RE
+.PP
+5
+.RS 4
+Internal or logical error\&.
 .RE
 .SH "AUTHORS"
 .sp

@@ -2,6 +2,7 @@
 
 // C++
 #include <string>
+#include <deque>
 #include <optional>
 
 // cosmos
@@ -66,6 +67,8 @@ public: // types
 		PING,
 		/// Send the current working directory of the terminal's child process.
 		GET_CWD,
+		/// Change the active theme.
+		SET_THEME
 	};
 
 public: // data
@@ -93,6 +96,9 @@ protected: // functions
 	/// Once a valid request has been received this processes it.
 	void processCommand(const Message message);
 
+	/// Stores the given RPC result in m_send_queue
+	void queueStatus(const cosmos::ExitStatus status);
+
 	/// If we need to reply with data then this manages the transmission.
 	void sendData();
 
@@ -115,8 +121,9 @@ protected: // data
 	cosmos::UnixSeqPacketListenSocket m_listener;
 	std::optional<cosmos::UnixConnection> m_connection;
 	std::string m_snapshot;
-	std::string m_send_data;
-	size_t m_send_pos = 0;
+	cosmos::ExitStatus m_send_status = cosmos::ExitStatus::SUCCESS;
+	std::deque<std::string> m_send_queue;
+	size_t m_msg_pos = 0; ///< number of bytes of front element in m_send_queue that have already been sent
 };
 
 } // end ns

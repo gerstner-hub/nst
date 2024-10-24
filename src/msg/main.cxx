@@ -43,14 +43,14 @@ protected: // data
 };
 
 Cmdline::Cmdline() :
-		TCLAP::CmdLine{"nst terminal emulator IPC utility", ' ', NST_VERSION},
-		save_snapshot{"S", "snapshot", "save a snapshot of the current history"},
-		get_snapshot{"s", "get-snapshot", "print the history data from the last snapshot to stdout"},
-		get_history{"d", "get-history", "print (dump) the current history data to stdout"},
+		TCLAP::CmdLine    {"nst terminal emulator IPC utility", ' ', NST_VERSION},
+		save_snapshot     {"S", "snapshot", "save a snapshot of the current history"},
+		get_snapshot      {"s", "get-snapshot", "print the history data from the last snapshot to stdout"},
+		get_history       {"d", "get-history", "print (dump) the current history data to stdout"},
 		get_global_history{"D", "get-global-history", "print (dump) the current history of all available NST terminals to stdout"},
-		test_connection{"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"},
-		get_cwds{"", "cwds", "retrieve the current working directories of all available NST terminals one per line to stdout"},
-		instance{"p", "pid", "target the NST instance running at the given PID, ignores the NST_IPC_ADDR environment variable", false, "", "process ID", *this} {
+		test_connection   {"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"},
+		get_cwds          {"",  "cwds", "retrieve the current working directories of all available NST terminals one per line to stdout"},
+		instance          {"p", "pid", "target the NST instance running at the given PID, ignores the NST_IPC_ADDR environment variable", false, "", "process ID", *this} {
 	m_xor_group.add(save_snapshot);
 	m_xor_group.add(get_snapshot);
 	m_xor_group.add(get_history);
@@ -85,6 +85,9 @@ protected: // functions
 
 	cosmos::UnixConnection connectSingleInstance();
 
+	/// Receives the request status result (initial reply data)..
+	cosmos::ExitStatus receiveStatus(cosmos::UnixConnection &connection);
+
 	/// Receives data after a request has been dispatched.
 	void receiveData(const Message request, cosmos::UnixConnection &connection, std::ostream &out = std::cout);
 
@@ -100,9 +103,11 @@ protected: // functions
 protected: // data
 
 	Cmdline m_cmdline;
+	cosmos::ExitStatus m_status = cosmos::ExitStatus::SUCCESS;
 	std::set<std::string> m_cwds;
 
 	static constexpr cosmos::ExitStatus CONN_ERR{2};
+	static constexpr cosmos::ExitStatus RPC_ERR{3};
 	static constexpr cosmos::ExitStatus INT_ERR{5};
 };
 
@@ -119,11 +124,12 @@ cosmos::ExitStatus IpcClient::main(const int argc, const char **argv) {
 				std::cout << cwd << "\n";
 			}
 		}
+
+		return m_status;
 	} else {
 		doSingleInstanceRequest();
+		return m_status;
 	}
-
-	return cosmos::ExitStatus::SUCCESS;
 }
 
 void IpcClient::doSingleInstanceRequest() {
@@ -143,6 +149,9 @@ void IpcClient::doSingleInstanceRequest() {
 
 	auto connection = connectSingleInstance();
 	connection.send(&request, sizeof(request));
+	if (receiveStatus(connection) != cosmos::ExitStatus::SUCCESS) {
+		m_status = RPC_ERR;
+	}
 	receiveData(request, connection);
 }
 
@@ -242,7 +251,7 @@ void IpcClient::doInstanceRequest(const std::string_view addr) {
 	}
 
 	try {
-		doInstanceRequest(*conn);
+		return doInstanceRequest(*conn);
 	} catch (const cosmos::ApiError &error) {
 		std::cerr << "error talking to " << addr << ": " << error.what() << "\n";
 	}
@@ -261,6 +270,13 @@ void IpcClient::doInstanceRequest(cosmos::UnixConnection &connection) {
 
 	connection.send(&request, sizeof(request));
 
+	if (receiveStatus(connection) != cosmos::ExitStatus::SUCCESS) {
+		m_status = RPC_ERR;
+		// an error message might follow
+		receiveData(request, connection, std::cerr);
+		return;
+	}
+
 	try {
 		if (request == Message::GET_CWD) {
 			std::stringstream ss;
@@ -275,15 +291,29 @@ void IpcClient::doInstanceRequest(cosmos::UnixConnection &connection) {
 	} catch (const cosmos::ApiError &error) {
 		if (error.errnum() == cosmos::Errno::CONN_RESET)
 			// this means the socket belongs to a different user
-			// and the other nst rejected access.
+			// and the other nst rejected access - ignore.
 			return;
 
 		throw;
 	}
 }
 
+cosmos::ExitStatus IpcClient::receiveStatus(cosmos::UnixConnection &connection) {
+	cosmos::ExitStatus status;
+
+	const auto len = connection.receive(&status, sizeof(status), cosmos::MessageFlags{cosmos::MessageFlag::TRUNCATE});
+
+	if (len != sizeof(status)) {
+		std::cerr << "received bad status code message length\n";
+		throw INT_ERR;
+	}
+
+	return status;
+}
+
 void IpcClient::receiveData(const Message request, cosmos::UnixConnection &connection, std::ostream &out) {
 	std::string buffer;
+
 	while (true) {
 		buffer.resize(IpcHandler::MAX_CHUNK_SIZE);
 		auto len = connection.receive(buffer.data(), buffer.size(), cosmos::MessageFlags{cosmos::MessageFlag::TRUNCATE});
@@ -319,7 +349,7 @@ void IpcClient::receiveData(const Message request, cosmos::UnixConnection &conne
 			// PING test succeeded
 			return;
 		} else {
-			// simply forward data to stdout
+			// simply forward data to the stream
 			out << buffer;
 		}
 	}

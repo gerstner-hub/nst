@@ -91,9 +91,9 @@ void IpcHandler::receiveCommand() {
 
 	if (len != sizeof(Message)) {
 		if (len < sizeof(Message))
-			log_error() << "short IPC message, closing session.\n";
+			log_error() << "short IPC command, closing session.\n";
 		else
-			log_error() << "too long (truncated) IPC message, closing session.\n";
+			log_error() << "too long IPC command, closing session.\n";
 		closeSession();
 		return;
 	}
@@ -126,44 +126,76 @@ std::string IpcHandler::history() const {
 }
 
 void IpcHandler::processCommand(const Message message) {
+	cosmos::ExitStatus cmd_res = cosmos::ExitStatus::SUCCESS;
+
 	switch (message) {
 		default:
 			log_error() << "bad request received: " << cosmos::to_integral(message) << "\n";
-			closeSession();
-			return;
+			cmd_res = cosmos::ExitStatus::FAILURE;
+			break;
 		case Message::SNAPSHOT_HISTORY:
 			m_snapshot = history();
-			closeSession();
-			return;
+			break;
 		case Message::GET_HISTORY:
-			m_send_data = history();
+			m_send_queue.emplace_back(history());
 			break;
 		case Message::GET_SNAPSHOT:
-			m_send_data = m_snapshot;
+			m_send_queue.push_back(m_snapshot);
 			break;
 		case Message::GET_CWD:
-			m_send_data = childCWD();
+			m_send_queue.emplace_back(childCWD());
 			break;
-		case Message::PING:
+		case Message::PING: {
 			constexpr auto msg = Message::PING;
-			m_send_data.resize(sizeof(msg));
-			std::memcpy(m_send_data.data(), &msg, sizeof(msg));
+			auto &data = m_send_queue.emplace_back(std::string{});
+			data.resize(sizeof(msg));
+			std::memcpy(data.data(), &msg, sizeof(msg));
 			break;
+		}
 	}
+
+	queueStatus(cmd_res);
 
 	m_state = State::SENDING;
 }
 
-void IpcHandler::sendData() {
-	try {
-		const auto to_send = std::min(m_send_data.size() - m_send_pos, MAX_CHUNK_SIZE);
-		const auto sent = m_connection->send(m_send_data.data() + m_send_pos, to_send);
-		m_send_pos += sent;
+void IpcHandler::queueStatus(cosmos::ExitStatus status) {
+	// place this at the front, the status needs to be the first message
+	// sent back
+	auto &data = m_send_queue.emplace_front(std::string{});
+	data.resize(sizeof(status));
+	std::memcpy(data.data(), &status, sizeof(status));
+}
 
-		if (m_send_pos >= m_send_data.size()) {
+void IpcHandler::sendData() {
+	const auto &data = m_send_queue.front();
+	// we possibly need to chunk the payload here, because replies like
+	// the history buffer can be larger than the maximum seq-packet socket
+	// message length.
+	const auto left = data.size() - m_msg_pos;
+	const auto chunk_bytes = std::min(MAX_CHUNK_SIZE, left);
+
+	try {
+		const auto sent = m_connection->send(data.data() + m_msg_pos, chunk_bytes);
+
+		if (sent != chunk_bytes) {
+			log_error() << "short IPC message sent.\n";
 			closeSession();
+			return;
 		}
-	} catch(const cosmos::ApiError &e) {
+
+		m_msg_pos += sent;
+
+		if (m_msg_pos == data.size()) {
+			// we're done with this message, remove it from the queue
+			m_send_queue.pop_front();
+			m_msg_pos = 0;
+			if (m_send_queue.empty()) {
+				// everything has been sent out
+				closeSession();
+			}
+		}
+	} catch (const cosmos::ApiError &e) {
 		log_error() << "failed to send IPC message: " << e.what() << ". Closing session.\n";
 		closeSession();
 	}
@@ -171,6 +203,8 @@ void IpcHandler::sendData() {
 
 void IpcHandler::closeSession() {
 	m_state = State::WAITING;
+	m_send_queue.clear();
+	m_msg_pos = 0;
 
 	if (!m_connection)
 		return;
@@ -179,8 +213,7 @@ void IpcHandler::closeSession() {
 	m_poller.delFD(m_connection->fd());
 	m_connection->close();
 	m_connection.reset();
-	m_send_data.clear();
-	m_send_pos = 0;
+	m_send_status = cosmos::ExitStatus::SUCCESS;
 }
 
 std::string IpcHandler::childCWD() const {

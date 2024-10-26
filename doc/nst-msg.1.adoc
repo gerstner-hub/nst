@@ -26,7 +26,8 @@ calling user.
   no snapshot is available then nothing is printed.
 
 *-d*, *--get-history*::
-  Print (dump) the current terminal history buffer to stdout.
+  Print (dump) the current terminal history buffer to stdout. This always
+  operates on the main screen, not on the alt screen of the terminal.
 
 *-D*, *--get-global-history*::
   Like -d but prints the concatenated history of all accessible nst instances

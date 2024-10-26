@@ -2,12 +2,12 @@
 .\"     Title: nst-msg
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/24/2024
+.\"      Date: 10/26/2024
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "NST\-MSG" "1" "10/24/2024" "\ \&" "\ \&"
+.TH "NST\-MSG" "1" "10/26/2024" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,7 +51,7 @@ Print the data stored during the last snapshot operation (\-S) to stdout\&. If n
 .PP
 \fB\-d\fR, \fB\-\-get\-history\fR
 .RS 4
-Print (dump) the current terminal history buffer to stdout\&.
+Print (dump) the current terminal history buffer to stdout\&. This always operates on the main screen, not on the alt screen of the terminal\&.
 .RE
 .PP
 \fB\-D\fR, \fB\-\-get\-global\-history\fR

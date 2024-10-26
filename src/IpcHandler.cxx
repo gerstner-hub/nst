@@ -108,18 +108,24 @@ void IpcHandler::receiveCommand() {
 
 std::string IpcHandler::history() const {
 	const auto &term = m_nst.term();
-	auto ret = term.screen().asText(term.cursor());
+	// always operate on the main screen for two reasons:
+	// - this will be the typical use case
+	// - the current screen is subject to race conditions e.g. the command
+	//   line `nst-msg -d | less` is subject to race conditions, since
+	//   less switches to the alt screen and if that happens first, then
+	//   less displays itself, so to say.
+	const auto &screen = term.onAltScreen() ? term.savedScreen() : term.screen();
+	const auto &cursor = term.onAltScreen() ? screen.getCachedCursor() : term.cursor();
+	auto ret = screen.asText(cursor);
 
-	if (!term.onAltScreen()) {
-		// drop the last line which contains the currently entered
-		// command line. this avoids that e.g.
-		//     nst-msg -d | grep something
-		// matches the very command line that searches for `something`.
-		// TODO: this is currently not unicode safe ...
-		auto pos = ret.find_last_of('\n', ret.size() >= 2 ? ret.size() - 2 : ret.npos);
-		if (pos != ret.npos) {
-			ret.erase(pos+1);
-		}
+	// drop the last line which contains the currently entered
+	// command line. this avoids that e.g.
+	//     nst-msg -d | grep something
+	// matches the very command line that searches for `something`.
+	// TODO: this is currently not unicode safe ...
+	auto pos = ret.find_last_of('\n', ret.size() >= 2 ? ret.size() - 2 : ret.npos);
+	if (pos != ret.npos) {
+		ret.erase(pos+1);
 	}
 
 	return ret;

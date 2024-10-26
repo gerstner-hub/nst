@@ -388,6 +388,7 @@ public: // functions
 	auto numCols() const { return m_size.cols; }
 
 	auto& screen() const { return m_screen; }
+	const auto& savedScreen() const { return m_saved_screen; }
 
 	/// Report a focus change on TTY level via escape sequences.
 	void reportFocus(const bool in_focus) { m_esc_handler.reportFocus(in_focus); }

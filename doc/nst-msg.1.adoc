@@ -40,6 +40,13 @@ calling user.
   otherwise. This can be used to determine whether an nst terminal is
   associated at all.
 
+*--theme*::
+  Changes the color theme used by the terminal. Depending on the old and new
+  theme settings, the transformation of the default foreground and background
+  colors will not work perfectly. Thus existing screen content can end up with
+  mismatched colors. This is a currently unavoidable side-effect. Reset the
+  terminal to get a clean screen buffer state again.
+
 *--cwds*::
   This retrieves the current working directories of the child processes of all
   reachable nst instances. One CWD is printed per line, and only unique

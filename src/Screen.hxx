@@ -228,6 +228,9 @@ public: // functions
 	auto begin() const { return const_iterator{m_lines, m_lines.begin() + bufferPos(0)}; }
 	auto end() const { return const_iterator{m_lines, m_lines.begin() + bufferPos(m_rows)}; }
 
+	/// grants raw access to the complete screen ring buffer
+	auto& rawLines() { return m_lines; }
+
 	void setCachedCursor(const CursorState &state) {
 		m_cached_cursor = state;
 	}

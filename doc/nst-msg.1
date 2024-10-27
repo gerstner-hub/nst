@@ -2,12 +2,12 @@
 .\"     Title: nst-msg
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/26/2024
+.\"      Date: 10/27/2024
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "NST\-MSG" "1" "10/26/2024" "\ \&" "\ \&"
+.TH "NST\-MSG" "1" "10/27/2024" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -62,6 +62,11 @@ Like \-d but prints the concatenated history of all accessible nst instances to 
 \fB\-t\fR, \fB\-\-test\fR
 .RS 4
 Performs a connection test to the associated nst terminal emulator instance\&. If the connection succeeds then an exit status of zero is returned, non\-zero otherwise\&. This can be used to determine whether an nst terminal is associated at all\&.
+.RE
+.PP
+\fB\-\-theme\fR
+.RS 4
+Changes the color theme used by the terminal\&. Depending on the old and new theme settings, the transformation of the default foreground and background colors will not work perfectly\&. Thus existing screen content can end up with mismatched colors\&. This is a currently unavoidable side\-effect\&. Reset the terminal to get a clean screen buffer state again\&.
 .RE
 .PP
 \fB\-\-cwds\fR

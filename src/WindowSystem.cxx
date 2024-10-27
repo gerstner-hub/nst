@@ -254,7 +254,6 @@ void WindowSystem::init() {
 
 	m_color_manager.init();
 
-
 	// adjust fixed window geometry
 	if (m_cmdline.window_geometry.isSet()) {
 		setGeometry(m_cmdline.window_geometry.getValue(), tsize);
@@ -286,6 +285,17 @@ void WindowSystem::init() {
 	if (m_cmdline.useXSync()) {
 		m_display.setSynchronized(true);
 	}
+
+	m_initialized = true;
+}
+
+void WindowSystem::themeChanged() {
+	if (!m_initialized)
+		return;
+
+	setupPointer();
+	m_color_manager.resetColors();
+	clearWindow();
 }
 
 void WindowSystem::applyConfig(TermSize &tsize) {

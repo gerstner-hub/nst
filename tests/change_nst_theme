@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# this shows how to target an arbitrary NST window using `xprop` and change
+# its color theme by selecting a new one from a zenity list box.
+
+ZENITY=`which zenity`
+NST=`which nst`
+NST_MSG=`which nst-msg`
+
+if [ -z "$ZENITY" ]; then
+	echo "Missing 'zenity' GUI utility. Cannot continue." 1>&2
+	exit 1
+fi
+
+if [ -z "$NST" -o -z "$NST_MSG" ]; then
+	echo "Missing 'nst' or 'nst-msg' in PATH. Cannot continue." 1>&2
+	exit 1
+fi
+
+PID=`xprop | grep _NET_WM_PID | cut -d '=' -f 2 | tr -d ' '`
+
+THEMES=`$NST --list-themes | tr '\n' ' '`
+
+new_theme=$($ZENITY --list "--text=nst theme selection" --column=theme $THEMES)
+if [ -z "$new_theme" ]; then
+	echo "selection of new theme name failed" 1>&2
+	exit 1
+fi
+
+$NST_MSG --theme "$new_theme" -p "$PID"

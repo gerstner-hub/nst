@@ -50,7 +50,11 @@ public: // functions
 	void init();
 
 	/// Inspect the given poller event and act on I/O if necessary.
-	void checkEvent(const cosmos::Poller::PollEvent &event);
+	/**
+	 * \return indicator whether the screen should be redrawn due to the
+	 * changes introduced by the event.
+	 **/
+	bool checkEvent(const cosmos::Poller::PollEvent &event);
 
 public: // types
 
@@ -90,14 +94,27 @@ protected: // types
 
 protected: // functions
 
-	/// Handles I/O on an IPC connection.
-	void receiveCommand();
+	/// Handles the initial I/O on an IPC connection.
+	bool receiveCommand();
+
+	/// Receive arbitrary data from the current connection.
+	/**
+	 * This function can return a size larger than \c max_size when the
+	 * received message has been truncated.
+	 *
+	 * On error an exception is thrown, the session will be closed in this
+	 * case.
+	 **/
+	size_t receiveData(char *buffer, const size_t max_size);
 
 	/// Once a valid request has been received this processes it.
-	void processCommand(const Message message);
+	bool processCommand(const Message message);
 
-	/// Stores the given RPC result in m_send_queue
+	/// Stores the given RPC result in m_send_queue.
 	void queueStatus(const cosmos::ExitStatus status);
+
+	/// Handles a SET_THEME command.
+	bool handleSetTheme();
 
 	/// If we need to reply with data then this manages the transmission.
 	void sendData();

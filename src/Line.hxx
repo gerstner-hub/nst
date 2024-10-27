@@ -130,6 +130,7 @@ public: // functions
 	}
 
 	const auto& raw() const { return m_glyphs; }
+	auto &raw() { return m_glyphs; }
 
 	/// Returns the number of characters in this line not counting trailing spaces.
 	int usedLength() const {

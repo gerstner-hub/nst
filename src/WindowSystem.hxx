@@ -115,6 +115,8 @@ public: // functions
 	void ringBell();
 	/// Toggle keyboard numlock state.
 	void toggleNumlock();
+	/// Update state after the global theme has been changed.
+	void themeChanged();
 
 	/// Set the terminal wide blinking state.
 	void setBlinking(const bool blinking) {
@@ -214,6 +216,7 @@ protected: // data
 	bool m_blinking_cursor_style = false;
 	int m_border_pixels = 0;
 	int m_cursor_thickness = 1;
+	bool m_initialized = false;
 
 	xpp::XDisplay &m_display;
 	xpp::GeometrySettingsMask m_geometry_mask;

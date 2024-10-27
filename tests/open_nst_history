@@ -5,5 +5,12 @@
 #
 # this is a pull method that doesn't require adjusting NST's configuration.
 
+NST_MSG=`which nst-msg`
+
+if [ -z "$NST_MSG" ]; then
+	echo "Missing 'nst-msg' in PATH. Cannot continue." 1>&2
+	exit 1
+fi
+
 PID=`xprop | grep _NET_WM_PID | cut -d '=' -f 2 | tr -d ' '`
-exec nst-msg -p $PID -d | gvim -
+exec $NST_MSG -p $PID -d | gvim -

@@ -35,6 +35,7 @@ public: // data
 	TCLAP::SwitchArg get_global_history;
 	TCLAP::SwitchArg test_connection;
 	TCLAP::SwitchArg get_cwds;
+	TCLAP::ValueArg<std::string> set_theme;
 	TCLAP::ValueArg<std::string> instance;
 
 protected: // data
@@ -50,6 +51,7 @@ Cmdline::Cmdline() :
 		get_global_history{"D", "get-global-history", "print (dump) the current history of all available NST terminals to stdout"},
 		test_connection   {"t", "test", "only test the connection to the nst terminal, returns zero on success, non-zero otherwise"},
 		get_cwds          {"",  "cwds", "retrieve the current working directories of all available NST terminals one per line to stdout"},
+		set_theme         {"",  "theme", "change the active theme", false, "", "theme name"},
 		instance          {"p", "pid", "target the NST instance running at the given PID, ignores the NST_IPC_ADDR environment variable", false, "", "process ID", *this} {
 	m_xor_group.add(save_snapshot);
 	m_xor_group.add(get_snapshot);
@@ -57,6 +59,7 @@ Cmdline::Cmdline() :
 	m_xor_group.add(get_global_history);
 	m_xor_group.add(test_connection);
 	m_xor_group.add(get_cwds);
+	m_xor_group.add(set_theme);
 	this->add(m_xor_group);
 }
 
@@ -142,6 +145,8 @@ void IpcClient::doSingleInstanceRequest() {
 			return Message::GET_HISTORY;
 		else if (m_cmdline.test_connection.isSet())
 			return Message::PING;
+		else if (m_cmdline.set_theme.isSet())
+			return Message::SET_THEME;
 		else {
 			throw INT_ERR;
 		}
@@ -149,10 +154,17 @@ void IpcClient::doSingleInstanceRequest() {
 
 	auto connection = connectSingleInstance();
 	connection.send(&request, sizeof(request));
+
+	if (request == Message::SET_THEME) {
+		const auto &theme = m_cmdline.set_theme.getValue();
+		connection.send(theme.c_str(), theme.size() + 1);
+	}
+
 	if (receiveStatus(connection) != cosmos::ExitStatus::SUCCESS) {
 		m_status = RPC_ERR;
 	}
-	receiveData(request, connection);
+
+	receiveData(request, connection, m_status == cosmos::ExitStatus::SUCCESS ? std::cout : std::cerr);
 }
 
 std::string_view IpcClient::activeInstanceAddr() const {

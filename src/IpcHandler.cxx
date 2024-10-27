@@ -34,7 +34,9 @@ void IpcHandler::init() {
 	m_poller.addFD(m_listener.fd(), {cosmos::Poller::MonitorFlag::INPUT});
 }
 
-void IpcHandler::checkEvent(const cosmos::Poller::PollEvent &event) {
+bool IpcHandler::checkEvent(const cosmos::Poller::PollEvent &event) {
+	bool redraw = false;
+
 	if (m_state == State::WAITING) {
 		if (event.fd() == m_listener.fd()) {
 			try {
@@ -46,7 +48,7 @@ void IpcHandler::checkEvent(const cosmos::Poller::PollEvent &event) {
 	} else if (event.fd() == m_connection->fd()) {
 		switch (m_state) {
 			case State::RECEIVING:
-				receiveCommand();
+				redraw = receiveCommand();
 				break;
 			case State::SENDING:
 				sendData();
@@ -57,6 +59,8 @@ void IpcHandler::checkEvent(const cosmos::Poller::PollEvent &event) {
 				break;
 		}
 	}
+
+	return redraw;
 }
 
 void IpcHandler::acceptConnection() {
@@ -75,18 +79,16 @@ void IpcHandler::acceptConnection() {
 	m_state = State::RECEIVING;
 }
 
-void IpcHandler::receiveCommand() {
+bool IpcHandler::receiveCommand() {
 	auto &connection = *m_connection;
 	Message message = Message::INVALID;
 
 	size_t len = 0;
 
 	try {
-		len = connection.receive(&message, sizeof(Message), cosmos::MessageFlags{cosmos::MessageFlag::TRUNCATE});
+		len = receiveData(reinterpret_cast<char*>(&message), sizeof(Message));
 	} catch (const cosmos::ApiError &error) {
-		log_error() << "receive error: " << error.what() << "\n";
-		closeSession();
-		return;
+		return false;
 	}
 
 	if (len != sizeof(Message)) {
@@ -95,14 +97,26 @@ void IpcHandler::receiveCommand() {
 		else
 			log_error() << "too long IPC command, closing session.\n";
 		closeSession();
-		return;
+		return false;
 	}
 
-	processCommand(message);
+	const bool redraw = processCommand(message);
 
 	if (m_state == State::SENDING) {
 		// transitioned to sending, we need to monitor output now
 		m_poller.modFD(connection.fd(), {cosmos::Poller::MonitorFlag::OUTPUT});
+	}
+
+	return redraw;
+}
+
+size_t IpcHandler::receiveData(char *buffer, const size_t max_size) {
+	try {
+		return m_connection->receive(buffer, max_size, cosmos::MessageFlags{cosmos::MessageFlag::TRUNCATE});
+	} catch (const cosmos::ApiError &error) {
+		log_error() << "receive error: " << error.what() << "\n";
+		closeSession();
+		throw;
 	}
 }
 
@@ -131,7 +145,8 @@ std::string IpcHandler::history() const {
 	return ret;
 }
 
-void IpcHandler::processCommand(const Message message) {
+bool IpcHandler::processCommand(const Message message) {
+	bool redraw = false;
 	cosmos::ExitStatus cmd_res = cosmos::ExitStatus::SUCCESS;
 
 	switch (message) {
@@ -158,11 +173,46 @@ void IpcHandler::processCommand(const Message message) {
 			std::memcpy(data.data(), &msg, sizeof(msg));
 			break;
 		}
+		case Message::SET_THEME: {
+			if (handleSetTheme()) {
+				redraw = true;
+			} else {
+				cmd_res = cosmos::ExitStatus::FAILURE;
+			}
+			break;
+		}
 	}
 
 	queueStatus(cmd_res);
 
 	m_state = State::SENDING;
+	return redraw;
+}
+
+bool IpcHandler::handleSetTheme() {
+	std::string theme;
+	theme.resize(128);
+
+	try {
+		const auto len = receiveData(theme.data(), theme.size());
+		if (len == 0 || len > theme.size()) {
+			log_error() << "set_theme request: excess theme name length encountered\n";
+		} else {
+			theme.resize(len);
+			// remove trailing terminator
+			if (theme.back() == '\0')
+				theme.pop_back();
+		}
+	} catch (const cosmos::ApiError&) {
+		return false;
+	}
+
+	if (!m_nst.setTheme(theme)) {
+		m_send_queue.push_back("invalid theme name encountered");
+		return false;
+	}
+
+	return true;
 }
 
 void IpcHandler::queueStatus(cosmos::ExitStatus status) {

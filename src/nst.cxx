@@ -206,7 +206,10 @@ bool Nst::setTheme(const std::string_view name) {
 			config::NORDTHEME, config::MOONFLY, config::CYBERPUNK_NEON,
 			config::DRACULA, config::GRUVBOX}) {
 		if (theme.name == name) {
+			const auto old = m_theme;
 			m_theme = theme;
+			m_wsys.themeChanged();
+			m_term.themeChanged(old, m_theme);
 			return true;
 		}
 	}
@@ -302,7 +305,7 @@ void Nst::mainLoop() {
 			} else if (fd == display.connectionNumber()) {
 				// handled below
 			} else if (ipc_handler) {
-				ipc_handler->checkEvent(event);
+				draw_event = ipc_handler->checkEvent(event);
 			}
 		}
 

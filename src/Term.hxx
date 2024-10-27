@@ -65,6 +65,8 @@ public: // functions
 
 	void init(const Nst &nst);
 
+	void themeChanged(const Theme &old_theme, const Theme &new_theme);
+
 	/// Change the terminal dimensions.
 	/**
 	 * This performs rather complex adjustments to refit the scrolling

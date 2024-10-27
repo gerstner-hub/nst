@@ -62,7 +62,7 @@ void Term::init(const Nst &nst) {
 		m_allow_altscreen = cmdline.use_alt_screen.getValue();
 	}
 
-	auto &theme = nst.theme();
+	const auto theme = nst.theme();
 	m_cursor.setDefaultColors(theme.fg, theme.bg);
 
 	auto &config_file = nst.configFile();
@@ -77,6 +77,68 @@ void Term::init(const Nst &nst) {
 
 	resize(m_wsys.termWin().getTermDim());
 	reset();
+}
+
+void Term::themeChanged(const Theme &old_theme, const Theme &new_theme) {
+	const auto new_max_color = ColorIndex{
+		cosmos::to_integral(ColorIndex::END_256) + static_cast<std::underlying_type<ColorIndex>::type>(new_theme.extended_colors.size())
+	};
+
+	/* since the new theme might have fewer extended colors than the old
+	 * one we need to adjust Glyph colors throughout the screen buffer.
+	 *
+	 * also default colors need to be replaced
+	 *
+	 * if default colors in the old theme match one of the 256 standard
+	 * colors then we won't be able to reliably replace them (it is not
+	 * possible to keep apart default color from the actual color).
+	 */
+
+	auto fixupFgColor = [new_theme, old_theme, new_max_color](const ColorIndex fg) {
+		if (fg > ColorIndex::END_256 && fg == old_theme.fg)
+			return new_theme.fg;
+		else if (fg > ColorIndex::END_256 && fg > new_max_color)
+			return new_theme.fg;
+
+		return fg;
+	};
+	auto fixupBgColor = [new_theme, old_theme, new_max_color](const ColorIndex bg) {
+		if (bg > ColorIndex::END_256 && bg == old_theme.bg)
+			return new_theme.bg;
+		else if (bg > ColorIndex::END_256 && bg > new_max_color)
+			return new_theme.bg;
+
+		return bg;
+	};
+
+	m_cursor.setDefaultColors(new_theme.fg, new_theme.bg);
+	m_cursor.setFgColor(m_cursor.attrs().fg);
+	m_cursor.setBgColor(m_cursor.attrs().bg);
+
+	for (auto &screen: {&m_screen, &m_saved_screen}) {
+
+		{
+			auto cursor = screen->getCachedCursor();
+			cursor.setDefaultColors(new_theme.fg, new_theme.bg);
+			cursor.setFgColor(cursor.attrs().fg);
+			cursor.setBgColor(cursor.attrs().bg);
+			screen->setCachedCursor(cursor);
+		}
+
+		for (auto &line: screen->rawLines()) {
+			// iterate over raw glyph vector, in case there are
+			// hidden (saved) columns existing
+			for (auto &g: line.raw()) {
+				if (g.isDummy())
+					continue;
+
+				g.fg = fixupFgColor(g.fg);
+				g.bg = fixupBgColor(g.bg);
+			}
+		}
+	}
+
+	setAllDirty();
 }
 
 void Term::setupTabs() {

@@ -68,6 +68,8 @@ public: // functions
 		return m_theme;
 	}
 
+	bool setTheme(const std::string_view name);
+
 protected: // functions
 
 	/// this is the main entry point of the Nst application that is also
@@ -80,7 +82,6 @@ protected: // functions
 	/// sets up predefined environment variables for the terminal process
 	void setEnv();
 	void loadConfig();
-	bool setTheme(const std::string_view name);
 	void applyThemeFromCmdline(const std::string_view theme_name);
 	void applyCWDFromCmdline(const std::string& cwd);
 

@@ -182,6 +182,14 @@ void Nst::loadConfig() {
 		}
 	}
 
+	for (size_t i = 0; i < m_theme.extended_colors.size(); i++) {
+		auto extcolor = m_theme.extended_colors[i];
+		if (extcolor.empty()) {
+			m_logger.error() << "missing specification of extended color #" << i << " for this theme\n";
+			throw cosmos::ExitStatus::FAILURE;
+		}
+	}
+
 	for (auto &color_pair: {
 			std::pair<const char*, ColorIndex&>{"default_fg_color", m_theme.fg},
 			                                   {"default_bg_color", m_theme.bg},

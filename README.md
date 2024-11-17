@@ -221,10 +221,19 @@ files locally into your home directory, run `scons terminfo_user`. Otherwise
 the terminfo files are installed into the installation tree and can be
 packaged for system wide installation.
 
-The support for *nst* can be worse in some places than the support for the
-original *st*, if software does not properly use terminfo to identify terminal
-features, but relies on the terminal identification string found in the `$TERM`
-environment variable instead.
+The support for *nst* can be worse than the support for the original *st* in
+some places, if software does not properly use terminfo to identify terminal
+features, but relies on the terminal identification string found in the
+`$TERM` environment variable instead.
+
+Binary Packages
+===============
+
+*nst* - to my knowledge - is currently packaged for the following Linux
+distributions:
+
+- [openSUSE Tumbleweed](https://build.opensuse.org/package/show/openSUSE:Factory/nst)
+- Arch Linux AUR: [shared build](https://aur.archlinux.org/packages/nst), [static build](https://aur.archlinux.org/packages/nst-static)
 
 Hints for Developers
 ====================

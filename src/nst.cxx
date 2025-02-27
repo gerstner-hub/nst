@@ -8,7 +8,7 @@
 #include "cosmos/locale.hxx"
 #include "cosmos/proc/ChildCloner.hxx"
 #include "cosmos/proc/process.hxx"
-#include "cosmos/proc/Signal.hxx"
+#include "cosmos/proc/signal.hxx"
 #include "cosmos/proc/SigSet.hxx"
 #include "cosmos/time/time.hxx"
 #include "cosmos/utils.hxx"
@@ -254,7 +254,7 @@ void Nst::mainLoop() {
 	bool drawing = false;
 	cosmos::MonotonicStopWatch draw_watch;
 	cosmos::MonotonicStopWatch blink_watch{cosmos::MonotonicStopWatch::InitialMark{true}};
-	std::chrono::milliseconds timeout{-1};
+	std::optional<cosmos::IntervalTime> timeout;
 
 	poller.create();
 	waitForWindowMapping();
@@ -286,11 +286,9 @@ void Nst::mainLoop() {
 	while (true) {
 		if (display.hasPendingEvents())
 			// existing events might not set the display FD
-			timeout = std::chrono::milliseconds(0);
+			timeout = cosmos::IntervalTime{0};
 
-		auto events = poller.wait(timeout.count() >= 0 ?
-				std::optional<std::chrono::milliseconds>{timeout} :
-				std::nullopt);
+		auto events = poller.wait(timeout);
 
 		bool draw_event = false;
 		bool timedout = events.empty();
@@ -335,9 +333,11 @@ void Nst::mainLoop() {
 			}
 
 			const auto diff = draw_watch.elapsed();
-			timeout = (config::MAX_LATENCY - diff) / config::MAX_LATENCY * config::MIN_LATENCY;
+			const auto timeout_ms = (config::MAX_LATENCY - diff) / config::MAX_LATENCY * config::MIN_LATENCY;
 
-			if (timeout.count() > 0)
+			timeout = cosmos::IntervalTime{timeout_ms};
+
+			if (timeout_ms.count() > 0)
 				// we have time, try to find idle
 				continue;
 		} else if (!timedout) {
@@ -345,17 +345,18 @@ void Nst::mainLoop() {
 		}
 
 		// idle detected or maxlatency exhausted -> draw
-		timeout = std::chrono::milliseconds(-1);
+		timeout = {};
 
 		if (m_blink_timeout.count() > 0 && (m_wsys.isBlinkingCursorStyle() || m_term.existsBlinkingGlyph())) {
-			timeout = m_blink_timeout - blink_watch.elapsed();
-			if (timeout.count() <= 0) {
-				if (-timeout.count() > m_blink_timeout.count()) // start visible
+			const auto timeout_ms = m_blink_timeout - blink_watch.elapsed();
+			timeout = cosmos::IntervalTime{timeout_ms};
+			if (timeout_ms.count() <= 0) {
+				if (-timeout_ms.count() > m_blink_timeout.count()) // start visible
 					m_wsys.setBlinking(true);
 				m_wsys.switchBlinking();
 				m_term.setDirtyByAttr(Attr::BLINK);
 				blink_watch.mark();
-				timeout = m_blink_timeout;
+				timeout = cosmos::IntervalTime{m_blink_timeout};
 			}
 		}
 
@@ -398,9 +399,9 @@ void Nst::pipeBufferToExternalCommand() {
 		auto &errlog = m_logger.error();
 		errlog << "pipe sub process exited unsuccessfully: ";
 		if (res.exited()) {
-			errlog << "code = " << res.exitStatus() << "\n";
+			errlog << "code = " << *res.status << "\n";
 		} else {
-			errlog << "signal = " << res.termSignal() << "\n";
+			errlog << "signal = " << *res.signal << "\n";
 		}
 	}
 }

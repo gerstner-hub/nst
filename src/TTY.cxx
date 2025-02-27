@@ -374,12 +374,12 @@ void TTY::handleSigChildEvent() {
 		if (!res.exitedSuccessfully()) {
 			cosmos_throw (cosmos::RuntimeError(
 				cosmos::sprintf("child exited with status %d",
-					cosmos::to_integral(res.exitStatus()))));
+					cosmos::to_integral(*res.status))));
 		}
 	} else if (res.signaled()) {
 		cosmos_throw (cosmos::RuntimeError(
 			cosmos::sprintf("child terminated due to signal %d",
-				cosmos::to_integral(res.termSignal().raw()))));
+				cosmos::to_integral(res.signal->raw()))));
 	}
 }
 
